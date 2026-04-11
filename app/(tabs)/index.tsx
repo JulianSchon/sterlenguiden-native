@@ -538,7 +538,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={s.categoryTile}
               activeOpacity={0.8}
-              onPress={() => router.push("/(tabs)/explore" as any)}
+              onPress={() => router.push("/category/lunch" as any)}
             >
               <Utensils size={26} color={colors.gold} />
               <Text style={s.categoryLabel}>Äta idag</Text>
@@ -546,7 +546,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={s.categoryTile}
               activeOpacity={0.8}
-              onPress={() => router.push("/(tabs)/explore" as any)}
+              onPress={() => router.push("/category/boende" as any)}
             >
               <BedDouble size={26} color={colors.gold} />
               <Text style={s.categoryLabel}>Sova inatt</Text>
