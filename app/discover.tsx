@@ -157,6 +157,19 @@ function SwipeCard({
   );
 }
 
+function EmptyCard() {
+  return (
+    <View style={styles.card}>
+      <View style={[styles.cardImage, { backgroundColor: colors.surface }]} />
+      <View style={styles.cardGradient} />
+      <View style={styles.cardContent}>
+        <Text style={styles.cardCategory}>ÖSTERLEN</Text>
+        <Text style={styles.cardName}>Utforska</Text>
+        <Text style={styles.cardDesc}>Svajpa för att utforska fler platser</Text>
+      </View>
+    </View>
+  );
+}
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -237,6 +250,9 @@ export default function DiscoverScreen() {
           </View>
         ) : (
           <>
+            {/* Transition card (rapeseed-style) */}
+            {transitioning && <EmptyCard />}
+
             {/* Top swipeable card */}
             {!transitioning && currentPlace && (
               <SwipeCard
@@ -312,7 +328,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1, borderColor: colors.border,
   },
-
   glowBorder: {
     position: "absolute", inset: 0,
     borderRadius: 28, borderWidth: 3,
