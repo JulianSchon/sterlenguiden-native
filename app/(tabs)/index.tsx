@@ -660,18 +660,20 @@ export default function HomeScreen() {
         statusBarTranslucent
         onRequestClose={() => setStoryGroupIndex(null)}
       >
-        {storyGroupIndex !== null && (
-          <StoryViewer
-            groups={storyGroups}
-            initialGroupIndex={storyGroupIndex}
-            hasPremiumAccess={hasPremiumAccess}
-            onClose={() => setStoryGroupIndex(null)}
-            onPremiumBlocked={() => {
-              setStoryGroupIndex(null);
-              setPremiumModalOpen(true);
-            }}
-          />
-        )}
+        <View style={{ flex: 1, backgroundColor: "#000" }}>
+          {storyGroupIndex !== null && (
+            <StoryViewer
+              groups={storyGroups}
+              initialGroupIndex={storyGroupIndex}
+              hasPremiumAccess={hasPremiumAccess}
+              onClose={() => setStoryGroupIndex(null)}
+              onPremiumBlocked={() => {
+                setStoryGroupIndex(null);
+                setPremiumModalOpen(true);
+              }}
+            />
+          )}
+        </View>
       </Modal>
 
       {/* Premium modal */}
