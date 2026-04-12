@@ -79,21 +79,23 @@ export default function ExploreScreen() {
         )}
       </View>
 
-      <FlatList
-        data={CATEGORIES}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.chips}
-        keyExtractor={(item) => item}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[s.chip, activeCategory === item && s.chipActive]}
-            onPress={() => setActiveCategory(item)}
-          >
-            <Text style={[s.chipText, activeCategory === item && s.chipTextActive]}>{item}</Text>
-          </TouchableOpacity>
-        )}
-      />
+      <View style={s.chipsWrapper}>
+        <FlatList
+          data={CATEGORIES}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.chips}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[s.chip, activeCategory === item && s.chipActive]}
+              onPress={() => setActiveCategory(item)}
+            >
+              <Text style={[s.chipText, activeCategory === item && s.chipTextActive]}>{item}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
 
       {isLoading ? (
         <View style={s.center}><ActivityIndicator size="large" color={colors.gold} /></View>
@@ -132,10 +134,11 @@ const s = StyleSheet.create({
     borderColor: colors.border,
   },
   searchInput: { flex: 1, fontSize: 15, color: colors.foreground },
-  chips: { paddingHorizontal: 16, paddingBottom: 8, gap: 8, alignItems: "center" },
+  chipsWrapper: { flexShrink: 0 },
+  chips: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: "center" },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -168,6 +171,6 @@ const s = StyleSheet.create({
   openBadgeText: { fontSize: 11, fontWeight: "600" },
   openTextOpen: { color: colors.successText },
   openTextClosed: { color: colors.errorText },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 60 },
+  center: { alignItems: "center", justifyContent: "center", paddingTop: 60 },
   emptyText: { color: colors.foregroundSubtle, fontSize: 15 },
 });
