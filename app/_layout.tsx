@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-
+ 
 function AuthGate() {
   const { user, loading } = useAuth();
 
