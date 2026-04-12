@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { Heart, X, Home, MapPin } from "lucide-react-native";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
@@ -157,19 +157,6 @@ function SwipeCard({
   );
 }
 
-function EmptyCard() {
-  return (
-    <View style={styles.card}>
-      <View style={[styles.cardImage, { backgroundColor: colors.surface }]} />
-      <View style={styles.cardGradient} />
-      <View style={styles.cardContent}>
-        <Text style={styles.cardCategory}>ÖSTERLEN</Text>
-        <Text style={styles.cardName}>Utforska</Text>
-        <Text style={styles.cardDesc}>Svajpa för att utforska fler platser</Text>
-      </View>
-    </View>
-  );
-}
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -203,7 +190,6 @@ export default function DiscoverScreen() {
   }, [places, favorites, dismissedIds]);
 
   const currentPlace = buffer[topIndex] ?? null;
-  const nextPlace = buffer[topIndex + 1] ?? null;
 
   const advance = useCallback(() => {
     setTransitioning(true);
@@ -251,24 +237,6 @@ export default function DiscoverScreen() {
           </View>
         ) : (
           <>
-            {/* Next card (behind, scaled down) */}
-            {nextPlace && !transitioning && (
-              <View style={[styles.card, styles.cardBehind]} pointerEvents="none">
-                {getImageUrl(nextPlace) ? (
-                  <Image source={{ uri: getImageUrl(nextPlace) }} style={styles.cardImage} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.cardImage, { backgroundColor: colors.surface }]} />
-                )}
-                <View style={styles.cardGradient} />
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardName} numberOfLines={1}>{nextPlace.name}</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Transition card (rapeseed-style) */}
-            {transitioning && <EmptyCard />}
-
             {/* Top swipeable card */}
             {!transitioning && currentPlace && (
               <SwipeCard
@@ -344,10 +312,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1, borderColor: colors.border,
   },
-  cardBehind: {
-    transform: [{ scale: 0.95 }],
-    zIndex: 10,
-  },
+
   glowBorder: {
     position: "absolute", inset: 0,
     borderRadius: 28, borderWidth: 3,
