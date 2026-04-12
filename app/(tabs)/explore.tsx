@@ -132,7 +132,7 @@ const s = StyleSheet.create({
     borderColor: colors.border,
   },
   searchInput: { flex: 1, fontSize: 15, color: colors.foreground },
-  chips: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
+  chips: { paddingHorizontal: 16, paddingBottom: 8, gap: 8, alignItems: "center" },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -140,6 +140,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
+    alignSelf: "flex-start",
   },
   chipActive: { backgroundColor: colors.gold, borderColor: colors.gold },
   chipText: { fontSize: 13, color: colors.foregroundMuted, fontWeight: "500" },
