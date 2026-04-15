@@ -41,7 +41,7 @@ import { sv } from "date-fns/locale";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const HERO_HEIGHT = 200;
+const HERO_HEIGHT = 230;
 const HERO_IMAGE = heroOsterlen;
 
 
@@ -109,7 +109,7 @@ function StoryCircle({
       </View>
       {group.storyType === "premium" && (
         <View style={s.crownBadge}>
-          <Crown size={9} color="#1a1200" />
+          <Crown size={12} color="#1a1200" />
         </View>
       )}
       <Text style={[s.storyName, isSeen && s.storyNameSeen]} numberOfLines={1}>
@@ -795,18 +795,19 @@ const s = StyleSheet.create({
     letterSpacing: 0.8, paddingHorizontal: 20, marginBottom: 10, marginTop: 16,
   },
   storiesContainer: { paddingHorizontal: 16, gap: 14, paddingVertical: 4 },
-  storyCircleWrapper: { alignItems: "center", width: 78, position: "relative" },
+  storyCircleWrapper: { alignItems: "center", width: 88, position: "relative" },
   storyRing: {
-    width: 68, height: 68, borderRadius: 34,
-    borderWidth: 2.5, padding: 2, overflow: "hidden",
+    width: 76, height: 76, borderRadius: 38,
+    borderWidth: 3, padding: 0, overflow: "hidden",
+    shadowOpacity: 0.6, shadowRadius: 8, elevation: 6,
   },
   storyImage: {
     width: "100%", height: "100%", borderRadius: 100,
     backgroundColor: colors.surface,
   },
   crownBadge: {
-    position: "absolute", bottom: 18, left: 0,
-    width: 20, height: 20, borderRadius: 10,
+    position: "absolute", bottom: 20, left: 0,
+    width: 26, height: 26, borderRadius: 13,
     backgroundColor: colors.gold,
     alignItems: "center", justifyContent: "center",
     borderWidth: 1.5, borderColor: colors.background,
@@ -820,7 +821,7 @@ const s = StyleSheet.create({
   // Category tiles
   categoryRow: {
     flexDirection: "row", gap: 10,
-    paddingHorizontal: 20, marginBottom: 36,
+    paddingHorizontal: 20, marginBottom: 40,
   },
   categoryTile: {
     flex: 1, alignItems: "center", justifyContent: "center",
