@@ -532,7 +532,9 @@ export default function HomeScreen() {
               activeOpacity={0.8}
               onPress={() => router.push("/discover" as any)}
             >
-              <Heart size={26} color={colors.gold} />
+              <View style={s.categoryIconGlow}>
+                <Heart size={26} color={colors.gold} />
+              </View>
               <Text style={s.categoryLabel}>Upptäck</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -540,7 +542,9 @@ export default function HomeScreen() {
               activeOpacity={0.8}
               onPress={() => router.push("/category/lunch" as any)}
             >
-              <Utensils size={26} color={colors.gold} />
+              <View style={s.categoryIconGlow}>
+                <Utensils size={26} color={colors.gold} />
+              </View>
               <Text style={s.categoryLabel}>Äta idag</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -548,7 +552,9 @@ export default function HomeScreen() {
               activeOpacity={0.8}
               onPress={() => router.push("/category/boende" as any)}
             >
-              <BedDouble size={26} color={colors.gold} />
+              <View style={s.categoryIconGlow}>
+                <BedDouble size={26} color={colors.gold} />
+              </View>
               <Text style={s.categoryLabel}>Sova inatt</Text>
             </TouchableOpacity>
           </View>
@@ -818,10 +824,13 @@ const s = StyleSheet.create({
   categoryTile: {
     flex: 1, alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 18,
-    backgroundColor: colors.card,
-    borderRadius: 16, borderWidth: 1, borderColor: colors.border,
   },
-  categoryLabel: { fontSize: 13, fontWeight: "700", color: colors.foreground },
+  categoryIconGlow: {
+    alignItems: "center", justifyContent: "center",
+    shadowColor: colors.gold, shadowOpacity: 0.8, shadowRadius: 10,
+    elevation: 6,
+  },
+  categoryLabel: { fontSize: 13, fontWeight: "700", color: colors.gold },
 
   // Upcoming event
   upcomingCard: {
