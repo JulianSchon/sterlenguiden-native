@@ -14,6 +14,7 @@ import {
   Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import heroOsterlen from "../../assets/hero-osterlen.jpg";
 import { useRouter } from "expo-router";
 import { useState, useMemo, useRef, useCallback } from "react";
 import {
@@ -41,7 +42,7 @@ import { sv } from "date-fns/locale";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const HERO_HEIGHT = 200;
-const HERO_IMAGE = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=600&fit=crop";
+const HERO_IMAGE = heroOsterlen;
 
 
 // Ring colors
@@ -462,7 +463,7 @@ export default function HomeScreen() {
     <View style={s.container}>
       {/* Hero image — fixed behind scroll */}
       <Animated.View style={[s.hero, { transform: [{ translateY: heroTranslate }] }]}>
-        <Image source={{ uri: HERO_IMAGE }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={HERO_IMAGE} style={StyleSheet.absoluteFill} resizeMode="cover" />
         <View style={s.heroOverlay} />
         {/* Hero header */}
         <View style={[s.heroHeader, { paddingTop: insets.top + 12 }]}>
@@ -819,7 +820,7 @@ const s = StyleSheet.create({
   // Category tiles
   categoryRow: {
     flexDirection: "row", gap: 10,
-    paddingHorizontal: 20, marginBottom: 28,
+    paddingHorizontal: 20, marginBottom: 32,
   },
   categoryTile: {
     flex: 1, alignItems: "center", justifyContent: "center",
