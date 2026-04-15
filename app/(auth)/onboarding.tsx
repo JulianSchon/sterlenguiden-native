@@ -4,29 +4,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  ImageBackground,
-  Dimensions,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const { width, height } = Dimensions.get("window");
-
 export default function SplashScreen() {
   return (
-    <ImageBackground
-      source={require("../../assets/onboarding-1.jpg")}
-      style={s.bg}
-      resizeMode="cover"
-    >
+    <View style={s.bg}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-
-      <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-        locations={[0.4, 0.7, 1]}
-        style={StyleSheet.absoluteFill}
-      />
 
       <SafeAreaView style={s.safe}>
         <View style={s.content}>
@@ -41,15 +26,14 @@ export default function SplashScreen() {
           <Text style={s.btnText}>Kom igång  ›</Text>
         </TouchableOpacity>
       </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   bg: {
     flex: 1,
-    width,
-    height,
+    backgroundColor: "#1a1a1a",
   },
   safe: {
     flex: 1,
