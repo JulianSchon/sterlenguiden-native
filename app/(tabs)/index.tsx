@@ -830,7 +830,7 @@ const s = StyleSheet.create({
     shadowColor: colors.gold, shadowOpacity: 0.8, shadowRadius: 10,
     elevation: 6,
   },
-  categoryLabel: { fontSize: 13, fontWeight: "700", color: colors.gold },
+  categoryLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
 
   // Upcoming event
   upcomingCard: {
