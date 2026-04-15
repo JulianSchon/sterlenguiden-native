@@ -8,6 +8,8 @@ import {
   Platform,
   Alert,
   StyleSheet,
+  ImageBackground,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -40,7 +42,14 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={s.container}>
+    <ImageBackground
+      source={require("../../assets/onboarding-1.jpg")}
+      style={s.bg}
+      resizeMode="cover"
+    >
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <View style={[StyleSheet.absoluteFill, s.overlay]} />
+      <SafeAreaView style={s.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={s.inner}
@@ -84,17 +93,20 @@ export default function LoginScreen() {
           </Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  bg: { flex: 1 },
+  overlay: { backgroundColor: "rgba(0,0,0,0.45)" },
+  container: { flex: 1 },
   inner: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
   title: { fontSize: 32, fontWeight: "700", color: colors.foreground, marginBottom: 4 },
   subtitle: { fontSize: 16, color: colors.foregroundMuted, marginBottom: 32 },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: "rgba(0,0,0,0.4)",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
