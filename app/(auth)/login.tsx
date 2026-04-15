@@ -17,7 +17,7 @@ import { router } from "expo-router";
 import { Mail, Lock, Eye, EyeOff, User } from "lucide-react-native";
 import { supabase } from "@/integrations/supabase/client";
 
-const BG_IMAGE = require("@/assets/onboarding-1.jpg");
+const BG_IMAGE = require("../../assets/onboarding-1.jpg");
 const GOLD = "#C9A84C";
 
 export default function LoginScreen() {

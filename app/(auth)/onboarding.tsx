@@ -19,19 +19,19 @@ const { width, height } = Dimensions.get("window");
 const SLIDES = [
   {
     id: "1",
-    image: require("@/assets/onboarding-1.jpg"),
+    image: require("../../assets/onboarding-1.jpg"),
     title: "Österlen",
     subtitle: "Upptäck Skånes pärla",
   },
   {
     id: "2",
-    image: require("@/assets/onboarding-1.jpg"), // replace with onboarding-2.jpg when ready
+    image: require("../../assets/onboarding-1.jpg"), // replace with onboarding-2.jpg when ready
     title: "Platser",
     subtitle: "Hitta dolda pärlor och lokala favoriter",
   },
   {
     id: "3",
-    image: require("@/assets/onboarding-1.jpg"), // replace with onboarding-3.jpg when ready
+    image: require("../../assets/onboarding-1.jpg"), // replace with onboarding-3.jpg when ready
     title: "Upplev",
     subtitle: "Evenemang, mat och natur året runt",
   },
