@@ -1,14 +1,11 @@
-import { useRef, useState } from "react";
 import {
   View,
   Text,
-  FlatList,
-  Dimensions,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
   ImageBackground,
-  ViewToken,
+  Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -16,192 +13,82 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
-const SLIDES = [
-  {
-    id: "1",
-    image: require("../../assets/onboarding-1.jpg"),
-    title: "Österlen",
-    subtitle: "Upptäck Skånes pärla",
-  },
-  {
-    id: "2",
-    image: require("../../assets/onboarding-1.jpg"), // replace with onboarding-2.jpg when ready
-    title: "Platser",
-    subtitle: "Hitta dolda pärlor och lokala favoriter",
-  },
-  {
-    id: "3",
-    image: require("../../assets/onboarding-1.jpg"), // replace with onboarding-3.jpg when ready
-    title: "Upplev",
-    subtitle: "Evenemang, mat och natur året runt",
-  },
-];
-
-export default function OnboardingScreen() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0) {
-        setActiveIndex(viewableItems[0].index ?? 0);
-      }
-    }
-  ).current;
-
-  const goNext = () => {
-    if (activeIndex < SLIDES.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: activeIndex + 1 });
-    } else {
-      router.replace("/(auth)/login");
-    }
-  };
-
-  const skip = () => {
-    router.replace("/(auth)/login");
-  };
-
+export default function SplashScreen() {
   return (
-    <View style={s.container}>
+    <ImageBackground
+      source={require("../../assets/onboarding-1.jpg")}
+      style={s.bg}
+      resizeMode="cover"
+    >
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      <FlatList
-        ref={flatListRef}
-        data={SLIDES}
-        keyExtractor={(item) => item.id}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
-        renderItem={({ item }) => (
-          <ImageBackground source={item.image} style={s.slide} resizeMode="cover">
-            <LinearGradient
-              colors={["transparent", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.75)"]}
-              locations={[0.3, 0.65, 1]}
-              style={s.gradient}
-            />
-            <View style={s.textContainer}>
-              <Text style={s.title}>{item.title}</Text>
-              <Text style={s.subtitle}>{item.subtitle}</Text>
-            </View>
-          </ImageBackground>
-        )}
+      <LinearGradient
+        colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
+        locations={[0.4, 0.7, 1]}
+        style={StyleSheet.absoluteFill}
       />
 
-      {/* Bottom controls */}
-      <SafeAreaView edges={["bottom"]} style={s.controls}>
-        {/* Dots */}
-        <View style={s.dots}>
-          {SLIDES.map((_, i) => (
-            <View key={i} style={[s.dot, i === activeIndex && s.dotActive]} />
-          ))}
+      <SafeAreaView style={s.safe}>
+        <View style={s.content}>
+          <Text style={s.title}>Österlen</Text>
+          <Text style={s.subtitle}>Upptäck Skånes pärla</Text>
         </View>
 
-        {/* Skip & Next */}
-        <View style={s.buttons}>
-          {activeIndex < SLIDES.length - 1 ? (
-            <TouchableOpacity onPress={skip} style={s.skipBtn}>
-              <Text style={s.skipText}>Hoppa över</Text>
-            </TouchableOpacity>
-          ) : (
-            <View />
-          )}
-
-          <TouchableOpacity onPress={goNext} style={s.nextBtn}>
-            <Text style={s.nextText}>
-              {activeIndex === SLIDES.length - 1 ? "Kom igång" : "›"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={s.btn}
+          onPress={() => router.replace("/(auth)/login")}
+        >
+          <Text style={s.btnText}>Kom igång  ›</Text>
+        </TouchableOpacity>
       </SafeAreaView>
-    </View>
+    </ImageBackground>
   );
 }
 
 const s = StyleSheet.create({
-  container: {
+  bg: {
     flex: 1,
-    backgroundColor: "#000",
-  },
-  slide: {
     width,
     height,
+  },
+  safe: {
+    flex: 1,
     justifyContent: "flex-end",
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  textContainer: {
     paddingHorizontal: 32,
-    paddingBottom: 160,
+    paddingBottom: 48,
+  },
+  content: {
     alignItems: "center",
+    marginBottom: 48,
   },
   title: {
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: "300",
-    color: "#FFFFFF",
-    letterSpacing: 2,
-    textAlign: "center",
     fontStyle: "italic",
+    color: "#FFFFFF",
+    letterSpacing: 3,
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: "rgba(255,255,255,0.85)",
-    textAlign: "center",
-    marginTop: 8,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 10,
     letterSpacing: 0.5,
     fontWeight: "300",
+    textAlign: "center",
   },
-  controls: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-  },
-  dots: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 20,
-    gap: 8,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.4)",
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: "#FFFFFF",
-  },
-  buttons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  skipBtn: {
-    padding: 12,
-  },
-  skipText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 14,
-    fontWeight: "300",
-  },
-  nextBtn: {
+  btn: {
     backgroundColor: "rgba(255,255,255,0.15)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: "rgba(255,255,255,0.35)",
     borderRadius: 50,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
+    paddingVertical: 14,
+    alignItems: "center",
   },
-  nextText: {
+  btnText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "300",
+    letterSpacing: 1,
   },
 });
