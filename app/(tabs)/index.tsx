@@ -41,7 +41,7 @@ import { sv } from "date-fns/locale";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const HERO_HEIGHT = 230;
+const HERO_HEIGHT = Math.round(SCREEN_WIDTH * (9 / 16));
 const HERO_IMAGE = heroOsterlen;
 
 
@@ -109,7 +109,7 @@ function StoryCircle({
       </View>
       {group.storyType === "premium" && (
         <View style={s.crownBadge}>
-          <Crown size={12} color="#1a1200" />
+          <Crown size={11} color="#1a1200" />
         </View>
       )}
       <Text style={[s.storyName, isSeen && s.storyNameSeen]} numberOfLines={1}>
@@ -463,7 +463,7 @@ export default function HomeScreen() {
     <View style={s.container}>
       {/* Hero image — fixed behind scroll */}
       <Animated.View style={[s.hero, { transform: [{ translateY: heroTranslate }] }]}>
-        <Image source={HERO_IMAGE} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: HERO_HEIGHT * 2.5 }} resizeMode="cover" />
+        <Image source={HERO_IMAGE} style={StyleSheet.absoluteFill} resizeMode="cover" />
         <View style={s.heroOverlay} />
         {/* Hero header */}
         <View style={[s.heroHeader, { paddingTop: insets.top + 12 }]}>
@@ -795,9 +795,9 @@ const s = StyleSheet.create({
     letterSpacing: 0.8, paddingHorizontal: 20, marginBottom: 10, marginTop: 16,
   },
   storiesContainer: { paddingHorizontal: 16, gap: 14, paddingVertical: 4 },
-  storyCircleWrapper: { alignItems: "center", width: 88, position: "relative" },
+  storyCircleWrapper: { alignItems: "center", width: 84, position: "relative" },
   storyRing: {
-    width: 76, height: 76, borderRadius: 38,
+    width: 72, height: 72, borderRadius: 36,
     borderWidth: 3, padding: 0, overflow: "hidden",
     shadowOpacity: 0.6, shadowRadius: 8, elevation: 6,
   },
@@ -806,8 +806,8 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   crownBadge: {
-    position: "absolute", bottom: 20, left: 0,
-    width: 26, height: 26, borderRadius: 13,
+    position: "absolute", bottom: 18, left: 0,
+    width: 24, height: 24, borderRadius: 12,
     backgroundColor: colors.gold,
     alignItems: "center", justifyContent: "center",
     borderWidth: 1.5, borderColor: colors.background,
