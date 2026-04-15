@@ -7,7 +7,6 @@ import {
   ImageBackground,
   Dimensions,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -22,11 +21,7 @@ export default function SplashScreen() {
     >
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-        locations={[0.4, 0.7, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      <View style={[StyleSheet.absoluteFill, s.overlay]} />
 
       <SafeAreaView style={s.safe}>
         <View style={s.content}>
@@ -90,5 +85,8 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: "300",
     letterSpacing: 1,
+  },
+  overlay: {
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
 });
