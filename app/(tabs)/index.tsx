@@ -40,7 +40,7 @@ import { sv } from "date-fns/locale";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const HERO_HEIGHT = 260;
+const HERO_HEIGHT = 200;
 const HERO_IMAGE = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=600&fit=crop";
 
 
@@ -765,7 +765,7 @@ const s = StyleSheet.create({
   },
 
   // Sections
-  section: { marginBottom: 20 },
+  section: { marginBottom: 28 },
   lastSection: { marginBottom: 0 },
   sectionHeader: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end",
@@ -819,11 +819,11 @@ const s = StyleSheet.create({
   // Category tiles
   categoryRow: {
     flexDirection: "row", gap: 10,
-    paddingHorizontal: 20, marginBottom: 24,
+    paddingHorizontal: 20, marginBottom: 28,
   },
   categoryTile: {
     flex: 1, alignItems: "center", justifyContent: "center",
-    gap: 8, paddingVertical: 18,
+    gap: 8, paddingVertical: 14,
   },
   categoryIconGlow: {
     alignItems: "center", justifyContent: "center",
