@@ -899,12 +899,12 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12,
   },
   feedAvatar: {
-    width: 56, height: 56, borderRadius: 28,
+    width: 44, height: 44, borderRadius: 22,
     borderWidth: 2, overflow: "hidden",
   },
   feedAvatarImg: {
     width: "100%", height: "100%",
-    borderRadius: 28,
+    borderRadius: 22,
     backgroundColor: colors.surface,
   },
   feedPlaceName: { fontSize: 14, fontWeight: "700", color: colors.foreground },
