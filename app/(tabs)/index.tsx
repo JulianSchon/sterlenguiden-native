@@ -463,7 +463,7 @@ export default function HomeScreen() {
     <View style={s.container}>
       {/* Hero image — fixed behind scroll */}
       <Animated.View style={[s.hero, { transform: [{ translateY: heroTranslate }] }]}>
-        <Image source={HERO_IMAGE} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={HERO_IMAGE} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: HERO_HEIGHT * 2.5 }} resizeMode="cover" />
         <View style={s.heroOverlay} />
         {/* Hero header */}
         <View style={[s.heroHeader, { paddingTop: insets.top + 12 }]}>
@@ -820,7 +820,7 @@ const s = StyleSheet.create({
   // Category tiles
   categoryRow: {
     flexDirection: "row", gap: 10,
-    paddingHorizontal: 20, marginBottom: 32,
+    paddingHorizontal: 20, marginBottom: 36,
   },
   categoryTile: {
     flex: 1, alignItems: "center", justifyContent: "center",
