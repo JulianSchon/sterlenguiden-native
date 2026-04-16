@@ -893,20 +893,20 @@ const s = StyleSheet.create({
 
   // Feed post
   feedPost: {
-    paddingHorizontal: 20, paddingBottom: 20,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingHorizontal: 5, paddingBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.06)",
     marginBottom: 20,
   },
   feedHeader: {
     flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12,
   },
   feedAvatar: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 40, height: 40, borderRadius: 20,
     borderWidth: 2, overflow: "hidden",
   },
   feedAvatarImg: {
     width: "100%", height: "100%",
-    borderRadius: 22,
+    borderRadius: 20,
     backgroundColor: colors.surface,
   },
   feedPlaceName: { fontSize: 14, fontWeight: "700", color: colors.foreground },
