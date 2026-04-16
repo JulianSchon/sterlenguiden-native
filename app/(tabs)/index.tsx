@@ -893,7 +893,7 @@ const s = StyleSheet.create({
 
   // Feed post
   feedPost: {
-    paddingLeft: 5, paddingRight: 5, paddingBottom: 20,
+    marginLeft: 5, marginRight: 5, paddingBottom: 20,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.06)",
     marginBottom: 20,
   },
