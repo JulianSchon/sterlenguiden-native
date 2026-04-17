@@ -257,7 +257,7 @@ export default function PlaceDetailScreen() {
               <View style={styles.meta}>
                 {place.nearest_town && (
                   <View style={styles.locationRow}>
-                    <MapPin size={12} color="#A8A192" />
+                    <MapPin size={14} color="rgba(255,255,255,0.70)" />
                     <Text style={styles.locationText}>{place.nearest_town}</Text>
                   </View>
                 )}
@@ -265,8 +265,8 @@ export default function PlaceDetailScreen() {
                   <View style={styles.categoryRow}>
                     <FontAwesome
                       name={getCategoryIcon(place.categories) as any}
-                      size={11}
-                      color="#A8A192"
+                      size={14}
+                      color="rgba(255,255,255,0.60)"
                     />
                     <Text style={styles.categoryText}>{place.categories}</Text>
                   </View>
@@ -281,7 +281,7 @@ export default function PlaceDetailScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.pillsScroll}
-              contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, gap: 8, flexDirection: "row" }}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8, gap: 8, flexDirection: "row" }}
             >
               {pills.map((p) => (
                 <TouchableOpacity key={p.label} style={styles.pill} onPress={p.onPress} activeOpacity={0.75}>
@@ -381,8 +381,8 @@ const styles = StyleSheet.create({
 
   // Header: name on top, then logo+meta row
   headerWrapper: { paddingHorizontal: 16, marginBottom: 18 },
-  name: { fontSize: 21, fontWeight: "800", color: "#F4EFE3", marginBottom: 10 },
-  header: { flexDirection: "row", gap: 12, alignItems: "center" },
+  name: { fontSize: 21, fontWeight: "800", color: "#F4EFE3", marginBottom: 6 },
+  header: { flexDirection: "row", gap: 12, alignItems: "center", marginTop: 6 },
 
   // Logo: 44px outer with 1.5px charcoal border, 39px inner image
   logoOuter: {
@@ -399,19 +399,20 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 9999, backgroundColor: "#2A2A2A",
   },
 
-  meta: { gap: 4, flex: 1 },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  locationText: { fontSize: 13, color: "#A8A192" },
-  categoryRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  categoryText: { fontSize: 13, color: "#A8A192" },
+  meta: { flex: 1 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  locationText: { fontSize: 14, lineHeight: 20, color: "rgba(255,255,255,0.70)" },
+  categoryRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  categoryText: { fontSize: 14, lineHeight: 20, color: "rgba(255,255,255,0.60)" },
 
   // Pills — no horizontal margin so it spans full screen width
   pillsScroll: { marginBottom: 0 },
   divider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.10)",
-    marginHorizontal: 16,
-    marginVertical: 8,
+    height: 2,
+    backgroundColor: "rgba(46,46,46,0.50)",
+    marginHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 0,
   },
   pill: {
     flexDirection: "row",
@@ -427,8 +428,8 @@ const styles = StyleSheet.create({
   },
   pillText: { fontSize: 14, fontWeight: "500", color: "#F4EFE3" },
 
-  section: { marginBottom: 20, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#F4EFE3", marginBottom: 10 },
+  section: { paddingTop: 16, paddingBottom: 32, paddingHorizontal: 24 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#F4EFE3", lineHeight: 28, marginBottom: 12 },
   description: { fontSize: 15, color: "#A8A192", lineHeight: 24 },
 
   hoursRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
