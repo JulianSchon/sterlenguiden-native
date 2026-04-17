@@ -292,6 +292,9 @@ export default function PlaceDetailScreen() {
             </ScrollView>
           )}
 
+          {/* Divider */}
+          <View style={styles.divider} />
+
           {/* Om platsen */}
           {(place.description || place.short_description) && (
             <View style={styles.section}>
@@ -403,7 +406,13 @@ const styles = StyleSheet.create({
   categoryText: { fontSize: 13, color: "#A8A192" },
 
   // Pills — no horizontal margin so it spans full screen width
-  pillsScroll: { marginBottom: 20 },
+  pillsScroll: { marginBottom: 0 },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    marginHorizontal: 16,
+    marginVertical: 8,
+  },
   pill: {
     flexDirection: "row",
     alignItems: "center",
