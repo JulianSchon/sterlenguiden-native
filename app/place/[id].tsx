@@ -27,6 +27,7 @@ import {
   Heart,
 } from "lucide-react-native";
 import { FontAwesome } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
@@ -197,26 +198,32 @@ export default function PlaceDetailScreen() {
 
           {/* Back button — absolutely positioned top-left */}
           <TouchableOpacity
-            style={[styles.overlayBtn, { position: "absolute", top: topBtnTop, left: 16 }]}
+            style={[styles.overlayBtnOuter, { position: "absolute", top: topBtnTop, left: 16 }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <ArrowLeft size={24} color="#fff" />
+            <BlurView intensity={80} tint="dark" style={styles.overlayBtnBlur}>
+              <ArrowLeft size={24} color="#fff" />
+            </BlurView>
           </TouchableOpacity>
 
           {/* Share + Heart — row so marginLeft overlap works */}
           <View style={[styles.topRightRow, { top: topBtnTop }]}>
-            <TouchableOpacity style={styles.overlayBtn} onPress={handleShare} activeOpacity={0.8}>
-              <Upload size={20} color="#fff" />
+            <TouchableOpacity style={styles.overlayBtnOuter} onPress={handleShare} activeOpacity={0.8}>
+              <BlurView intensity={80} tint="dark" style={styles.overlayBtnBlur}>
+                <Upload size={20} color="#fff" />
+              </BlurView>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.overlayBtn, styles.heartOverlap]} onPress={handleHeart} activeOpacity={0.8}>
-              <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                <Heart
-                  size={20}
-                  color={favorited ? "#B83434" : "#fff"}
-                  fill={favorited ? "#B83434" : "transparent"}
-                />
-              </Animated.View>
+            <TouchableOpacity style={[styles.overlayBtnOuter, styles.heartOverlap]} onPress={handleHeart} activeOpacity={0.8}>
+              <BlurView intensity={80} tint="dark" style={styles.overlayBtnBlur}>
+                <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                  <Heart
+                    size={20}
+                    color={favorited ? "#B83434" : "#fff"}
+                    fill={favorited ? "#B83434" : "transparent"}
+                  />
+                </Animated.View>
+              </BlurView>
             </TouchableOpacity>
           </View>
 
@@ -232,15 +239,21 @@ export default function PlaceDetailScreen() {
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Header: logo + name/meta */}
-          <View style={styles.header}>
-            {place.logo_url ? (
-              <Image source={{ uri: place.logo_url }} style={styles.logo} />
-            ) : (
-              <View style={styles.logoPlaceholder} />
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{place.name}</Text>
+          {/* Header: name full-width on top, then logo row below */}
+          <View style={styles.headerWrapper}>
+            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
+              {place.name}
+            </Text>
+            <View style={styles.header}>
+              {/* Logo */}
+              <View style={styles.logoOuter}>
+                {place.logo_url ? (
+                  <Image source={{ uri: place.logo_url }} style={styles.logoImage} />
+                ) : (
+                  <View style={[styles.logoImage, { backgroundColor: "#2A2A2A" }]} />
+                )}
+              </View>
+              {/* Location + Category */}
               <View style={styles.meta}>
                 {place.nearest_town && (
                   <View style={styles.locationRow}>
@@ -324,18 +337,20 @@ const styles = StyleSheet.create({
   heroImage: { width: "100%", height: 350 },
   heroPlaceholder: { backgroundColor: "#1E1E1E" },
 
-  // Overlay circle buttons
-  overlayBtn: {
+  // Overlay circle buttons — outer clips to circle, BlurView fills inside
+  overlayBtnOuter: {
     width: 48,
     height: 48,
     borderRadius: 9999,
-    backgroundColor: "rgba(0,0,0,0.40)",
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.10)",
+  },
+  overlayBtnBlur: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  // Back button is still absolutely positioned on its own
   topRightRow: {
     position: "absolute",
     right: 16,
@@ -360,23 +375,28 @@ const styles = StyleSheet.create({
 
   // Content — no horizontal padding here; pills ScrollView uses its own paddingLeft/Right
   content: { paddingTop: 20 },
-  header: { flexDirection: "row", gap: 12, marginBottom: 18, alignItems: "center", paddingHorizontal: 16 },
 
-  // Plain circular logo
-  logo: {
-    width: 48,
-    height: 48,
+  // Header: name on top, then logo+meta row
+  headerWrapper: { paddingHorizontal: 16, marginBottom: 18 },
+  name: { fontSize: 21, fontWeight: "800", color: "#F4EFE3", marginBottom: 10 },
+  header: { flexDirection: "row", gap: 12, alignItems: "center" },
+
+  // Logo: 44px outer with 1.5px charcoal border, 39px inner image
+  logoOuter: {
+    width: 44,
+    height: 44,
     borderRadius: 9999,
+    borderWidth: 1.5,
+    borderColor: CHARCOAL,
+    overflow: "hidden",
     backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
   },
+  logoImage: { width: "100%", height: "100%" },
   logoPlaceholder: {
-    width: 48, height: 48, borderRadius: 9999, backgroundColor: "#2A2A2A",
+    width: 44, height: 44, borderRadius: 9999, backgroundColor: "#2A2A2A",
   },
 
-  name: { fontSize: 21, fontWeight: "800", color: "#F4EFE3", marginBottom: 5 },
-  meta: { gap: 4 },
+  meta: { gap: 4, flex: 1 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   locationText: { fontSize: 13, color: "#A8A192" },
   categoryRow: { flexDirection: "row", alignItems: "center", gap: 5 },
