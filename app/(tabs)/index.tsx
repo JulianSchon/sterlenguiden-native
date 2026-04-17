@@ -100,7 +100,16 @@ function StoryCircle({
 
   return (
     <TouchableOpacity style={s.storyCircleWrapper} activeOpacity={0.8} onPress={onPress}>
-      <View style={[s.storyRing, { borderColor: ringColor }]}>
+      <View style={[
+        s.storyRing,
+        { borderColor: ringColor },
+        group.storyType === "premium" && {
+          shadowColor: colors.gold,
+          shadowOpacity: 0.9,
+          shadowRadius: 14,
+          elevation: 10,
+        },
+      ]}>
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={s.storyImage} resizeMode="cover" />
         ) : (
