@@ -7,13 +7,15 @@ import {
   Linking,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   MapPin,
+  Navigation,
   Phone,
   Mail,
   Globe,
@@ -80,9 +82,24 @@ function OpeningHoursSection({
   );
 }
 
+function openNavigation(lat?: number | null, lng?: number | null, name?: string) {
+  if (lat && lng) {
+    const url = Platform.select({
+      ios: `maps://?daddr=${lat},${lng}&dirflg=d`,
+      android: `google.navigation:q=${lat},${lng}`,
+    }) ?? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    Linking.openURL(url).catch(() => {
+      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+    });
+  } else if (name) {
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`);
+  }
+}
+
 export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data: place, isLoading, error } = usePlaceDetail(id ?? "");
 
   if (isLoading) {
@@ -108,9 +125,28 @@ export default function PlaceDetailScreen() {
   const open = isPlaceOpen(place.opening_hours as Record<string, string> | null);
   const openingHours = place.opening_hours as Record<string, string> | null;
 
+  // Build action pills
+  type Pill = { label: string; icon: React.ReactNode; onPress: () => void };
+  const pills: Pill[] = [];
+  if (place.website_url)
+    pills.push({ label: "Hemsida", icon: <Globe size={16} color={colors.foreground} />, onPress: () => Linking.openURL(place.website_url!) });
+  if (place.phone)
+    pills.push({ label: "Ring", icon: <Phone size={16} color={colors.foreground} />, onPress: () => Linking.openURL(`tel:${place.phone}`) });
+  if (place.email)
+    pills.push({ label: "E-post", icon: <Mail size={16} color={colors.foreground} />, onPress: () => Linking.openURL(`mailto:${place.email}`) });
+  if (place.instagram_url)
+    pills.push({ label: "Instagram", icon: <ExternalLink size={16} color="#E1306C" />, onPress: () => Linking.openURL(place.instagram_url!) });
+  if (place.facebook_url)
+    pills.push({ label: "Facebook", icon: <ExternalLink size={16} color="#1877F2" />, onPress: () => Linking.openURL(place.facebook_url!) });
+
+  const hasNav = !!(place.lat || place.lng || place.name);
+
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: hasNav ? 90 + insets.bottom : 24 }}
+      >
         {/* Hero image */}
         <View style={styles.heroContainer}>
           {place.image_url ? (
@@ -147,7 +183,7 @@ export default function PlaceDetailScreen() {
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Header */}
+          {/* Header: circle logo + name/meta */}
           <View style={styles.header}>
             {place.logo_url && (
               <Image source={{ uri: place.logo_url }} style={styles.logo} />
@@ -168,68 +204,53 @@ export default function PlaceDetailScreen() {
             </View>
           </View>
 
+          {/* Action pills — horizontal scroll */}
+          {pills.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pillsScroll}
+              contentContainerStyle={styles.pillsContent}
+            >
+              {pills.map((p) => (
+                <TouchableOpacity key={p.label} style={styles.pill} onPress={p.onPress} activeOpacity={0.75}>
+                  {p.icon}
+                  <Text style={styles.pillText}>{p.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
           {/* Description */}
-          {place.description || place.short_description ? (
+          {(place.description || place.short_description) && (
             <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Om platsen</Text>
               <Text style={styles.description}>
                 {place.description ?? place.short_description}
               </Text>
             </View>
-          ) : null}
+          )}
 
-          {/* Contact */}
+          {/* Contact details (phone / email / website as text rows) */}
           {(place.phone || place.email || place.website_url) && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Kontakt</Text>
               {place.phone && (
-                <TouchableOpacity
-                  style={styles.contactRow}
-                  onPress={() => Linking.openURL(`tel:${place.phone}`)}
-                >
-                  <Phone size={18} color={colors.primary} />
+                <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`tel:${place.phone}`)}>
+                  <Phone size={16} color={colors.primary} />
                   <Text style={styles.contactText}>{place.phone}</Text>
                 </TouchableOpacity>
               )}
               {place.email && (
-                <TouchableOpacity
-                  style={styles.contactRow}
-                  onPress={() => Linking.openURL(`mailto:${place.email}`)}
-                >
-                  <Mail size={18} color={colors.primary} />
+                <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`mailto:${place.email}`)}>
+                  <Mail size={16} color={colors.primary} />
                   <Text style={styles.contactText}>{place.email}</Text>
                 </TouchableOpacity>
               )}
               {place.website_url && (
-                <TouchableOpacity
-                  style={styles.contactRow}
-                  onPress={() => Linking.openURL(place.website_url!)}
-                >
-                  <Globe size={18} color={colors.primary} />
+                <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(place.website_url!)}>
+                  <Globe size={16} color={colors.primary} />
                   <Text style={styles.contactText}>{place.website_url}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
-          {/* Social */}
-          {(place.instagram_url || place.facebook_url) && (
-            <View style={styles.socialRow}>
-              {place.instagram_url && (
-                <TouchableOpacity
-                  style={styles.socialButton}
-                  onPress={() => Linking.openURL(place.instagram_url!)}
-                >
-                  <ExternalLink size={20} color="#E1306C" />
-                  <Text style={styles.socialText}>Instagram</Text>
-                </TouchableOpacity>
-              )}
-              {place.facebook_url && (
-                <TouchableOpacity
-                  style={styles.socialButton}
-                  onPress={() => Linking.openURL(place.facebook_url!)}
-                >
-                  <ExternalLink size={20} color="#1877F2" />
-                  <Text style={styles.socialText}>Facebook</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -239,6 +260,20 @@ export default function PlaceDetailScreen() {
           <OpeningHoursSection hours={openingHours} />
         </View>
       </ScrollView>
+
+      {/* Fixed Navigera button */}
+      {hasNav && (
+        <View style={[styles.navBarWrapper, { paddingBottom: insets.bottom + 12 }]}>
+          <TouchableOpacity
+            style={styles.navButton}
+            activeOpacity={0.85}
+            onPress={() => openNavigation(place.lat, place.lng, place.name)}
+          >
+            <Navigation size={20} color="#1a1200" />
+            <Text style={styles.navButtonText}>Navigera</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -275,35 +310,66 @@ const styles = StyleSheet.create({
   openTextOpen: { color: colors.successText },
   openTextClosed: { color: colors.errorText },
   content: { padding: 16 },
-  header: { flexDirection: "row", gap: 12, marginBottom: 16, alignItems: "flex-start" },
-  logo: { width: 56, height: 56, borderRadius: 12, backgroundColor: colors.surface },
+  header: { flexDirection: "row", gap: 12, marginBottom: 16, alignItems: "center" },
+  logo: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surface },
   name: { fontSize: 22, fontWeight: "800", color: colors.foreground, marginBottom: 4 },
   meta: { gap: 4 },
   category: { fontSize: 13, color: colors.foregroundMuted },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   locationText: { fontSize: 13, color: colors.foregroundMuted },
+
+  // Action pills
+  pillsScroll: { marginBottom: 20 },
+  pillsContent: { paddingRight: 16, gap: 8, flexDirection: "row" },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  pillText: { fontSize: 13, fontWeight: "600", color: colors.foreground },
+
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.foreground, marginBottom: 10 },
   description: { fontSize: 15, color: colors.foreground, lineHeight: 24 },
-  contactRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
-  contactText: { fontSize: 15, color: colors.primary, flex: 1 },
-  socialRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
-  socialButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.surface,
-  },
-  socialText: { fontSize: 14, fontWeight: "600", color: colors.foreground },
+  contactRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
+  contactText: { fontSize: 14, color: colors.primary, flex: 1 },
+
   hoursRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
   hoursDay: { fontSize: 14, color: colors.foregroundMuted, width: 100 },
   hoursDayToday: { color: colors.primary, fontWeight: "700" },
   hoursTime: { fontSize: 14, color: colors.foreground },
   hoursTimeToday: { color: colors.primary, fontWeight: "700" },
+
+  // Navigate button
+  navBarWrapper: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  navButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.gold,
+    paddingVertical: 15,
+    borderRadius: 28,
+    shadowColor: colors.gold,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  navButtonText: { fontSize: 16, fontWeight: "700", color: "#1a1200" },
 });
