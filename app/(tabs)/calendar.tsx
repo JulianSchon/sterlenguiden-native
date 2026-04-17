@@ -484,8 +484,9 @@ const s = StyleSheet.create({
   // Month pills
   pillRow: { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   pill: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, width: 64,
-    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, width: 64, height: 44,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    alignItems: "center", justifyContent: "center",
   },
   pillActive: { backgroundColor: colors.gold, borderColor: colors.gold },
   pillText: { fontSize: 13, fontWeight: "600", color: colors.foregroundMuted, textAlign: "center" },
