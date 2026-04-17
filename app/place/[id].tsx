@@ -31,9 +31,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
 
-
 const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
+
+// Category → FontAwesome icon name
+function getCategoryIcon(category: string): string {
+  const cat = category.toLowerCase();
+  if (cat.includes("mat") || cat.includes("dryck") || cat.includes("restaurang") || cat.includes("café") || cat.includes("cafe")) return "cutlery";
+  if (cat.includes("hotell") || cat.includes("b&b") || cat.includes("boende") || cat.includes("sova")) return "bed";
+  if (cat.includes("butik") || cat.includes("shop") || cat.includes("handel")) return "shopping-bag";
+  if (cat.includes("upplevelse") || cat.includes("aktivitet") || cat.includes("sport")) return "star";
+  if (cat.includes("natur") || cat.includes("park") || cat.includes("skog")) return "tree";
+  return "map-marker";
+}
 
 function usePlaceDetail(id: string) {
   return useQuery({
@@ -82,10 +92,9 @@ function openNavigation(lat?: number | null, lng?: number | null, name?: string)
   }
 }
 
-// Animated gold button with press scale
+// Gold CTA button with press scale
 function GoldButton({ label, icon, onPress }: { label: string; icon: React.ReactNode; onPress: () => void }) {
   const scale = useRef(new Animated.Value(1)).current;
-
   const handlePressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, speed: 50 }).start();
   const handlePressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
 
@@ -96,29 +105,12 @@ function GoldButton({ label, icon, onPress }: { label: string; icon: React.React
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={styles.goldButtonOuter}
+        style={styles.goldButton}
       >
-        <View style={styles.goldButtonGradient}>
-          <View style={styles.goldButtonInner}>
-            {icon}
-            <Text style={styles.goldButtonText}>{label}</Text>
-          </View>
-        </View>
+        {icon}
+        <Text style={styles.goldButtonText}>{label}</Text>
       </TouchableOpacity>
     </Animated.View>
-  );
-}
-
-// Logo with gold ring + glow
-function LogoRing({ uri }: { uri: string }) {
-  return (
-    <View style={styles.logoGlow}>
-      <View style={styles.logoRing}>
-        <View style={styles.logoInnerBorder}>
-          <Image source={{ uri }} style={styles.logoImage} />
-        </View>
-      </View>
-    </View>
   );
 }
 
@@ -187,13 +179,15 @@ export default function PlaceDetailScreen() {
     Share.share({ message: `${place.name} — ${place.nearest_town ?? "Österlen"}` });
   };
 
+  const topBtnTop = insets.top + 12;
+
   return (
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
+        contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}
       >
-        {/* Hero image with gradient fade */}
+        {/* Hero image */}
         <View style={styles.heroContainer}>
           {place.image_url ? (
             <Image source={{ uri: place.image_url }} style={styles.heroImage} resizeMode="cover" />
@@ -201,30 +195,38 @@ export default function PlaceDetailScreen() {
             <View style={[styles.heroImage, styles.heroPlaceholder]} />
           )}
 
-          {/* Back button */}
+          {/* Back button — absolutely positioned top-left */}
           <TouchableOpacity
-            style={[styles.circleBtn, { top: 56, left: 16 }]}
+            style={[styles.overlayBtn, { top: topBtnTop, left: 16 }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
             <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
 
-          {/* Share + Heart (top right) */}
-          <View style={[styles.topRightButtons, { top: 56 }]}>
-            <TouchableOpacity style={styles.circleBtn} onPress={handleShare} activeOpacity={0.8}>
-              <Upload size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.circleBtn, styles.heartBtn]} onPress={handleHeart} activeOpacity={0.8}>
-              <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                <Heart
-                  size={20}
-                  color={favorited ? "#B83434" : "#fff"}
-                  fill={favorited ? "#B83434" : "transparent"}
-                />
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
+          {/* Share button — absolutely positioned top-right, left of heart */}
+          <TouchableOpacity
+            style={[styles.overlayBtn, { top: topBtnTop, right: 68 }]}
+            onPress={handleShare}
+            activeOpacity={0.8}
+          >
+            <Upload size={20} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Heart button — absolutely positioned top-right */}
+          <TouchableOpacity
+            style={[styles.overlayBtn, { top: topBtnTop, right: 16 }]}
+            onPress={handleHeart}
+            activeOpacity={0.8}
+          >
+            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+              <Heart
+                size={20}
+                color={favorited ? "#B83434" : "#fff"}
+                fill={favorited ? "#B83434" : "transparent"}
+              />
+            </Animated.View>
+          </TouchableOpacity>
 
           {/* Open/closed badge */}
           {place.opening_hours && (
@@ -238,10 +240,10 @@ export default function PlaceDetailScreen() {
 
         {/* Content */}
         <View style={styles.content}>
-          {/* Header: logo ring + name/meta */}
+          {/* Header: logo + name/meta */}
           <View style={styles.header}>
             {place.logo_url ? (
-              <LogoRing uri={place.logo_url} />
+              <Image source={{ uri: place.logo_url }} style={styles.logo} />
             ) : (
               <View style={styles.logoPlaceholder} />
             )}
@@ -250,12 +252,19 @@ export default function PlaceDetailScreen() {
               <View style={styles.meta}>
                 {place.nearest_town && (
                   <View style={styles.locationRow}>
-                    <MapPin size={13} color="#A8A192" />
+                    <MapPin size={12} color="#A8A192" />
                     <Text style={styles.locationText}>{place.nearest_town}</Text>
                   </View>
                 )}
                 {place.categories && (
-                  <Text style={styles.category}>{place.categories}</Text>
+                  <View style={styles.categoryRow}>
+                    <FontAwesome
+                      name={getCategoryIcon(place.categories) as any}
+                      size={11}
+                      color="#A8A192"
+                    />
+                    <Text style={styles.categoryText}>{place.categories}</Text>
+                  </View>
                 )}
               </View>
             </View>
@@ -320,26 +329,20 @@ const styles = StyleSheet.create({
 
   // Hero
   heroContainer: { position: "relative" },
-  heroImage: { width: "100%", height: 340 },
+  heroImage: { width: "100%", height: 350 },
   heroPlaceholder: { backgroundColor: "#1E1E1E" },
 
-  // Top buttons
-  circleBtn: {
+  // Overlay circle buttons (back, share, heart) — each absolutely positioned
+  overlayBtn: {
     position: "absolute",
-    width: 48, height: 48, borderRadius: 9999,
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
     backgroundColor: "rgba(0,0,0,0.40)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
-    alignItems: "center", justifyContent: "center",
-  },
-  topRightButtons: {
-    position: "absolute",
-    right: 16,
-    flexDirection: "row",
-    gap: 0,
-  },
-  heartBtn: {
-    position: "relative",
-    marginLeft: -12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // Open badge
@@ -354,38 +357,28 @@ const styles = StyleSheet.create({
   openTextClosed: { color: colors.errorText },
 
   // Content
-  content: { paddingHorizontal: 16, paddingTop: 12 },
-  header: { flexDirection: "row", gap: 12, marginBottom: 16, alignItems: "center" },
+  content: { paddingHorizontal: 16, paddingTop: 20 },
+  header: { flexDirection: "row", gap: 12, marginBottom: 18, alignItems: "center" },
 
-  // Logo ring
-  logoGlow: {
-    shadowColor: "rgba(255,215,0,1)",
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
-  },
-  logoRing: {
-    width: 44, height: 44, borderRadius: 9999,
-    padding: 2, alignItems: "center", justifyContent: "center",
-    backgroundColor: GOLD,
-  },
-  logoInnerBorder: {
-    width: 40, height: 40, borderRadius: 9999,
-    borderWidth: 1.5, borderColor: CHARCOAL,
-    overflow: "hidden",
+  // Plain circular logo
+  logo: {
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
     backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
-  logoImage: { width: "100%", height: "100%" },
   logoPlaceholder: {
-    width: 44, height: 44, borderRadius: 9999, backgroundColor: "#2A2A2A",
+    width: 48, height: 48, borderRadius: 9999, backgroundColor: "#2A2A2A",
   },
 
-  name: { fontSize: 22, fontWeight: "800", color: "#F4EFE3", marginBottom: 4 },
-  meta: { gap: 3 },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  name: { fontSize: 21, fontWeight: "800", color: "#F4EFE3", marginBottom: 5 },
+  meta: { gap: 4 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   locationText: { fontSize: 13, color: "#A8A192" },
-  category: { fontSize: 13, color: "#A8A192" },
+  categoryRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  categoryText: { fontSize: 13, color: "#A8A192" },
 
   // Pills
   pillsScroll: { marginBottom: 20 },
@@ -396,6 +389,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
+    minHeight: 44,
     borderRadius: 9999,
     borderWidth: 1,
     borderColor: "rgba(46,46,46,0.5)",
@@ -425,27 +419,19 @@ const styles = StyleSheet.create({
   },
 
   // Gold button
-  goldButtonOuter: {
-    borderRadius: 9999,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 5,
-  },
-  goldButtonGradient: {
-    borderRadius: 9999,
-    overflow: "hidden",
-    backgroundColor: GOLD,
-  },
-  goldButtonInner: {
+  goldButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     paddingVertical: 14,
-    zIndex: 2,
+    borderRadius: 9999,
+    backgroundColor: GOLD,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
   },
   goldButtonText: { fontSize: 16, fontWeight: "600", color: CHARCOAL },
 });
