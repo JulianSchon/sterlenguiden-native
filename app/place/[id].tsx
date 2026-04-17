@@ -197,36 +197,28 @@ export default function PlaceDetailScreen() {
 
           {/* Back button — absolutely positioned top-left */}
           <TouchableOpacity
-            style={[styles.overlayBtn, { top: topBtnTop, left: 16 }]}
+            style={[styles.overlayBtn, { position: "absolute", top: topBtnTop, left: 16 }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
             <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
 
-          {/* Share button — absolutely positioned top-right, left of heart */}
-          <TouchableOpacity
-            style={[styles.overlayBtn, { top: topBtnTop, right: 68 }]}
-            onPress={handleShare}
-            activeOpacity={0.8}
-          >
-            <Upload size={20} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Heart button — absolutely positioned top-right */}
-          <TouchableOpacity
-            style={[styles.overlayBtn, { top: topBtnTop, right: 16 }]}
-            onPress={handleHeart}
-            activeOpacity={0.8}
-          >
-            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-              <Heart
-                size={20}
-                color={favorited ? "#B83434" : "#fff"}
-                fill={favorited ? "#B83434" : "transparent"}
-              />
-            </Animated.View>
-          </TouchableOpacity>
+          {/* Share + Heart — row so marginLeft overlap works */}
+          <View style={[styles.topRightRow, { top: topBtnTop }]}>
+            <TouchableOpacity style={styles.overlayBtn} onPress={handleShare} activeOpacity={0.8}>
+              <Upload size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.overlayBtn, styles.heartOverlap]} onPress={handleHeart} activeOpacity={0.8}>
+              <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                <Heart
+                  size={20}
+                  color={favorited ? "#B83434" : "#fff"}
+                  fill={favorited ? "#B83434" : "transparent"}
+                />
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
 
           {/* Open/closed badge */}
           {place.opening_hours && (
@@ -276,7 +268,7 @@ export default function PlaceDetailScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.pillsScroll}
-              contentContainerStyle={styles.pillsContent}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, gap: 8, flexDirection: "row" }}
             >
               {pills.map((p) => (
                 <TouchableOpacity key={p.label} style={styles.pill} onPress={p.onPress} activeOpacity={0.75}>
@@ -332,9 +324,8 @@ const styles = StyleSheet.create({
   heroImage: { width: "100%", height: 350 },
   heroPlaceholder: { backgroundColor: "#1E1E1E" },
 
-  // Overlay circle buttons (back, share, heart) — each absolutely positioned
+  // Overlay circle buttons
   overlayBtn: {
-    position: "absolute",
     width: 48,
     height: 48,
     borderRadius: 9999,
@@ -343,6 +334,17 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  // Back button is still absolutely positioned on its own
+  topRightRow: {
+    position: "absolute",
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  heartOverlap: {
+    marginLeft: -12,
+    zIndex: 10,
   },
 
   // Open badge
@@ -356,9 +358,9 @@ const styles = StyleSheet.create({
   openTextOpen: { color: colors.successText },
   openTextClosed: { color: colors.errorText },
 
-  // Content
-  content: { paddingHorizontal: 16, paddingTop: 20 },
-  header: { flexDirection: "row", gap: 12, marginBottom: 18, alignItems: "center" },
+  // Content — no horizontal padding here; pills ScrollView uses its own paddingLeft/Right
+  content: { paddingTop: 20 },
+  header: { flexDirection: "row", gap: 12, marginBottom: 18, alignItems: "center", paddingHorizontal: 16 },
 
   // Plain circular logo
   logo: {
@@ -380,9 +382,8 @@ const styles = StyleSheet.create({
   categoryRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   categoryText: { fontSize: 13, color: "#A8A192" },
 
-  // Pills
+  // Pills — no horizontal margin so it spans full screen width
   pillsScroll: { marginBottom: 20 },
-  pillsContent: { paddingRight: 16, gap: 8, flexDirection: "row" },
   pill: {
     flexDirection: "row",
     alignItems: "center",
@@ -397,7 +398,7 @@ const styles = StyleSheet.create({
   },
   pillText: { fontSize: 14, fontWeight: "500", color: "#F4EFE3" },
 
-  section: { marginBottom: 20 },
+  section: { marginBottom: 20, paddingHorizontal: 16 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#F4EFE3", marginBottom: 10 },
   description: { fontSize: 15, color: "#A8A192", lineHeight: 24 },
 
