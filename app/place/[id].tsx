@@ -19,8 +19,8 @@ import {
   Phone,
   Mail,
   Globe,
-  ExternalLink,
 } from "lucide-react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
@@ -129,15 +129,15 @@ export default function PlaceDetailScreen() {
   type Pill = { label: string; icon: React.ReactNode; onPress: () => void };
   const pills: Pill[] = [];
   if (place.website_url)
-    pills.push({ label: "Hemsida", icon: <Globe size={16} color={colors.foreground} />, onPress: () => Linking.openURL(place.website_url!) });
+    pills.push({ label: "Hemsida", icon: <Globe size={16} color={colors.gold} />, onPress: () => Linking.openURL(place.website_url!) });
   if (place.phone)
-    pills.push({ label: "Ring", icon: <Phone size={16} color={colors.foreground} />, onPress: () => Linking.openURL(`tel:${place.phone}`) });
+    pills.push({ label: "Ring", icon: <Phone size={16} color={colors.gold} />, onPress: () => Linking.openURL(`tel:${place.phone}`) });
   if (place.email)
-    pills.push({ label: "E-post", icon: <Mail size={16} color={colors.foreground} />, onPress: () => Linking.openURL(`mailto:${place.email}`) });
+    pills.push({ label: "E-post", icon: <Mail size={16} color={colors.gold} />, onPress: () => Linking.openURL(`mailto:${place.email}`) });
   if (place.instagram_url)
-    pills.push({ label: "Instagram", icon: <ExternalLink size={16} color="#E1306C" />, onPress: () => Linking.openURL(place.instagram_url!) });
+    pills.push({ label: "Instagram", icon: <FontAwesome name="instagram" size={16} color={colors.gold} />, onPress: () => Linking.openURL(place.instagram_url!) });
   if (place.facebook_url)
-    pills.push({ label: "Facebook", icon: <ExternalLink size={16} color="#1877F2" />, onPress: () => Linking.openURL(place.facebook_url!) });
+    pills.push({ label: "Facebook", icon: <FontAwesome name="facebook" size={16} color={colors.gold} />, onPress: () => Linking.openURL(place.facebook_url!) });
 
   const hasNav = !!(place.lat || place.lng || place.name);
 
@@ -231,30 +231,6 @@ export default function PlaceDetailScreen() {
             </View>
           )}
 
-          {/* Contact details (phone / email / website as text rows) */}
-          {(place.phone || place.email || place.website_url) && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Kontakt</Text>
-              {place.phone && (
-                <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`tel:${place.phone}`)}>
-                  <Phone size={16} color={colors.primary} />
-                  <Text style={styles.contactText}>{place.phone}</Text>
-                </TouchableOpacity>
-              )}
-              {place.email && (
-                <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`mailto:${place.email}`)}>
-                  <Mail size={16} color={colors.primary} />
-                  <Text style={styles.contactText}>{place.email}</Text>
-                </TouchableOpacity>
-              )}
-              {place.website_url && (
-                <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(place.website_url!)}>
-                  <Globe size={16} color={colors.primary} />
-                  <Text style={styles.contactText}>{place.website_url}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
 
           {/* Opening hours */}
           <OpeningHoursSection hours={openingHours} />
@@ -311,7 +287,7 @@ const styles = StyleSheet.create({
   openTextClosed: { color: colors.errorText },
   content: { padding: 16 },
   header: { flexDirection: "row", gap: 12, marginBottom: 16, alignItems: "center" },
-  logo: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surface },
+  logo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#ffffff" },
   name: { fontSize: 22, fontWeight: "800", color: colors.foreground, marginBottom: 4 },
   meta: { gap: 4 },
   category: { fontSize: 13, color: colors.foregroundMuted },
@@ -337,8 +313,6 @@ const styles = StyleSheet.create({
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.foreground, marginBottom: 10 },
   description: { fontSize: 15, color: colors.foreground, lineHeight: 24 },
-  contactRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
-  contactText: { fontSize: 14, color: colors.primary, flex: 1 },
 
   hoursRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
   hoursDay: { fontSize: 14, color: colors.foregroundMuted, width: 100 },
