@@ -31,7 +31,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
 
-const { width: W } = Dimensions.get("window");
 
 const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
