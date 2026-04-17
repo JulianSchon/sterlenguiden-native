@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -11,12 +11,10 @@ import {
   Platform,
   Share,
   Animated,
-  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
   MapPin,
@@ -85,21 +83,12 @@ function openNavigation(lat?: number | null, lng?: number | null, name?: string)
   }
 }
 
-// Animated gold gradient button with shimmer sweep
+// Animated gold button with press scale
 function GoldButton({ label, icon, onPress }: { label: string; icon: React.ReactNode; onPress: () => void }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const shimmer = useRef(new Animated.Value(-1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(shimmer, { toValue: 1, duration: 2500, useNativeDriver: true, delay: 600 })
-    ).start();
-  }, []);
 
   const handlePressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, speed: 50 }).start();
   const handlePressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
-
-  const shimmerTranslate = shimmer.interpolate({ inputRange: [-1, 1], outputRange: [-W, W] });
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -110,51 +99,26 @@ function GoldButton({ label, icon, onPress }: { label: string; icon: React.React
         onPressOut={handlePressOut}
         style={styles.goldButtonOuter}
       >
-        <LinearGradient
-          colors={["#C9A24C", "#EFC880", "#C9A24C"]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={styles.goldButtonGradient}
-        >
-          {/* Shimmer overlay */}
-          <Animated.View
-            style={[
-              styles.goldButtonShimmer,
-              { transform: [{ translateX: shimmerTranslate }] },
-            ]}
-            pointerEvents="none"
-          >
-            <LinearGradient
-              colors={["transparent", "rgba(255,255,255,0.22)", "transparent"]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
+        <View style={styles.goldButtonGradient}>
           <View style={styles.goldButtonInner}>
             {icon}
             <Text style={styles.goldButtonText}>{label}</Text>
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
-// Logo with gold gradient ring + glow
+// Logo with gold ring + glow
 function LogoRing({ uri }: { uri: string }) {
   return (
     <View style={styles.logoGlow}>
-      <LinearGradient
-        colors={["#FFD700", "#FFAC1C"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.logoRing}
-      >
+      <View style={styles.logoRing}>
         <View style={styles.logoInnerBorder}>
           <Image source={{ uri }} style={styles.logoImage} />
         </View>
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -237,11 +201,6 @@ export default function PlaceDetailScreen() {
           ) : (
             <View style={[styles.heroImage, styles.heroPlaceholder]} />
           )}
-          <LinearGradient
-            colors={["transparent", CHARCOAL]}
-            style={styles.heroGradient}
-            pointerEvents="none"
-          />
 
           {/* Back button */}
           <TouchableOpacity
@@ -364,9 +323,6 @@ const styles = StyleSheet.create({
   heroContainer: { position: "relative" },
   heroImage: { width: "100%", height: 340 },
   heroPlaceholder: { backgroundColor: "#1E1E1E" },
-  heroGradient: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 160,
-  },
 
   // Top buttons
   circleBtn: {
@@ -413,6 +369,7 @@ const styles = StyleSheet.create({
   logoRing: {
     width: 44, height: 44, borderRadius: 9999,
     padding: 2, alignItems: "center", justifyContent: "center",
+    backgroundColor: GOLD,
   },
   logoInnerBorder: {
     width: 40, height: 40, borderRadius: 9999,
@@ -481,12 +438,7 @@ const styles = StyleSheet.create({
   goldButtonGradient: {
     borderRadius: 9999,
     overflow: "hidden",
-  },
-  goldButtonShimmer: {
-    position: "absolute",
-    top: 0, bottom: 0,
-    width: "60%",
-    zIndex: 1,
+    backgroundColor: GOLD,
   },
   goldButtonInner: {
     flexDirection: "row",
