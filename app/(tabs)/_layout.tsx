@@ -37,7 +37,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: "Utforska",
+          title: "Sök",
           tabBarIcon: ({ color }) => <Search size={24} color={color} />,
         }}
       />
