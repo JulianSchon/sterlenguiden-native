@@ -12,6 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
   MapPin,
@@ -19,6 +20,7 @@ import {
   Phone,
   Mail,
   Globe,
+  Calendar,
 } from "lucide-react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,6 +126,9 @@ export default function PlaceDetailScreen() {
 
   const open = isPlaceOpen(place.opening_hours as Record<string, string> | null);
   const openingHours = place.opening_hours as Record<string, string> | null;
+  const bookUrl = (place as any).book_url as string | null | undefined;
+  const hasBook = !!bookUrl;
+  const hasNav = !!(place.lat || place.lng || place.name);
 
   // Build action pills
   type Pill = { label: string; icon: React.ReactNode; onPress: () => void };
@@ -138,28 +143,35 @@ export default function PlaceDetailScreen() {
     pills.push({ label: "Instagram", icon: <FontAwesome name="instagram" size={16} color={colors.gold} />, onPress: () => Linking.openURL(place.instagram_url!) });
   if (place.facebook_url)
     pills.push({ label: "Facebook", icon: <FontAwesome name="facebook" size={16} color={colors.gold} />, onPress: () => Linking.openURL(place.facebook_url!) });
-
-  const hasNav = !!(place.lat || place.lng || place.name);
+  // When Boka is the primary CTA, add Navigera as a pill too
+  if (hasBook && hasNav)
+    pills.push({ label: "Navigera", icon: <Navigation size={16} color={colors.gold} />, onPress: () => openNavigation(place.lat, place.lng, place.name) });
 
   return (
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: hasNav ? 90 + insets.bottom : 24 }}
+        contentContainerStyle={{ paddingBottom: 90 + insets.bottom }}
       >
-        {/* Hero image */}
+        {/* Hero image with gradient fade */}
         <View style={styles.heroContainer}>
           {place.image_url ? (
-            <Image source={{ uri: place.image_url }} style={styles.heroImage} />
+            <Image source={{ uri: place.image_url }} style={styles.heroImage} resizeMode="cover" />
           ) : (
             <View style={[styles.heroImage, styles.heroPlaceholder]} />
           )}
+          {/* Smooth gradient fade: transparent → app background */}
+          <LinearGradient
+            colors={["transparent", colors.background]}
+            style={styles.heroGradient}
+            pointerEvents="none"
+          />
           {/* Back button */}
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { top: insets.top + 12 }]}
             onPress={() => router.back()}
           >
-            <ArrowLeft size={22} color={colors.card} />
+            <ArrowLeft size={22} color="#fff" />
           </TouchableOpacity>
           {/* Open/closed badge */}
           {place.opening_hours && (
@@ -191,14 +203,15 @@ export default function PlaceDetailScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{place.name}</Text>
               <View style={styles.meta}>
-                {place.categories && (
-                  <Text style={styles.category}>{place.categories}</Text>
-                )}
+                {/* Location FIRST, then category */}
                 {place.nearest_town && (
                   <View style={styles.locationRow}>
                     <MapPin size={13} color={colors.foregroundMuted} />
                     <Text style={styles.locationText}>{place.nearest_town}</Text>
                   </View>
+                )}
+                {place.categories && (
+                  <Text style={styles.category}>{place.categories}</Text>
                 )}
               </View>
             </View>
@@ -231,15 +244,23 @@ export default function PlaceDetailScreen() {
             </View>
           )}
 
-
           {/* Opening hours */}
           <OpeningHoursSection hours={openingHours} />
         </View>
       </ScrollView>
 
-      {/* Fixed Navigera button */}
-      {hasNav && (
-        <View style={[styles.navBarWrapper, { paddingBottom: insets.bottom + 12 }]}>
+      {/* Fixed primary CTA button */}
+      <View style={[styles.navBarWrapper, { paddingBottom: insets.bottom + 12 }]}>
+        {hasBook ? (
+          <TouchableOpacity
+            style={styles.navButton}
+            activeOpacity={0.85}
+            onPress={() => Linking.openURL(bookUrl!)}
+          >
+            <Calendar size={20} color="#1a1200" />
+            <Text style={styles.navButtonText}>Boka</Text>
+          </TouchableOpacity>
+        ) : hasNav ? (
           <TouchableOpacity
             style={styles.navButton}
             activeOpacity={0.85}
@@ -248,8 +269,8 @@ export default function PlaceDetailScreen() {
             <Navigation size={20} color="#1a1200" />
             <Text style={styles.navButtonText}>Navigera</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -258,12 +279,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   errorText: { color: colors.foregroundMuted, fontSize: 16 },
+
+  // Hero
   heroContainer: { position: "relative" },
-  heroImage: { width: "100%", height: 280 },
+  heroImage: { width: "100%", height: 340 },
   heroPlaceholder: { backgroundColor: colors.surface },
+  heroGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+  },
   backButton: {
     position: "absolute",
-    top: 52,
     left: 16,
     width: 40,
     height: 40,
@@ -285,14 +314,16 @@ const styles = StyleSheet.create({
   openBadgeText: { fontSize: 12, fontWeight: "700" },
   openTextOpen: { color: colors.successText },
   openTextClosed: { color: colors.errorText },
+
+  // Content
   content: { padding: 16 },
   header: { flexDirection: "row", gap: 12, marginBottom: 16, alignItems: "center" },
-  logo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#ffffff" },
+  logo: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#ffffff" },
   name: { fontSize: 22, fontWeight: "800", color: colors.foreground, marginBottom: 4 },
-  meta: { gap: 4 },
-  category: { fontSize: 13, color: colors.foregroundMuted },
+  meta: { gap: 3 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   locationText: { fontSize: 13, color: colors.foregroundMuted },
+  category: { fontSize: 13, color: colors.foregroundMuted },
 
   // Action pills
   pillsScroll: { marginBottom: 20 },
@@ -300,19 +331,19 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    gap: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
     borderRadius: 100,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
   },
-  pillText: { fontSize: 13, fontWeight: "600", color: colors.foreground },
+  pillText: { fontSize: 14, fontWeight: "600", color: colors.foreground },
 
   section: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.foreground, marginBottom: 10 },
-  description: { fontSize: 15, color: colors.foreground, lineHeight: 24 },
+  description: { fontSize: 15, color: "#A8A192", lineHeight: 24 },
 
   hoursRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
   hoursDay: { fontSize: 14, color: colors.foregroundMuted, width: 100 },
@@ -320,7 +351,7 @@ const styles = StyleSheet.create({
   hoursTime: { fontSize: 14, color: colors.foreground },
   hoursTimeToday: { color: colors.primary, fontWeight: "700" },
 
-  // Navigate button
+  // CTA button bar
   navBarWrapper: {
     position: "absolute",
     bottom: 0,
@@ -337,13 +368,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: colors.gold,
-    paddingVertical: 15,
+    backgroundColor: "rgba(200, 146, 42, 0.85)",
+    paddingVertical: 17,
     borderRadius: 28,
     shadowColor: colors.gold,
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  navButtonText: { fontSize: 16, fontWeight: "700", color: "#1a1200" },
+  navButtonText: { fontSize: 17, fontWeight: "700", color: "#1a1200" },
 });
