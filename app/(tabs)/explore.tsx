@@ -139,7 +139,7 @@ export default function ExploreScreen() {
     <View style={s.container}>
 
       {/* ── Sticky header: title + search only ── */}
-      <View style={[s.stickyHeader, { paddingTop: insets.top + 44 }]}>
+      <View style={[s.stickyHeader, { paddingTop: insets.top }]}>
         <Text style={s.pageTitle}>Sök</Text>
 
         <View style={s.searchBarWrapper}>
@@ -265,7 +265,6 @@ const s = StyleSheet.create({
   // Sticky header
   stickyHeader: {
     backgroundColor: CHARCOAL,
-    paddingHorizontal: 20,
     paddingBottom: 12,
   },
   pageTitle: {
@@ -274,13 +273,14 @@ const s = StyleSheet.create({
     fontFamily: "serif",
     color: "#F4EFE3",
     marginBottom: 12,
+    paddingHorizontal: 20,
   },
 
   // Search bar
   searchBarWrapper: {
     paddingTop: 4,
     paddingBottom: 12,
-    paddingHorizontal: 12,
+    marginHorizontal: 12,
   },
   searchBar: {
     flexDirection: "row",
@@ -314,8 +314,8 @@ const s = StyleSheet.create({
     paddingBottom: 4,
   },
   pill: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 9999,
     backgroundColor: "#262626",
   },
