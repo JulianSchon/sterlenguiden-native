@@ -1,15 +1,21 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   View, Text, FlatList, Image, TouchableOpacity,
   StyleSheet, ActivityIndicator, ScrollView, Modal,
-  Dimensions, Pressable,
+  Dimensions, Pressable, Animated, Linking,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Flame, CalendarDays, LayoutGrid, ChevronLeft, ChevronRight, X, MapPin } from "lucide-react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Flame, CalendarDays, LayoutGrid, ChevronLeft, ChevronRight, X, MapPin,
+  Globe, Heart, CalendarPlus,
+} from "lucide-react-native";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { usePopularEvents } from "@/hooks/usePopularEvents";
+import { useIsFavorite } from "@/hooks/useFavorites";
 import { colors } from "@/lib/colors";
+import { supabase } from "@/integrations/supabase/client";
 import {
   format, eachDayOfInterval, startOfMonth, endOfMonth,
   addMonths, subMonths, isToday, getDay, parseISO,
@@ -19,6 +25,12 @@ import { sv } from "date-fns/locale";
 type EventTab = "popular" | "calendar" | "month";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.93;
+
+const GOLD = "#C9A24C";
+const CHARCOAL = "#121212";
+const MUTED = "#A8A192";
 
 // ─── Date utils ────────────────────────────────────────────────────────────
 
@@ -45,6 +57,396 @@ function formatDateBadge(date: string | null, endDate?: string | null): { day: s
     month: crossMonth ? `${month}/${endMonth}` : month,
   };
 }
+
+// ─── Event detail hooks ────────────────────────────────────────────────────
+
+type EventDetail = Event & {
+  place?: { name: string; logo_url: string | null; lat: number | null; lng: number | null } | null;
+};
+
+function useEventDetail(id: number | null) {
+  return useQuery({
+    queryKey: ["event", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from("events")
+        .select("*, place:places!events_place_id_fkey(name, logo_url, lat, lng)")
+        .eq("id", id)
+        .single();
+      if (error) throw error;
+      return data as EventDetail;
+    },
+    enabled: !!id,
+  });
+}
+
+function useToggleFavoriteEvent(eventId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: existing } = await supabase
+        .from("favorites").select("id")
+        .eq("user_id", user.id).eq("event_id", eventId).maybeSingle();
+      if (existing) {
+        await supabase.from("favorites").delete().eq("id", existing.id);
+      } else {
+        await supabase.from("favorites").insert({
+          user_id: user.id,
+          event_id: eventId,
+          place_id: null,
+          service_point_id: null,
+        });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["favorites"] }),
+  });
+}
+
+function googleCalendarUrl(event: EventDetail): string {
+  const date = event.date ? format(new Date(event.date), "yyyyMMdd") : "";
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.title,
+    dates: `${date}/${date}`,
+    details: event.description ?? "",
+    location: (event as any).location ?? "Österlen",
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+// ─── Bottom sheet ──────────────────────────────────────────────────────────
+
+function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const [visible, setVisible] = useState(false);
+  const [closeIconWhite, setCloseIconWhite] = useState(false);
+
+  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const closeRotate = useRef(new Animated.Value(0)).current;
+  const closeBgAnim = useRef(new Animated.Value(0)).current;
+  const shimmerX = useRef(new Animated.Value(-200)).current;
+  const calBtnScale = useRef(new Animated.Value(1)).current;
+
+  const { data: event, isLoading } = useEventDetail(eventId);
+  const isFav = useIsFavorite(undefined, eventId ?? 0);
+  const toggleFav = useToggleFavoriteEvent(eventId ?? 0);
+
+  // Open animation when eventId set
+  useEffect(() => {
+    if (eventId !== null) {
+      setVisible(true);
+      setCloseIconWhite(false);
+      translateY.setValue(SHEET_HEIGHT);
+      backdropOpacity.setValue(0);
+      closeRotate.setValue(0);
+      closeBgAnim.setValue(0);
+      shimmerX.setValue(-200);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.spring(translateY, { toValue: 0, damping: 30, stiffness: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [eventId]);
+
+  // Shimmer loop
+  useEffect(() => {
+    if (!visible) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(2000),
+        Animated.timing(shimmerX, { toValue: 400, duration: 700, useNativeDriver: true }),
+        Animated.timing(shimmerX, { toValue: -200, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [visible]);
+
+  const closeSheet = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: SHEET_HEIGHT, damping: 30, stiffness: 300, useNativeDriver: true }),
+    ]).start(() => {
+      setVisible(false);
+      onClose();
+    });
+  }, []);
+
+  const handleClose = () => {
+    setCloseIconWhite(true);
+    Animated.timing(closeRotate, { toValue: 1, duration: 280, useNativeDriver: true }).start();
+    Animated.timing(closeBgAnim, { toValue: 1, duration: 280, useNativeDriver: false }).start();
+    setTimeout(() => {
+      closeRotate.setValue(0);
+      closeBgAnim.setValue(0);
+      setCloseIconWhite(false);
+      closeSheet();
+    }, 280);
+  };
+
+  const handleHeart = () => {
+    Animated.sequence([
+      Animated.timing(heartScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
+      Animated.timing(heartScale, { toValue: 0.95, duration: 70, useNativeDriver: true }),
+      Animated.timing(heartScale, { toValue: 1.08, duration: 60, useNativeDriver: true }),
+      Animated.timing(heartScale, { toValue: 1, duration: 60, useNativeDriver: true }),
+    ]).start();
+    toggleFav.mutate();
+  };
+
+  const closeRotateDeg = closeRotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
+  const closeBgColor = closeBgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#1F1F1F", "rgba(220,38,38,0.7)"],
+  });
+
+  if (!visible) return null;
+
+  const eventDate = event?.date ? new Date(event.date) : null;
+  const location = (event as any)?.location as string | null;
+  const websiteUrl = (event as any)?.website_url as string | null;
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
+      {/* Backdrop */}
+      <Animated.View style={[bs.backdrop, { opacity: backdropOpacity }]}>
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
+      </Animated.View>
+
+      {/* Sheet */}
+      <Animated.View style={[bs.sheet, { transform: [{ translateY }] }]}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 112 }}>
+
+          {/* Hero image with title overlay */}
+          <View style={bs.heroContainer}>
+            {event?.image_url ? (
+              <Image source={{ uri: event.image_url }} style={bs.heroImage} resizeMode="cover" />
+            ) : (
+              <View style={[bs.heroImage, bs.heroPlaceholder]} />
+            )}
+            {event && (
+              <View style={bs.heroOverlay}>
+                <Text style={bs.heroTitle}>{event.title}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Loading */}
+          {isLoading && (
+            <View style={bs.center}>
+              <ActivityIndicator size="large" color={GOLD} />
+            </View>
+          )}
+
+          {event && (
+            <>
+              {/* Website */}
+              {websiteUrl && (
+                <TouchableOpacity style={bs.infoRow} onPress={() => Linking.openURL(websiteUrl)}>
+                  <View style={bs.iconCircle}><Globe size={20} color={GOLD} strokeWidth={2} /></View>
+                  <Text style={bs.infoText} numberOfLines={1}>{websiteUrl.replace(/^https?:\/\//, "")}</Text>
+                  <ChevronRight size={20} color={MUTED} />
+                </TouchableOpacity>
+              )}
+
+              {/* Date */}
+              {eventDate && (
+                <View style={bs.infoRow}>
+                  <View style={bs.iconCircle}><CalendarDays size={20} color={GOLD} strokeWidth={2} /></View>
+                  <Text style={bs.infoText}>
+                    {format(eventDate, "EEEE d MMMM yyyy", { locale: sv })}
+                  </Text>
+                </View>
+              )}
+
+              {/* Location */}
+              {location && (
+                <View style={bs.infoRow}>
+                  <View style={bs.iconCircle}><MapPin size={20} color={GOLD} strokeWidth={2} /></View>
+                  <Text style={bs.infoText}>{location}</Text>
+                </View>
+              )}
+
+              {/* Om evenemanget */}
+              {event.description && (
+                <View style={bs.section}>
+                  <Text style={bs.sectionTitle}>Om evenemanget</Text>
+                  <Text style={bs.sectionBody}>{event.description}</Text>
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+
+        {/* Sticky bottom bar */}
+        <View style={[bs.bottomBar, { paddingBottom: 20 + insets.bottom }]}>
+          {/* Gold calendar button */}
+          <TouchableOpacity
+            activeOpacity={1}
+            style={bs.calBtn}
+            onPressIn={() => Animated.timing(calBtnScale, { toValue: 0.97, duration: 80, useNativeDriver: true }).start()}
+            onPressOut={() => Animated.timing(calBtnScale, { toValue: 1, duration: 80, useNativeDriver: true }).start()}
+            onPress={() => event && Linking.openURL(googleCalendarUrl(event))}
+          >
+            <Animated.View style={[bs.calBtnInner, { transform: [{ scale: calBtnScale }] }]}>
+              <View style={bs.calBtnContent}>
+                <CalendarPlus size={20} color={CHARCOAL} strokeWidth={2} />
+                <Text style={bs.calBtnText}>Lägg till i kalender</Text>
+              </View>
+              <Animated.View style={[bs.shimmer, { transform: [{ translateX: shimmerX }, { skewX: "-20deg" }] }]} />
+            </Animated.View>
+          </TouchableOpacity>
+
+          {/* Heart */}
+          <TouchableOpacity onPress={handleHeart} activeOpacity={1}>
+            <Animated.View style={[bs.iconBtn, { transform: [{ scale: heartScale }] }]}>
+              <Heart
+                size={20}
+                color={isFav ? "#EF4444" : MUTED}
+                fill={isFav ? "#EF4444" : "transparent"}
+                strokeWidth={2}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+
+          {/* Close */}
+          <TouchableOpacity onPress={handleClose} activeOpacity={1}>
+            <Animated.View style={[bs.iconBtn, { backgroundColor: closeBgColor }]}>
+              <Animated.View style={{ transform: [{ rotate: closeRotateDeg }] }}>
+                <X size={20} color={closeIconWhite ? "#FFFFFF" : MUTED} strokeWidth={2} />
+              </Animated.View>
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    </Modal>
+  );
+}
+
+const bs = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.60)",
+  },
+  sheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SHEET_HEIGHT,
+    backgroundColor: CHARCOAL,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderColor: "rgba(46,46,46,0.10)",
+    overflow: "hidden",
+  },
+  heroContainer: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: "hidden",
+  },
+  heroImage: { width: "100%", height: "100%" },
+  heroPlaceholder: { backgroundColor: "#2A2A2A" },
+  heroOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    backgroundColor: "rgba(0,0,0,0.50)",
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    fontFamily: "serif",
+    color: "#F4EFE3",
+  },
+  center: { alignItems: "center", justifyContent: "center", paddingVertical: 40 },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
+    backgroundColor: "rgba(201,162,76,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  infoText: { flex: 1, fontSize: 15, fontWeight: "500", color: "#F4EFE3" },
+  section: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "serif",
+    color: "#F4EFE3",
+    marginBottom: 8,
+  },
+  sectionBody: { fontSize: 14, lineHeight: 14 * 1.625, color: MUTED },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    gap: 12,
+    backgroundColor: CHARCOAL,
+    zIndex: 101,
+  },
+  calBtn: { flex: 1 },
+  calBtnInner: {
+    height: 56,
+    borderRadius: 9999,
+    backgroundColor: GOLD,
+    overflow: "hidden",
+    justifyContent: "center",
+  },
+  calBtnContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  calBtnText: { fontSize: 15, fontWeight: "600", color: CHARCOAL },
+  shimmer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 60,
+    backgroundColor: "rgba(255,255,255,0.24)",
+  },
+  iconBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 9999,
+    backgroundColor: "#1F1F1F",
+    borderWidth: 1,
+    borderColor: "rgba(46,46,46,0.30)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
 
 // ─── Tab bar ───────────────────────────────────────────────────────────────
 
@@ -81,18 +483,13 @@ function BigEventCard({ event, onPress }: { event: Event; onPress: () => void })
         source={{ uri: event.image_url ?? undefined }}
         style={s.bigCardImage}
       />
-      {/* Gradient overlay — simulated with semi-transparent view */}
       <View style={s.bigCardGradient} />
-
-      {/* Date badge top-right */}
       {badge.day ? (
         <View style={s.dateBadge}>
           <Text style={s.dateBadgeMonth}>{badge.month.toUpperCase()}</Text>
           <Text style={s.dateBadgeDay}>{badge.day}</Text>
         </View>
       ) : null}
-
-      {/* Title + location bottom */}
       <View style={s.bigCardBottom}>
         {event.location ? (
           <Text style={s.bigCardLocation}>{event.location.toUpperCase()}</Text>
@@ -138,7 +535,7 @@ function MonthGrid({
   const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
   const d = getDay(startOfMonth(month));
   const startOffset = d === 0 ? 6 : d - 1;
-  const cellSize = (SCREEN_WIDTH - 40 - 6 * 4) / 7; // 40px padding, 6 gaps of 4
+  const cellSize = (SCREEN_WIDTH - 40 - 6 * 4) / 7;
 
   return (
     <View style={s.monthGrid}>
@@ -146,15 +543,11 @@ function MonthGrid({
         {format(month, "MMMM yyyy", { locale: sv }).charAt(0).toUpperCase() +
           format(month, "MMMM yyyy", { locale: sv }).slice(1)}
       </Text>
-
-      {/* Weekday headers */}
       <View style={s.weekdayRow}>
         {WEEKDAYS.map((wd) => (
           <Text key={wd} style={[s.weekdayLabel, { width: cellSize }]}>{wd}</Text>
         ))}
       </View>
-
-      {/* Day cells */}
       <View style={s.daysGrid}>
         {Array.from({ length: startOffset }).map((_, i) => (
           <View key={`empty-${i}`} style={{ width: cellSize, height: cellSize }} />
@@ -273,7 +666,6 @@ function CalendarView({ events, onEventPress }: { events: Event[]; onEventPress:
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-      {/* Navigation */}
       <View style={s.calNavRow}>
         <TouchableOpacity style={s.calNavBtn} onPress={() => setCurrentMonth((m) => subMonths(m, 2))}>
           <ChevronLeft size={20} color={colors.foregroundMuted} />
@@ -325,7 +717,6 @@ function MonthView({ events, onPress }: { events: Event[]; onPress: (id: number)
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Month pills */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -342,7 +733,6 @@ function MonthView({ events, onPress }: { events: Event[]; onPress: (id: number)
         ))}
       </ScrollView>
 
-      {/* Event list */}
       {filtered.length === 0 ? (
         <View style={s.center}><Text style={s.emptyText}>Inga evenemang denna månad</Text></View>
       ) : (
@@ -361,29 +751,26 @@ function MonthView({ events, onPress }: { events: Event[]; onPress: (id: number)
 // ─── Main screen ───────────────────────────────────────────────────────────
 
 export default function CalendarScreen() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<EventTab>("popular");
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const { data: allEvents = [], isLoading } = useEvents();
   const { data: popularEvents = [], isLoading: isLoadingPopular } = usePopularEvents();
 
   const handleEventPress = useCallback((id: number) => {
-    router.push(`/event/${id}` as any);
-  }, [router]);
+    setSelectedEventId(id);
+  }, []);
 
   const loading = activeTab === "popular" ? isLoadingPopular : isLoading;
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
       <View style={s.header}>
         <Text style={s.headerTitle}>Evenemang</Text>
         <Text style={s.headerSub}>Upptäck vad som händer på Österlen</Text>
       </View>
 
-      {/* Tabs */}
       <EventTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Content */}
       {loading ? (
         <View style={s.center}>
           <ActivityIndicator size="large" color={colors.gold} />
@@ -401,6 +788,11 @@ export default function CalendarScreen() {
           )}
         </>
       )}
+
+      <EventBottomSheet
+        eventId={selectedEventId}
+        onClose={() => setSelectedEventId(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -427,7 +819,6 @@ const s = StyleSheet.create({
   bigCardGradient: {
     position: "absolute", bottom: 0, left: 0, right: 0, height: "55%",
     backgroundColor: "rgba(0,0,0,0)",
-    // Simulated gradient — bottom is dark
   },
   dateBadge: {
     position: "absolute", top: 12, right: 12,
@@ -484,9 +875,16 @@ const s = StyleSheet.create({
   // Month pills
   pillRow: { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   pill: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, width: 64, height: 44,
-    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    borderRadius: 20,
+    width: 64,
+    height: 44,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pillActive: { backgroundColor: colors.gold, borderColor: colors.gold },
   pillText: { fontSize: 13, fontWeight: "600", color: colors.foregroundMuted, textAlign: "center" },
