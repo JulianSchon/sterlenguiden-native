@@ -133,8 +133,15 @@ function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClos
   const calBtnScale = useRef(new Animated.Value(1)).current;
 
   const { data: event, isLoading } = useEventDetail(eventId);
-  const isFav = useIsFavorite(undefined, eventId ?? 0);
+  const isFavServer = useIsFavorite(undefined, eventId ?? 0);
+  const [localFav, setLocalFav] = useState<boolean | null>(null);
+  const isFav = localFav !== null ? localFav : isFavServer;
   const toggleFav = useToggleFavoriteEvent(eventId ?? 0);
+
+  // Reset local fav state when eventId changes
+  useEffect(() => {
+    setLocalFav(null);
+  }, [eventId]);
 
   // Open animation when eventId set
   useEffect(() => {
@@ -190,6 +197,7 @@ function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClos
   };
 
   const handleHeart = () => {
+    setLocalFav(!isFav);
     Animated.sequence([
       Animated.timing(heartScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
       Animated.timing(heartScale, { toValue: 0.95, duration: 70, useNativeDriver: true }),
@@ -210,6 +218,10 @@ function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClos
   const eventDate = event?.date ? new Date(event.date) : null;
   const location = (event as any)?.location as string | null;
   const websiteUrl = (event as any)?.website_url as string | null;
+  const logoUrl = event?.place?.logo_url ?? null;
+  const websiteHostname = websiteUrl
+    ? (() => { try { return new URL(websiteUrl).hostname.replace(/^www\./, ""); } catch { return websiteUrl.replace(/^https?:\/\//, "").split("/")[0]; } })()
+    : null;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
@@ -221,7 +233,7 @@ function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClos
 
       {/* Sheet */}
       <Animated.View style={[bs.sheet, { transform: [{ translateY }] }]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 112 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
 
           {/* Hero image with title overlay */}
           <View style={bs.heroContainer}>
@@ -246,11 +258,18 @@ function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClos
 
           {event && (
             <>
+            <View style={{ marginTop: 16 }}>
               {/* Website */}
               {websiteUrl && (
                 <TouchableOpacity style={bs.infoRow} onPress={() => Linking.openURL(websiteUrl)}>
-                  <View style={bs.iconCircle}><Globe size={20} color={GOLD} strokeWidth={2} /></View>
-                  <Text style={bs.infoText} numberOfLines={1}>{websiteUrl.replace(/^https?:\/\//, "")}</Text>
+                  <View style={bs.iconCircle}>
+                    {logoUrl ? (
+                      <Image source={{ uri: logoUrl }} style={bs.iconCircleImage} resizeMode="cover" />
+                    ) : (
+                      <Globe size={20} color={GOLD} strokeWidth={2} />
+                    )}
+                  </View>
+                  <Text style={bs.infoText} numberOfLines={1}>{websiteHostname}</Text>
                   <ChevronRight size={20} color={MUTED} />
                 </TouchableOpacity>
               )}
@@ -272,6 +291,7 @@ function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClos
                   <Text style={bs.infoText}>{location}</Text>
                 </View>
               )}
+            </View>
 
               {/* Om evenemanget */}
               {event.description && (
@@ -282,6 +302,7 @@ function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClos
               )}
             </>
           )}
+
         </ScrollView>
 
         {/* Sticky bottom bar */}
@@ -389,6 +410,12 @@ const bs = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+    overflow: "hidden",
+  },
+  iconCircleImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
   },
   infoText: { flex: 1, fontSize: 15, fontWeight: "500", color: "#F4EFE3" },
   section: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
