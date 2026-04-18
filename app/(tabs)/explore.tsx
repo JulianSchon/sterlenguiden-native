@@ -114,51 +114,61 @@ export default function ExploreScreen() {
     );
   };
 
-  return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+  // Pills row — rendered in both home and results scrollable content
+  const PillsRow = () => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={s.pillsRow}
+      style={s.pillsScroll}
+    >
+      {CATEGORY_PILLS.map((cat) => (
+        <TouchableOpacity
+          key={cat}
+          style={[s.pill, activeCategory === cat && s.pillActive]}
+          onPress={() => {
+            setActiveCategory(cat);
+            if (cat !== "Alla") setQuery(cat);
+            else setQuery("");
+          }}
+        >
+          <Text style={[s.pillText, activeCategory === cat && s.pillTextActive]}>{cat}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
 
-      {/* ─── Sticky header ─── */}
-      <View style={s.stickyHeader}>
+  return (
+    <View style={s.container}>
+
+      {/* ─── Sticky header: title + search bar only ─── */}
+      <View style={[s.stickyHeader, { paddingTop: insets.top + 44 }]}>
         <Text style={s.pageTitle}>Sök</Text>
 
         {/* Search bar */}
-        <View style={s.searchBar}>
-          <Search size={18} color="#A8A192" />
-          <TextInput
-            style={s.searchInput}
-            placeholder="Sök platser, restauranger..."
-            placeholderTextColor="#A8A192"
-            value={query}
-            onChangeText={setQuery}
-            autoCorrect={false}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(""); setActiveCategory("Alla"); }}>
-              <X size={18} color="#A8A192" />
-            </TouchableOpacity>
-          )}
+        <View style={s.searchBarWrapper}>
+          <View style={s.searchBar}>
+            <View style={s.searchIconWrap}>
+              <Search size={20} color="#A8A192" />
+            </View>
+            <TextInput
+              style={s.searchInput}
+              placeholder="Sök platser, restauranger..."
+              placeholderTextColor="#A8A192"
+              value={query}
+              onChangeText={setQuery}
+              autoCorrect={false}
+            />
+            {query.length > 0 && (
+              <TouchableOpacity
+                style={{ paddingRight: 16 }}
+                onPress={() => { setQuery(""); setActiveCategory("Alla"); }}
+              >
+                <X size={18} color="#A8A192" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-
-        {/* Category filter pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.pillsRow}
-        >
-          {CATEGORY_PILLS.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[s.pill, activeCategory === cat && s.pillActive]}
-              onPress={() => {
-                setActiveCategory(cat);
-                if (cat !== "Alla") setQuery(cat);
-                else setQuery("");
-              }}
-            >
-              <Text style={[s.pillText, activeCategory === cat && s.pillTextActive]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
 
       {/* ─── Scrollable body ─── */}
@@ -174,6 +184,7 @@ export default function ExploreScreen() {
             renderItem={renderPlace}
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={<PillsRow />}
             ListEmptyComponent={
               <View style={s.center}>
                 <Text style={s.emptyText}>Inga platser hittades</Text>
@@ -183,6 +194,9 @@ export default function ExploreScreen() {
         )
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.homeContent}>
+
+          {/* Pills row in scrollable content */}
+          <PillsRow />
 
           {/* Quick access circles */}
           <View style={s.quickRow}>
@@ -248,42 +262,54 @@ export default function ExploreScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: CHARCOAL },
 
-  // ─ Sticky header ─
+  // ─ Sticky header: title + search only ─
   stickyHeader: {
     backgroundColor: CHARCOAL,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   pageTitle: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: "700",
+    fontFamily: "serif",
     color: "#F4EFE3",
     marginBottom: 12,
   },
 
-  // Search bar
+  // Search bar wrapper (4px top, 12px bottom, 12px sides)
+  searchBarWrapper: {
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     height: 48,
-    backgroundColor: "rgba(38,38,38,0.8)",
+    backgroundColor: "#1F1F1F",
     borderRadius: 9999,
-    paddingHorizontal: 16,
-    gap: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    marginBottom: 12,
+    borderColor: "rgba(46,46,46,0.5)",
+  },
+  searchIconWrap: {
+    width: 48,
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     color: "#F4EFE3",
+    paddingVertical: 8,
+    paddingRight: 16,
   },
 
-  // Category pills
+  // Category pills — in scrollable content, NOT sticky
+  pillsScroll: {
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
   pillsRow: {
-    paddingBottom: 8,
+    paddingHorizontal: 12,
     gap: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -292,15 +318,12 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 9999,
-    backgroundColor: "rgba(38,38,38,0.8)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "#262626",
   },
   pillActive: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#FFFFFF",
+    backgroundColor: "#F4EFE3",
   },
-  pillText: { fontSize: 13, fontWeight: "500", color: "#F4EFE3" },
+  pillText: { fontSize: 14, fontWeight: "500", color: "#F4EFE3" },
   pillTextActive: { color: CHARCOAL },
 
   // ─ Home content ─
@@ -310,8 +333,9 @@ const s = StyleSheet.create({
   quickRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 20,
+    marginTop: 24,
   },
   quickItem: { alignItems: "center", gap: 8, flex: 1 },
   quickCircle: {
@@ -332,12 +356,13 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: "#A8A192",
     letterSpacing: 1.2,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     marginBottom: 12,
+    marginTop: 24,
   },
 
   // Category grid
-  grid: { paddingHorizontal: 16, gap: 12 },
+  grid: { paddingHorizontal: 12, gap: 12 },
   gridRow: { flexDirection: "row", gap: 12 },
   gridCard: {
     flex: 1,
@@ -364,7 +389,7 @@ const s = StyleSheet.create({
   // ─ Search results ─
   center: { alignItems: "center", justifyContent: "center", paddingTop: 60 },
   emptyText: { color: "#A8A192", fontSize: 15 },
-  list: { paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
+  list: { paddingHorizontal: 12, paddingBottom: 24, gap: 12 },
   card: {
     backgroundColor: "#1E1E1E",
     borderRadius: 14,
