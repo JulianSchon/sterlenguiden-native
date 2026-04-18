@@ -12,44 +12,42 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Search, X, MapPin } from "lucide-react-native";
-import { FontAwesome } from "@expo/vector-icons";
+import {
+  Search, X, MapPin,
+  UtensilsCrossed, BedDouble, Coffee, ShoppingBag, Trees,
+  Zap, Landmark, Palette, Mountain,
+  Store, Toilet, Plug, Heart, Wrench,
+} from "lucide-react-native";
 import { useSearchPlaces, isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
 
 const CHARCOAL = "#121212";
 const GOLD = "#C9A24C";
+const MUTED = "#A8A192";
 
 const CATEGORY_PILLS = [
-  "Alla",
-  "Mat & Dryck",
-  "Hotell & B&B",
-  "Café & Bageri",
-  "Butiker",
-  "Natur & Upplevelser",
-  "Aktiviteter",
-  "Sevärdheter",
-  "Design & Hantverk",
-];
-
-const GRID_CATEGORIES = [
-  { label: "Mat & Dryck",          icon: "cutlery",      fullWidth: false },
-  { label: "Hotell & B&B",         icon: "bed",          fullWidth: false },
-  { label: "Café & Bageri",        icon: "coffee",       fullWidth: false },
-  { label: "Butiker",              icon: "shopping-bag", fullWidth: false },
-  { label: "Natur & Upplevelser",  icon: "tree",         fullWidth: false },
-  { label: "Aktiviteter",          icon: "star",         fullWidth: false },
-  { label: "Sevärdheter",          icon: "camera",       fullWidth: false },
-  { label: "Design & Hantverk",    icon: "paint-brush",  fullWidth: false },
-  { label: "Vandring & Cykelleder",icon: "map-signs",    fullWidth: true  },
+  "Alla", "Mat & Dryck", "Hotell & B&B", "Café & Bageri",
+  "Butiker", "Natur & Upplevelser", "Aktiviteter", "Sevärdheter", "Design & Hantverk",
 ];
 
 const QUICK_ACCESS = [
-  { label: "AutoMat",  icon: "car"        },
-  { label: "Toalett",  icon: "male"       },
-  { label: "Laddning", icon: "bolt"       },
-  { label: "Vård",     icon: "heartbeat"  },
-  { label: "Tjänster", icon: "cog"        },
+  { label: "AutoMat",  Icon: Store  },
+  { label: "Toalett",  Icon: Toilet },
+  { label: "Laddning", Icon: Plug   },
+  { label: "Vård",     Icon: Heart  },
+  { label: "Tjänster", Icon: Wrench },
+];
+
+const GRID_CATEGORIES = [
+  { label: "Mat & Dryck",           Icon: UtensilsCrossed, fullWidth: false },
+  { label: "Hotell & B&B",          Icon: BedDouble,       fullWidth: false },
+  { label: "Café & Bageri",         Icon: Coffee,          fullWidth: false },
+  { label: "Butiker",               Icon: ShoppingBag,     fullWidth: false },
+  { label: "Natur & Upplevelser",   Icon: Trees,           fullWidth: false },
+  { label: "Aktiviteter",           Icon: Zap,             fullWidth: false },
+  { label: "Sevärdheter",           Icon: Landmark,        fullWidth: false },
+  { label: "Design & Hantverk",     Icon: Palette,         fullWidth: false },
+  { label: "Vandring & Cykelleder", Icon: Mountain,        fullWidth: true  },
 ];
 
 export default function ExploreScreen() {
@@ -75,6 +73,29 @@ export default function ExploreScreen() {
     setActiveCategory("Alla");
   };
 
+  const PillsRow = () => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={s.pillsContent}
+      style={s.pillsScroll}
+    >
+      {CATEGORY_PILLS.map((cat) => (
+        <TouchableOpacity
+          key={cat}
+          style={[s.pill, activeCategory === cat && s.pillActive]}
+          onPress={() => {
+            setActiveCategory(cat);
+            if (cat !== "Alla") setQuery(cat);
+            else setQuery("");
+          }}
+        >
+          <Text style={[s.pillText, activeCategory === cat && s.pillTextActive]}>{cat}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
   const renderPlace = ({ item }: { item: Place }) => {
     const open = isPlaceOpen(item.opening_hours as Record<string, string> | null);
     return (
@@ -92,7 +113,7 @@ export default function ExploreScreen() {
           <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
           {item.nearest_town && (
             <View style={s.locationRow}>
-              <MapPin size={12} color={colors.foregroundMuted} />
+              <MapPin size={12} color={MUTED} />
               <Text style={s.locationText}>{item.nearest_town}</Text>
             </View>
           )}
@@ -114,64 +135,39 @@ export default function ExploreScreen() {
     );
   };
 
-  // Pills row — rendered in both home and results scrollable content
-  const PillsRow = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={s.pillsRow}
-      style={s.pillsScroll}
-    >
-      {CATEGORY_PILLS.map((cat) => (
-        <TouchableOpacity
-          key={cat}
-          style={[s.pill, activeCategory === cat && s.pillActive]}
-          onPress={() => {
-            setActiveCategory(cat);
-            if (cat !== "Alla") setQuery(cat);
-            else setQuery("");
-          }}
-        >
-          <Text style={[s.pillText, activeCategory === cat && s.pillTextActive]}>{cat}</Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-
   return (
     <View style={s.container}>
 
-      {/* ─── Sticky header: title + search bar only ─── */}
+      {/* ── Sticky header: title + search only ── */}
       <View style={[s.stickyHeader, { paddingTop: insets.top + 44 }]}>
         <Text style={s.pageTitle}>Sök</Text>
 
-        {/* Search bar */}
         <View style={s.searchBarWrapper}>
           <View style={s.searchBar}>
-            <View style={s.searchIconWrap}>
-              <Search size={20} color="#A8A192" />
+            <View style={s.searchIconSlot}>
+              <Search size={20} color={MUTED} strokeWidth={2} />
             </View>
             <TextInput
               style={s.searchInput}
               placeholder="Sök platser, restauranger..."
-              placeholderTextColor="#A8A192"
+              placeholderTextColor={MUTED}
               value={query}
               onChangeText={setQuery}
               autoCorrect={false}
             />
             {query.length > 0 && (
               <TouchableOpacity
-                style={{ paddingRight: 16 }}
+                style={s.clearBtn}
                 onPress={() => { setQuery(""); setActiveCategory("Alla"); }}
               >
-                <X size={18} color="#A8A192" />
+                <X size={18} color={MUTED} strokeWidth={2} />
               </TouchableOpacity>
             )}
           </View>
         </View>
       </View>
 
-      {/* ─── Scrollable body ─── */}
+      {/* ── Scrollable body ── */}
       {showResults ? (
         isLoading ? (
           <View style={s.center}>
@@ -193,24 +189,24 @@ export default function ExploreScreen() {
           />
         )
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.homeContent}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
 
-          {/* Pills row in scrollable content */}
+          {/* Pills — in scrollable content */}
           <PillsRow />
 
           {/* Quick access circles */}
           <View style={s.quickRow}>
-            {QUICK_ACCESS.map((item) => (
+            {QUICK_ACCESS.map(({ label, Icon }) => (
               <TouchableOpacity
-                key={item.label}
+                key={label}
                 style={s.quickItem}
-                onPress={() => handleQuickAccess(item.label)}
+                onPress={() => handleQuickAccess(label)}
                 activeOpacity={0.75}
               >
                 <View style={s.quickCircle}>
-                  <FontAwesome name={item.icon as any} size={22} color="#A8A192" />
+                  <Icon size={24} color={MUTED} strokeWidth={2} />
                 </View>
-                <Text style={s.quickLabel}>{item.label}</Text>
+                <Text style={s.quickLabel}>{label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -218,38 +214,42 @@ export default function ExploreScreen() {
           {/* KATEGORIER heading */}
           <Text style={s.kategorierHeading}>KATEGORIER</Text>
 
-          {/* Category grid */}
+          {/* 2-col grid */}
           <View style={s.grid}>
-            {GRID_CATEGORIES.filter((c) => !c.fullWidth).reduce<Array<Array<typeof GRID_CATEGORIES[0]>>>((rows, item, i) => {
-              if (i % 2 === 0) rows.push([item]);
-              else rows[rows.length - 1].push(item);
-              return rows;
-            }, []).map((row, ri) => (
-              <View key={ri} style={s.gridRow}>
-                {row.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.label}
-                    style={s.gridCard}
-                    activeOpacity={0.8}
-                    onPress={() => handleCategoryCard(cat.label)}
-                  >
-                    <FontAwesome name={cat.icon as any} size={24} color="rgba(255,255,255,0.35)" style={s.gridIcon} />
-                    <Text style={s.gridCardText}>{cat.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
+            {/* Paired rows */}
+            {GRID_CATEGORIES
+              .filter((c) => !c.fullWidth)
+              .reduce<Array<Array<typeof GRID_CATEGORIES[0]>>>((rows, item, i) => {
+                if (i % 2 === 0) rows.push([item]);
+                else rows[rows.length - 1].push(item);
+                return rows;
+              }, [])
+              .map((row, ri) => (
+                <View key={ri} style={s.gridRow}>
+                  {row.map(({ label, Icon }) => (
+                    <TouchableOpacity
+                      key={label}
+                      style={s.gridCard}
+                      activeOpacity={0.8}
+                      onPress={() => handleCategoryCard(label)}
+                    >
+                      <Icon size={24} color={MUTED} strokeWidth={2} />
+                      <Text style={s.gridCardText}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
 
             {/* Full-width last card */}
-            {GRID_CATEGORIES.filter((c) => c.fullWidth).map((cat) => (
+            {GRID_CATEGORIES.filter((c) => c.fullWidth).map(({ label, Icon }) => (
               <TouchableOpacity
-                key={cat.label}
+                key={label}
                 style={[s.gridCard, s.gridCardFull]}
                 activeOpacity={0.8}
-                onPress={() => handleCategoryCard(cat.label)}
+                onPress={() => handleCategoryCard(label)}
               >
-                <FontAwesome name={cat.icon as any} size={24} color="rgba(255,255,255,0.35)" style={s.gridIcon} />
-                <Text style={s.gridCardText}>{cat.label}</Text>
+                <Icon size={24} color={MUTED} strokeWidth={2} />
+                <Text style={s.gridCardText}>{label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -262,7 +262,7 @@ export default function ExploreScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: CHARCOAL },
 
-  // ─ Sticky header: title + search only ─
+  // Sticky header
   stickyHeader: {
     backgroundColor: CHARCOAL,
     paddingHorizontal: 20,
@@ -276,10 +276,11 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Search bar wrapper (4px top, 12px bottom, 12px sides)
+  // Search bar
   searchBarWrapper: {
     paddingTop: 4,
     paddingBottom: 12,
+    paddingHorizontal: 12,
   },
   searchBar: {
     flexDirection: "row",
@@ -290,7 +291,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(46,46,46,0.5)",
   },
-  searchIconWrap: {
+  searchIconSlot: {
     width: 48,
     alignItems: "center",
     justifyContent: "center",
@@ -300,19 +301,17 @@ const s = StyleSheet.create({
     fontSize: 16,
     color: "#F4EFE3",
     paddingVertical: 8,
-    paddingRight: 16,
   },
+  clearBtn: { paddingHorizontal: 16 },
 
-  // Category pills — in scrollable content, NOT sticky
-  pillsScroll: {
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  pillsRow: {
+  // Pills
+  pillsScroll: { paddingTop: 12, marginBottom: 16 },
+  pillsContent: {
     paddingHorizontal: 12,
     gap: 8,
     flexDirection: "row",
     alignItems: "center",
+    paddingBottom: 4,
   },
   pill: {
     paddingVertical: 8,
@@ -320,75 +319,73 @@ const s = StyleSheet.create({
     borderRadius: 9999,
     backgroundColor: "#262626",
   },
-  pillActive: {
-    backgroundColor: "#F4EFE3",
-  },
+  pillActive: { backgroundColor: "#F4EFE3" },
   pillText: { fontSize: 14, fontWeight: "500", color: "#F4EFE3" },
   pillTextActive: { color: CHARCOAL },
-
-  // ─ Home content ─
-  homeContent: { paddingBottom: 32 },
 
   // Quick access
   quickRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 12,
-    paddingVertical: 20,
-    marginTop: 24,
+    paddingVertical: 8,
+    marginTop: 8,
   },
   quickItem: { alignItems: "center", gap: 8, flex: 1 },
   quickCircle: {
     width: 56,
     height: 56,
     borderRadius: 9999,
-    backgroundColor: "rgba(38,38,38,0.8)",
+    backgroundColor: "#1F1F1F",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(46,46,46,0.6)",
     alignItems: "center",
     justifyContent: "center",
   },
-  quickLabel: { fontSize: 11, color: "#A8A192", fontWeight: "500", textAlign: "center" },
+  quickLabel: { fontSize: 12, color: MUTED, fontWeight: "500", textAlign: "center" },
 
-  // KATEGORIER heading
+  // KATEGORIER
   kategorierHeading: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#A8A192",
-    letterSpacing: 1.2,
+    fontSize: 14,
+    fontWeight: "600",
+    color: MUTED,
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
     paddingHorizontal: 12,
-    marginBottom: 12,
     marginTop: 24,
+    marginBottom: 16,
   },
 
-  // Category grid
+  // Grid
   grid: { paddingHorizontal: 12, gap: 12 },
   gridRow: { flexDirection: "row", gap: 12 },
   gridCard: {
     flex: 1,
-    height: 120,
+    aspectRatio: 4 / 3,
     backgroundColor: "#1E1E1E",
-    borderRadius: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(46,46,46,0.5)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
   },
   gridCardFull: {
     flex: 0,
     width: "100%",
+    aspectRatio: 16 / 5,
   },
-  gridIcon: { opacity: 0.7 },
   gridCardText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#F4EFE3",
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.90)",
     textAlign: "center",
     paddingHorizontal: 8,
   },
 
-  // ─ Search results ─
+  // Results list
   center: { alignItems: "center", justifyContent: "center", paddingTop: 60 },
-  emptyText: { color: "#A8A192", fontSize: 15 },
+  emptyText: { color: MUTED, fontSize: 15 },
   list: { paddingHorizontal: 12, paddingBottom: 24, gap: 12 },
   card: {
     backgroundColor: "#1E1E1E",
@@ -402,8 +399,8 @@ const s = StyleSheet.create({
   cardBody: { padding: 12 },
   cardName: { fontSize: 16, fontWeight: "700", color: "#F4EFE3", marginBottom: 4 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 },
-  locationText: { fontSize: 12, color: "#A8A192" },
-  cardDesc: { fontSize: 13, color: "#A8A192", lineHeight: 18, marginBottom: 8 },
+  locationText: { fontSize: 12, color: MUTED },
+  cardDesc: { fontSize: 13, color: MUTED, lineHeight: 18, marginBottom: 8 },
   cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardCategory: { fontSize: 12, color: "rgba(255,255,255,0.4)", flex: 1 },
   openBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },

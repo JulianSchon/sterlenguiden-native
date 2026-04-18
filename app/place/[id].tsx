@@ -25,6 +25,15 @@ import {
   Calendar,
   Upload,
   Heart,
+  UtensilsCrossed,
+  BedDouble,
+  Coffee,
+  ShoppingBag,
+  Trees,
+  Zap,
+  Landmark,
+  Palette,
+  Mountain,
 } from "lucide-react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -35,15 +44,20 @@ import { colors } from "@/lib/colors";
 const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
 
-// Category → FontAwesome icon name
-function getCategoryIcon(category: string): string {
+// Category → Lucide icon component
+function CategoryIcon({ category, size = 12, color = "#A8A192" }: { category: string; size?: number; color?: string }) {
   const cat = category.toLowerCase();
-  if (cat.includes("mat") || cat.includes("dryck") || cat.includes("restaurang") || cat.includes("café") || cat.includes("cafe")) return "cutlery";
-  if (cat.includes("hotell") || cat.includes("b&b") || cat.includes("boende") || cat.includes("sova")) return "bed";
-  if (cat.includes("butik") || cat.includes("shop") || cat.includes("handel")) return "shopping-bag";
-  if (cat.includes("upplevelse") || cat.includes("aktivitet") || cat.includes("sport")) return "star";
-  if (cat.includes("natur") || cat.includes("park") || cat.includes("skog")) return "tree";
-  return "map-marker";
+  const props = { size, color, strokeWidth: 2 } as const;
+  if (cat.includes("mat") || cat.includes("dryck") || cat.includes("restaurang") || cat.includes("café") || cat.includes("cafe")) return <UtensilsCrossed {...props} />;
+  if (cat.includes("hotell") || cat.includes("b&b") || cat.includes("boende")) return <BedDouble {...props} />;
+  if (cat.includes("café") || cat.includes("cafe") || cat.includes("bageri")) return <Coffee {...props} />;
+  if (cat.includes("butik") || cat.includes("shop") || cat.includes("handel")) return <ShoppingBag {...props} />;
+  if (cat.includes("natur") || cat.includes("skog") || cat.includes("upplevelse")) return <Trees {...props} />;
+  if (cat.includes("aktivitet") || cat.includes("sport")) return <Zap {...props} />;
+  if (cat.includes("sevärdhet")) return <Landmark {...props} />;
+  if (cat.includes("design") || cat.includes("hantverk")) return <Palette {...props} />;
+  if (cat.includes("vandring") || cat.includes("cykel")) return <Mountain {...props} />;
+  return <MapPin {...props} />;
 }
 
 function usePlaceDetail(id: string) {
@@ -263,11 +277,7 @@ export default function PlaceDetailScreen() {
                 )}
                 {place.categories && (
                   <View style={styles.categoryRow}>
-                    <FontAwesome
-                      name={getCategoryIcon(place.categories) as any}
-                      size={14}
-                      color="rgba(255,255,255,0.60)"
-                    />
+                    <CategoryIcon category={place.categories} size={14} color="rgba(255,255,255,0.60)" />
                     <Text style={styles.categoryText}>{place.categories}</Text>
                   </View>
                 )}
