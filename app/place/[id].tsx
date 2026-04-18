@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -107,11 +107,26 @@ function openNavigation(lat?: number | null, lng?: number | null, name?: string)
   }
 }
 
-// Gold CTA button with press scale
+// Gold CTA button with press scale + shimmer
 function GoldButton({ label, icon, onPress }: { label: string; icon: React.ReactNode; onPress: () => void }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const shimmerX = useRef(new Animated.Value(-200)).current;
+
   const handlePressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, speed: 50 }).start();
   const handlePressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
+
+  useEffect(() => {
+    shimmerX.setValue(-200);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(2000),
+        Animated.timing(shimmerX, { toValue: 500, duration: 700, useNativeDriver: true }),
+        Animated.timing(shimmerX, { toValue: -200, duration: 0, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -124,6 +139,9 @@ function GoldButton({ label, icon, onPress }: { label: string; icon: React.React
       >
         {icon}
         <Text style={styles.goldButtonText}>{label}</Text>
+        <Animated.View
+          style={[styles.goldButtonShimmer, { transform: [{ translateX: shimmerX }, { skewX: "-20deg" }] }]}
+        />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -468,6 +486,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 9999,
     backgroundColor: GOLD,
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -475,4 +494,11 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   goldButtonText: { fontSize: 16, fontWeight: "600", color: CHARCOAL },
+  goldButtonShimmer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 60,
+    backgroundColor: "rgba(255,255,255,0.24)",
+  },
 });
