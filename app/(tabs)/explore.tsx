@@ -265,7 +265,7 @@ const s = StyleSheet.create({
   // Sticky header
   stickyHeader: {
     backgroundColor: CHARCOAL,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   pageTitle: {
     fontSize: 32,
@@ -279,7 +279,7 @@ const s = StyleSheet.create({
   // Search bar
   searchBarWrapper: {
     paddingTop: 4,
-    paddingBottom: 12,
+    paddingBottom: 0,
     marginHorizontal: 12,
   },
   searchBar: {
