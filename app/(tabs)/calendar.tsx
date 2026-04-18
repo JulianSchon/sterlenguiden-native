@@ -482,7 +482,7 @@ const s = StyleSheet.create({
   popupCardLocationText: { fontSize: 11, color: "rgba(255,255,255,0.7)" },
 
   // Month pills
-  pillRow: { paddingHorizontal: 20, paddingVertical: 12, gap: 8, alignItems: "center" },
+  pillRow: { paddingHorizontal: 20, paddingVertical: 12, gap: 8 },
   pill: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, width: 64, height: 44,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
