@@ -305,7 +305,7 @@ const s = StyleSheet.create({
   clearBtn: { paddingHorizontal: 16 },
 
   // Pills
-  pillsScroll: { paddingTop: 4, marginBottom: 16 },
+  pillsScroll: { paddingTop: 12, marginBottom: 16 },
   pillsContent: {
     paddingHorizontal: 12,
     gap: 8,
