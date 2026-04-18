@@ -304,7 +304,7 @@ function CalendarView({ events, onEventPress }: { events: Event[]; onEventPress:
 // ─── Månad tab ─────────────────────────────────────────────────────────────
 
 const MONTHS = [
-  "Jan", "Feb", "Mars", "Apr", "Maj", "Juni",
+  "Jan", "Feb", "Mar", "Apr", "Maj", "Juni",
   "Juli", "Aug", "Sep", "Okt", "Nov", "Dec",
 ];
 
