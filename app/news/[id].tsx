@@ -15,6 +15,62 @@ const { width: W } = Dimensions.get("window");
 const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
 
+// Regex som matchar:
+// - Markdown: ![alt](https://...jpg)
+// - Bara en bild-URL på en rad: https://...jpg
+const IMG_MD   = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
+const IMG_URL  = /^(https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|avif))$/i;
+
+/**
+ * Delar upp body-texten i segment: { type: "text" | "image", content: string }
+ * Hanterar markdown-bildlänkar (![](url)) och rena bild-URLer på egna rader.
+ */
+function parseBody(text: string): Array<{ type: "text" | "image"; content: string; alt?: string }> {
+  const segments: Array<{ type: "text" | "image"; content: string; alt?: string }> = [];
+
+  // Ersätt markdown-bilder med en platshållare och spara mappning
+  const imageMap: Record<string, { url: string; alt: string }> = {};
+  let idx = 0;
+  const withPlaceholders = text.replace(IMG_MD, (_full, alt, url) => {
+    const key = `__IMG_${idx++}__`;
+    imageMap[key] = { url, alt };
+    return key;
+  });
+
+  // Gå igenom rad för rad
+  const lines = withPlaceholders.split("\n");
+  let textBuffer = "";
+
+  const flushText = () => {
+    const trimmed = textBuffer.trimEnd();
+    if (trimmed) segments.push({ type: "text", content: trimmed });
+    textBuffer = "";
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Platshållare för markdown-bild
+    const mdKey = Object.keys(imageMap).find((k) => trimmed === k);
+    if (mdKey) {
+      flushText();
+      segments.push({ type: "image", content: imageMap[mdKey].url, alt: imageMap[mdKey].alt });
+      continue;
+    }
+
+    // Ren bild-URL på en rad
+    if (IMG_URL.test(trimmed)) {
+      flushText();
+      segments.push({ type: "image", content: trimmed });
+      continue;
+    }
+
+    textBuffer += line + "\n";
+  }
+  flushText();
+  return segments;
+}
+
 export default function NewsDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -81,10 +137,21 @@ export default function NewsDetailScreen() {
               <Text style={s.ingress}>{item.ingress}</Text>
             ) : null}
 
-            {/* Body */}
-            {item.body ? (
-              <Text style={s.body}>{item.body}</Text>
-            ) : null}
+            {/* Body – renderar inbakade bilder */}
+            {item.body
+              ? parseBody(item.body).map((seg, i) =>
+                  seg.type === "image" ? (
+                    <Image
+                      key={i}
+                      source={{ uri: seg.content }}
+                      style={s.inlineImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text key={i} style={s.body}>{seg.content}</Text>
+                  )
+                )
+              : null}
 
             {/* Galleri-bilder */}
             {galleryImages.map((uri, i) => (
@@ -183,6 +250,10 @@ const s = StyleSheet.create({
     fontSize: 15, color: colors.foregroundMuted,
     lineHeight: 24, marginBottom: 20,
     fontFamily: "Inter_400Regular",
+  },
+  inlineImage: {
+    width: "100%", aspectRatio: 4 / 3,
+    borderRadius: 12, marginBottom: 16, marginTop: 4,
   },
   galleryImage: {
     width: "100%", aspectRatio: 4 / 3,
