@@ -103,42 +103,39 @@ export function NavMap({ active }: IconProps) {
 }
 
 // ─── NavCalendar ──────────────────────────────────────────────────────────────
-// Kalender. Kropp: 22×15 (nästan kvadrat). Krokar: r=2, närmre mitten.
-// Aktiv: fylld guld, vita ringar+linje+prickar. Inaktiv: outline.
+// Exakt portering av användarens SVG (viewBox 0 0 24 24, skalad till 26×26).
+// Aktiv: fylld guld, hooks+dots i bakgrundsfärg (#121212).
+// Inaktiv: stroke-only, ingen fill.
 export function NavCalendar({ active }: IconProps) {
-  // Krokar centrerade vid cx=9.5 och cx=16.5 (inte för brett isär)
-  // r=2 → lagom liten bump, ej "ögon"
-  // Kropp: y=8.5 h=15 → ej avlång
+  const CUT = "#121212"; // appens bakgrundsfärg – skapar "utskärning" i guldfyllet
   return (
-    <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
+    // Ursprungs-viewBox 24×24, renderas i 26×26 → automatisk skalning
+    <Svg width={SIZE} height={SIZE} viewBox="0 0 24 24">
       {active ? (
         <>
-          {/* Kropp */}
-          <Rect x={2} y={8.5} width={22} height={15} rx={3} fill={GOLD} />
-          {/* Header-linje */}
-          <Line x1={2} y1={14} x2={24} y2={14} stroke={WHITE} strokeWidth={1} />
-          {/* Cirkelkrokar – mindre och närmre varandra */}
-          <Circle cx={9.5}  cy={7} r={2} fill={GOLD} />
-          <Circle cx={9.5}  cy={7} r={0.9} fill={WHITE} />
-          <Circle cx={16.5} cy={7} r={2} fill={GOLD} />
-          <Circle cx={16.5} cy={7} r={0.9} fill={WHITE} />
-          {/* Datumprickar 2×3 */}
-          <Circle cx={7.5}  cy={17.5} r={1.3} fill={WHITE} />
-          <Circle cx={13}   cy={17.5} r={1.3} fill={WHITE} />
-          <Circle cx={18.5} cy={17.5} r={1.3} fill={WHITE} />
-          <Circle cx={7.5}  cy={21}   r={1.3} fill={WHITE} />
-          <Circle cx={13}   cy={21}   r={1.3} fill={WHITE} />
-          <Circle cx={18.5} cy={21}   r={1.3} fill={WHITE} />
+          {/* Fylld kropp */}
+          <Rect x={3} y={4} width={18} height={18} rx={2} fill={GOLD} stroke={GOLD} strokeWidth={1.5} />
+          {/* Hook-linjer */}
+          <Line x1={8}  y1={2} x2={8}  y2={5} stroke={GOLD} strokeWidth={2} strokeLinecap="round" />
+          <Line x1={16} y1={2} x2={16} y2={5} stroke={GOLD} strokeWidth={2} strokeLinecap="round" />
+          {/* Header-avskiljare – bakgrundsfärg skapar "skåra" */}
+          <Line x1={3} y1={9} x2={21} y2={9} stroke={CUT} strokeWidth={1.5} />
+          {/* Datumprickar – utskurna i bakgrundsfärg */}
+          <Circle cx={8}  cy={13} r={1.2} fill={CUT} />
+          <Circle cx={12} cy={13} r={1.2} fill={CUT} />
+          <Circle cx={16} cy={13} r={1.2} fill={CUT} />
+          <Circle cx={8}  cy={17} r={1.2} fill={CUT} />
+          <Circle cx={12} cy={17} r={1.2} fill={CUT} />
         </>
       ) : (
         <>
-          {/* Kropp outline */}
-          <Rect x={2} y={8.5} width={22} height={15} rx={3} stroke={INACTIVE} strokeWidth={1.8} fill="none" />
-          {/* Header-linje */}
-          <Line x1={2} y1={14} x2={24} y2={14} stroke={INACTIVE} strokeWidth={1} />
-          {/* Cirkelkrokar outline */}
-          <Circle cx={9.5}  cy={7} r={2} stroke={INACTIVE} strokeWidth={1.8} fill="none" />
-          <Circle cx={16.5} cy={7} r={2} stroke={INACTIVE} strokeWidth={1.8} fill="none" />
+          {/* Kropp – outline only */}
+          <Rect x={3} y={4} width={18} height={18} rx={2} stroke={INACTIVE} strokeWidth={1.5} fill="none" />
+          {/* Hook-linjer */}
+          <Line x1={8}  y1={2} x2={8}  y2={5} stroke={INACTIVE} strokeWidth={2} strokeLinecap="round" />
+          <Line x1={16} y1={2} x2={16} y2={5} stroke={INACTIVE} strokeWidth={2} strokeLinecap="round" />
+          {/* Header-avskiljare */}
+          <Line x1={3} y1={9} x2={21} y2={9} stroke={INACTIVE} strokeWidth={1} />
         </>
       )}
     </Svg>
