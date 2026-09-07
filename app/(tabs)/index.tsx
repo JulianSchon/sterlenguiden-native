@@ -779,10 +779,6 @@ export default function HomeScreen() {
           <View style={[s.section, s.lastSection]}>
             <View style={s.sectionHeader}>
               <Text style={s.sectionTitle2}>Utforska</Text>
-              <TouchableOpacity style={s.seeAllButton} onPress={() => router.push("/(tabs)/explore" as any)}>
-                <Text style={s.seeAllText}>Se alla</Text>
-                <ChevronRight size={14} color={colors.gold} />
-              </TouchableOpacity>
             </View>
 
             {favorites.length === 0 ? (
