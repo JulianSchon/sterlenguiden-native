@@ -28,13 +28,18 @@ export function NavHome({ active }: IconProps) {
           <Rect x={10} y={16.5} width={6} height={7} rx={0.5} fill="#0d0d0d" />
         </>
       ) : (
-        <Path
-          d="M13 3L23.5 12V23.5H2.5V12L13 3Z"
-          stroke={INACTIVE}
-          strokeWidth={1.8}
-          strokeLinejoin="round"
-          fill="none"
-        />
+        <>
+          <Path
+            d="M13 3L23.5 12V23.5H2.5V12L13 3Z"
+            stroke={INACTIVE}
+            strokeWidth={1.8}
+            strokeLinejoin="round"
+            fill="none"
+          />
+          {/* Dörr-outline syns även i inaktivt läge */}
+          <Rect x={10} y={16.5} width={6} height={7} rx={0.5}
+            stroke={INACTIVE} strokeWidth={1.4} fill="none" />
+        </>
       )}
     </Svg>
   );
