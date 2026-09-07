@@ -2,6 +2,7 @@ import {
   View, Text, ScrollView, Image, TouchableOpacity,
   StyleSheet, ActivityIndicator, Linking, Dimensions,
 } from "react-native";
+import { useState as useLocalState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ExternalLink, MapPin } from "lucide-react-native";
@@ -16,10 +17,10 @@ const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
 
 // Regex som matchar:
-// - Markdown: ![alt](https://...jpg)
-// - Bara en bild-URL på en rad: https://...jpg
-const IMG_MD   = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
-const IMG_URL  = /^(https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|avif))$/i;
+// - Markdown: ![alt](https://...)
+// - Vilken URL som helst ensam på en rad (vi provar att ladda den som bild)
+const IMG_MD  = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
+const LONE_URL = /^(https?:\/\/\S+)$/i;
 
 /**
  * Delar upp body-texten i segment: { type: "text" | "image", content: string }
@@ -58,8 +59,8 @@ function parseBody(text: string): Array<{ type: "text" | "image"; content: strin
       continue;
     }
 
-    // Ren bild-URL på en rad
-    if (IMG_URL.test(trimmed)) {
+    // Vilken URL som helst ensam på en rad → försök som bild
+    if (LONE_URL.test(trimmed)) {
       flushText();
       segments.push({ type: "image", content: trimmed });
       continue;
@@ -69,6 +70,28 @@ function parseBody(text: string): Array<{ type: "text" | "image"; content: strin
   }
   flushText();
   return segments;
+}
+
+/** Försöker visa en URL som bild. Om den misslyckas → visa klickbar länk. */
+function InlineImage({ uri }: { uri: string }) {
+  const [failed, setFailed] = useLocalState(false);
+  if (failed) {
+    return (
+      <TouchableOpacity onPress={() => Linking.openURL(uri)} activeOpacity={0.7}>
+        <Text style={{ color: GOLD, fontSize: 13, marginBottom: 12, textDecorationLine: "underline" }}>
+          {uri}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      style={s.inlineImage}
+      resizeMode="cover"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 export default function NewsDetailScreen() {
@@ -141,12 +164,7 @@ export default function NewsDetailScreen() {
             {item.body
               ? parseBody(item.body).map((seg, i) =>
                   seg.type === "image" ? (
-                    <Image
-                      key={i}
-                      source={{ uri: seg.content }}
-                      style={s.inlineImage}
-                      resizeMode="cover"
-                    />
+                    <InlineImage key={i} uri={seg.content} />
                   ) : (
                     <Text key={i} style={s.body}>{seg.content}</Text>
                   )
