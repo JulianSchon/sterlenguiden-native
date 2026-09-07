@@ -494,7 +494,18 @@ function NewsCard({ item }: { item: NewsItem }) {
         {/* Vänster: text */}
         <View style={{ flex: 1, gap: 4 }}>
           <View style={s.newsMeta}>
-            <View style={s.newsBadge}>
+            <View style={{ borderRadius: 10, overflow: "hidden", alignSelf: "flex-start" }}>
+              <Svg width={104} height={22} style={StyleSheet.absoluteFill}>
+                <Defs>
+                  <SvgLinearGradient id="nb" x1="0" y1="0" x2="1" y2="0">
+                    <Stop offset="0%"   stopColor="#FFF200" />
+                    <Stop offset="35%"  stopColor="#FFB000" />
+                    <Stop offset="75%"  stopColor="#FF5000" />
+                    <Stop offset="100%" stopColor="#FF8000" />
+                  </SvgLinearGradient>
+                </Defs>
+                <Rect width="104" height="22" fill="url(#nb)" rx={10} ry={10} />
+              </Svg>
               <Text style={s.newsBadgeText}>Österlenappen</Text>
             </View>
             {dateStr && <Text style={s.newsDate}>{dateStr}</Text>}
@@ -1082,8 +1093,8 @@ const s = StyleSheet.create({
   },
   newsCard: {
     backgroundColor: colors.card,
-    borderRadius: 14.5,       // lite mindre än outer för att gradientlinjen syns
-    margin: 1.5,              // tjockleken på gradient-border
+    borderRadius: 15.2,       // outer är 16, margin 0.8 → inner ≈ 15.2
+    margin: 0.8,              // tunn gradient-border
     overflow: "hidden",
   },
   newsCardInner: {
@@ -1091,12 +1102,11 @@ const s = StyleSheet.create({
     padding: 14,
   },
   newsMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
-  newsBadge: {
-    backgroundColor: "rgba(34,100,60,0.3)",
-    borderWidth: 1, borderColor: "rgba(34,100,60,0.5)",
-    borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2,
+  newsBadge: { /* ersatt av inline SVG */ },
+  newsBadgeText: {
+    fontSize: 9, fontWeight: "800", color: "#1a1200",
+    letterSpacing: 0.8, paddingHorizontal: 8, paddingVertical: 3,
   },
-  newsBadgeText: { fontSize: 9, fontWeight: "700", color: "#4ADE80", letterSpacing: 0.8 },
   newsDate: { fontSize: 11, color: colors.foregroundMuted },
   newsTitle: {
     fontFamily: "PlayfairDisplay_700Bold",
