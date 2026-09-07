@@ -18,6 +18,7 @@
       "bundleIdentifier": "se.sterlenguiden.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Österlenappen läser din plats för att föreslå din hemort vid registrering.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
@@ -54,7 +55,8 @@
           "locationAlwaysAndWhenInUsePermission": "Österlenguiden behöver din plats för att visa kartan."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-video"
     ],
     "scheme": "sterlenguiden",
     "experiments": {

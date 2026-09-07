@@ -11,9 +11,10 @@ export const colors = {
   foregroundMuted: "#A09880",  // muted warm
   foregroundSubtle: "#6B6560",
 
-  // Primary — sage green
+  // Primary — sage green (Österlens natur)
   primary: "#52886A",
   primaryDark: "#3D6B52",
+  storyNew: "#52886A",   // grön ring för nya/osedda stories
 
   // Gold accent
   gold: "#C9A84C",

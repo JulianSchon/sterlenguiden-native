@@ -1,3 +1,7 @@
+/**
+ * Onboarding – visas första gången appen öppnas.
+ * Intro-videos läggs in efter EAS rebuild (expo-video kräver native build).
+ */
 import {
   View,
   Text,
@@ -12,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
-export default function SplashScreen() {
+export default function OnboardingScreen() {
   return (
     <ImageBackground
       source={require("../../assets/onboarding-1.jpg")}
@@ -20,15 +24,12 @@ export default function SplashScreen() {
       resizeMode="cover"
     >
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-
       <View style={[StyleSheet.absoluteFill, s.overlay]} />
-
       <SafeAreaView style={s.safe}>
         <View style={s.content}>
           <Text style={s.title}>Österlen</Text>
           <Text style={s.subtitle}>Upptäck Skånes pärla</Text>
         </View>
-
         <TouchableOpacity
           style={s.btn}
           onPress={() => router.replace("/(auth)/login")}
@@ -41,11 +42,8 @@ export default function SplashScreen() {
 }
 
 const s = StyleSheet.create({
-  bg: {
-    flex: 1,
-    width,
-    height,
-  },
+  bg:      { flex: 1, width, height },
+  overlay: { backgroundColor: "rgba(0,0,0,0.35)" },
   safe: {
     flex: 1,
     justifyContent: "flex-end",
@@ -85,8 +83,5 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: "300",
     letterSpacing: 1,
-  },
-  overlay: {
-    backgroundColor: "rgba(0,0,0,0.35)",
   },
 });

@@ -9,22 +9,17 @@ import {
   StatusBar,
   Animated,
   PanResponder,
-  ScrollView,
-  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Crown, MapPin, Navigation, Phone, Mail, ChevronUp, X } from "lucide-react-native";
 import type { BusinessStory } from "@/hooks/useBusinessStories";
 import { useMarkStoryViewed } from "@/hooks/useStoryViews";
-import { colors } from "@/lib/colors";
 
 const { width: W, height: H } = Dimensions.get("window");
 const STORY_DURATION = 5000;
-const PREMIUM_DURATION = 8000;
 const TICK_MS = 50;
 
-export type StoryType = "favorite" | "premium" | "regular";
+export type StoryType = "favorite" | "regular";
 
 export interface StoryGroupData {
   placeId: number;
@@ -42,41 +37,47 @@ interface Props {
   groups: StoryGroupData[];
   initialGroupIndex: number;
   onClose: () => void;
-  hasPremiumAccess?: boolean;
-  onPremiumBlocked?: (groupIndex: number) => void;
 }
 
-export function StoryViewer({
-  groups,
-  initialGroupIndex,
-  onClose,
-  hasPremiumAccess = false,
-  onPremiumBlocked,
-}: Props) {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
+export function StoryViewer({ groups, initialGroupIndex, onClose }: Props) {
+  const insets     = useSafeAreaInsets();
+  const router     = useRouter();
   const markViewed = useMarkStoryViewed();
 
   const [groupIdx, setGroupIdx] = useState(initialGroupIndex);
   const [storyIdx, setStoryIdx] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [dealOpen, setDealOpen] = useState(false);
-  const isPausedRef = useRef(false);
-  const translateY = useRef(new Animated.Value(0)).current;
-  const dealTranslateY = useRef(new Animated.Value(300)).current;
+  const isPausedRef  = useRef(false);
+  const translateY   = useRef(new Animated.Value(0)).current;
+  const slideX       = useRef(new Animated.Value(0)).current;
 
   const group = groups[groupIdx];
   const story = group?.stories[storyIdx];
-  const isPremium = group?.storyType === "premium";
-  const duration = isPremium ? PREMIUM_DURATION : STORY_DURATION;
 
-  // Mark story as viewed
-  useEffect(() => {
-    if (story?.id) {
-      markViewed.mutate(story.id);
-    }
-    setDealOpen(false);
-  }, [groupIdx, storyIdx]);
+  // Box-slide mellan grupper (dir=1 → nästa, dir=-1 → förra)
+  const slideToGroup = useCallback(
+    (newGroupIdx: number, storyIdxInGroup: number, dir: 1 | -1) => {
+      isPausedRef.current = true;
+      Animated.timing(slideX, {
+        toValue: dir * -W,
+        duration: 160,
+        useNativeDriver: true,
+      }).start(() => {
+        setGroupIdx(newGroupIdx);
+        setStoryIdx(storyIdxInGroup);
+        setProgress(0);
+        slideX.setValue(dir * W);
+        Animated.timing(slideX, {
+          toValue: 0,
+          duration: 160,
+          useNativeDriver: true,
+        }).start(() => {
+          isPausedRef.current = false;
+        });
+      });
+    },
+    [slideX]
+  );
 
   const handleClose = useCallback(() => {
     Animated.timing(translateY, {
@@ -93,19 +94,11 @@ export function StoryViewer({
       setStoryIdx((i) => i + 1);
       setProgress(0);
     } else if (groupIdx < groups.length - 1) {
-      const next = groupIdx + 1;
-      if (!hasPremiumAccess && groups[next]?.storyType === "premium") {
-        handleClose();
-        onPremiumBlocked?.(next);
-        return;
-      }
-      setGroupIdx(next);
-      setStoryIdx(0);
-      setProgress(0);
+      slideToGroup(groupIdx + 1, 0, 1);
     } else {
       handleClose();
     }
-  }, [storyIdx, groupIdx, groups, hasPremiumAccess, handleClose, onPremiumBlocked]);
+  }, [storyIdx, groupIdx, groups, handleClose, slideToGroup]);
 
   const goPrev = useCallback(() => {
     if (storyIdx > 0) {
@@ -113,68 +106,42 @@ export function StoryViewer({
       setProgress(0);
     } else if (groupIdx > 0) {
       const prev = groupIdx - 1;
-      if (!hasPremiumAccess && groups[prev]?.storyType === "premium") return;
-      setGroupIdx(prev);
-      setStoryIdx(groups[prev].stories.length - 1);
-      setProgress(0);
+      slideToGroup(prev, groups[prev].stories.length - 1, -1);
     }
-  }, [storyIdx, groupIdx, groups, hasPremiumAccess]);
+  }, [storyIdx, groupIdx, groups, slideToGroup]);
 
   const goNextRef = useRef(goNext);
   goNextRef.current = goNext;
 
-  // Auto-advance timer
+  // Markera story som sedd
+  useEffect(() => {
+    if (story?.id) markViewed.mutate(story.id);
+  }, [groupIdx, storyIdx]);
+
+  // Auto-advance-timer
   useEffect(() => {
     setProgress(0);
-    if (dealOpen) return;
-
-    let currentProgress = 0;
+    let current = 0;
     const interval = setInterval(() => {
       if (isPausedRef.current) return;
-      currentProgress += (TICK_MS / duration) * 100;
-      if (currentProgress >= 100) {
+      current += (TICK_MS / STORY_DURATION) * 100;
+      if (current >= 100) {
         clearInterval(interval);
         goNextRef.current();
         return;
       }
-      setProgress(currentProgress);
+      setProgress(current);
     }, TICK_MS);
-
     return () => clearInterval(interval);
-  }, [storyIdx, groupIdx, dealOpen, duration]);
+  }, [storyIdx, groupIdx]);
 
-  // Deal sheet animation
-  const openDeal = () => {
-    setDealOpen(true);
-    isPausedRef.current = true;
-    Animated.spring(dealTranslateY, {
-      toValue: 0,
-      useNativeDriver: true,
-      damping: 25,
-      stiffness: 300,
-    }).start();
-  };
-
-  const closeDeal = () => {
-    Animated.timing(dealTranslateY, {
-      toValue: 300,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setDealOpen(false);
-      isPausedRef.current = false;
-    });
-  };
-
-  // Swipe down to close
+  // Swipe ner för att stänga
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) => !dealOpen && g.dy > 12 && Math.abs(g.dy) > Math.abs(g.dx),
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 12 && Math.abs(g.dy) > Math.abs(g.dx),
       onPanResponderGrant: () => { isPausedRef.current = true; },
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) translateY.setValue(g.dy);
-      },
+      onPanResponderMove: (_, g) => { if (g.dy > 0) translateY.setValue(g.dy); },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 100) {
           Animated.timing(translateY, { toValue: H, duration: 200, useNativeDriver: true }).start(onClose);
@@ -188,7 +155,7 @@ export function StoryViewer({
 
   if (!group || !story) return null;
 
-  const placeName = group.placeName.split(/\s*[-–—]\s*/)[0].split(/\s*[,]\s*/)[0].trim();
+  const placeName = group.placeName.split(/[-–—,]/)[0].trim();
 
   return (
     <Animated.View
@@ -197,136 +164,64 @@ export function StoryViewer({
     >
       <StatusBar hidden />
 
-      {/* Story image */}
-      <Image source={{ uri: story.image_url }} style={styles.image} resizeMode="cover" />
+      {/* Allt innehåll som slideX-animeras vid gruppbyte */}
+      <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: slideX }] }]}>
 
-      {/* Gradients */}
-      <View style={styles.topGradient} />
-      <View style={styles.bottomGradient} />
+        <Image source={{ uri: story.image_url }} style={styles.image} resizeMode="cover" />
+        <View style={styles.topGradient} />
+        <View style={styles.bottomGradient} />
 
-      {/* Progress bars */}
-      <View style={[styles.progressContainer, { top: insets.top + 8 }]}>
-        {group.stories.map((_, i) => (
-          <View key={i} style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${i < storyIdx ? 100 : i === storyIdx ? Math.min(progress, 100) : 0}%`,
-                },
-              ]}
-            />
-          </View>
-        ))}
-      </View>
-
-      {/* Header: logo + name (tappable → place detail) */}
-      <TouchableOpacity
-        style={[styles.header, { top: insets.top + 24 }]}
-        onPress={() => { onClose(); router.push(`/place/${group.placeId}` as any); }}
-        activeOpacity={0.85}
-      >
-        <View style={styles.logoWrapper}>
-          {group.logoUrl ? (
-            <Image source={{ uri: group.logoUrl }} style={styles.logo} resizeMode="cover" />
-          ) : (
-            <View style={[styles.logo, styles.logoPlaceholder]} />
-          )}
-        </View>
-        <Text style={styles.placeName}>{placeName}</Text>
-      </TouchableOpacity>
-
-      {/* Crown badge for premium */}
-      {isPremium && (
-        <View style={[styles.crownBadge, { top: insets.top + 24 }]}>
-          <Crown size={16} color="#1a1200" />
-        </View>
-      )}
-
-      {/* Premium info boxes */}
-      {isPremium && (
-        <View style={styles.infoBoxes}>
-          {group.placeLocation && (
-            <View style={styles.infoBox}>
-              <View style={styles.infoBoxHeader}>
-                <MapPin size={10} color={colors.gold} />
-                <Text style={styles.infoBoxLabel}>PLATS</Text>
-              </View>
-              <Text style={styles.infoBoxValue}>{group.placeLocation}</Text>
+        {/* Progressbars */}
+        <View style={[styles.progressContainer, { top: insets.top + 8 }]}>
+          {group.stories.map((_, i) => (
+            <View key={i} style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${i < storyIdx ? 100 : i === storyIdx ? Math.min(progress, 100) : 0}%` },
+                ]}
+              />
             </View>
-          )}
-          {group.placeCategory && (
-            <View style={styles.infoBox}>
-              <View style={styles.infoBoxHeader}>
-                <MapPin size={10} color={colors.gold} />
-                <Text style={styles.infoBoxLabel}>KATEGORI</Text>
-              </View>
-              <Text style={styles.infoBoxValue}>
-                {group.placeCategory.split(",")[0].trim()}
-              </Text>
-            </View>
-          )}
+          ))}
         </View>
-      )}
 
-      {/* Caption */}
-      {story.caption && !dealOpen && (
-        <View style={[styles.captionContainer, { bottom: insets.bottom + (isPremium && story.deal_text ? 80 : 32) }]}>
-          <Text style={styles.caption}>{story.caption}</Text>
-        </View>
-      )}
-
-      {/* Premium deal button */}
-      {isPremium && story.deal_text && !dealOpen && (
+        {/* Header: logga + namn → tryck öppnar ställets sida */}
         <TouchableOpacity
-          style={[styles.dealButton, { bottom: insets.bottom + 24 }]}
-          onPress={openDeal}
+          style={[styles.header, { top: insets.top + 24 }]}
+          onPress={() => { onClose(); router.push(`/place/${group.placeId}` as any); }}
+          activeOpacity={0.85}
         >
-          <Crown size={16} color="#1a1200" />
-          <Text style={styles.dealButtonText}>Visa erbjudande</Text>
-          <ChevronUp size={16} color="#1a1200" />
+          <View style={styles.logoWrapper}>
+            {group.logoUrl
+              ? <Image source={{ uri: group.logoUrl }} style={styles.logo} resizeMode="cover" />
+              : <View style={[styles.logo, styles.logoPlaceholder]} />
+            }
+          </View>
+          <Text style={styles.placeName}>{placeName}</Text>
         </TouchableOpacity>
-      )}
 
-      {/* Deal coupon sheet */}
-      {dealOpen && (
-        <>
-          <TouchableOpacity style={styles.dealBackdrop} onPress={closeDeal} activeOpacity={1} />
-          <Animated.View
-            style={[
-              styles.dealSheet,
-              { bottom: insets.bottom + 16, transform: [{ translateY: dealTranslateY }] },
-            ]}
-          >
-            {/* Ticket top */}
-            <View style={styles.ticketEdge} />
-            <View style={styles.dealSheetInner}>
-              <View style={styles.dealSheetHeader}>
-                <Crown size={16} color="#1a1200" />
-                <Text style={styles.dealSheetLabel}>SPECIALERBJUDANDE</Text>
-              </View>
-              <Text style={styles.dealSheetTitle}>{story.deal_text}</Text>
-              <Text style={styles.dealSheetPlace}>{group.placeName}</Text>
-            </View>
-            {/* Ticket bottom */}
-            <View style={styles.ticketEdge} />
-          </Animated.View>
-        </>
-      )}
+        {/* Caption */}
+        {story.caption && (
+          <View style={[styles.captionContainer, { bottom: insets.bottom + 32 }]}>
+            <Text style={styles.caption}>{story.caption}</Text>
+          </View>
+        )}
 
-      {/* Tap zones: left=prev, right=next */}
+      </Animated.View>{/* /slideX */}
+
+      {/* Tapzoner utanför slideX – alltid responsiva */}
       <TouchableOpacity
         style={styles.tapLeft}
         onPress={goPrev}
         onLongPress={() => { isPausedRef.current = true; }}
-        onPressOut={() => { if (!dealOpen) isPausedRef.current = false; }}
+        onPressOut={() => { isPausedRef.current = false; }}
         activeOpacity={1}
       />
       <TouchableOpacity
         style={styles.tapRight}
-        onPress={dealOpen ? closeDeal : goNext}
+        onPress={goNext}
         onLongPress={() => { isPausedRef.current = true; }}
-        onPressOut={() => { if (!dealOpen) isPausedRef.current = false; }}
+        onPressOut={() => { isPausedRef.current = false; }}
         activeOpacity={1}
       />
     </Animated.View>
@@ -344,14 +239,12 @@ const styles = StyleSheet.create({
   topGradient: {
     position: "absolute", top: 0, left: 0, right: 0, height: 220,
     backgroundColor: "rgba(0,0,0,0.55)",
-    // fades to transparent downward via opacity layering
   },
   bottomGradient: {
     position: "absolute", bottom: 0, left: 0, right: 0, height: 200,
     backgroundColor: "rgba(0,0,0,0.6)",
   },
 
-  // Progress
   progressContainer: {
     position: "absolute", left: 8, right: 8,
     flexDirection: "row", gap: 4, zIndex: 20,
@@ -361,11 +254,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.35)",
     borderRadius: 2, overflow: "hidden",
   },
-  progressFill: {
-    height: "100%", backgroundColor: "#fff", borderRadius: 2,
-  },
+  progressFill: { height: "100%", backgroundColor: "#fff", borderRadius: 2 },
 
-  // Header
   header: {
     position: "absolute", left: 12, zIndex: 20,
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -384,32 +274,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
 
-  // Crown
-  crownBadge: {
-    position: "absolute", right: 14, zIndex: 20,
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: colors.gold,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: colors.gold, shadowOpacity: 0.5, shadowRadius: 8, elevation: 4,
-  },
-
-  // Premium info boxes
-  infoBoxes: {
-    position: "absolute", left: 12, bottom: "42%",
-    zIndex: 20, gap: 8,
-  },
-  infoBox: {
-    backgroundColor: "rgba(0,0,0,0.55)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
-    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
-  },
-  infoBoxHeader: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 },
-  infoBoxLabel: {
-    fontSize: 8, fontWeight: "700", color: "rgba(255,255,255,0.6)", letterSpacing: 0.8,
-  },
-  infoBoxValue: { fontSize: 12, fontWeight: "600", color: "#fff" },
-
-  // Caption
   captionContainer: {
     position: "absolute", left: 16, right: 16, zIndex: 20,
   },
@@ -420,44 +284,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
 
-  // Deal button
-  dealButton: {
-    position: "absolute", alignSelf: "center", left: 40, right: 40,
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: colors.gold,
-    paddingVertical: 12, borderRadius: 28,
-    zIndex: 20,
-    shadowColor: colors.gold, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4,
-  },
-  dealButtonText: { color: "#1a1200", fontSize: 15, fontWeight: "700" },
-
-  // Deal coupon sheet
-  dealBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.25)",
-    zIndex: 30,
-  },
-  dealSheet: {
-    position: "absolute", left: 24, right: 24,
-    zIndex: 40, overflow: "hidden", borderRadius: 16,
-  },
-  ticketEdge: {
-    height: 8, backgroundColor: colors.gold,
-  },
-  dealSheetInner: {
-    backgroundColor: colors.gold,
-    paddingHorizontal: 20, paddingVertical: 16,
-  },
-  dealSheetHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
-  dealSheetLabel: { fontSize: 10, fontWeight: "800", color: "#1a1200", letterSpacing: 1 },
-  dealSheetTitle: { fontSize: 18, fontWeight: "800", color: "#1a1200", marginBottom: 4 },
-  dealSheetPlace: { fontSize: 13, color: "rgba(26,18,0,0.7)" },
-
-  // Tap zones
-  tapLeft: {
-    position: "absolute", left: 0, top: 80, bottom: 100, width: W * 0.33, zIndex: 10,
-  },
-  tapRight: {
-    position: "absolute", right: 0, top: 80, bottom: 100, width: W * 0.67, zIndex: 10,
-  },
+  tapLeft:  { position: "absolute", left: 0,  top: 80, bottom: 100, width: W * 0.33, zIndex: 10 },
+  tapRight: { position: "absolute", right: 0, top: 80, bottom: 100, width: W * 0.67, zIndex: 10 },
 });

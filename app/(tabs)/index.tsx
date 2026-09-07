@@ -9,25 +9,29 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
-  Pressable,
   Share,
   Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import heroOsterlen from "../../assets/hero-osterlen.jpg";
 import { useRouter } from "expo-router";
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
   MapPin,
   Search,
   ChevronRight,
-  Crown,
   Heart,
   Sparkles,
   Share2,
   Utensils,
   BedDouble,
 } from "lucide-react-native";
+import Svg, {
+  Circle as SvgCircle,
+  Defs,
+  LinearGradient as SvgGradient,
+  Stop,
+} from "react-native-svg";
 import { usePlaces, isPlaceOpen, getTierScore, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { useProfile } from "@/hooks/useProfile";
@@ -41,15 +45,23 @@ import { sv } from "date-fns/locale";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const HERO_HEIGHT = Math.round(SCREEN_WIDTH * (9 / 16));
+const HERO_HEIGHT = 208;
 const HERO_IMAGE = heroOsterlen;
 
+// Tidsberoende hälsning
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h >= 5  && h < 12) return "God morgon";
+  if (h >= 12 && h < 15) return "God dag";
+  if (h >= 15 && h < 18) return "God eftermiddag";
+  return "God kväll";
+}
 
-// Ring colors
-const RING_SILVER = "#B8B8B8";
-const RING_GOLD = "#C9A84C";
-const RING_BRONZE = "#8B5E3C";
-const RING_SEEN = "rgba(255,255,255,0.2)";
+
+// Ring colors för FeedPost-avatarer
+const RING_GOLD  = "#C9A84C";   // favorit
+const RING_GREEN = "#52886A";   // ny story
+const RING_SEEN  = "rgba(255,255,255,0.18)";
 
 function formatEventDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -71,87 +83,176 @@ function formatDateBadge(dateStr: string, endDateStr?: string | null): { month: 
   return { month, day: format(d, "d") };
 }
 
-function getRingColor(storyType: StoryType, isSeen: boolean): string {
-  if (isSeen) return RING_SEEN;
-  switch (storyType) {
-    case "favorite": return RING_SILVER;
-    case "premium": return RING_GOLD;
-    default: return RING_BRONZE;
-  }
-}
 
-// ─── StoryCircle ────────────────────────────────────────────────────────────
+// ─── StoryCircle – metallisk SVG-ring ───────────────────────────────────────
+
+const SC_INNER    = 64;
+const SC_GAP      = 2;
+const SC_STROKE   = 3.2;   // gradient-ringens strokebredd
+const SEG_STROKE  = 3.5;   // animerings-bågens strokebredd – smal och elegant
+const SC_RADIUS   = SC_INNER / 2 + SC_GAP + SC_STROKE / 2;  // 35.6
+// SC_OUTER rymmer ringen + bågarna (SEG_STROKE/2 utanför radien)
+const SC_OUTER    = Math.ceil(2 * (SC_RADIUS + SEG_STROKE / 2) + 2);  // ≈ 78
+const SC_CENTER   = SC_OUTER / 2;
+
+// ─── Animering: crescendo-bågar (liten ring → längre båge → hela varvet) ────
+const N_SEGS   = 12;    // antal bågsekvenser
+const ANIM_MS  = 340;   // total tid – snabbt men inte ryckigt
+const SEG_GAP  = -1;    // negativ = varje segment täcker 1 px av föregående → inga skarvar
+const SC_CIRC  = 2 * Math.PI * SC_RADIUS;  // ≈ 224 px
+
+// Bågarna varierar i längd: kortast (4 px, ser ut som en ring/punkt) →
+// längst (~33 px, tydlig båge). Tillsammans täcker de exakt ett varv.
+const SEG_A    = 4;   // kortaste bågstrecket (px)
+const SEG_TOTAL = SC_CIRC - N_SEGS * SEG_GAP;
+const SEG_B    = (SEG_TOTAL - N_SEGS * SEG_A) / (N_SEGS * (N_SEGS - 1) / 2);
+
+type SegInfo = { dash: number; start: number; color: string };
+const SEGMENTS: SegInfo[] = (() => {
+  const out: SegInfo[] = [];
+  let cum = 0;
+  for (let i = 0; i < N_SEGS; i++) {
+    const dash = SEG_A + SEG_B * i;
+    const t    = i / (N_SEGS - 1);
+    // Gult → orange längs banan
+    out.push({ dash, start: cum, color: `rgb(255,${Math.round(243 - 121 * t)},${Math.round(71 * t)})` });
+    cum += dash + SEG_GAP;
+  }
+  return out;
+})();
+
+// OSEDD – gul → orange, varmt och levande utan mörka toner
+const GRAD_ACTIVE = {
+  stops: [
+    { offset: "0%",   color: "#FFF380" },   // ljust citrongult
+    { offset: "35%",  color: "#FFD000" },   // knallgult
+    { offset: "70%",  color: "#FF7A00" },   // levande orange
+    { offset: "100%", color: "#FFB347" },   // ljus persikoorange
+  ],
+  x1: "0", y1: "1", x2: "1", y2: "0",
+};
+
+// SEDD – diskret mörkgrå
+const GRAD_SEEN = {
+  stops: [
+    { offset: "0%",   color: "#484848" },
+    { offset: "100%", color: "#303030" },
+  ],
+  x1: "0", y1: "1", x2: "1", y2: "0",
+};
 
 function StoryCircle({
   group,
   isSeen,
   onPress,
+  index,
 }: {
   group: StoryGroupData;
   isSeen: boolean;
   onPress: () => void;
+  index: number;
 }) {
-  const ringColor = getRingColor(group.storyType, isSeen);
-  const imageUrl =
-    group.storyType === "premium"
-      ? (group.logoUrl ?? group.stories[0]?.image_url)
-      : group.stories[0]?.image_url;
-  const label = group.placeName.split(/\s*[-–—]\s*/)[0].split(/\s*[,]\s*/)[0].trim();
+  const imageUrl  = group.logoUrl ?? group.stories[0]?.image_url ?? null;
+  const label     = group.placeName.split(/[-–—,]/)[0].trim();
+  const gradConf  = isSeen ? GRAD_SEEN : GRAD_ACTIVE;
+  const gradId    = `sg-${group.placeId}`;
+
+  // -1 = vilande, 0..N_SEGS = antal synliga bågssegment
+  const [dots, setDots] = useState(-1);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
+
+  const handleTap = useCallback(() => {
+    if (dots >= 0) return;           // redan igång
+    setDots(0);
+    let n = 0;
+    timer.current = setInterval(() => {
+      n++;
+      if (n >= N_SEGS) {
+        clearInterval(timer.current!);
+        timer.current = null;
+        setDots(N_SEGS);
+        onPress(); // öppna storyn direkt utan fördröjning
+        setTimeout(() => setDots(-1), 400); // återställ state när storyn är öppen och ringen ej syns
+      } else {
+        setDots(n);
+      }
+    }, ANIM_MS / N_SEGS);
+  }, [dots, onPress]);
+
+  const isAnimating = dots >= 0;
 
   return (
-    <TouchableOpacity style={s.storyCircleWrapper} activeOpacity={0.8} onPress={onPress}>
-      <View style={[
-        s.storyRing,
-        { borderColor: ringColor },
-        group.storyType === "premium" && {
-          shadowColor: colors.gold,
-          shadowOpacity: 0.9,
-          shadowRadius: 14,
-          elevation: 10,
-        },
-      ]}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={s.storyImage} resizeMode="cover" />
-        ) : (
-          <View style={[s.storyImage, { backgroundColor: colors.surface }]} />
-        )}
-      </View>
-      {group.storyType === "premium" && (
-        <View style={s.crownBadge}>
-          <Crown size={11} color="#1a1200" />
+    <TouchableOpacity style={s.storyCircleWrapper} activeOpacity={0.9} onPress={handleTap}>
+      <View style={{ width: SC_OUTER, height: SC_OUTER, alignItems: "center", justifyContent: "center" }}>
+
+        {/* SVG: gradient-ring normalt, prickar under TikTok-animering */}
+        <Svg width={SC_OUTER} height={SC_OUTER} style={StyleSheet.absoluteFill}>
+          {isAnimating ? (
+            // Crescendo-bågar: segment 0 = liten "ring", segment 11 = lång båge.
+            // Varje segment ritas som en strokeDasharray-båge längs SC_RADIUS-cirkeln.
+            // strokeDashoffset = SC_CIRC - seg.start → placerar bågen rätt medsols.
+            SEGMENTS.map((seg, i) => {
+              if (i >= dots) return null;
+              // Första och sista segmentet har rundade ändpunkter för ett fint avslut.
+              // Mellansegmenten använder butt + 1px överlapp – inga synliga skarvar.
+              const linecap = (i === 0 || i === N_SEGS - 1) ? "round" : "butt";
+              return (
+                <SvgCircle
+                  key={i}
+                  cx={SC_CENTER} cy={SC_CENTER} r={SC_RADIUS}
+                  stroke={seg.color}
+                  strokeWidth={SEG_STROKE}
+                  fill="none"
+                  strokeDasharray={`${seg.dash} ${SC_CIRC - seg.dash}`}
+                  strokeDashoffset={SC_CIRC - seg.start}
+                  strokeLinecap={linecap}
+                  transform={`rotate(-90, ${SC_CENTER}, ${SC_CENTER})`}
+                />
+              );
+            })
+          ) : (
+            // Normal gradient-ring
+            <>
+              <Defs>
+                <SvgGradient id={gradId}
+                  x1={gradConf.x1} y1={gradConf.y1}
+                  x2={gradConf.x2} y2={gradConf.y2}
+                >
+                  {gradConf.stops.map((stop) => (
+                    <Stop key={stop.offset} offset={stop.offset} stopColor={stop.color} stopOpacity="1" />
+                  ))}
+                </SvgGradient>
+              </Defs>
+              <SvgCircle
+                cx={SC_CENTER} cy={SC_CENTER} r={SC_RADIUS}
+                stroke={`url(#${gradId})`}
+                strokeWidth={SC_STROKE}
+                fill="none"
+              />
+            </>
+          )}
+        </Svg>
+
+        {/* Bild */}
+        <View style={{
+          width: SC_INNER, height: SC_INNER,
+          borderRadius: SC_INNER / 2,
+          overflow: "hidden",
+          backgroundColor: colors.surface,
+        }}>
+          {imageUrl && (
+            <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+          )}
         </View>
-      )}
+
+      </View>
+
       <Text style={[s.storyName, isSeen && s.storyNameSeen]} numberOfLines={1}>
         {label}
       </Text>
     </TouchableOpacity>
-  );
-}
-
-// ─── PremiumModal ────────────────────────────────────────────────────────────
-
-function PremiumModal({ onClose, onUpgrade }: { onClose: () => void; onUpgrade: () => void }) {
-  return (
-    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
-      <Pressable style={s.modalBackdrop} onPress={onClose}>
-        <Pressable style={s.premiumModal} onPress={(e) => e.stopPropagation()}>
-          <View style={s.premiumCrown}>
-            <Crown size={32} color="#1a1200" />
-          </View>
-          <Text style={s.premiumTitle}>Exklusivt innehåll</Text>
-          <Text style={s.premiumSub}>
-            Lås upp exklusiva deals och erbjudanden med{" "}
-            <Text style={{ color: colors.gold }}>Österlenpasset</Text>
-          </Text>
-          <TouchableOpacity style={s.premiumBtn} onPress={onUpgrade}>
-            <Text style={s.premiumBtnText}>Köp Österlenpasset</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.premiumSkip} onPress={onClose}>
-            <Text style={s.premiumSkipText}>Kanske senare, fortsätt</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
@@ -227,17 +328,11 @@ function FeedPost({
   hasStory = false,
   storyType,
   onStoryClick,
-  hasPremiumStory = false,
-  hasOsterlenPass = false,
-  onPremiumStoryClick,
 }: {
   place: Place;
   hasStory?: boolean;
   storyType?: StoryType;
   onStoryClick?: () => void;
-  hasPremiumStory?: boolean;
-  hasOsterlenPass?: boolean;
-  onPremiumStoryClick?: () => void;
 }) {
   const router = useRouter();
   const toggleFavorite = useToggleFavorite();
@@ -251,11 +346,9 @@ function FeedPost({
   const logoOrImage = place.logo_url ?? displayImage;
 
   const ringColor =
-    hasStory && storyType === "favorite"
-      ? RING_SILVER
-      : hasStory && storyType === "regular"
-      ? RING_BRONZE
-      : "transparent";
+    hasStory && storyType === "favorite" ? RING_GOLD
+    : hasStory ? RING_GREEN
+    : "transparent";
 
   const handleShare = async () => {
     try {
@@ -308,17 +401,6 @@ function FeedPost({
           <View style={[s.feedImage, { backgroundColor: colors.surface }]} />
         )}
 
-        {hasPremiumStory && (
-          <TouchableOpacity
-            style={s.feedCrownBtn}
-            onPress={() => {
-              if (hasOsterlenPass) onPremiumStoryClick?.();
-            }}
-            activeOpacity={0.85}
-          >
-            <Crown size={18} color="#1a1200" />
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
 
       {/* Actions */}
@@ -355,7 +437,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [storyGroupIndex, setStoryGroupIndex] = useState<number | null>(null);
-  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -366,72 +447,57 @@ export default function HomeScreen() {
   const { data: favorites = [] } = useFavorites();
   const { data: storyViews = [] } = useStoryViews();
 
-  const hasPremiumAccess = profile?.is_member ?? false;
   const firstName = profile?.display_name?.split(" ")[0] ?? null;
   const viewedIds = useMemo(() => new Set(storyViews.map((v) => v.story_id)), [storyViews]);
 
-  // Story groups
+  // Story groups – använder place-data inbakad i storyn (JOIN), ej separat usePlaces
   const storyGroups = useMemo((): StoryGroupData[] => {
     const now = new Date().toISOString();
-    const activeStories = businessStories.filter((bs) => !bs.expires_at || bs.expires_at >= now);
+    // Filtrera bort utgångna och stories utan place-data
+    const activeStories = businessStories.filter(
+      (bs) => bs.place && (!bs.expires_at || bs.expires_at >= now)
+    );
 
-    const byPlace = new Map<number, { regular: typeof activeStories; premium: typeof activeStories }>();
+    // Gruppera per place
+    const byPlace = new Map<number, typeof activeStories>();
     for (const bs of activeStories) {
-      if (!byPlace.has(bs.place_id)) byPlace.set(bs.place_id, { regular: [], premium: [] });
-      const group = byPlace.get(bs.place_id)!;
-      if (bs.is_premium) group.premium.push(bs);
-      else group.regular.push(bs);
+      if (!byPlace.has(bs.place_id)) byPlace.set(bs.place_id, []);
+      byPlace.get(bs.place_id)!.push(bs);
     }
 
     const result: StoryGroupData[] = [];
-    for (const [placeId, { regular, premium }] of byPlace) {
-      const place = places.find((p) => p.id === placeId);
-      if (!place) continue;
-      const isFav = favorites.some((f) => f.place_id === placeId);
+    for (const [placeId, stories] of byPlace) {
+      const placeData = stories[0]?.place;
+      if (!placeData) continue;
 
-      if (regular.length > 0) {
-        regular.sort((a, b) => b.created_at.localeCompare(a.created_at));
-        result.push({
-          placeId,
-          placeName: place.name,
-          placeCategory: place.categories,
-          placeLocation: place.nearest_town,
-          logoUrl: place.logo_url ?? null,
-          storyType: isFav ? "favorite" : "regular",
-          stories: regular,
-        });
-      }
-      if (premium.length > 0) {
-        premium.sort((a, b) => b.created_at.localeCompare(a.created_at));
-        result.push({
-          placeId,
-          placeName: place.name,
-          placeCategory: place.categories,
-          placeLocation: place.nearest_town,
-          logoUrl: place.logo_url ?? null,
-          storyType: "premium",
-          stories: premium,
-        });
-      }
+      const isFav = favorites.some((f) => f.place_id === placeId);
+      stories.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+      result.push({
+        placeId,
+        placeName: placeData.name,
+        placeCategory: placeData.categories ?? null,
+        placeLocation: placeData.nearest_town ?? null,
+        logoUrl: placeData.logo_url ?? null,
+        storyType: isFav ? "favorite" : "regular",
+        stories,
+      });
     }
 
-    const priority: Record<StoryType, number> = { favorite: 0, premium: 1, regular: 2 };
+    // Favoriter först, sedan osedda, sedda sist
     return result.sort((a, b) => {
-      const aIsSeen = a.storyType === "premium" ? false : a.stories.every((s) => viewedIds.has(s.id));
-      const bIsSeen = b.storyType === "premium" ? false : b.stories.every((s) => viewedIds.has(s.id));
+      const aIsSeen = a.stories.every((s) => viewedIds.has(s.id));
+      const bIsSeen = b.stories.every((s) => viewedIds.has(s.id));
       if (aIsSeen !== bIsSeen) return aIsSeen ? 1 : -1;
-      return priority[a.storyType] - priority[b.storyType];
+      if (a.storyType === "favorite" && b.storyType !== "favorite") return -1;
+      if (b.storyType === "favorite" && a.storyType !== "favorite") return 1;
+      return 0;
     });
-  }, [businessStories, places, favorites, viewedIds]);
+  }, [businessStories, favorites, viewedIds]);
 
   const handleStoryPress = useCallback((index: number) => {
-    const group = storyGroups[index];
-    if (group.storyType === "premium" && !hasPremiumAccess) {
-      setPremiumModalOpen(true);
-      return;
-    }
     setStoryGroupIndex(index);
-  }, [storyGroups, hasPremiumAccess]);
+  }, []);
 
   // Top places (nearby section)
   const nearbyPlaces = useMemo(
@@ -479,7 +545,9 @@ export default function HomeScreen() {
           <View>
             <Text style={s.heroWelcome}>VÄLKOMMEN TILL</Text>
             <Text style={s.heroTitle}>Österlen</Text>
-            {firstName && <Text style={s.heroName}>{firstName}</Text>}
+            <Text style={s.heroName}>
+              {getGreeting()}{firstName ? `, ${firstName}` : ""}
+            </Text>
           </View>
           <TouchableOpacity
             style={s.avatarBtn}
@@ -521,12 +589,13 @@ export default function HomeScreen() {
                 keyExtractor={(g) => `${g.placeId}-${g.storyType}`}
                 contentContainerStyle={s.storiesContainer}
                 renderItem={({ item, index }) => {
-                  const isSeen =
-                    item.storyType !== "premium" && item.stories.every((s) => viewedIds.has(s.id));
+                  const isSeen = item.stories.every((s) => viewedIds.has(s.id));
                   return (
                     <StoryCircle
+                      key={`${item.placeId}-${item.storyType}`}
                       group={item}
                       isSeen={isSeen}
+                      index={index}
                       onPress={() => handleStoryPress(index)}
                     />
                   );
@@ -582,8 +651,8 @@ export default function HomeScreen() {
           <View style={s.section}>
             <View style={s.sectionHeader}>
               <View>
-                <Text style={s.sectionTitle2}>I närheten</Text>
-                <Text style={s.sectionSub2}>Utforska platser nära dig</Text>
+                <Text style={s.sectionTitle2}>Relevant för dig</Text>
+                <Text style={s.sectionSub2}>Baserat på din plats</Text>
               </View>
               <TouchableOpacity style={s.seeAllButton} onPress={() => router.push("/(tabs)/explore" as any)}>
                 <Text style={s.seeAllText}>Se alla</Text>
@@ -635,14 +704,8 @@ export default function HomeScreen() {
               <ActivityIndicator color={colors.gold} style={{ marginTop: 20 }} />
             ) : (
               feedPlaces.map((place) => {
-                const storyData = storyGroups.find(
-                  (g) => g.placeId === place.id && g.storyType !== "premium"
-                );
-                const storyIdx = storyData ? storyGroups.indexOf(storyData) : -1;
-                const premiumData = storyGroups.find(
-                  (g) => g.placeId === place.id && g.storyType === "premium"
-                );
-                const premiumIdx = premiumData ? storyGroups.indexOf(premiumData) : -1;
+                const storyData = storyGroups.find((g) => g.placeId === place.id);
+                const storyIdx  = storyData ? storyGroups.indexOf(storyData) : -1;
 
                 return (
                   <FeedPost
@@ -651,16 +714,6 @@ export default function HomeScreen() {
                     hasStory={storyIdx !== -1}
                     storyType={storyData?.storyType}
                     onStoryClick={storyIdx !== -1 ? () => handleStoryPress(storyIdx) : undefined}
-                    hasPremiumStory={premiumIdx !== -1}
-                    hasOsterlenPass={hasPremiumAccess}
-                    onPremiumStoryClick={
-                      premiumIdx !== -1
-                        ? () => {
-                            if (hasPremiumAccess) handleStoryPress(premiumIdx);
-                            else setPremiumModalOpen(true);
-                          }
-                        : undefined
-                    }
                   />
                 );
               })
@@ -681,24 +734,12 @@ export default function HomeScreen() {
             <StoryViewer
               groups={storyGroups}
               initialGroupIndex={storyGroupIndex}
-              hasPremiumAccess={hasPremiumAccess}
               onClose={() => setStoryGroupIndex(null)}
-              onPremiumBlocked={() => {
-                setStoryGroupIndex(null);
-                setPremiumModalOpen(true);
-              }}
             />
           )}
         </View>
       </Modal>
 
-      {/* Premium modal */}
-      {premiumModalOpen && (
-        <PremiumModal
-          onClose={() => setPremiumModalOpen(false)}
-          onUpgrade={() => setPremiumModalOpen(false)}
-        />
-      )}
     </View>
   );
 }
@@ -722,7 +763,7 @@ const s = StyleSheet.create({
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
   heroHeader: {
     position: "absolute",
@@ -733,14 +774,22 @@ const s = StyleSheet.create({
     zIndex: 2,
   },
   heroWelcome: {
-    fontSize: 10, fontWeight: "600", color: "rgba(245,240,232,0.7)",
-    letterSpacing: 2, marginBottom: 2,
+    fontFamily: "Inter_400Regular",
+    fontSize: 10,
+    color: "rgba(245,240,232,0.65)",
+    letterSpacing: 2,
+    marginBottom: 4,
   },
   heroTitle: {
-    fontSize: 30, fontWeight: "800", color: "#F5F0E8",
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 32,
+    color: "#F5F0E8",
   },
   heroName: {
-    fontSize: 16, color: "rgba(245,240,232,0.8)", marginTop: 2,
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 17,
+    color: "rgba(245,240,232,0.82)",
+    marginTop: 4,
   },
   avatarBtn: {
     position: "relative",
@@ -782,18 +831,29 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 18, fontWeight: "700", color: colors.foreground,
-    paddingHorizontal: 20, marginBottom: 4,
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 20,
+    color: colors.foreground,
+    paddingHorizontal: 20,
+    marginBottom: 4,
   },
   sectionSub: {
-    fontSize: 13, color: colors.foregroundMuted,
-    paddingHorizontal: 20, marginBottom: 12,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: colors.foregroundMuted,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   sectionTitle2: {
-    fontSize: 18, fontWeight: "700", color: colors.foreground,
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 20,
+    color: colors.foreground,
   },
   sectionSub2: {
-    fontSize: 12, color: colors.foregroundMuted, marginTop: 1,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: colors.foregroundMuted,
+    marginTop: 2,
   },
   seeAllButton: { flexDirection: "row", alignItems: "center", gap: 2 },
   seeAllText: { fontSize: 13, color: colors.gold, fontWeight: "600" },
@@ -804,26 +864,10 @@ const s = StyleSheet.create({
     letterSpacing: 0.8, paddingHorizontal: 20, marginBottom: 10, marginTop: 16,
   },
   storiesContainer: { paddingHorizontal: 16, gap: 14, paddingVertical: 4 },
-  storyCircleWrapper: { alignItems: "center", width: 84, position: "relative" },
-  storyRing: {
-    width: 72, height: 72, borderRadius: 36,
-    borderWidth: 3, padding: 0, overflow: "hidden",
-    shadowOpacity: 0.6, shadowRadius: 8, elevation: 6,
-  },
-  storyImage: {
-    width: "100%", height: "100%", borderRadius: 100,
-    backgroundColor: colors.surface,
-  },
-  crownBadge: {
-    position: "absolute", bottom: 18, left: 0,
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: colors.gold,
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5, borderColor: colors.background,
-  },
+  storyCircleWrapper: { alignItems: "center", width: 88, position: "relative" },
   storyName: {
     fontSize: 10, color: colors.foregroundMuted,
-    marginTop: 5, textAlign: "center", width: "100%",
+    marginTop: 6, textAlign: "center", width: "100%",
   },
   storyNameSeen: { color: colors.foregroundSubtle },
 
@@ -850,10 +894,6 @@ const s = StyleSheet.create({
     borderRadius: 20, overflow: "hidden",
     backgroundColor: colors.card,
   },
-  upcomingGradient: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
   upcomingBadge: {
     position: "absolute", top: 12, right: 12,
     backgroundColor: "rgba(26,26,26,0.9)",
@@ -879,6 +919,14 @@ const s = StyleSheet.create({
   },
 
   // Nearby
+  nearbyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  upcomingGradient: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
   nearbyList: { paddingHorizontal: 20, gap: 12 },
   nearbyCard: {
     width: NEARBY_CARD_WIDTH, height: NEARBY_CARD_HEIGHT,
@@ -886,10 +934,6 @@ const s = StyleSheet.create({
     backgroundColor: colors.card,
   },
   nearbyImage: { ...StyleSheet.absoluteFillObject },
-  nearbyOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
   nearbyContent: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     padding: 10,
@@ -926,13 +970,6 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface, marginBottom: 10,
   },
   feedImage: { width: "100%", height: "100%" },
-  feedCrownBtn: {
-    position: "absolute", bottom: 12, left: 12,
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: colors.gold,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: colors.gold, shadowOpacity: 0.5, shadowRadius: 8, elevation: 4,
-  },
   feedActions: { flexDirection: "row", gap: 16, marginBottom: 8 },
   feedActionBtn: { padding: 2 },
   feedDesc: { fontSize: 13, color: colors.foregroundMuted, lineHeight: 19 },
@@ -953,32 +990,4 @@ const s = StyleSheet.create({
   },
   discoverBtnText: { fontSize: 15, fontWeight: "700", color: "#1a1200" },
 
-  // Premium modal
-  modalBackdrop: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
-    alignItems: "center", justifyContent: "center", padding: 24,
-  },
-  premiumModal: {
-    backgroundColor: colors.card, borderRadius: 28,
-    padding: 28, width: "100%", maxWidth: 360, alignItems: "center",
-    borderWidth: 1, borderColor: "rgba(201,168,76,0.2)",
-  },
-  premiumCrown: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: colors.gold,
-    alignItems: "center", justifyContent: "center",
-    marginBottom: 16,
-    shadowColor: colors.gold, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
-  },
-  premiumTitle: { fontSize: 20, fontWeight: "800", color: colors.foreground, marginBottom: 8 },
-  premiumSub: {
-    fontSize: 14, color: colors.foregroundMuted, textAlign: "center", lineHeight: 20, marginBottom: 24,
-  },
-  premiumBtn: {
-    backgroundColor: colors.gold, borderRadius: 16,
-    paddingVertical: 14, width: "100%", alignItems: "center", marginBottom: 12,
-  },
-  premiumBtnText: { fontSize: 15, fontWeight: "700", color: "#1a1200" },
-  premiumSkip: { paddingVertical: 8 },
-  premiumSkipText: { fontSize: 14, color: colors.foregroundSubtle },
 });

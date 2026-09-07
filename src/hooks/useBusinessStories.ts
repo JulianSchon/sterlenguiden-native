@@ -12,7 +12,14 @@ export interface BusinessStory {
   deal_text: string | null;
   expires_at: string | null;
   created_at: string;
-  place?: { name: string; logo_url: string | null };
+  // Inbakad place-data från JOIN – används för att bygga story-grupper
+  // utan att vänta på usePlaces()
+  place?: {
+    name: string;
+    logo_url: string | null;
+    categories: string | null;
+    nearest_town: string | null;
+  } | null;
 }
 
 export function useBusinessStories() {
@@ -21,7 +28,7 @@ export function useBusinessStories() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("business_stories")
-        .select("*, place:places(name, logo_url)")
+        .select("*, place:places(name, logo_url, categories, nearest_town)")
         .or(
           "expires_at.gte." +
             new Date().toISOString() +
