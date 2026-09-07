@@ -121,13 +121,13 @@ const SEGMENTS: SegInfo[] = (() => {
   return out;
 })();
 
-// OSEDD – gul → orange, varmt och levande utan mörka toner
+// OSEDD – gult kickar igång men orange dominerar och poppar
 const GRAD_ACTIVE = {
   stops: [
-    { offset: "0%",   color: "#FFF380" },   // ljust citrongult
-    { offset: "35%",  color: "#FFD000" },   // knallgult
-    { offset: "70%",  color: "#FF7A00" },   // levande orange
-    { offset: "100%", color: "#FFB347" },   // ljus persikoorange
+    { offset: "0%",   color: "#FFF200" },   // starkt citrongult
+    { offset: "35%",  color: "#FFB000" },   // guldorange – mjuk övergång
+    { offset: "75%",  color: "#FF5000" },   // het orange som poppar
+    { offset: "100%", color: "#FF8000" },   // levande orange avslutar
   ],
   x1: "0", y1: "1", x2: "1", y2: "0",
 };
@@ -438,7 +438,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [storyGroupIndex, setStoryGroupIndex] = useState<number | null>(null);
 
-  const scrollY = useRef(new Animated.Value(0)).current;
 
   const { data: profile } = useProfile();
   const { data: places = [], isLoading: placesLoading } = usePlaces();
@@ -527,17 +526,16 @@ export default function HomeScreen() {
       .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))[0] ?? null;
   }, [events]);
 
-  // Parallax hero transform
-  const heroTranslate = scrollY.interpolate({
-    inputRange: [-100, 0, HERO_HEIGHT],
-    outputRange: [50, 0, -HERO_HEIGHT * 0.4],
-    extrapolate: "clamp",
-  });
-
   return (
     <View style={s.container}>
-      {/* Hero image — fixed behind scroll */}
-      <Animated.View style={[s.hero, { transform: [{ translateY: heroTranslate }] }]}>
+      {/* Scrollable — hero och content scrollar tillsammans */}
+      <ScrollView
+        style={s.scrollView}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+      {/* Hero scrollar med innehållet */}
+      <View style={s.hero}>
         <Image source={HERO_IMAGE} style={StyleSheet.absoluteFill} resizeMode="cover" />
         <View style={s.heroOverlay} />
         {/* Hero header */}
@@ -564,24 +562,14 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-      </Animated.View>
+      </View>
 
-      {/* Scrollable content card */}
-      <Animated.ScrollView
-        style={s.scrollView}
-        contentContainerStyle={{ paddingTop: HERO_HEIGHT - 24, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: true,
-        })}
-      >
-        {/* Content layer that slides up over hero */}
+        {/* Content */}
         <View style={s.contentCard}>
           {/* ── Stories ── */}
           {storyGroups.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.storiesLabel}>UTVALDA PLATSER</Text>
+            <View style={[s.section, { marginTop: 8 }]}>
+              <Text style={s.storiesLabel}>JUST NU</Text>
               <FlatList
                 data={storyGroups}
                 horizontal
@@ -624,7 +612,7 @@ export default function HomeScreen() {
               <View style={s.categoryIconGlow}>
                 <Utensils size={26} color={colors.gold} />
               </View>
-              <Text style={s.categoryLabel}>Äta idag</Text>
+              <Text style={s.categoryLabel}>Äta</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={s.categoryTile}
@@ -634,7 +622,7 @@ export default function HomeScreen() {
               <View style={s.categoryIconGlow}>
                 <BedDouble size={26} color={colors.gold} />
               </View>
-              <Text style={s.categoryLabel}>Sova inatt</Text>
+              <Text style={s.categoryLabel}>Sova</Text>
             </TouchableOpacity>
           </View>
 
@@ -720,24 +708,22 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
-      </Animated.ScrollView>
+      </ScrollView>
 
       {/* Story viewer */}
       <Modal
         visible={storyGroupIndex !== null}
-        animationType="slide"
+        animationType="none"
         statusBarTranslucent
         onRequestClose={() => setStoryGroupIndex(null)}
       >
-        <View style={{ flex: 1, backgroundColor: "#000" }}>
-          {storyGroupIndex !== null && (
-            <StoryViewer
-              groups={storyGroups}
-              initialGroupIndex={storyGroupIndex}
-              onClose={() => setStoryGroupIndex(null)}
-            />
-          )}
-        </View>
+        {storyGroupIndex !== null && (
+          <StoryViewer
+            groups={storyGroups}
+            initialGroupIndex={storyGroupIndex}
+            onClose={() => setStoryGroupIndex(null)}
+          />
+        )}
       </Modal>
 
     </View>
@@ -755,11 +741,8 @@ const s = StyleSheet.create({
 
   // Hero
   hero: {
-    position: "absolute",
-    top: 0, left: 0, right: 0,
     height: HERO_HEIGHT,
     overflow: "hidden",
-    zIndex: 0,
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -817,8 +800,6 @@ const s = StyleSheet.create({
   // Content card slides over hero
   contentCard: {
     backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     minHeight: 600,
     paddingTop: 8,
   },
@@ -860,10 +841,10 @@ const s = StyleSheet.create({
 
   // Stories
   storiesLabel: {
-    fontSize: 11, fontWeight: "700", color: colors.foregroundSubtle,
-    letterSpacing: 0.8, paddingHorizontal: 20, marginBottom: 10, marginTop: 16,
+    fontSize: 12, fontWeight: "600", color: colors.foregroundMuted,
+    letterSpacing: 1.6, paddingHorizontal: 20, marginBottom: 18, marginTop: 16,
   },
-  storiesContainer: { paddingHorizontal: 16, gap: 14, paddingVertical: 4 },
+  storiesContainer: { paddingHorizontal: 16, gap: 14, paddingVertical: 4, paddingTop: 0 },
   storyCircleWrapper: { alignItems: "center", width: 88, position: "relative" },
   storyName: {
     fontSize: 10, color: colors.foregroundMuted,

@@ -27,7 +27,7 @@ export function usePlaces() {
       const { data, error } = await supabase
         .from("places")
         .select(
-          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, is_premium, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level"
+          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level"
         )
         .order("name");
       if (error) throw error;
@@ -45,7 +45,7 @@ export function useSearchPlaces(searchQuery: string) {
         const { data, error } = await supabase
           .from("places")
           .select(
-            "id, name, categories, sub_category, lat, lng, image_url, opening_hours, is_premium, nearest_town, short_description, business_tier, price_level"
+            "id, name, categories, sub_category, lat, lng, image_url, opening_hours, nearest_town, short_description, business_tier, price_level"
           )
           .order("name");
         if (error) throw error;

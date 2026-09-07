@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import type { BusinessStory } from "@/hooks/useBusinessStories";
 import { useMarkStoryViewed } from "@/hooks/useStoryViews";
 
-const { width: W, height: H } = Dimensions.get("window");
+const { width: W, height: H } = Dimensions.get("screen"); // screen = hela skärmen inkl. statusbar
 const STORY_DURATION = 5000;
 const TICK_MS = 50;
 
@@ -80,12 +80,8 @@ export function StoryViewer({ groups, initialGroupIndex, onClose }: Props) {
   );
 
   const handleClose = useCallback(() => {
-    Animated.timing(translateY, {
-      toValue: H,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(onClose);
-  }, [onClose, translateY]);
+    onClose();
+  }, [onClose]);
 
   const goNext = useCallback(() => {
     const g = groups[groupIdx];
@@ -144,7 +140,7 @@ export function StoryViewer({ groups, initialGroupIndex, onClose }: Props) {
       onPanResponderMove: (_, g) => { if (g.dy > 0) translateY.setValue(g.dy); },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 100) {
-          Animated.timing(translateY, { toValue: H, duration: 200, useNativeDriver: true }).start(onClose);
+          onClose(); // stäng direkt — ingen animation som ger svart skärm
         } else {
           Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
           isPausedRef.current = false;
@@ -162,14 +158,13 @@ export function StoryViewer({ groups, initialGroupIndex, onClose }: Props) {
       style={[styles.container, { transform: [{ translateY }] }]}
       {...panResponder.panHandlers}
     >
-      <StatusBar hidden />
+      {/* Visa statusbar med vit text, likt Instagram */}
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* Allt innehåll som slideX-animeras vid gruppbyte */}
       <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: slideX }] }]}>
 
         <Image source={{ uri: story.image_url }} style={styles.image} resizeMode="cover" />
-        <View style={styles.topGradient} />
-        <View style={styles.bottomGradient} />
 
         {/* Progressbars */}
         <View style={[styles.progressContainer, { top: insets.top + 8 }]}>
@@ -200,12 +195,6 @@ export function StoryViewer({ groups, initialGroupIndex, onClose }: Props) {
           <Text style={styles.placeName}>{placeName}</Text>
         </TouchableOpacity>
 
-        {/* Caption */}
-        {story.caption && (
-          <View style={[styles.captionContainer, { bottom: insets.bottom + 32 }]}>
-            <Text style={styles.caption}>{story.caption}</Text>
-          </View>
-        )}
 
       </Animated.View>{/* /slideX */}
 
@@ -230,20 +219,10 @@ export function StoryViewer({ groups, initialGroupIndex, onClose }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     backgroundColor: "#000",
-    zIndex: 100,
   },
   image: { width: W, height: H },
-
-  topGradient: {
-    position: "absolute", top: 0, left: 0, right: 0, height: 220,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  bottomGradient: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 200,
-    backgroundColor: "rgba(0,0,0,0.6)",
-  },
 
   progressContainer: {
     position: "absolute", left: 8, right: 8,
@@ -269,16 +248,6 @@ const styles = StyleSheet.create({
   logoPlaceholder: { backgroundColor: "rgba(255,255,255,0.25)" },
   placeName: {
     color: "#fff", fontSize: 14, fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-
-  captionContainer: {
-    position: "absolute", left: 16, right: 16, zIndex: 20,
-  },
-  caption: {
-    fontSize: 15, color: "#fff", lineHeight: 22,
     textShadowColor: "rgba(0,0,0,0.6)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
