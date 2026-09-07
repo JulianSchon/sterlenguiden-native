@@ -66,6 +66,7 @@ export default function RootLayout() {
         <Stack.Screen name="place/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="discover" options={{ headerShown: false }} />
+        <Stack.Screen name="news/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="StoryViewer" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>

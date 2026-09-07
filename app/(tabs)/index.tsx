@@ -30,7 +30,9 @@ import Svg, {
   Circle as SvgCircle,
   Defs,
   LinearGradient as SvgGradient,
+  LinearGradient as SvgLinearGradient,
   Stop,
+  Rect,
 } from "react-native-svg";
 import { usePlaces, isPlaceOpen, getTierScore, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
@@ -39,11 +41,28 @@ import { useFavorites, useToggleFavorite, useIsFavorite } from "@/hooks/useFavor
 import { useBusinessStories } from "@/hooks/useBusinessStories";
 import { useStoryViews } from "@/hooks/useStoryViews";
 import { StoryViewer, type StoryGroupData, type StoryType } from "@/components/StoryViewer";
+import { EventBottomSheet } from "./calendar";
+import { useNews, type NewsItem } from "@/hooks/useNews";
 import { colors } from "@/lib/colors";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
+import * as Location from "expo-location";
 import { sv } from "date-fns/locale";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function formatDist(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)}m` : `${Math.round(km)}km`;
+}
 
 const HERO_HEIGHT = 208;
 const HERO_IMAGE = heroOsterlen;
@@ -258,9 +277,14 @@ function StoryCircle({
 
 // ─── NearbyCard ──────────────────────────────────────────────────────────────
 
-function NearbyCard({ place }: { place: Place }) {
+function NearbyCard({ place, userLat, userLng }: { place: Place; userLat: number | null; userLng: number | null }) {
   const router = useRouter();
   const imageUrl = place.image_url?.split(",")[0].trim() ?? "";
+  const category = place.categories?.split(",")[0]?.trim() ?? "";
+  const distance =
+    userLat !== null && userLng !== null && place.lat && place.lng
+      ? getDistanceKm(userLat, userLng, place.lat, place.lng)
+      : null;
 
   return (
     <TouchableOpacity
@@ -275,12 +299,12 @@ function NearbyCard({ place }: { place: Place }) {
       )}
       <View style={s.nearbyOverlay} />
       <View style={s.nearbyContent}>
+        {category ? (
+          <Text style={s.nearbyCategory} numberOfLines={1}>{category.toUpperCase()}</Text>
+        ) : null}
         <Text style={s.nearbyName} numberOfLines={2}>{place.name}</Text>
-        {place.nearest_town && (
-          <View style={s.nearbyLocation}>
-            <MapPin size={10} color="rgba(255,255,255,0.6)" />
-            <Text style={s.nearbyLocationText}>{place.nearest_town}</Text>
-          </View>
+        {distance !== null && (
+          <Text style={s.nearbyDist}>{formatDist(distance)}</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -289,8 +313,7 @@ function NearbyCard({ place }: { place: Place }) {
 
 // ─── UpcomingEventCard ────────────────────────────────────────────────────────
 
-function UpcomingEventCard({ event }: { event: Event }) {
-  const router = useRouter();
+function UpcomingEventCard({ event, onPress }: { event: Event; onPress: () => void }) {
   const badge = event.date ? formatDateBadge(event.date, event.end_date) : null;
   const imageUrl = event.image_url ?? "";
 
@@ -298,7 +321,7 @@ function UpcomingEventCard({ event }: { event: Event }) {
     <TouchableOpacity
       style={s.upcomingCard}
       activeOpacity={0.88}
-      onPress={() => router.push(`/event/${event.id}` as any)}
+      onPress={onPress}
     >
       {imageUrl ? (
         <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -431,18 +454,82 @@ function FeedPost({
   );
 }
 
+// ─── NewsCard ─────────────────────────────────────────────────────────────────
+
+// Gradient-färger identiska med story-ringen
+const NEWS_GRAD = [
+  { offset: "0%",   color: "#FFF200" },
+  { offset: "35%",  color: "#FFB000" },
+  { offset: "75%",  color: "#FF5000" },
+  { offset: "100%", color: "#FF8000" },
+] as const;
+
+function NewsCard({ item }: { item: NewsItem }) {
+  const router = useRouter();
+  const publishedDate = item.published_at ?? item.created_at;
+  const dateStr = publishedDate
+    ? format(new Date(publishedDate), "d MMM HH:mm", { locale: sv })
+    : null;
+
+  return (
+    // Yttre wrapper: gradient-fill syns som 1.5 px border
+    <TouchableOpacity
+      style={s.newsCardOuter}
+      activeOpacity={0.85}
+      onPress={() => router.push(`/news/${item.id}` as any)}
+    >
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+        <Defs>
+          <SvgLinearGradient id="ng" x1="0" y1="1" x2="1" y2="0">
+            {NEWS_GRAD.map((s) => (
+              <Stop key={s.offset} offset={s.offset} stopColor={s.color} />
+            ))}
+          </SvgLinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#ng)" rx={16} ry={16} />
+      </Svg>
+      {/* Inre kort med appens bakgrundsfärg */}
+      <View style={s.newsCard}>
+      <View style={s.newsCardInner}>
+        {/* Vänster: text */}
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={s.newsMeta}>
+            <View style={s.newsBadge}>
+              <Text style={s.newsBadgeText}>Österlenappen</Text>
+            </View>
+            {dateStr && <Text style={s.newsDate}>{dateStr}</Text>}
+          </View>
+          <Text style={s.newsTitle} numberOfLines={2}>{item.title}</Text>
+          {item.ingress ? (
+            <Text style={s.newsIngress} numberOfLines={2}>{item.ingress}</Text>
+          ) : null}
+        </View>
+        {/* Höger: omslagsbild */}
+        {item.cover_image_url ? (
+          <Image source={{ uri: item.cover_image_url }} style={s.newsThumbnail} resizeMode="cover" />
+        ) : null}
+      </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [storyGroupIndex, setStoryGroupIndex] = useState<number | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
 
 
   const { data: profile } = useProfile();
   const { data: places = [], isLoading: placesLoading } = usePlaces();
   const { data: events = [], isLoading: eventsLoading } = useEvents();
   const { data: businessStories = [] } = useBusinessStories();
+  const { data: newsItems = [] } = useNews(5);
   const { data: favorites = [] } = useFavorites();
   const { data: storyViews = [] } = useStoryViews();
 
@@ -496,6 +583,16 @@ export default function HomeScreen() {
 
   const handleStoryPress = useCallback((index: number) => {
     setStoryGroupIndex(index);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserLat(loc.coords.latitude);
+      setUserLng(loc.coords.longitude);
+    })();
   }, []);
 
   // Top places (nearby section)
@@ -568,7 +665,7 @@ export default function HomeScreen() {
         <View style={s.contentCard}>
           {/* ── Stories ── */}
           {storyGroups.length > 0 && (
-            <View style={[s.section, { marginTop: 8 }]}>
+            <View style={[s.section, { marginTop: 8, marginBottom: 40 }]}>
               <Text style={s.storiesLabel}>JUST NU</Text>
               <FlatList
                 data={storyGroups}
@@ -630,8 +727,8 @@ export default function HomeScreen() {
           {upcomingEvent && (
             <View style={s.section}>
               <Text style={s.sectionTitle}>Vad händer på Österlen?</Text>
-              <Text style={s.sectionSub}>Missa aldrig något som kan bli ett minne för livet</Text>
-              <UpcomingEventCard event={upcomingEvent} />
+              <Text style={s.sectionSub}>Nästa stora evenemang nära dig</Text>
+              <UpcomingEventCard event={upcomingEvent} onPress={() => setSelectedEventId(upcomingEvent.id)} />
             </View>
           )}
 
@@ -640,12 +737,8 @@ export default function HomeScreen() {
             <View style={s.sectionHeader}>
               <View>
                 <Text style={s.sectionTitle2}>Relevant för dig</Text>
-                <Text style={s.sectionSub2}>Baserat på din plats</Text>
+                <Text style={s.sectionSub2}>Utvalda platser nära dig</Text>
               </View>
-              <TouchableOpacity style={s.seeAllButton} onPress={() => router.push("/(tabs)/explore" as any)}>
-                <Text style={s.seeAllText}>Se alla</Text>
-                <ChevronRight size={14} color={colors.gold} />
-              </TouchableOpacity>
             </View>
             {placesLoading ? (
               <ActivityIndicator color={colors.gold} style={{ marginTop: 8 }} />
@@ -656,10 +749,20 @@ export default function HomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(item) => String(item.id)}
                 contentContainerStyle={s.nearbyList}
-                renderItem={({ item }) => <NearbyCard place={item} />}
+                renderItem={({ item }) => <NearbyCard place={item} userLat={userLat} userLng={userLng} />}
               />
             )}
           </View>
+
+          {/* ── Nyheter ── */}
+          {newsItems.length > 0 && (
+            <View style={s.section}>
+              <Text style={[s.sectionTitle2, { paddingHorizontal: 20, marginBottom: 16 }]}>Nyheter på Österlen</Text>
+              {newsItems.map((item) => (
+                <NewsCard key={item.id} item={item} />
+              ))}
+            </View>
+          )}
 
           {/* ── Explore feed or empty CTA ── */}
           <View style={[s.section, s.lastSection]}>
@@ -709,6 +812,12 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Event bottom sheet */}
+      <EventBottomSheet
+        eventId={selectedEventId}
+        onClose={() => setSelectedEventId(null)}
+      />
 
       {/* Story viewer */}
       <Modal
@@ -812,7 +921,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, marginBottom: 14,
   },
   sectionTitle: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "PlayfairDisplay_700Bold",
     fontSize: 20,
     color: colors.foreground,
     paddingHorizontal: 20,
@@ -826,7 +935,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle2: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "PlayfairDisplay_700Bold",
     fontSize: 20,
     color: colors.foreground,
   },
@@ -887,7 +996,8 @@ const s = StyleSheet.create({
     letterSpacing: 1.5, lineHeight: 12,
   },
   upcomingBadgeDay: {
-    fontSize: 24, fontWeight: "800", color: "#F5F0E8",
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 24, color: "#F5F0E8",
     lineHeight: 28, marginTop: 1,
   },
   upcomingContent: {
@@ -895,7 +1005,8 @@ const s = StyleSheet.create({
     padding: 16, paddingBottom: 20,
   },
   upcomingTitle: {
-    fontSize: 20, fontWeight: "800", color: "#fff",
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 20, color: "#fff",
     lineHeight: 26,
   },
 
@@ -919,11 +1030,19 @@ const s = StyleSheet.create({
     position: "absolute", bottom: 0, left: 0, right: 0,
     padding: 10,
   },
-  nearbyName: {
-    fontSize: 13, fontWeight: "600", color: "#fff", lineHeight: 17,
+  nearbyCategory: {
+    fontSize: 9, fontWeight: "700", color: colors.gold,
+    letterSpacing: 1.2, marginBottom: 3,
   },
-  nearbyLocation: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3 },
-  nearbyLocationText: { fontSize: 10, color: "rgba(255,255,255,0.6)" },
+  nearbyName: {
+    fontSize: 13, fontWeight: "700",
+    fontFamily: "PlayfairDisplay_700Bold",
+    color: "#fff", lineHeight: 17,
+  },
+  nearbyDist: {
+    fontSize: 11, fontWeight: "700", color: colors.gold,
+    marginTop: 4,
+  },
 
   // Feed post
   feedPost: {
@@ -954,6 +1073,39 @@ const s = StyleSheet.create({
   feedActions: { flexDirection: "row", gap: 16, marginBottom: 8 },
   feedActionBtn: { padding: 2 },
   feedDesc: { fontSize: 13, color: colors.foregroundMuted, lineHeight: 19 },
+
+  // News
+  newsCardOuter: {
+    marginHorizontal: 20, marginBottom: 10,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  newsCard: {
+    backgroundColor: colors.card,
+    borderRadius: 14.5,       // lite mindre än outer för att gradientlinjen syns
+    margin: 1.5,              // tjockleken på gradient-border
+    overflow: "hidden",
+  },
+  newsCardInner: {
+    flexDirection: "row", gap: 12,
+    padding: 14,
+  },
+  newsMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
+  newsBadge: {
+    backgroundColor: "rgba(34,100,60,0.3)",
+    borderWidth: 1, borderColor: "rgba(34,100,60,0.5)",
+    borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2,
+  },
+  newsBadgeText: { fontSize: 9, fontWeight: "700", color: "#4ADE80", letterSpacing: 0.8 },
+  newsDate: { fontSize: 11, color: colors.foregroundMuted },
+  newsTitle: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 15, color: colors.foreground, lineHeight: 20,
+  },
+  newsIngress: { fontSize: 12, color: colors.foregroundMuted, lineHeight: 17, marginTop: 2 },
+  newsThumbnail: {
+    width: 80, height: 80, borderRadius: 10, flexShrink: 0,
+  },
 
   // Empty feed CTA
   emptyFeed: {

@@ -119,7 +119,7 @@ function googleCalendarUrl(event: EventDetail): string {
 
 // ─── Bottom sheet ──────────────────────────────────────────────────────────
 
-function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClose: () => void }) {
+export function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [closeIconWhite, setCloseIconWhite] = useState(false);
