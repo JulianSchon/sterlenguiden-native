@@ -24,8 +24,8 @@ export function NavHome({ active }: IconProps) {
             fill={GOLD}
             strokeLinejoin="round"
           />
-          {/* Svart dörr */}
-          <Rect x={10} y={16.5} width={6} height={7} rx={0.5} fill="#0d0d0d" />
+          {/* Dörr – appens bakgrundsfärg */}
+          <Rect x={10} y={16.5} width={6} height={7} rx={0.5} fill="#121212" />
         </>
       ) : (
         <>
