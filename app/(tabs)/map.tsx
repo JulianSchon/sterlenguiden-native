@@ -140,7 +140,9 @@ export default function MapScreen() {
   const [practicalFilters, setPracticalFilters]   = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen]               = useState(false);
   const [userLoc, setUserLoc]                     = useState<{ latitude: number; longitude: number } | null>(null);
-  const locDone = useRef(false);
+  const locDone       = useRef(false);
+  // Förhindrar att MapView.onPress nollställer kortet direkt efter marker-press
+  const markerJustPressed = useRef(false);
 
   const cardAnim = useRef(new Animated.Value(0)).current;
 
@@ -228,6 +230,8 @@ export default function MapScreen() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleMarkerPress = useCallback((place: Place) => {
+    markerJustPressed.current = true;
+    setTimeout(() => { markerJustPressed.current = false; }, 300);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setSelectedPlace(place);
     if (place.lat && place.lng) {
@@ -238,7 +242,10 @@ export default function MapScreen() {
     }
   }, []);
 
-  const handleMapPress = useCallback(() => { setSelectedPlace(null); }, []);
+  const handleMapPress = useCallback(() => {
+    if (markerJustPressed.current) return; // ignorera tap som hörde till marker
+    setSelectedPlace(null);
+  }, []);
 
   const handleLocate = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -318,12 +325,15 @@ export default function MapScreen() {
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         mapType="mutedStandard"
+        userInterfaceStyle="light"
         provider={PROVIDER_DEFAULT}
         initialRegion={INIT_REGION}
         showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
+        // Flytta "Apple Maps"-texten under navbaren (måste vara synlig per Apple ToS)
+        legalLabelInsets={{ bottom: -2, left: 0, right: 0, top: 0 }}
         onPress={handleMapPress}
       >
         {filtered.map((place) => {

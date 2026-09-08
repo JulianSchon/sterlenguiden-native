@@ -22,7 +22,7 @@ import Svg, {
   Rect as SvgRect,
 } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import { BlurView } from "expo-blur";
+// BlurView (expo-blur) kräver native rebuild – ersatt med solid glass-bakgrund
 import { useIsBusiness } from "@/hooks/useUserRole";
 import {
   NavHome,
@@ -204,11 +204,9 @@ export default function FloatingNav() {
         pointerEvents="box-none"
       >
         <View style={s.pill}>
-          <BlurView intensity={24} tint="dark" style={s.pillBlur}>
-            <View style={[s.pillBg, { flexDirection: "row", height: FLOATING_NAV_HEIGHT, paddingHorizontal: 12 }]}>
-              {buttons}
-            </View>
-          </BlurView>
+          <View style={[s.pillBlur, s.pillBg, { flexDirection: "row", height: FLOATING_NAV_HEIGHT, paddingHorizontal: 12 }]}>
+            {buttons}
+          </View>
         </View>
       </View>
     );
@@ -293,6 +291,7 @@ const s = StyleSheet.create({
   pillBlur: {
     borderRadius: 28,
     overflow: "hidden",
+    backgroundColor: "rgba(18,18,18,0.88)",
   },
   pillBg: {
     backgroundColor: "rgba(18,18,18,0.75)",
