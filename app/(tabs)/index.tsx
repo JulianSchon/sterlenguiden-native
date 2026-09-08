@@ -916,8 +916,11 @@ const s = StyleSheet.create({
   // Content card slides over hero
   contentCard: {
     backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -24,
     minHeight: 600,
-    paddingTop: 8,
+    paddingTop: 16,
   },
 
   // Sections
