@@ -11,6 +11,7 @@ export default function TabLayout() {
        */}
       <Tabs
         tabBar={() => null}
+        sceneContainerStyle={{ borderRadius: 0, backgroundColor: "#121212" }}
         screenOptions={{ headerShown: false }}
       >
         <Tabs.Screen name="index"    options={{ title: "Hem" }} />
