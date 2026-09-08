@@ -1119,7 +1119,7 @@ const s = StyleSheet.create({
   xBtn: { paddingHorizontal: 16, paddingVertical: 8 },
 
   // Chips
-  chipsScroll: { paddingTop: 12, marginBottom: 4 },
+  chipsScroll: { paddingTop: 12, marginBottom: 20 },
   chipsContent: {
     paddingHorizontal: 12,
     gap: 6,
@@ -1127,21 +1127,21 @@ const s = StyleSheet.create({
     paddingBottom: 8,
   },
   chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
     borderRadius: 9999,
     backgroundColor: SECONDARY,
   },
   chipActive: { backgroundColor: FG },
   chipText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Inter_500Medium",
     fontSize: 13.5,
     color: FG,
   },
   chipTextActive: { color: BG },
 
   // Karusell
-  carouselScroll: { marginBottom: 24 },
+  carouselScroll: { marginBottom: 32 },
   carouselContent: { paddingHorizontal: 12, gap: 12, paddingRight: 12 },
   carouselCard: {
     borderRadius: 16,
@@ -1201,9 +1201,8 @@ const s = StyleSheet.create({
   servicesRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 8,
-    marginBottom: 24,
     paddingHorizontal: 12,
+    marginBottom: 32,
   },
   serviceItem: { alignItems: "center", gap: 6, flex: 1 },
   serviceCircle: {
@@ -1228,10 +1227,10 @@ const s = StyleSheet.create({
   // Kategori-grid
   gridSection: { paddingHorizontal: 12, marginBottom: 0 },
   gridHeading: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
-    color: MUTED,
-    letterSpacing: 0.7,
+    color: WARM_MUTED,
+    letterSpacing: 1.6,
     textTransform: "uppercase",
     marginBottom: 16,
     fontFamily: "Inter_500Medium",
