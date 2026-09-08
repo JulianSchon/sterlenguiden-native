@@ -332,8 +332,8 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
-        // Flytta "Apple Maps"-texten under navbaren (måste vara synlig per Apple ToS)
-        legalLabelInsets={{ bottom: -2, left: 0, right: 0, top: 0 }}
+        // Apple Maps-loggan positioneras precis ovanför navbaren (måste vara synlig per ToS)
+        legalLabelInsets={{ bottom: 56 + insets.bottom + 4, left: 8, right: 0, top: 0 }}
         onPress={handleMapPress}
       >
         {filtered.map((place) => {
@@ -426,7 +426,7 @@ export default function MapScreen() {
 
       {/* ── Hitta mig ─────────────────────────────────────────────────────── */}
       <TouchableOpacity
-        style={[s.locateBtn, { bottom: 88 + insets.bottom + 56 }]}
+        style={[s.locateBtn, { bottom: 56 + insets.bottom + 88 }]}
         onPress={handleLocate}
         activeOpacity={0.85}
       >
@@ -438,7 +438,7 @@ export default function MapScreen() {
         <Animated.View
           style={[
             s.card,
-            { bottom: 24 + insets.bottom },
+            { bottom: 56 + insets.bottom + 16 },
             {
               opacity: cardAnim,
               transform: [{
