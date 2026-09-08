@@ -1239,7 +1239,7 @@ const s = StyleSheet.create({
   },
   gridTile: {
     width: (SW - 12 * 2 - 12) / 2,
-    aspectRatio: 4 / 3,
+    aspectRatio: 1,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.05)",
