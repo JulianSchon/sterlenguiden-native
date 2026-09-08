@@ -42,7 +42,7 @@ const GOLD  = "#C5A059";
 const MUTED = "rgba(255,255,255,0.45)";
 
 const HEADER_H  = 200;
-const CARD_SIZE = 140;
+const CARD_SIZE = 168;
 
 // ─── Haversine ─────────────────────────────────────────────────────────────────
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -538,7 +538,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   bigTitle: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 36,
     color: FG,
     marginTop: 24,
@@ -548,14 +548,14 @@ const s = StyleSheet.create({
   row: { marginBottom: 32 },
   rowHeader: { paddingHorizontal: 20, marginBottom: 12 },
   rowTitle: {
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 18,
     color: FG,
   },
   rowSubtitle: {
     fontFamily: "Inter_400Regular",
     fontSize: 12,
-    color: MUTED,
+    color: "#A09880",
     marginTop: 2,
   },
   rowList: { paddingHorizontal: 20, gap: 12 },
