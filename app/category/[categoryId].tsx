@@ -538,19 +538,21 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   bigTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
-    fontSize: 36,
+    fontFamily: "CormorantGaramond_600SemiBold",
+    fontSize: 42,
     color: FG,
     marginTop: 24,
+    letterSpacing: 0.3,
   },
 
   // Underkategori-rad
   row: { marginBottom: 32 },
   rowHeader: { paddingHorizontal: 20, marginBottom: 12 },
   rowTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
-    fontSize: 18,
+    fontFamily: "CormorantGaramond_600SemiBold",
+    fontSize: 22,
     color: FG,
+    letterSpacing: 0.2,
   },
   rowSubtitle: {
     fontFamily: "Inter_400Regular",

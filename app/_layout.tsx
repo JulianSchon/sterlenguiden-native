@@ -17,6 +17,13 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
+import {
+  CormorantGaramond_400Regular,
+  CormorantGaramond_500Medium,
+  CormorantGaramond_600SemiBold,
+  CormorantGaramond_700Bold,
+  CormorantGaramond_400Regular_Italic,
+} from "@expo-google-fonts/cormorant-garamond";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function RootLayout() {
@@ -30,6 +37,11 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    CormorantGaramond_400Regular,
+    CormorantGaramond_500Medium,
+    CormorantGaramond_600SemiBold,
+    CormorantGaramond_700Bold,
+    CormorantGaramond_400Regular_Italic,
   });
 
   // INITIAL_SESSION är Supabase-klientens signal att sessionen
