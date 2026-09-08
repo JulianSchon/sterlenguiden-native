@@ -403,22 +403,6 @@ export default function CategoryScreen() {
         style={[s.stickyHeader, { height: headerTop + 52, paddingTop: headerTop }, stickyAnimStyle]}
         pointerEvents="box-none"
       >
-        {/* Bakgrundsövergång: solidColor → transparent */}
-        <Svg
-          width="100%"
-          height="100%"
-          style={StyleSheet.absoluteFill}
-          preserveAspectRatio="none"
-        >
-          <Defs>
-            <SvgGrad id="stickyGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={cfg.solidColor} stopOpacity={0.95} />
-              <Stop offset="100%" stopColor={cfg.solidColor} stopOpacity={0}    />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#stickyGrad)" />
-        </Svg>
-
         <View style={s.stickyRow}>
           <TouchableOpacity style={s.backBtnSmall} onPress={() => router.back()}>
             <ArrowLeft size={16} color={FG} strokeWidth={2} />
@@ -503,6 +487,9 @@ const s = StyleSheet.create({
     right: 0,
     zIndex: 50,
     justifyContent: "flex-end",
+    backgroundColor: BG,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
   stickyRow: {
     flexDirection: "row",
@@ -522,7 +509,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   stickyTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 16,
     color: FG,
     flex: 1,
@@ -551,7 +538,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   bigTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 36,
     color: FG,
     marginTop: 24,
@@ -561,7 +548,7 @@ const s = StyleSheet.create({
   row: { marginBottom: 32 },
   rowHeader: { paddingHorizontal: 20, marginBottom: 12 },
   rowTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 18,
     color: FG,
   },
