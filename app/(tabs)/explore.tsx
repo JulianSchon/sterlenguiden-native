@@ -284,7 +284,7 @@ function ServiceSheet({ visible, service, userLocation, onClose }: ServiceSheetP
   }, [validPoints]);
 
   const handleClose = useCallback(() => {
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onClose();
   }, [onClose]);
 
@@ -717,7 +717,7 @@ export default function ExploreScreen() {
 
   // ── Service-cirklar ──────────────────────────────────────────────────────────
   const handleServicePress = useCallback((svc: ServiceDef) => {
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setActiveSheet(svc);
   }, []);
 
@@ -973,7 +973,7 @@ export default function ExploreScreen() {
                 key={chip.id}
                 style={[s.chip, activeChip === chip.id && s.chipActive]}
                 onPress={() => {
-                  try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                   setActiveChip(chip.id);
                 }}
               >

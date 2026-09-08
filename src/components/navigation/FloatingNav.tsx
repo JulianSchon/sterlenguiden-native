@@ -127,13 +127,13 @@ export default function FloatingNav() {
 
   // Navigation med haptik
   const go = useCallback(async (route: string) => {
-    try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     router.push(route as any);
   }, [router]);
 
   // Specialfall: hem → scrolla till toppen om redan aktiv
   const goHome = useCallback(async () => {
-    try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (active === "home") {
       // Ingen scrolllogik client-side här – lägg till via context vid behov
       return;
