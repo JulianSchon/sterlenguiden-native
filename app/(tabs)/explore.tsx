@@ -21,7 +21,8 @@ import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import MapView, { Marker } from "react-native-maps";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// AsyncStorage kräver native rebuild – använder in-memory tills nästa EAS-build.
+// Byt ut _store mot AsyncStorage-anrop när dev-clienten är ombyggd.
 import {
   Search, X, MapPin, Store, Navigation, Locate,
   Toilet, Plug, Heart, Wrench, Crown, Clock, Trash2,
@@ -155,9 +156,10 @@ const SERVICES: ServiceDef[] = [
   },
 ];
 
-// ─── Sökhistorik (AsyncStorage) ────────────────────────────────────────────────
-const HISTORY_KEY = "search-history-places";
+// ─── Sökhistorik (in-memory) ───────────────────────────────────────────────────
+// TODO: byt till AsyncStorage efter nästa EAS-rebuild
 const MAX_HISTORY = 15;
+let _historyStore: HistoryItem[] = [];
 
 interface HistoryItem {
   id: number;
@@ -168,18 +170,11 @@ interface HistoryItem {
 }
 
 async function loadHistory(): Promise<HistoryItem[]> {
-  try {
-    const raw = await AsyncStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return _historyStore;
 }
 
 async function saveHistory(items: HistoryItem[]): Promise<void> {
-  try {
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(items));
-  } catch {}
+  _historyStore = items;
 }
 
 async function addToHistory(place: Place): Promise<HistoryItem[]> {
@@ -649,7 +644,7 @@ export default function ExploreScreen() {
   );
 
   const clearHistory = useCallback(async () => {
-    await AsyncStorage.removeItem(HISTORY_KEY);
+    _historyStore = [];
     setHistory([]);
   }, []);
 
