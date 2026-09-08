@@ -19,8 +19,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 import MapView, { Marker } from "react-native-maps";
+import Svg, {
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+  Rect as SvgRect,
+} from "react-native-svg";
 // AsyncStorage kräver native rebuild – använder in-memory tills nästa EAS-build.
 // Byt ut _store mot AsyncStorage-anrop när dev-clienten är ombyggd.
 import {
@@ -756,11 +761,25 @@ export default function ExploreScreen() {
               </View>
             )}
 
-            {/* Gradient-overlay + text */}
-            <LinearGradient
-              colors={["transparent", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.82)"]}
-              style={s.carouselGradient}
-            >
+            {/* Gradient-overlay + text (SVG – ingen native rebuild) */}
+            <View style={s.carouselGradient} pointerEvents="none">
+              <Svg
+                width="100%"
+                height="100%"
+                style={StyleSheet.absoluteFill}
+                preserveAspectRatio="none"
+              >
+                <Defs>
+                  <SvgLinearGradient id={`cg${place.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0%"   stopColor="#000" stopOpacity={0}    />
+                    <Stop offset="50%"  stopColor="#000" stopOpacity={0.5}  />
+                    <Stop offset="100%" stopColor="#000" stopOpacity={0.82} />
+                  </SvgLinearGradient>
+                </Defs>
+                <SvgRect width="100%" height="100%" fill={`url(#cg${place.id})`} />
+              </Svg>
+            </View>
+            <View style={s.carouselTextWrap} pointerEvents="none">
               <Text style={s.carouselName} numberOfLines={2}>{place.name}</Text>
               {distKm !== null && (
                 <View style={s.distRow}>
@@ -768,7 +787,7 @@ export default function ExploreScreen() {
                   <Text style={s.distText}>{distKm} km</Text>
                 </View>
               )}
-            </LinearGradient>
+            </View>
           </View>
         </TouchableOpacity>
       );
@@ -1017,10 +1036,20 @@ export default function ExploreScreen() {
                       // Scrolla till toppen
                     }}
                   >
-                    <LinearGradient
-                      colors={cat.colors}
+                    <Svg
+                      width="100%"
+                      height="100%"
                       style={StyleSheet.absoluteFill}
-                    />
+                      preserveAspectRatio="none"
+                    >
+                      <Defs>
+                        <SvgLinearGradient id={`tile${cat.id}`} x1="0" y1="0" x2="0" y2="1">
+                          <Stop offset="0%"   stopColor={cat.colors[0]} stopOpacity={1} />
+                          <Stop offset="100%" stopColor={cat.colors[1]} stopOpacity={1} />
+                        </SvgLinearGradient>
+                      </Defs>
+                      <SvgRect width="100%" height="100%" fill={`url(#tile${cat.id})`} />
+                    </Svg>
                     {/* Svagt svart skärm ovanpå */}
                     <View style={s.gridScrim} />
                     <Text style={s.gridTileText}>{cat.label}</Text>
@@ -1122,10 +1151,17 @@ const s = StyleSheet.create({
   carouselImgWrap: { aspectRatio: 4 / 3 },
   carouselImg: { width: "100%", height: "100%" },
   carouselGradient: {
-    ...StyleSheet.absoluteFillObject,
-    top: undefined,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     height: 96,
-    justifyContent: "flex-end",
+  },
+  carouselTextWrap: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: 16,
   },
   carouselName: {
