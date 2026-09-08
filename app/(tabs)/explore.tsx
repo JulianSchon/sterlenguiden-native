@@ -47,6 +47,7 @@ const FG        = "#F5F2EA";
 const CARD      = "#1A1A1A";
 const SECONDARY = "#242424";
 const MUTED     = "rgba(255,255,255,0.45)";
+const WARM_MUTED = "#A09880"; // samma som colors.foregroundMuted / "JUST NU" på hem
 const BORDER    = "rgba(255,255,255,0.10)";
 const GOLD      = "#C5A059";
 
@@ -886,13 +887,13 @@ export default function ExploreScreen() {
         <View style={[s.searchBarWrap, searching && { paddingTop: 8 }]}>
           <View style={s.searchBar}>
             <View style={s.searchIconWrap}>
-              <Search size={20} color={MUTED} strokeWidth={2} />
+              <Search size={20} color={WARM_MUTED} strokeWidth={2} />
             </View>
             <TextInput
               ref={inputRef}
               style={s.searchInput}
               placeholder="Sök platser, restauranger..."
-              placeholderTextColor={MUTED}
+              placeholderTextColor={WARM_MUTED}
               value={query}
               onChangeText={setQuery}
               onFocus={enterSearch}
@@ -1012,7 +1013,7 @@ export default function ExploreScreen() {
                   onPress={() => handleServicePress(svc)}
                 >
                   <View style={s.serviceCircle}>
-                    <Icon size={24} color={MUTED} strokeWidth={2} />
+                    <Icon size={24} color={WARM_MUTED} strokeWidth={2} />
                   </View>
                   <Text style={s.serviceLabel}>{svc.label}</Text>
                 </TouchableOpacity>
@@ -1218,7 +1219,7 @@ const s = StyleSheet.create({
   serviceLabel: {
     fontSize: 11,
     fontFamily: "Inter_500Medium",
-    color: MUTED,
+    color: WARM_MUTED,
     textAlign: "center",
     maxWidth: 64,
     lineHeight: 14,
