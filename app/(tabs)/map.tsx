@@ -333,7 +333,7 @@ export default function MapScreen() {
         showsCompass={false}
         showsScale={false}
         // Apple Maps-loggan positioneras precis ovanför navbaren (måste vara synlig per ToS)
-        legalLabelInsets={{ bottom: insets.bottom, left: 8, right: 0, top: 0 }}
+        legalLabelInsets={{ bottom: -20, left: 8, right: 0, top: 0 }}
         onPress={handleMapPress}
       >
         {filtered.map((place) => {
