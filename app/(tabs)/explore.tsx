@@ -1032,10 +1032,7 @@ export default function ExploreScreen() {
                     key={cat.id}
                     style={s.gridTile}
                     activeOpacity={0.8}
-                    onPress={() => {
-                      setActiveChip(cat.id);
-                      // Scrolla till toppen
-                    }}
+                    onPress={() => router.push(`/category/${cat.id}` as any)}
                   >
                     <Svg
                       width="100%"
