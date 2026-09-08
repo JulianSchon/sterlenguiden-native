@@ -5,7 +5,7 @@ import {
   Dimensions, Pressable, Animated, Linking,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { BlurView } from "expo-blur";
+// BlurView (expo-blur) kräver native rebuild – ersatt med solid overlay
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Flame, CalendarDays, LayoutGrid, ChevronLeft, ChevronRight, X, MapPin,
@@ -227,7 +227,7 @@ export function EventBottomSheet({ eventId, onClose }: { eventId: number | null;
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
       {/* Backdrop */}
       <Animated.View style={[bs.backdrop, { opacity: backdropOpacity }]}>
-        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.55)" }]} />
         <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
       </Animated.View>
 

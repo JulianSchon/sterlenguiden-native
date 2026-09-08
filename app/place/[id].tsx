@@ -36,7 +36,7 @@ import {
   Mountain,
 } from "lucide-react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+// BlurView (expo-blur) kräver native rebuild – ersatt med solid overlay
 import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
@@ -234,20 +234,20 @@ export default function PlaceDetailScreen() {
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <BlurView intensity={80} tint="dark" style={styles.overlayBtnBlur}>
+            <View style={styles.overlayBtnBlur}>
               <ArrowLeft size={24} color="#fff" />
-            </BlurView>
+            </View>
           </TouchableOpacity>
 
           {/* Share + Heart — row so marginLeft overlap works */}
           <View style={[styles.topRightRow, { top: topBtnTop }]}>
             <TouchableOpacity style={styles.overlayBtnOuter} onPress={handleShare} activeOpacity={0.8}>
-              <BlurView intensity={80} tint="dark" style={styles.overlayBtnBlur}>
+              <View style={styles.overlayBtnBlur}>
                 <Upload size={20} color="#fff" />
-              </BlurView>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.overlayBtnOuter, styles.heartOverlap]} onPress={handleHeart} activeOpacity={0.8}>
-              <BlurView intensity={80} tint="dark" style={styles.overlayBtnBlur}>
+              <View style={styles.overlayBtnBlur}>
                 <Animated.View style={{ transform: [{ scale: heartScale }] }}>
                   <Heart
                     size={20}
@@ -255,7 +255,7 @@ export default function PlaceDetailScreen() {
                     fill={favorited ? "#B83434" : "transparent"}
                   />
                 </Animated.View>
-              </BlurView>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -381,6 +381,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 22,
   },
   topRightRow: {
     position: "absolute",
