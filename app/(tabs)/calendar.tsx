@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Sparkles, Flame, CalendarDays, LayoutGrid,
+  Compass, Flame, CalendarDays, LayoutGrid,
   ChevronLeft, ChevronRight, X, MapPin, Globe,
   Heart, CalendarPlus, Clock, ChevronDown,
 } from "lucide-react-native";
@@ -158,7 +158,12 @@ export function EventBottomSheet({ eventId, onClose }: { eventId: number | null;
     Animated.parallel([
       Animated.timing(backdropOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
       Animated.spring(translateY, { toValue: SHEET_HEIGHT, damping: 30, stiffness: 300, useNativeDriver: true }),
-    ]).start(() => { setVisible(false); onClose(); });
+    ]).start(() => {
+      setVisible(false);
+      // Small delay ensures the Modal fully unmounts before touches reach the
+      // underlying screen – prevents the "first tap does nothing" ghost touch.
+      setTimeout(onClose, 30);
+    });
   }, []);
 
   const handleClose = () => {
@@ -488,7 +493,7 @@ function ForYouView({ events, onPress }: { events: Event[]; onPress: (id: number
   if (allEmpty) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 64, paddingHorizontal: 20 }}>
-        <Sparkles size={28} color={`${GOLD}99`} strokeWidth={1.5} />
+        <Compass size={28} color={`${GOLD}99`} strokeWidth={1.5} />
         <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: FG, marginTop: 16, textAlign: "center" }}>Din personliga guide byggs upp</Text>
         <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 8, textAlign: "center" }}>Spara favoriter så lär appen känna dig.</Text>
       </View>
@@ -732,21 +737,17 @@ function CalendarView({ events, onEventPress }: { events: Event[]; onEventPress:
 const MONTHS_SV = ["Jan", "Feb", "Mars", "Apr", "Maj", "Juni", "Juli", "Aug", "Sep", "Okt", "Nov", "Dec"];
 const CATEGORIES = ["Alla", "Musik", "Matupplevelse", "Konst & Kultur", "Marknad", "Familj", "Natur", "Guidning", "Hälsa & Välmående", "Övrigt"];
 
-function UtforskView({ events, onPress }: { events: Event[]; onPress: (id: number) => void }) {
-  const [selMonth,    setSelMonth]    = useState(new Date().getMonth());
-  const [selCategory, setSelCategory] = useState("Alla");
-  const [catOpen,     setCatOpen]     = useState(false);
-  const catChevron = useRef(new Animated.Value(0)).current;
+function UtforskView({ events, onPress, catOpen, onCatToggle, selCategory, onCatChange }: {
+  events: Event[];
+  onPress: (id: number) => void;
+  catOpen: boolean;
+  onCatToggle: () => void;
+  selCategory: string;
+  onCatChange: (cat: string) => void;
+}) {
+  const [selMonth, setSelMonth] = useState(new Date().getMonth());
   const pillRef = useRef<ScrollView>(null);
   const year = new Date().getFullYear();
-
-  const toggleCat = () => {
-    const toVal = catOpen ? 0 : 1;
-    setCatOpen(!catOpen);
-    Animated.timing(catChevron, { toValue: toVal, duration: 200, useNativeDriver: true }).start();
-  };
-
-  const chevronDeg = catChevron.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
 
   const filtered = useMemo(() => {
     const monthStart = new Date(year, selMonth, 1);
@@ -763,31 +764,47 @@ function UtforskView({ events, onPress }: { events: Event[]; onPress: (id: numbe
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Month pills */}
-      <ScrollView ref={pillRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16, gap: 8 }}>
-        {MONTHS_SV.map((name, idx) => (
-          <TouchableOpacity
-            key={idx}
-            style={[{ width: 64, paddingVertical: 10, borderRadius: 999, alignItems: "center", borderWidth: 1 }, selMonth === idx ? { backgroundColor: GOLD, borderColor: GOLD } : { backgroundColor: "rgba(28,28,28,0.5)", borderColor: BORDER }]}
-            onPress={() => setSelMonth(idx)}
-          >
-            <Text style={[{ fontFamily: "Inter_600SemiBold", fontSize: 14, textAlign: "center" }, selMonth === idx ? { color: CHARCOAL } : { color: MUTED }]}>{name}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Month pills – fixed-height row so flex can't stretch pills vertically */}
+      <View style={{ height: 56 }}>
+        <ScrollView
+          ref={pillRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8, alignItems: "flex-start" }}
+        >
+          {MONTHS_SV.map((name, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={[
+                { minWidth: 64, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 999, alignItems: "center", borderWidth: 1 },
+                selMonth === idx
+                  ? { backgroundColor: GOLD, borderColor: GOLD }
+                  : { backgroundColor: "rgba(28,28,28,0.5)", borderColor: BORDER },
+              ]}
+              onPress={() => setSelMonth(idx)}
+            >
+              <Text style={[{ fontFamily: "Inter_600SemiBold", fontSize: 14, textAlign: "center" }, selMonth === idx ? { color: CHARCOAL } : { color: MUTED }]}>{name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
-      {/* Category dropdown */}
+      {/* Category dropdown – renders on top, zIndex 200 */}
       {catOpen && (
-        <Pressable style={StyleSheet.absoluteFill} onPress={toggleCat} />
+        <Pressable style={[StyleSheet.absoluteFill, { zIndex: 199 }]} onPress={onCatToggle} />
       )}
 
       {catOpen && (
-        <View style={{ position: "absolute", top: 56, right: 20, zIndex: 200, backgroundColor: "#1A1A1A", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", minWidth: 220, shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.7, shadowRadius: 48, elevation: 20 }}>
+        <View style={{ position: "absolute", top: 4, right: 20, zIndex: 200, backgroundColor: "#1A1A1A", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", minWidth: 220, shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.7, shadowRadius: 48, elevation: 20 }}>
           {CATEGORIES.map((cat, i) => (
             <TouchableOpacity
               key={cat}
-              style={[{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, i > 0 && { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.03)" }, selCategory === cat && { backgroundColor: "rgba(197,160,89,0.1)" }]}
-              onPress={() => { setSelCategory(cat); toggleCat(); }}
+              style={[
+                { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+                i > 0 && { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.03)" },
+                selCategory === cat && { backgroundColor: "rgba(197,160,89,0.10)" },
+              ]}
+              onPress={() => { onCatChange(cat); onCatToggle(); }}
             >
               <Text style={[{ fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(245,241,232,0.70)" }, selCategory === cat && { fontFamily: "Inter_600SemiBold", color: GOLD }]}>{cat}</Text>
               {selCategory === cat && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD }} />}
@@ -816,12 +833,13 @@ function UtforskView({ events, onPress }: { events: Event[]; onPress: (id: numbe
 
 // ─── Tab bar with sliding indicator ──────────────────────────────────────────
 const TABS: { id: EventTab; Icon: React.ComponentType<any>; label: string }[] = [
-  { id: "foryou",   Icon: Sparkles,    label: "För dig"  },
+  { id: "foryou",   Icon: Compass,     label: "För dig"  },
   { id: "popular",  Icon: Flame,       label: "Populärt" },
   { id: "calendar", Icon: CalendarDays,label: "Kalender" },
   { id: "month",    Icon: LayoutGrid,  label: "Utforska" },
 ];
-const TAB_W = SW / 4;
+// Tab container has marginHorizontal: 12 on each side → 24px total removed
+const TAB_W = (SW - 24) / 4;
 const IND_W = 32;
 
 function EventTabBar({ activeTab, onTabChange, catOpen, onCatToggle }: {
@@ -882,7 +900,9 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab,       setActiveTab]       = useState<EventTab>("foryou");
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
-  const [catOpen,         setCatOpen]         = useState(false);
+  // Category filter – lifted up so the header chip and UtforskView share the same state
+  const [catOpen,     setCatOpen]     = useState(false);
+  const [selCategory, setSelCategory] = useState("Alla");
 
   const { data: allEvents = [],     isLoading }        = useEvents();
   const { data: popularEvents = [], isLoading: popLoad } = usePopularEvents();
@@ -895,22 +915,26 @@ export default function CalendarScreen() {
     if (t !== "month") setCatOpen(false);
   };
 
+  const toggleCat = () => setCatOpen((v) => !v);
+
   return (
     <View style={{ flex: 1, backgroundColor: BG, paddingTop: safeTop + 12 }}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, marginBottom: 16, flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <View>
+        <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 30, color: FG }}>Evenemang</Text>
           <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 4 }}>Upptäck vad som händer på Österlen</Text>
         </View>
-        {/* Category chip – only visible in Utforska tab */}
+        {/* Category chip – only visible in Utforska tab; shows current filter */}
         {activeTab === "month" && (
           <TouchableOpacity
-            style={{ flexDirection: "row", alignItems: "center", height: 40, borderRadius: 999, paddingHorizontal: 14, gap: 6, backgroundColor: "rgba(0,0,0,0.3)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", marginTop: 4 }}
-            onPress={() => setCatOpen((v) => !v)}
+            style={{ flexDirection: "row", alignItems: "center", height: 40, borderRadius: 999, paddingHorizontal: 14, gap: 6, backgroundColor: "rgba(0,0,0,0.3)", borderWidth: 1, borderColor: catOpen ? `${GOLD}60` : "rgba(255,255,255,0.10)", marginTop: 4 }}
+            onPress={toggleCat}
           >
-            <Text style={{ fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Alla</Text>
-            <ChevronDown size={16} color="rgba(255,255,255,0.8)" strokeWidth={2} />
+            <Text style={{ fontFamily: "Inter_500Medium", fontSize: 13, color: selCategory !== "Alla" ? GOLD : "rgba(255,255,255,0.8)" }} numberOfLines={1}>
+              {selCategory}
+            </Text>
+            <ChevronDown size={15} color={selCategory !== "Alla" ? GOLD : "rgba(255,255,255,0.7)"} strokeWidth={2} />
           </TouchableOpacity>
         )}
       </View>
@@ -926,7 +950,16 @@ export default function CalendarScreen() {
           {activeTab === "foryou"   && <ForYouView   events={allEvents}     onPress={setSelectedEventId} />}
           {activeTab === "popular"  && <PopularView  events={popularEvents} onPress={setSelectedEventId} />}
           {activeTab === "calendar" && <CalendarView events={allEvents}     onEventPress={setSelectedEventId} />}
-          {activeTab === "month"    && <UtforskView  events={allEvents}     onPress={setSelectedEventId} />}
+          {activeTab === "month"    && (
+            <UtforskView
+              events={allEvents}
+              onPress={setSelectedEventId}
+              catOpen={catOpen}
+              onCatToggle={toggleCat}
+              selCategory={selCategory}
+              onCatChange={(cat) => setSelCategory(cat)}
+            />
+          )}
         </View>
       )}
 
