@@ -5,6 +5,8 @@ export interface Profile {
   id: string;
   user_id: string;
   display_name: string | null;
+  avatar_url: string | null;
+  profile_image_url: string | null;
   is_member: boolean;
   preferred_language: string;
   notifications_enabled: boolean;

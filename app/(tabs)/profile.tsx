@@ -5,25 +5,27 @@
  * Skärmen scrollar INTE – allt ryms på en telefonhöjd.
  * MemberCard är appens viktigaste UI-element: flipbar 3D-karta med animerade guldvågor.
  */
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  View, Text, Image, TouchableOpacity, StyleSheet,
+  View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet,
   Dimensions, Animated, Alert,
 } from "react-native";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Svg, {
-  Defs,
+  Defs, ClipPath,
   LinearGradient as SvgGrad,
   RadialGradient as SvgRadial,
-  Stop,
+  Stop, Circle, G,
   Path,
   Rect as SvgRect,
 } from "react-native-svg";
 import {
   Settings, Crown, ChevronRight, ClipboardList,
-  BarChart3, Medal, Heart, Radio, MapPin, Bookmark, BookOpen,
+  BarChart3, Medal, Heart, MapPin, Bookmark, BookOpen, Radio,
 } from "lucide-react-native";
+import { CARD_VARIANTS, cardColors, getVariant } from "@/lib/cardVariants";
 import { useProfile }   from "@/hooks/useProfile";
 import { useAuth }      from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
@@ -37,48 +39,91 @@ const { width: SW } = Dimensions.get("window");
 const CARD_W  = SW - 32;
 const CARD_H  = 200;
 const GOLD    = "#C5A059";
-const GOLD_W  = "#d4af37";
+const GOLD_LT = "#D4AF55";
 const CHARCOAL = "#121212";
 const BG      = "#121212";
 const FG      = "#F5F1E8";
 const MUTED   = "rgba(245,241,232,0.55)";
 const BORDER  = "rgba(255,255,255,0.10)";
 const CARD_BG = "#1C1C1C";
+const MARK_SIZE = Math.round(CARD_H * 0.74);
 
-// ─── Gold wave SVG (member card decoration) ───────────────────────────────────
-const WAVE_YS = [60, 78, 96, 114, 132];
-function GoldWaves() {
-  const paths = WAVE_YS.map((y, i) => {
-    const d = `M -20 ${y} Q 120 ${y - 18 + i * 4} 260 ${y + 6 - i * 3} T 420 ${y - 4}`;
-    const opacity = 0.85 - i * 0.1;
-    return { d, opacity };
-  });
+// PNG-bakgrund för Midnatt-varianten (require måste ligga här för Metro)
+const CARD_BG_IMG = require("../../assets/card-bg.png");
+
+// Felande fallback-färger för icke-members
+const NON_MEMBER_COLORS = {
+  text:           "rgba(255,255,255,0.30)",
+  muted:          "rgba(255,255,255,0.20)",
+  accent:         "rgba(200,185,160,0.45)",
+  avatarBorder:   "rgba(200,185,160,0.30)",
+  avatarBg:       "rgba(255,255,255,0.05)",
+  avatarInitials: "rgba(255,255,255,0.30)",
+  border:         "rgba(200,185,160,0.08)",
+  sweep:          "rgba(255,255,255,0.02)",
+};
+
+// ─── Ö lettermark ─────────────────────────────────────────────────────────────
+function OsterlenMark({ size, muted = false, opacity = 1, color }: {
+  size: number; muted?: boolean; opacity?: number; color?: string;
+}) {
+  const cx   = size * 0.50;
+  const cy   = size * 0.58;
+  const r    = size * 0.37;
+  const sw   = Math.max(size * 0.020, 1.5);
+  const dotR = size * 0.054;
+  const dotY = size * 0.082;
+  const dx   = size * 0.138;
+  const col  = muted
+    ? `rgba(210,195,168,0.16)`
+    : color
+      ? `rgba(255,255,255,${opacity})`
+      : `rgba(215,178,78,${opacity})`;
+  const col2 = muted
+    ? `rgba(210,195,168,0.08)`
+    : color
+      ? `rgba(255,255,255,${opacity * 0.48})`
+      : `rgba(197,160,89,${opacity * 0.48})`;
+
+  const h1 = [
+    `M ${(cx - r * 0.86).toFixed(1)} ${(cy - r * 0.05).toFixed(1)}`,
+    `Q ${cx.toFixed(1)} ${(cy - r * 0.31).toFixed(1)}`,
+    `${(cx + r * 0.86).toFixed(1)} ${(cy - r * 0.13).toFixed(1)}`,
+  ].join(" ");
+  const h2 = [
+    `M ${(cx - r * 0.73).toFixed(1)} ${(cy + r * 0.22).toFixed(1)}`,
+    `Q ${(cx + r * 0.08).toFixed(1)} ${(cy + r * 0.10).toFixed(1)}`,
+    `${(cx + r * 0.73).toFixed(1)} ${(cy + r * 0.28).toFixed(1)}`,
+  ].join(" ");
+
   return (
-    <Svg
-      width={CARD_W}
-      height={CARD_H}
-      style={StyleSheet.absoluteFill}
-      preserveAspectRatio="none"
-      pointerEvents="none"
-    >
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <Defs>
-        <SvgGrad id="wg" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0%"   stopColor="#D4AF37" stopOpacity={0}    />
-          <Stop offset="35%"  stopColor="#D4AF37" stopOpacity={0.35} />
-          <Stop offset="65%"  stopColor="#E8C547" stopOpacity={0.55} />
-          <Stop offset="100%" stopColor="#D4AF37" stopOpacity={0}    />
-        </SvgGrad>
+        <ClipPath id="mc_oc">
+          <Circle cx={cx} cy={cy} r={r - sw * 0.4} />
+        </ClipPath>
       </Defs>
-      {paths.map((p, i) => (
-        <Path
-          key={i}
-          d={p.d}
-          stroke="url(#wg)"
-          strokeWidth={0.8}
-          fill="none"
-          opacity={p.opacity}
-        />
-      ))}
+      <Circle cx={cx - dx} cy={dotY} r={dotR} fill={col} />
+      <Circle cx={cx + dx} cy={dotY} r={dotR} fill={col} />
+      <Circle cx={cx} cy={cy} r={r} stroke={col} strokeWidth={sw} fill="none" />
+      <G clipPath="url(#mc_oc)">
+        <Path d={h1} stroke={col} strokeWidth={sw * 0.88} fill="none" />
+        <Path d={h2} stroke={col2} strokeWidth={sw * 0.62} fill="none" />
+      </G>
+    </Svg>
+  );
+}
+
+// ─── NFC contactless icon ─────────────────────────────────────────────────────
+function NfcIcon({ color = GOLD_LT }: { color?: string }) {
+  return (
+    <Svg width={18} height={22} viewBox="0 0 18 22">
+      <Path d="M 2 20 A 5 5 0 0 1 7 15"
+        stroke={color} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeOpacity={0.45} />
+      <Path d="M 2 20 A 10 10 0 0 1 12 10"
+        stroke={color} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeOpacity={0.70} />
+      <Path d="M 2 20 A 16 16 0 0 1 18 4"
+        stroke={color} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeOpacity={0.95} />
     </Svg>
   );
 }
@@ -94,8 +139,8 @@ function BgGlow() {
     >
       <Defs>
         <SvgRadial id="bg" cx="50%" cy="0%" rx="70%" ry="100%">
-          <Stop offset="0%"   stopColor={GOLD_W} stopOpacity={0.06} />
-          <Stop offset="100%" stopColor={GOLD_W} stopOpacity={0}    />
+          <Stop offset="0%"   stopColor={GOLD_LT} stopOpacity={0.055} />
+          <Stop offset="100%" stopColor={GOLD_LT} stopOpacity={0}    />
         </SvgRadial>
       </Defs>
       <SvgRect width="100%" height="100%" fill="url(#bg)" />
@@ -108,12 +153,14 @@ function MemberCard({
   displayName,
   isMember,
   memberSince,
+  cardColor,
   avatarUrl,
   onBuyPress,
 }: {
   displayName: string;
   isMember: boolean;
   memberSince: string | null;
+  cardColor?: string | null;
   avatarUrl?: string | null;
   onBuyPress: () => void;
 }) {
@@ -122,13 +169,19 @@ function MemberCard({
   const [isFlipped, setIsFlipped] = useState(false);
   const [time, setTime]           = useState(new Date());
 
-  // Animated light sweep (member only)
+  // Variant + färgpalett
+  const variant = isMember ? getVariant(cardColor) : null;
+  const hasPng  = variant?.id === "midnight"; // enda varianten med PNG hittills
+  const colors  = variant ? cardColors(variant) : NON_MEMBER_COLORS;
+  const baseBg  = isMember ? (variant?.bg ?? "#0A0A0A") : "#110D07";
+
+  // Light sweep (member only)
   useEffect(() => {
     if (!isMember) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(sweepAnim, { toValue: 1, duration: 4200, useNativeDriver: true }),
-        Animated.delay(5000),
+        Animated.timing(sweepAnim, { toValue: 1, duration: 4500, useNativeDriver: true }),
+        Animated.delay(6500),
         Animated.timing(sweepAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
     );
@@ -138,7 +191,7 @@ function MemberCard({
 
   const sweepX = sweepAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [-CARD_W * 1.2, CARD_W * 1.2],
+    outputRange: [-CARD_W, CARD_W * 1.5],
   });
 
   // 3D flip
@@ -149,12 +202,7 @@ function MemberCard({
     if (!isMember) { onBuyPress(); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     const toVal = isFlipped ? 0 : 1;
-    Animated.spring(flipAnim, {
-      toValue: toVal,
-      friction: 8,
-      tension: 10,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(flipAnim, { toValue: toVal, friction: 8, tension: 10, useNativeDriver: true }).start();
     setTimeout(() => setIsFlipped((v) => !v), 350);
   };
 
@@ -165,114 +213,123 @@ function MemberCard({
     return () => clearInterval(id);
   }, [isFlipped]);
 
-  const initials = displayName.slice(0, 2).toUpperCase();
-
-  // ── Front ───────────────────────────────────────────────────────────────────
+  // ── Front ─────────────────────────────────────────────────────────────────
   const Front = (
     <Animated.View
       style={[
         mc.card,
-        isMember ? mc.cardMember : mc.cardBronze,
         { transform: [{ perspective: 1200 }, { rotateY: frontRotate }] },
       ]}
     >
-      {isMember ? (
-        <>
-          {/* Decorative circles top-right */}
-          <View style={mc.decoCircleLg} />
-          <View style={mc.decoCircleSm} />
-          {/* Gold right-side glow */}
-          <View style={mc.goldGlow} />
-          {/* Gold diagonal stripe lines */}
-          <View style={mc.stripeLines} />
-          {/* SVG gold waves */}
-          <GoldWaves />
-          {/* Animated light sweep */}
-          <Animated.View
-            style={[mc.sweep, { transform: [{ translateX: sweepX }, { skewX: "-20deg" }] }]}
-          />
-          {/* Inner gold border */}
-          <View style={mc.innerBorder} />
-        </>
-      ) : (
-        /* Bronze: simple overlay stripes */
-        <>
-          <View style={mc.bronzeGlow} />
-          <View style={mc.bronzeSheen} />
-        </>
+      {/* ── Bakgrund ─────────────────────────────────────── */}
+      {/* Solid base (alltid) */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: baseBg }]} />
+
+      {/* PNG – Midnatt */}
+      {isMember && hasPng && (
+        <ImageBackground
+          source={CARD_BG_IMG}
+          style={StyleSheet.absoluteFill}
+          imageStyle={{ borderRadius: 16 }}
+          resizeMode="cover"
+        />
       )}
 
-      {/* Content */}
-      <View style={mc.cardContent}>
-        {/* Top row */}
-        <View style={mc.cardTop}>
-          {/* Avatar chip */}
-          <View style={[mc.avatarRing, !isMember && mc.avatarRingDull]}>
+      {/* SVG-gradient – alla andra varianter */}
+      {isMember && !hasPng && variant && (
+        <Svg style={StyleSheet.absoluteFill} width={CARD_W} height={CARD_H}>
+          <Defs>
+            <SvgGrad id="fg" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0%" stopColor={variant.bg} />
+              <Stop offset="100%" stopColor={variant.bg2} />
+            </SvgGrad>
+            {variant.glow ? (
+              <SvgRadial id="fr" cx="75%" cy="25%" rx="65%" ry="65%">
+                <Stop offset="0%" stopColor={variant.glow} stopOpacity={1} />
+                <Stop offset="100%" stopColor={variant.glow} stopOpacity={0} />
+              </SvgRadial>
+            ) : null}
+          </Defs>
+          <SvgRect x={0} y={0} width={CARD_W} height={CARD_H} fill="url(#fg)" />
+          {variant.glow ? (
+            <SvgRect x={0} y={0} width={CARD_W} height={CARD_H} fill="url(#fr)" />
+          ) : null}
+        </Svg>
+      )}
+
+      {/* Ljus-sweep */}
+      {isMember && (
+        <Animated.View style={[
+          mc.sweep,
+          { backgroundColor: colors.sweep, transform: [{ translateX: sweepX }, { skewX: "-18deg" }] },
+        ]} />
+      )}
+
+      {/* Kortinnehåll */}
+      <View style={mc.content}>
+        {/* Övre rad: avatar + Radio-ikon */}
+        <View style={mc.topRow}>
+          <View style={[mc.avatarRing, { borderColor: colors.avatarBorder }]}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
             ) : (
-              <View style={[mc.avatarInner, !isMember && mc.avatarInnerDull]}>
-                <Text style={[mc.avatarInitials, !isMember && { color: "#888" }]}>{initials}</Text>
+              <View style={[mc.avatarInner, { backgroundColor: colors.avatarBg }]}>
+                <Text style={[mc.avatarInitials, { color: colors.avatarInitials }]}>
+                  {displayName.slice(0, 2).toUpperCase()}
+                </Text>
               </View>
             )}
           </View>
-          {/* Radio icon – member only */}
-          {isMember && (
-            <View style={mc.radioWrap}>
-              <Radio size={20} color={GOLD_W} strokeWidth={1.5} />
-            </View>
-          )}
+          <Radio size={20} color={colors.accent} strokeWidth={1.5} style={{ marginTop: 4 }} />
         </View>
 
-        {/* Bottom */}
-        <View>
-          <Text style={[mc.cardName, !isMember && { color: "rgba(255,255,255,0.4)" }]}>
+        {/* Nedre rad: namn, datum, pass-etikett */}
+        <View style={{ gap: 4 }}>
+          <Text style={[mc.name, { color: colors.text }]} numberOfLines={1}>
             {displayName.toUpperCase()}
           </Text>
-          {memberSince && (
-            <Text style={mc.cardSince}>Medlem sedan {memberSince}</Text>
-          )}
+          {isMember && memberSince ? (
+            <Text style={[mc.since, { color: colors.muted }]}>Sedan {memberSince}</Text>
+          ) : null}
           {isMember ? (
             <View style={mc.passRow}>
-              <Crown size={12} color={GOLD_W} strokeWidth={2} />
-              <Text style={mc.passRowText}>ÖSTERLENKORTET</Text>
+              <Crown size={12} color={colors.accent} strokeWidth={2} />
+              <Text style={[mc.passLabel, { color: colors.accent }]}>ÖSTERLENPASSET</Text>
             </View>
           ) : (
-            <Text style={mc.ctaText}>Tryck för att skaffa Österlenkortet →</Text>
+            <Text style={mc.ctaHint}>Tryck för att aktivera →</Text>
           )}
         </View>
       </View>
+
+      {/* Inner border */}
+      <View style={[mc.innerBorder, { borderColor: colors.border }]} />
     </Animated.View>
   );
 
-  // ── Back (live verification) ──────────────────────────────────────────────
-  const clockStr = time.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  // ── Back ──────────────────────────────────────────────────────────────────
+  const clockStr = format(time, "HH:mm:ss", { locale: sv });
 
   const Back = (
     <Animated.View
       style={[
-        mc.card, mc.cardBack,
+        mc.card,
+        { backgroundColor: "#0C0A02" },
         { transform: [{ perspective: 1200 }, { rotateY: backRotate }] },
       ]}
     >
-      {/* Animated gold background */}
-      <View style={StyleSheet.absoluteFill}>
-        <View style={mc.backGradA} />
-        <View style={mc.backGradB} />
+      {/* Watermark Ö */}
+      <View style={[mc.markWrap, { opacity: 0.18 }]} pointerEvents="none">
+        <OsterlenMark size={MARK_SIZE} opacity={1} />
       </View>
+      {/* Inner border */}
+      <View style={[mc.innerBorder, { borderColor: "rgba(215,178,78,0.18)" }]} />
       {/* Content */}
       <View style={mc.backContent}>
-        <Text style={mc.verifyLabel}>LIVE-VERIFIERING</Text>
-        <View style={mc.backAvatarRing}>
-          {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={mc.backAvatarImg} />
-          ) : (
-            <View style={mc.backAvatarEmpty}>
-              <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 28, color: BG }}>{initials}</Text>
-            </View>
-          )}
-        </View>
+        <Text style={mc.verifyLabel}>VERIFIERING</Text>
         <Text style={mc.clockText}>{clockStr}</Text>
+        <Text style={mc.backName}>{displayName.toUpperCase()}</Text>
+        <View style={mc.backSep} />
         <Text style={mc.showText}>Visa vid kassan</Text>
       </View>
     </Animated.View>
@@ -289,133 +346,124 @@ function MemberCard({
 const mc = StyleSheet.create({
   card: {
     position: "absolute",
-    width: CARD_W,
-    height: CARD_H,
-    borderRadius: 20,
+    width: CARD_W, height: CARD_H,
+    borderRadius: 16,
     overflow: "hidden",
     backfaceVisibility: "hidden",
   },
-  cardMember: { backgroundColor: "#111111" },
-  cardBronze: { backgroundColor: "#3d2008" },
-  cardBack:   { backgroundColor: "#1a1500" },
 
-  // Member layers
-  decoCircleLg: {
-    position: "absolute", top: -48, right: -48,
-    width: 160, height: 160, borderRadius: 80,
-    backgroundColor: "rgba(255,255,255,0.025)",
-  },
-  decoCircleSm: {
-    position: "absolute", top: -20, right: -20,
-    width: 112, height: 112, borderRadius: 56,
-    backgroundColor: "rgba(255,255,255,0.018)",
-  },
-  goldGlow: {
-    position: "absolute", top: -40, right: -30,
-    width: CARD_W * 0.7, height: CARD_H + 80,
-    borderRadius: 999,
-    backgroundColor: "rgba(212,175,55,0.07)",
-  },
-  stripeLines: {
-    position: "absolute", inset: 0,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "rgba(255,215,120,0.20)",
-    borderRadius: 20,
-  },
   sweep: {
-    position: "absolute", top: 0, bottom: 0,
-    width: 80,
-    backgroundColor: "rgba(255,235,150,0.09)",
-  },
-  innerBorder: {
-    position: "absolute", inset: 0,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,215,120,0.28)",
+    position: "absolute", top: 0, bottom: 0, width: 100,
+    backgroundColor: "rgba(255,235,160,0.045)",
   },
 
-  // Bronze layers
-  bronzeGlow: {
-    position: "absolute", top: -20, right: -20,
-    width: CARD_W * 0.6, height: CARD_H * 0.8,
-    borderRadius: 999,
-    backgroundColor: "rgba(139,108,62,0.35)",
-  },
-  bronzeSheen: {
-    position: "absolute", top: 0, left: 0, right: 0, height: CARD_H * 0.4,
-    backgroundColor: "rgba(255,200,120,0.04)",
-  },
-
-  // Content
-  cardContent: {
-    position: "absolute", inset: 0,
+  // Kortinnehåll
+  content: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
     padding: 24,
     justifyContent: "space-between",
   },
-  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  avatarRing: {
-    width: 52, height: 52, borderRadius: 26,
-    borderWidth: 1.5, borderColor: GOLD_W,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: GOLD_W, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
-  },
-  avatarRingDull: { borderColor: "rgba(255,255,255,0.12)", shadowOpacity: 0 },
-  avatarImg: { width: 46, height: 46, borderRadius: 23 },
-  avatarInner: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: "#2a1800",
-    alignItems: "center", justifyContent: "center",
-  },
-  avatarInnerDull: { backgroundColor: "#333" },
-  avatarInitials: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: GOLD_W },
-  radioWrap: {
-    shadowColor: GOLD_W, shadowOpacity: 0.5, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
 
-  cardName: {
+  // Avatar
+  avatarRing: {
+    width: 48, height: 48, borderRadius: 24,
+    borderWidth: 1, borderColor: "#D4AF37",
+    overflow: "hidden",
+  },
+  avatarImg: { width: 48, height: 48 },
+  avatarInner: {
+    width: 48, height: 48,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+  avatarInitials: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 16,
+    color: "#F5F1E8",
+  },
+
+  // Text
+  name: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 18,
+    color: "rgba(255,255,255,0.95)",
+    letterSpacing: 2.16,
+  },
+  since: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.35)",
+    letterSpacing: 0.28,
+  },
+  passRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  passLabel: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 17,
-    color: "rgba(255,255,255,0.92)",
-    letterSpacing: 2.5,
-    marginBottom: 4,
+    fontSize: 11,
+    color: "#E8C547",
+    letterSpacing: 0.88,
+    textTransform: "uppercase",
   },
-  cardSince: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.30)", marginBottom: 8 },
-  passRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  passRowText: {
-    fontFamily: "Inter_600SemiBold", fontSize: 11,
-    color: GOLD_W, letterSpacing: 1.2,
+  ctaHint: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.45)",
+    letterSpacing: 0.2,
   },
-  ctaText: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.35)" },
+
+  innerBorder: {
+    position: "absolute",
+    top: 8, left: 8, right: 8, bottom: 8,
+    borderRadius: 10,
+    borderWidth: 0.75,
+  },
+
+  // Back – Ö watermark position
+  markWrap: {
+    position: "absolute",
+    right: -MARK_SIZE * 0.07,
+    top: (CARD_H - MARK_SIZE) / 2,
+  },
 
   // Back
-  backGradA: {
-    position: "absolute", inset: 0,
-    backgroundColor: "#c8980a",
-    opacity: 0.85,
+  backContent: {
+    flex: 1, alignItems: "center", justifyContent: "center", gap: 6,
   },
-  backGradB: {
-    position: "absolute", top: -30, right: -30,
-    width: CARD_W * 0.7, height: CARD_H + 60,
-    borderRadius: 999,
-    backgroundColor: "#8b6914",
-    opacity: 0.6,
-  },
-  backContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
   verifyLabel: {
-    fontFamily: "Inter_600SemiBold", fontSize: 11,
-    color: "rgba(0,0,0,0.60)", letterSpacing: 2, textTransform: "uppercase",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 9,
+    color: "rgba(215,178,78,0.60)",
+    letterSpacing: 3.5,
   },
-  backAvatarRing: {
-    width: 92, height: 92, borderRadius: 46,
-    borderWidth: 2, borderColor: "rgba(255,255,255,0.50)",
-    alignItems: "center", justifyContent: "center",
-    overflow: "hidden", backgroundColor: "rgba(255,255,255,0.15)",
+  clockText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 34,
+    color: "rgba(215,178,78,0.92)",
+    letterSpacing: 2.5,
   },
-  backAvatarImg: { width: 92, height: 92, borderRadius: 46 },
-  backAvatarEmpty: { width: 92, height: 92, borderRadius: 46, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.25)" },
-  clockText: { fontFamily: "Inter_600SemiBold", fontSize: 22, color: "rgba(0,0,0,0.85)", letterSpacing: 1 },
-  showText: { fontFamily: "Inter_400Regular", fontSize: 10, color: "rgba(0,0,0,0.45)" },
+  backName: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 10.5,
+    color: "rgba(215,178,78,0.50)",
+    letterSpacing: 2.5,
+    marginTop: 2,
+  },
+  backSep: {
+    width: 56, height: 0.75,
+    backgroundColor: "rgba(215,178,78,0.22)",
+    marginVertical: 4,
+  },
+  showText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 10,
+    color: "rgba(215,178,78,0.40)",
+    letterSpacing: 0.5,
+  },
 });
 
 // ─── PreviewCard ──────────────────────────────────────────────────────────────
@@ -592,8 +640,6 @@ export default function ProfileScreen() {
   const memberSince  = profile?.created_at
     ? format(new Date(profile.created_at), "MMMM yyyy", { locale: sv })
     : null;
-  const avatarUrl    = (profile as any)?.avatar_url as string | null | undefined;
-
   // Favorite places → thumbnails
   const favPlaces    = places.filter((p) => favorites.some((f) => f.place_id === p.id));
   const favImages    = favPlaces.slice(0, 5).map((p) => p.logo_url ?? (p.image_url?.split(",")[0].trim() ?? null));
@@ -610,7 +656,7 @@ export default function ProfileScreen() {
 
   const handleBuyPress = () => {
     // TODO: Navigate to paywall when built
-    Alert.alert("Österlenkortet", "Köpflödet öppnas snart!", [{ text: "OK" }]);
+    Alert.alert("Österlenpasset", "Köpflödet öppnas snart!", [{ text: "OK" }]);
   };
 
   const handleSignOut = () => {
@@ -629,7 +675,7 @@ export default function ProfileScreen() {
       <View style={s.titleRow}>
         <View>
           <Text style={s.title}>Min Profil</Text>
-          <Text style={s.titleSub}>Din resa på Österlen</Text>
+          <Text style={s.titleSub}>Varje plats. Varje minne.</Text>
         </View>
         <TouchableOpacity
           style={s.gearBtn}
@@ -640,12 +686,13 @@ export default function ProfileScreen() {
       </View>
 
       {/* ── MemberCard ────────────────────────────────────── */}
-      <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+      <View style={{ marginBottom: 16 }}>
         <MemberCard
           displayName={displayName}
           isMember={isMember}
           memberSince={memberSince}
-          avatarUrl={avatarUrl}
+          cardColor={profile?.card_color}
+          avatarUrl={(profile as any)?.avatar_url ?? null}
           onBuyPress={handleBuyPress}
         />
       </View>
@@ -677,19 +724,19 @@ export default function ProfileScreen() {
           icon={<ClipboardList size={18} color={GOLD} strokeWidth={1.5} />}
           label="Historik"
           sub="Dina besök"
-          onPress={() => {}}
+          onPress={() => router.push("/visits" as any)}
         />
         <SmallButton
           icon={<BarChart3 size={18} color={GOLD} strokeWidth={1.5} />}
           label="Statistik"
           sub="Se din aktivitet"
-          onPress={() => {}}
+          onPress={() => router.push("/stats" as any)}
         />
         <SmallButton
           icon={<Medal size={18} color={GOLD} strokeWidth={1.5} />}
           label="Utmaningar"
           sub="0 aktiva"
-          onPress={() => {}}
+          onPress={() => router.push("/challenges" as any)}
         />
       </View>
 
@@ -721,10 +768,6 @@ export default function ProfileScreen() {
         <ChevronRight size={20} color="rgba(255,255,255,0.30)" strokeWidth={2} />
       </TouchableOpacity>
 
-      {/* ── Logga ut ──────────────────────────────────────── */}
-      <TouchableOpacity onPress={handleSignOut} style={s.signOut}>
-        <Text style={s.signOutText}>Logga ut</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -742,7 +785,7 @@ const s = StyleSheet.create({
     marginBottom: 20,
   },
   title:    { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: FG },
-  titleSub: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 2 },
+  titleSub: { fontFamily: "Inter_400Regular", fontSize: 14, color: "#A09880", marginTop: 2 },
   gearBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.05)",

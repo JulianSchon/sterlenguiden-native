@@ -68,6 +68,17 @@ export default function RootLayout() {
         <Stack.Screen name="discover" options={{ headerShown: false }} />
         <Stack.Screen name="news/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="StoryViewer" options={{ headerShown: false }} />
+        {/* Profile sub-pages */}
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/account" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/about" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/pass" options={{ headerShown: false }} />
+        <Stack.Screen name="favorites" options={{ headerShown: false }} />
+        <Stack.Screen name="visits" options={{ headerShown: false }} />
+        <Stack.Screen name="stats" options={{ headerShown: false }} />
+        <Stack.Screen name="challenges" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />

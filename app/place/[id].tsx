@@ -36,7 +36,7 @@ import {
   Mountain,
 } from "lucide-react-native";
 import { FontAwesome } from "@expo/vector-icons";
-// BlurView (expo-blur) kräver native rebuild – ersatt med solid overlay
+import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
@@ -228,6 +228,22 @@ export default function PlaceDetailScreen() {
             <View style={[styles.heroImage, styles.heroPlaceholder]} />
           )}
 
+          {/* Fade: bild → svart via SVG */}
+          <Svg
+            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 140 }}
+            width="100%"
+            height={140}
+            pointerEvents="none"
+          >
+            <Defs>
+              <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor={CHARCOAL} stopOpacity={0} />
+                <Stop offset="100%" stopColor={CHARCOAL} stopOpacity={1} />
+              </SvgGrad>
+            </Defs>
+            <SvgRect x={0} y={0} width="100%" height={140} fill="url(#heroFade)" />
+          </Svg>
+
           {/* Back button — absolutely positioned top-left */}
           <TouchableOpacity
             style={[styles.overlayBtnOuter, { position: "absolute", top: topBtnTop, left: 16 }]}
@@ -381,8 +397,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.45)",
-    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.50)",
   },
   topRightRow: {
     position: "absolute",

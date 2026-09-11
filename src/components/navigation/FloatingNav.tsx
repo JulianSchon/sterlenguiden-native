@@ -24,6 +24,7 @@ import Svg, {
 import * as Haptics from "expo-haptics";
 // BlurView (expo-blur) kräver native rebuild – ersatt med solid glass-bakgrund
 import { useIsBusiness } from "@/hooks/useUserRole";
+import { scrollToTop } from "@/lib/scrollRefs";
 import {
   NavHome,
   NavSearch,
@@ -125,20 +126,14 @@ export default function FloatingNav() {
   const active    = resolveActiveTab(pathname);
   const isMap     = active === "map";
 
-  // Navigation med haptik
-  const go = useCallback(async (route: string) => {
+  // Navigation med haptik — om redan aktiv tab: scrolla till toppen
+  const go = useCallback(async (route: string, tabId: "home" | "search" | "calendar" | "profile") => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    router.push(route as any);
-  }, [router]);
-
-  // Specialfall: hem → scrolla till toppen om redan aktiv
-  const goHome = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (active === "home") {
-      // Ingen scrolllogik client-side här – lägg till via context vid behov
+    if (active === tabId) {
+      scrollToTop(tabId);
       return;
     }
-    router.push("/(tabs)/" as any);
+    router.push(route as any);
   }, [active, router]);
 
   // Tabbar
@@ -146,39 +141,42 @@ export default function FloatingNav() {
     {
       id: "home",
       label: "Hem",
-      onPress: goHome,
+      onPress: () => go("/(tabs)/", "home"),
       icon: <NavHome active={active === "home"} />,
     },
     {
       id: "search",
       label: "Sök",
-      onPress: () => go("/(tabs)/explore"),
+      onPress: () => go("/(tabs)/explore", "search"),
       icon: <NavSearch active={active === "search"} />,
     },
     {
       id: "map",
       label: "Karta",
-      onPress: () => go("/(tabs)/map"),
+      onPress: () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        router.push("/(tabs)/map" as any);
+      },
       icon: <NavMap active={active === "map"} />,
     },
     {
       id: "calendar",
       label: "Kalender",
-      onPress: () => go("/(tabs)/calendar"),
+      onPress: () => go("/(tabs)/calendar", "calendar"),
       icon: <NavCalendar active={active === "calendar"} />,
     },
     isBusiness
       ? {
           id: "business",
           label: "Företag",
-          onPress: () => go("/(tabs)/profile"), // route till business när den finns
+          onPress: () => go("/(tabs)/profile", "profile"),
           icon: <NavBusiness active={active === "business"} />,
           showBadge: false,
         }
       : {
           id: "profile",
           label: "Profil",
-          onPress: () => go("/(tabs)/profile"),
+          onPress: () => go("/(tabs)/profile", "profile"),
           icon: <NavProfile active={active === "profile"} />,
           showBadge: unseen > 0,
         },

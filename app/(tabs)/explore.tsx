@@ -30,11 +30,12 @@ import Svg, {
 // Byt ut _store mot AsyncStorage-anrop när dev-clienten är ombyggd.
 import {
   Search, X, MapPin, Store, Navigation, Locate,
-  Toilet, Plug, Heart, Wrench, Crown, Clock, Trash2,
+  Toilet, Plug, Heart, Crown, Clock, Trash2,
 } from "lucide-react-native";
 import {
-  usePlaces, useSearchPlaces, isPlaceOpen, getTierScore, type Place,
+  usePlaces, isPlaceOpen, getTierScore, type Place,
 } from "@/hooks/usePlaces";
+import { registerScroll } from "@/lib/scrollRefs";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
 import { useServicePoints, type ServicePoint } from "@/hooks/useServicePoints";
 import { colors } from "@/lib/colors";
@@ -155,10 +156,6 @@ const SERVICES: ServiceDef[] = [
   {
     id: "vard", label: "Vård", Icon: Heart, type: "Vård",
     description: "Apotek, vårdcentraler och annan hälsovård på Österlen.",
-  },
-  {
-    id: "tjanster", label: "Tjänster", Icon: Wrench, type: "Tjänster",
-    description: "Service och tjänster för dig som besöker Österlen.",
   },
 ];
 
@@ -548,6 +545,8 @@ export default function ExploreScreen() {
   const [history,     setHistory]     = useState<HistoryItem[]>([]);
   const [activeSheet, setActiveSheet] = useState<ServiceDef | null>(null);
   const [userLoc,     setUserLoc]     = useState<{ lat: number; lng: number } | null>(null);
+  const browseScrollRef = useRef<ScrollView>(null);
+  useEffect(() => { registerScroll("search", browseScrollRef); }, []);
 
   // Sökdebounce
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -557,9 +556,8 @@ export default function ExploreScreen() {
   }, [query]);
 
   // Data
-  const { data: allPlaces = [] }    = usePlaces();
-  const { data: searchResults = [] } = useSearchPlaces(searching ? debouncedQuery : "");
-  const { data: stories = [] }      = useBusinessStories();
+  const { data: allPlaces = [] } = usePlaces();
+  const { data: stories = [] }   = useBusinessStories();
 
   // Premium-set (krona-badge)
   const premiumIds = useMemo(() => {
@@ -694,18 +692,28 @@ export default function ExploreScreen() {
     return map;
   }, [allPlaces]);
 
-  // ── Sökresultat-rankning ─────────────────────────────────────────────────────
+  // ── Sökresultat-rankning (klient-side på allPlaces) ─────────────────────────
   const rankedResults = useMemo(() => {
-    const q = debouncedQuery.toLowerCase();
-    return [...searchResults].sort((a, b) => {
+    const q = debouncedQuery.trim().toLowerCase();
+    if (!q) return [];
+    const filtered = allPlaces.filter((p) => {
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.short_description ?? "").toLowerCase().includes(q) ||
+        (p.description ?? "").toLowerCase().includes(q) ||
+        (p.categories ?? "").toLowerCase().includes(q) ||
+        (p.nearest_town ?? "").toLowerCase().includes(q)
+      );
+    });
+    return filtered.sort((a, b) => {
       // 1. tier desc
       const td = getTierScore(b.business_tier) - getTierScore(a.business_tier);
       if (td !== 0) return td;
-      // 2. namn-match > beskrivning-match
+      // 2. namn-match prioriteras
       const an = a.name.toLowerCase().includes(q);
       const bn = b.name.toLowerCase().includes(q);
       if (an !== bn) return an ? -1 : 1;
-      // 3. koordinatavstånd om vi har position
+      // 3. avstånd
       if (userLoc && a.lat && a.lng && b.lat && b.lng) {
         const da = (a.lat - userLoc.lat) ** 2 + (a.lng - userLoc.lng) ** 2;
         const db = (b.lat - userLoc.lat) ** 2 + (b.lng - userLoc.lng) ** 2;
@@ -713,7 +721,7 @@ export default function ExploreScreen() {
       }
       return 0;
     });
-  }, [searchResults, debouncedQuery, userLoc]);
+  }, [allPlaces, debouncedQuery, userLoc]);
 
   // ── Service-cirklar ──────────────────────────────────────────────────────────
   const handleServicePress = useCallback((svc: ServiceDef) => {
@@ -799,7 +807,9 @@ export default function ExploreScreen() {
   // ─── Render: sökresultat-rad ───────────────────────────────────────────────
   const renderSearchRow = useCallback(
     ({ item }: { item: Place }) => {
-      const img = item.image_url?.split(",")[0].trim();
+      const logo = item.logo_url?.trim();
+      const img  = item.image_url?.split(",")[0].trim();
+      const thumb = logo || img;
       const open = isPlaceOpen(item.opening_hours as any);
       const hasPremium = premiumIds.has(item.id);
 
@@ -808,10 +818,14 @@ export default function ExploreScreen() {
           style={({ pressed }) => [s.searchRow, pressed && s.searchRowPressed]}
           onPress={() => handleSelectPlace(item)}
         >
-          {/* Thumbnail */}
-          <View style={s.searchThumb}>
-            {img ? (
-              <Image source={{ uri: img }} style={StyleSheet.absoluteFill} />
+          {/* Thumbnail – logo om det finns, annars hero-bild */}
+          <View style={[s.searchThumb, logo ? s.searchThumbLogo : null]}>
+            {thumb ? (
+              <Image
+                source={{ uri: thumb }}
+                style={StyleSheet.absoluteFill}
+                resizeMode={logo ? "contain" : "cover"}
+              />
             ) : null}
             {hasPremium && (
               <View style={s.crownSmall}>
@@ -957,6 +971,7 @@ export default function ExploreScreen() {
       ) : (
         // ── BROWSE-LÄGE ──
         <ScrollView
+          ref={browseScrollRef}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
@@ -1305,6 +1320,10 @@ const s = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+  },
+  searchThumbLogo: {
+    backgroundColor: "#fff",
+    padding: 6,
   },
   crownSmall: {
     position: "absolute",

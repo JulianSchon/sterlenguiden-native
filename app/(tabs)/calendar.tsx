@@ -18,6 +18,7 @@ import {
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { usePopularEvents } from "@/hooks/usePopularEvents";
 import { useIsFavorite } from "@/hooks/useFavorites";
+import { registerScrollCallback } from "@/lib/scrollRefs";
 import { supabase } from "@/integrations/supabase/client";
 import {
   format, eachDayOfInterval, startOfMonth, endOfMonth,
@@ -433,7 +434,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 }
 
 // ─── ForYou view ──────────────────────────────────────────────────────────────
-function ForYouView({ events, onPress }: { events: Event[]; onPress: (id: number) => void }) {
+function ForYouView({ events, onPress, scrollRef }: { events: Event[]; onPress: (id: number) => void; scrollRef?: React.RefObject<ScrollView> }) {
   const today = useMemo(() => {
     const d = new Date();
     return format(d, "yyyy-MM-dd");
@@ -501,7 +502,7 @@ function ForYouView({ events, onPress }: { events: Event[]; onPress: (id: number
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
       {todayEvents.length > 0 && (
         <View style={{ marginBottom: 40 }}>
           <SectionHeader title="Idag på Österlen" subtitle="Händer just nu" />
@@ -910,6 +911,13 @@ export default function CalendarScreen() {
   const loading = activeTab === "popular" ? popLoad : isLoading;
   const safeTop = Math.max(insets.top, 44);
 
+  const calScrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    registerScrollCallback("calendar", () => {
+      calScrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+  }, []);
+
   const handleTabChange = (t: EventTab) => {
     setActiveTab(t);
     if (t !== "month") setCatOpen(false);
@@ -923,7 +931,7 @@ export default function CalendarScreen() {
       <View style={{ paddingHorizontal: 20, marginBottom: 16, flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
         <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 30, color: FG }}>Evenemang</Text>
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 4 }}>Upptäck vad som händer på Österlen</Text>
+          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#A09880", marginTop: 4 }}>Allt som händer, samlat för dig.</Text>
         </View>
         {/* Category chip – only visible in Utforska tab; shows current filter */}
         {activeTab === "month" && (
@@ -947,7 +955,7 @@ export default function CalendarScreen() {
         <Skeleton />
       ) : (
         <View style={{ flex: 1 }}>
-          {activeTab === "foryou"   && <ForYouView   events={allEvents}     onPress={setSelectedEventId} />}
+          {activeTab === "foryou"   && <ForYouView   events={allEvents}     onPress={setSelectedEventId} scrollRef={calScrollRef} />}
           {activeTab === "popular"  && <PopularView  events={popularEvents} onPress={setSelectedEventId} />}
           {activeTab === "calendar" && <CalendarView events={allEvents}     onEventPress={setSelectedEventId} />}
           {activeTab === "month"    && (

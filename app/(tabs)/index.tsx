@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   ScrollView,
@@ -12,6 +12,7 @@ import {
   Share,
   Animated,
 } from "react-native";
+import { registerScroll } from "@/lib/scrollRefs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import heroOsterlen from "../../assets/hero-osterlen.jpg";
 import { useRouter } from "expo-router";
@@ -494,18 +495,7 @@ function NewsCard({ item }: { item: NewsItem }) {
         {/* Vänster: text */}
         <View style={{ flex: 1, gap: 4 }}>
           <View style={s.newsMeta}>
-            <View style={{ borderRadius: 10, overflow: "hidden", alignSelf: "flex-start" }}>
-              <Svg width={104} height={22} style={StyleSheet.absoluteFill}>
-                <Defs>
-                  <SvgLinearGradient id="nb" x1="0" y1="0" x2="1" y2="0">
-                    <Stop offset="0%"   stopColor="#FFF200" />
-                    <Stop offset="35%"  stopColor="#FFB000" />
-                    <Stop offset="75%"  stopColor="#FF5000" />
-                    <Stop offset="100%" stopColor="#FF8000" />
-                  </SvgLinearGradient>
-                </Defs>
-                <Rect width="104" height="22" fill="url(#nb)" rx={10} ry={10} />
-              </Svg>
+            <View style={s.newsBadgePill}>
               <Text style={s.newsBadgeText}>Österlenappen</Text>
             </View>
             {dateStr && <Text style={s.newsDate}>{dateStr}</Text>}
@@ -534,6 +524,8 @@ export default function HomeScreen() {
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => { registerScroll("home", scrollRef); }, []);
 
 
   const { data: profile } = useProfile();
@@ -638,6 +630,7 @@ export default function HomeScreen() {
     <View style={s.container}>
       {/* Scrollable — hero och content scrollar tillsammans */}
       <ScrollView
+        ref={scrollRef}
         style={s.scrollView}
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
@@ -661,9 +654,17 @@ export default function HomeScreen() {
             activeOpacity={0.85}
           >
             <View style={s.avatarFallback}>
-              <Text style={s.avatarInitials}>
-                {(profile?.display_name ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
-              </Text>
+              {profile?.avatar_url ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={s.avatarInitials}>
+                  {(profile?.display_name ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                </Text>
+              )}
             </View>
             <View style={s.levelBadge}>
               <Text style={s.levelText}>1</Text>
@@ -899,6 +900,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 2.5, borderColor: colors.gold,
     alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
   },
   avatarInitials: { fontSize: 16, fontWeight: "700", color: colors.foreground },
   levelBadge: {
@@ -1101,10 +1103,16 @@ const s = StyleSheet.create({
     padding: 14,
   },
   newsMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
-  newsBadge: { /* ersatt av inline SVG */ },
+  newsBadgePill: {
+    alignSelf: "flex-start",
+    borderRadius: 9999,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
   newsBadgeText: {
-    fontSize: 9, fontWeight: "800", color: "#1a1200",
-    letterSpacing: 0.8, paddingHorizontal: 8, paddingVertical: 3,
+    fontSize: 9, fontWeight: "600", color: "rgba(255,255,255,0.75)",
+    letterSpacing: 0.5,
   },
   newsDate: { fontSize: 11, color: colors.foregroundMuted },
   newsTitle: {
