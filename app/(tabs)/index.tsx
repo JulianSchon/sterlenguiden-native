@@ -653,7 +653,7 @@ export default function HomeScreen() {
             onPress={() => router.push("/(tabs)/profile" as any)}
             activeOpacity={0.85}
           >
-            <View style={s.avatarFallback}>
+            <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
               {profile?.avatar_url ? (
                 <Image
                   source={{ uri: profile.avatar_url }}
@@ -897,7 +897,6 @@ const s = StyleSheet.create({
   },
   avatarFallback: {
     width: 50, height: 50, borderRadius: 25,
-    backgroundColor: colors.card,
     borderWidth: 2.5, borderColor: colors.gold,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",

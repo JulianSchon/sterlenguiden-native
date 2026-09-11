@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet,
-  Dimensions, Animated, Alert,
+  Dimensions, Animated, Alert, Modal, Platform, Easing,
 } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,7 +23,7 @@ import Svg, {
 } from "react-native-svg";
 import {
   Settings, Crown, ChevronRight, ClipboardList,
-  BarChart3, Medal, Heart, MapPin, Bookmark, BookOpen, Radio,
+  BarChart3, Medal, Heart, MapPin, Bookmark, BookOpen, Radio, Camera,
 } from "lucide-react-native";
 import { CARD_VARIANTS, cardColors, getVariant } from "@/lib/cardVariants";
 import { useProfile }   from "@/hooks/useProfile";
@@ -47,9 +47,10 @@ const MUTED   = "rgba(245,241,232,0.55)";
 const BORDER  = "rgba(255,255,255,0.10)";
 const CARD_BG = "#1C1C1C";
 const MARK_SIZE = Math.round(CARD_H * 0.74);
+// Diagonal storlek för roterande gradient-lager (täcker hörnen vid rotation)
+const GRAD_SIZE = Math.ceil(Math.sqrt(CARD_W * CARD_W + CARD_H * CARD_H)) + 4;
 
 // PNG-bakgrund för Midnatt-varianten (require måste ligga här för Metro)
-// card-bg.png (midnatt) behålls i assets men refereras nu via cardVariants.bgImage
 
 // Felande fallback-färger för icke-members
 const NON_MEMBER_COLORS = {
@@ -155,6 +156,7 @@ function MemberCard({
   memberSince,
   cardColor,
   avatarUrl,
+  profileImageUrl,
   onBuyPress,
 }: {
   displayName: string;
@@ -162,12 +164,16 @@ function MemberCard({
   memberSince: string | null;
   cardColor?: string | null;
   avatarUrl?: string | null;
+  profileImageUrl?: string | null;
   onBuyPress: () => void;
 }) {
   const flipAnim  = useRef(new Animated.Value(0)).current;
   const sweepAnim = useRef(new Animated.Value(0)).current;
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [time, setTime]           = useState(new Date());
+  const [isFlipped, setIsFlipped]           = useState(false);
+  const [time, setTime]                     = useState(new Date());
+  const gradRotAnim                         = useRef(new Animated.Value(0)).current;
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const firstModalShown = useRef(false);
 
   // Variant + färgpalett
   const variant = isMember ? getVariant(cardColor) : null;
@@ -204,6 +210,51 @@ function MemberCard({
     const toVal = isFlipped ? 0 : 1;
     Animated.spring(flipAnim, { toValue: toVal, friction: 8, tension: 10, useNativeDriver: true }).start();
     setTimeout(() => setIsFlipped((v) => !v), 350);
+  };
+
+  // Roterande guldgradient — GPU-driven via rotateZ, 4 sek/varv, native driver
+  useEffect(() => {
+    if (!isFlipped) {
+      gradRotAnim.stopAnimation();
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.timing(gradRotAnim, {
+        toValue: 1,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isFlipped]);
+
+  const gradRotate = gradRotAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  // Förstagångs-modal: ny medlem utan verifikationsbild
+  useEffect(() => {
+    if (isMember && !profileImageUrl && isFlipped && !firstModalShown.current) {
+      firstModalShown.current = true;
+      const t = setTimeout(() => setShowUploadModal(true), 700);
+      return () => clearTimeout(t);
+    }
+  }, [isMember, profileImageUrl, isFlipped]);
+
+  // Fotoknapp-handler
+  const handlePhotoPress = () => {
+    if (profileImageUrl) {
+      Alert.alert(
+        "Bilden är låst 🔒",
+        "Din verifikationsbild är permanent efter uppladdning. Kontakta support om du behöver ändra den.",
+        [{ text: "Okej" }]
+      );
+      return;
+    }
+    setShowUploadModal(true);
   };
 
   // Live clock — only when back is showing
@@ -257,35 +308,57 @@ function MemberCard({
         </Svg>
       )}
 
-      {/* Ljus-sweep */}
+      {/* Shimmer-sweep — gradient transparent→vit→transparent, inga hårda kanter */}
       {isMember && (
-        <Animated.View style={[
-          mc.sweep,
-          { backgroundColor: colors.sweep, transform: [{ translateX: sweepX }, { skewX: "-18deg" }] },
-        ]} />
+        <Animated.View
+          style={[mc.sweep, { transform: [{ translateX: sweepX }, { skewX: "-20deg" }] }]}
+          pointerEvents="none"
+        >
+          <Svg width={160} height={CARD_H} style={StyleSheet.absoluteFill}>
+            <Defs>
+              <SvgGrad id="shimmer" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0%"   stopColor="#fff" stopOpacity={0}    />
+                <Stop offset="35%"  stopColor="#fff" stopOpacity={0.07} />
+                <Stop offset="50%"  stopColor="#fff" stopOpacity={0.13} />
+                <Stop offset="65%"  stopColor="#fff" stopOpacity={0.07} />
+                <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
+              </SvgGrad>
+            </Defs>
+            <SvgRect x={0} y={0} width={160} height={CARD_H} fill="url(#shimmer)" />
+          </Svg>
+        </Animated.View>
       )}
 
       {/* Kortinnehåll */}
       <View style={mc.content}>
         {/* Övre rad: avatar + Radio-ikon */}
         <View style={mc.topRow}>
-          <View style={[mc.avatarRing, { borderColor: colors.avatarBorder }]}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
-            ) : (
-              <View style={[mc.avatarInner, { backgroundColor: colors.avatarBg }]}>
-                <Text style={[mc.avatarInitials, { color: colors.avatarInitials }]}>
-                  {displayName.slice(0, 2).toUpperCase()}
-                </Text>
-              </View>
-            )}
+          <View style={[mc.avatarShadow, { shadowColor: "#000" }]}>
+            <View style={mc.avatarRing}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
+              ) : (
+                <View style={[mc.avatarInner, { backgroundColor: colors.avatarBg }]}>
+                  <Text style={[mc.avatarInitials, { color: colors.avatarInitials }]}>
+                    {displayName.slice(0, 2).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           <Radio size={20} color={colors.accent} strokeWidth={1.5} style={{ marginTop: 4 }} />
         </View>
 
         {/* Nedre rad: namn, datum, pass-etikett */}
         <View style={{ gap: 4 }}>
-          <Text style={[mc.name, { color: colors.text }]} numberOfLines={1}>
+          {/* Namn — ShareTechMono, text-shadow anpassad till kortets ljusnivå */}
+          <Text style={[
+            mc.name,
+            { color: colors.text },
+            variant?.light
+              ? { textShadowColor: "rgba(255,255,255,0.50)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }
+              : { textShadowColor: "rgba(0,0,0,0.50)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+          ]} numberOfLines={1}>
             {displayName.toUpperCase()}
           </Text>
           {isMember && memberSince ? (
@@ -312,30 +385,122 @@ function MemberCard({
     <Animated.View
       style={[
         mc.card,
-        { backgroundColor: "#0C0A02" },
         { transform: [{ perspective: 1200 }, { rotateY: backRotate }] },
       ]}
     >
-      {/* Watermark Ö */}
-      <View style={[mc.markWrap, { opacity: 0.18 }]} pointerEvents="none">
-        <OsterlenMark size={MARK_SIZE} opacity={1} />
+      {/* ── Roterande guldgradient — GPU-driven, native driver ── */}
+      {/* Kvadratisk yta (diagonalen) roterar bakom kortet */}
+      <Animated.View
+        style={{
+          position: "absolute",
+          width: GRAD_SIZE,
+          height: GRAD_SIZE,
+          top: (CARD_H - GRAD_SIZE) / 2,
+          left: (CARD_W - GRAD_SIZE) / 2,
+          transform: [{ rotate: gradRotate }],
+        }}
+        pointerEvents="none"
+      >
+        <Svg width={GRAD_SIZE} height={GRAD_SIZE}>
+          <Defs>
+            <SvgGrad id="gold_bg" x1="0" y1="0.5" x2="1" y2="0.5">
+              <Stop offset="0%"   stopColor="#D4AF37" />
+              <Stop offset="33%"  stopColor="#B8860B" />
+              <Stop offset="67%"  stopColor="#8B6914" />
+              <Stop offset="100%" stopColor="#D4AF37" />
+            </SvgGrad>
+          </Defs>
+          <SvgRect x={0} y={0} width={GRAD_SIZE} height={GRAD_SIZE} fill="url(#gold_bg)" />
+        </Svg>
+      </Animated.View>
+
+      {/* Subtilt highlight-lager för djup */}
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(255,255,255,0.07)" }]}
+        pointerEvents="none"
+      />
+
+      {/* ── Innehåll — centrerad kolumn, alla element med samma gap ── */}
+      <View style={mc.backCol}>
+
+        <Text style={mc.liveLabel}>LIVE-VERIFIERING</Text>
+
+        {/* Profilbild-cirkel */}
+        <TouchableOpacity
+          style={mc.backCircle}
+          onPress={handlePhotoPress}
+          activeOpacity={0.88}
+        >
+          {profileImageUrl ? (
+            <Image source={{ uri: profileImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : (
+            <View style={mc.backCirclePlaceholder}>
+              <Camera size={24} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />
+              <Text style={mc.uploadText}>Ladda upp</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <Text style={mc.backMemberName} numberOfLines={1}>{displayName}</Text>
+        <Text style={mc.liveClock}>{clockStr}</Text>
+
+        {/* Instruktion — i flex-flödet, samma gap som övriga element */}
+        <Text style={mc.liveInstruction}>Visa vid kassan • Tryck för att vända</Text>
+
       </View>
-      {/* Content */}
-      <View style={mc.backContent}>
-        <Text style={mc.verifyLabel}>VERIFIERING</Text>
-        <Text style={mc.clockText}>{clockStr}</Text>
-        <Text style={mc.backName}>{displayName.toUpperCase()}</Text>
-        <View style={mc.backSep} />
-        <Text style={mc.showText}>Visa vid kassan</Text>
-      </View>
+
     </Animated.View>
   );
 
+  // ── Upload modal ───────────────────────────────────────────────────────────
+  const UploadModal = (
+    <Modal
+      visible={showUploadModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowUploadModal(false)}
+    >
+      <View style={mc.modalOverlay}>
+        <View style={mc.modalCard}>
+          {/* Kamera-ikon i guldcirkel */}
+          <View style={mc.modalIconCircle}>
+            <Camera size={32} color="#0C0A02" strokeWidth={1.5} />
+          </View>
+
+          <Text style={mc.modalTitle}>Lägg till din verifikationsbild</Text>
+          <Text style={mc.modalBody}>
+            Personalen ser din bild direkt när du visar kortet. Bilden låses permanent efter uppladdning.
+          </Text>
+
+          {/* Primär guldknapp */}
+          <TouchableOpacity
+            style={mc.modalPrimaryBtn}
+            activeOpacity={0.85}
+            onPress={() => {
+              setShowUploadModal(false);
+              Alert.alert("Bilduppladdning", "Aktiveras i nästa appuppdatering — håll utkik! 📸");
+            }}
+          >
+            <Text style={mc.modalPrimaryText}>Öppna kameran</Text>
+          </TouchableOpacity>
+
+          {/* Sekundär länk */}
+          <TouchableOpacity style={mc.modalSecBtn} onPress={() => setShowUploadModal(false)}>
+            <Text style={mc.modalSecText}>Gör det senare</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={1} style={{ height: CARD_H }}>
-      {Front}
-      {isMember && Back}
-    </TouchableOpacity>
+    <View style={{ height: CARD_H }}>
+      <TouchableOpacity onPress={handlePress} activeOpacity={1} style={{ height: CARD_H }}>
+        {Front}
+        {isMember && Back}
+      </TouchableOpacity>
+      {UploadModal}
+    </View>
   );
 }
 
@@ -349,8 +514,8 @@ const mc = StyleSheet.create({
   },
 
   sweep: {
-    position: "absolute", top: 0, bottom: 0, width: 100,
-    backgroundColor: "rgba(255,235,160,0.045)",
+    position: "absolute", top: 0, bottom: 0, width: 160,
+    // Ingen backgroundColor — SVG-gradienten inuti sköter färgen
   },
 
   // Kortinnehåll
@@ -367,49 +532,66 @@ const mc = StyleSheet.create({
   },
 
   // Avatar
+  avatarShadow: {
+    borderRadius: 32,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.70,
+    shadowRadius: 18,
+    elevation: 10,
+  },
   avatarRing: {
-    width: 48, height: 48, borderRadius: 24,
-    borderWidth: 1, borderColor: "#D4AF37",
+    width: 64, height: 64, borderRadius: 32,
     overflow: "hidden",
   },
-  avatarImg: { width: 48, height: 48 },
+  avatarImg: { width: 64, height: 64 },
   avatarInner: {
-    width: 48, height: 48,
+    width: 64, height: 64,
     alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.10)",
   },
   avatarInitials: {
     fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 16,
+    fontSize: 20,
     color: "#F5F1E8",
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 
-  // Text
+  // Text — kortfonter
   name: {
-    fontFamily: "Inter_500Medium",
+    fontFamily: "ShareTechMono_400Regular",
     fontSize: 18,
     color: "rgba(255,255,255,0.95)",
-    letterSpacing: 2.16,
+    letterSpacing: 2.5,
+    textShadowColor: "rgba(0,0,0,0.40)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   since: {
-    fontFamily: "Inter_400Regular",
+    fontFamily: "ShareTechMono_400Regular",
     fontSize: 11,
-    color: "rgba(255,255,255,0.35)",
-    letterSpacing: 0.28,
+    color: "rgba(255,255,255,0.40)",
+    letterSpacing: 0.8,
+    textShadowColor: "rgba(0,0,0,0.30)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   passRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   passLabel: {
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: "ShareTechMono_400Regular",
     fontSize: 11,
     color: "#E8C547",
-    letterSpacing: 0.88,
-    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    textShadowColor: "rgba(0,0,0,0.30)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   ctaHint: {
-    fontFamily: "Inter_400Regular",
+    fontFamily: "ShareTechMono_400Regular",
     fontSize: 11,
     color: "rgba(255,255,255,0.45)",
-    letterSpacing: 0.2,
+    letterSpacing: 0.5,
   },
 
   innerBorder: {
@@ -426,40 +608,114 @@ const mc = StyleSheet.create({
     top: (CARD_H - MARK_SIZE) / 2,
   },
 
-  // Back
-  backContent: {
-    flex: 1, alignItems: "center", justifyContent: "center", gap: 6,
+  // ── Back – centrerad kolumn ──────────────────────────────────────────────
+  backCol: {
+    flex: 1, alignItems: "center", justifyContent: "center",
+    gap: 8, paddingHorizontal: 24, paddingVertical: 10,
   },
-  verifyLabel: {
+  liveLabel: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 9,
-    color: "rgba(215,178,78,0.60)",
-    letterSpacing: 3.5,
+    fontSize: 12,
+    color: "rgba(0,0,0,0.70)",
+    letterSpacing: 2.4,
+    textTransform: "uppercase",
   },
-  clockText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 34,
-    color: "rgba(215,178,78,0.92)",
-    letterSpacing: 2.5,
+  backCircle: {
+    width: 80, height: 80, borderRadius: 40,
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.50)",
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.80)",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
   },
-  backName: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 10.5,
-    color: "rgba(215,178,78,0.50)",
-    letterSpacing: 2.5,
-    marginTop: 2,
+  backCirclePlaceholder: {
+    alignItems: "center", gap: 4,
   },
-  backSep: {
-    width: 56, height: 0.75,
-    backgroundColor: "rgba(215,178,78,0.22)",
-    marginVertical: 4,
+  uploadText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 8,
+    color: "rgba(0,0,0,0.50)",
   },
-  showText: {
+  backMemberName: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    color: "rgba(0,0,0,0.60)",
+    letterSpacing: 0.5,
+    marginTop: -4,
+  },
+  liveClock: {
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    fontSize: 24,
+    fontWeight: "700",
+    color: "rgba(0,0,0,0.90)",
+  },
+  liveInstruction: {
     fontFamily: "Inter_400Regular",
     fontSize: 10,
-    color: "rgba(215,178,78,0.40)",
-    letterSpacing: 0.5,
+    color: "rgba(0,0,0,0.55)",
+    textAlign: "center",
+    letterSpacing: 0.2,
   },
+
+  // ── Upload modal ──────────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center", justifyContent: "flex-end",
+    paddingBottom: 40, paddingHorizontal: 20,
+  },
+  modalCard: {
+    width: "100%", backgroundColor: "#1A1610",
+    borderRadius: 28, padding: 28,
+    alignItems: "center", gap: 12,
+    borderWidth: 1, borderColor: "rgba(197,160,89,0.20)",
+    shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 30, shadowOffset: { width: 0, height: -8 },
+  },
+  modalIconCircle: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: GOLD, alignItems: "center", justifyContent: "center",
+    marginBottom: 4,
+    shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
+  },
+  modalTitle: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 20,
+    color: FG,
+    textAlign: "center",
+  },
+  modalBody: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: MUTED,
+    textAlign: "center",
+    lineHeight: 19,
+  },
+  modalPrimaryBtn: {
+    width: "100%", height: 52, borderRadius: 16,
+    backgroundColor: GOLD,
+    alignItems: "center", justifyContent: "center",
+    marginTop: 4,
+  },
+  modalPrimaryText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+    color: "#0C0A02",
+  },
+  modalSecBtn: {
+    paddingVertical: 8,
+  },
+  modalSecText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: MUTED,
+  },
+
+  // Gamla back-stilar (används ej längre men behåller för ev. backward-compat)
+  backContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
+  verifyLabel: { fontFamily: "Inter_600SemiBold", fontSize: 9, color: "rgba(215,178,78,0.60)", letterSpacing: 3.5 },
+  clockText:   { fontFamily: "Inter_600SemiBold", fontSize: 22, color: "rgba(215,178,78,0.92)", letterSpacing: 1.5 },
+  backName:    { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(215,178,78,0.80)", letterSpacing: 1.5 },
+  backSep:     { width: 44, height: 0.75, backgroundColor: "rgba(215,178,78,0.22)", marginVertical: 4 },
+  showText:    { fontFamily: "Inter_400Regular", fontSize: 10, color: "rgba(215,178,78,0.40)", letterSpacing: 0.5 },
 });
 
 // ─── PreviewCard ──────────────────────────────────────────────────────────────
@@ -689,6 +945,7 @@ export default function ProfileScreen() {
           memberSince={memberSince}
           cardColor={profile?.card_color}
           avatarUrl={(profile as any)?.avatar_url ?? null}
+          profileImageUrl={(profile as any)?.profile_image_url ?? null}
           onBuyPress={handleBuyPress}
         />
       </View>

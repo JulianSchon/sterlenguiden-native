@@ -18,6 +18,7 @@ export type CardVariant = {
   glow?: string;     // Radial-glow, rgba-sträng
   bgImage?: any;     // require()'d PNG – sätts när Figma-bild finns
   light: boolean;    // true = ljust kort → mörk text
+  premium?: boolean; // true = enbart Österlenpasset-innehavare
 };
 
 export type CardColors = {
@@ -35,9 +36,9 @@ export type CardColors = {
 export function cardColors(variant: CardVariant): CardColors {
   if (variant.light) {
     return {
-      text:           "rgba(15,10,0,0.88)",
-      muted:          "rgba(15,10,0,0.38)",
-      accent:         "#7A5C10",
+      text:           "rgba(15,10,0,0.90)",
+      muted:          "rgba(15,10,0,0.55)",   // mörkare → datum läsbart
+      accent:         "#6B4C0A",              // mörk guld — synlig på ljus bakgrund
       avatarBorder:   "#8B6914",
       avatarBg:       "rgba(0,0,0,0.08)",
       avatarInitials: "#5A4210",
@@ -64,15 +65,6 @@ export function cardColors(variant: CardVariant): CardColors {
  */
 export const CARD_VARIANTS: CardVariant[] = [
   {
-    id: "midnight",
-    name: "Midnatt",
-    bg:  "#0A0A0A",
-    bg2: "#1A1208",
-    glow: "rgba(197,160,89,0.22)",
-    bgImage: require("../../assets/card-bg.png"),
-    light: false,
-  },
-  {
     id: "forest",
     name: "Skog",
     bg:  "#0A1E0D",
@@ -80,6 +72,56 @@ export const CARD_VARIANTS: CardVariant[] = [
     glow: "rgba(50,160,70,0.16)",
     bgImage: require("../../assets/card-forest.png"),
     light: false,
+  },
+  {
+    id: "rapeseed",
+    name: "Rapsfält",
+    bg:  "#F5E84A",
+    bg2: "#E8D820",
+    bgImage: require("../../assets/card-rapeseed.png"),
+    light: true,
+  },
+  {
+    id: "ocean",
+    name: "Hav",
+    bg:  "#001A2E",
+    bg2: "#002A44",
+    bgImage: require("../../assets/card-ocean.png"),
+    light: false,
+  },
+  {
+    id: "grapes",
+    name: "Druvor",
+    bg:  "#1A0A2E",
+    bg2: "#2A1044",
+    bgImage: require("../../assets/card-grapes.png"),
+    light: false,
+  },
+  {
+    id: "obsidian",
+    name: "Obsidian",
+    bg:  "#0A0A0A",
+    bg2: "#1C1C1C",
+    bgImage: require("../../assets/card-obsidian.png"),
+    light: false,
+    premium: true,
+  },
+  {
+    id: "copper",
+    name: "Koppar",
+    bg:  "#1A0E08",
+    bg2: "#2C1A0E",
+    bgImage: require("../../assets/card-copper.png"),
+    light: false,
+    premium: true,
+  },
+  {
+    id: "sand",
+    name: "Sand",
+    bg:  "#F0E5C8",
+    bg2: "#E0D0A8",
+    bgImage: require("../../assets/card-sand.png"),
+    light: true,
   },
 ];
 

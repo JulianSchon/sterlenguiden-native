@@ -5,7 +5,7 @@
 import { useState } from "react";
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  Alert, Animated, Pressable,
+  Alert, Animated, Pressable, Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -146,8 +146,12 @@ export default function SettingsScreen() {
         {/* Profile card */}
         <View style={s.profileCard}>
           <View style={s.profileCornerGlow} />
-          <View style={s.profileAvatar}>
-            <Text style={s.profileInitials}>{displayName.slice(0,2).toUpperCase()}</Text>
+          <View style={[s.profileAvatar, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            ) : (
+              <Text style={s.profileInitials}>{displayName.slice(0,2).toUpperCase()}</Text>
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.profileEyebrow}>INLOGGAD SOM</Text>
@@ -236,9 +240,8 @@ const s = StyleSheet.create({
   },
   profileAvatar: {
     width: 56, height: 56, borderRadius: 28,
-    backgroundColor: "rgba(197,160,89,0.15)",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: BORDER_GOLD,
+    overflow: "hidden",
   },
   profileInitials: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: GOLD },
   profileEyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: "rgba(197,160,89,0.70)", letterSpacing: 2.2, textTransform: "uppercase", marginBottom: 4 },

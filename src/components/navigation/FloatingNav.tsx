@@ -211,7 +211,10 @@ export default function FloatingNav() {
   }
 
   // ─── VANLIGA SIDOR: helfull med fade-gradient ─────────────────────────────
-  const totalHeight = FADE_AREA + FLOATING_NAV_HEIGHT + insets.bottom;
+  // Extra 8px ovanpå safe area → ikoner hamnar klart ovanför hemknapp-zonen
+  const extraBottom = 8;
+  const rowBottom   = insets.bottom + extraBottom;
+  const totalHeight = FADE_AREA + FLOATING_NAV_HEIGHT + rowBottom;
 
   return (
     <View
@@ -238,11 +241,11 @@ export default function FloatingNav() {
         </Svg>
       </View>
 
-      {/* Knappraden längst ner */}
+      {/* Knappraden – 8px extra clearance ovanför hemknapp-zonen */}
       <View
         style={[
           s.row,
-          { bottom: insets.bottom, paddingHorizontal: 8 },
+          { bottom: rowBottom, paddingHorizontal: 8 },
         ]}
       >
         {buttons}

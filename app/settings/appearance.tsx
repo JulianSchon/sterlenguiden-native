@@ -73,13 +73,13 @@ function CircleRow({ selected, onSelect, locked }: {
 }
 
 /** Mini-förhandsgranskning av ett kort — SVG-gradient eller PNG */
-function MiniCard({ variantId, isSelected }: { variantId: string; isSelected: boolean }) {
+function MiniCard({ variantId, isSelected, locked }: { variantId: string; isSelected: boolean; locked?: boolean }) {
   const v = CARD_VARIANTS.find((x) => x.id === variantId)!;
-  const c = cardColors(v);
   return (
     <View style={[
       a.miniCard,
       isSelected && { borderColor: GOLD, borderWidth: 2 },
+      locked && { opacity: 0.5 },
     ]}>
       {/* Bakgrund */}
       {v.bgImage ? (
@@ -107,15 +107,22 @@ function MiniCard({ variantId, isSelected }: { variantId: string; isSelected: bo
         </Svg>
       )}
 
-      {/* Variant-namn */}
+      {/* Variant-namn — alltid vit text med skugga för läsbarhet */}
       <View style={{ position: "absolute", bottom: 7, left: 10 }}>
-        <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 9, color: c.text, letterSpacing: 1.4 }}>
+        <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 9, color: "rgba(255,255,255,0.92)", letterSpacing: 1.4, textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
           {v.name.toUpperCase()}
         </Text>
       </View>
 
+      {/* Lås-ikon för premium-kort */}
+      {locked && (
+        <View style={a.lockOverlay}>
+          <Lock size={14} color={GOLD} strokeWidth={2} />
+        </View>
+      )}
+
       {/* Bock vid valt */}
-      {isSelected && (
+      {isSelected && !locked && (
         <View style={a.miniCheck}>
           <Check size={9} color="#000" strokeWidth={3} />
         </View>
@@ -172,29 +179,29 @@ export default function AppearanceSettings() {
           <Text style={a.noteText}>Ljust tema lanseras i en kommande uppdatering.</Text>
         </View>
 
-        {/* Kortdesign – 10 varianter */}
-        <View style={[a.card, { opacity: isMember ? 1 : 0.55 }]}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={a.eyebrow}>KORTDESIGN</Text>
-            {!isMember && <Lock size={12} color={GOLD} strokeWidth={2} />}
-          </View>
+        {/* Kortdesign */}
+        <View style={a.card}>
+          <Text style={a.eyebrow}>KORTDESIGN</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-            {CARD_VARIANTS.map((v) => (
-              <TouchableOpacity
-                key={v.id}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (!isMember) return;
-                  setCardColor(v.id);
-                  savePrefs.mutate({ card_color: v.id });
-                }}
-              >
-                <MiniCard variantId={v.id} isSelected={cardColor === v.id} />
-              </TouchableOpacity>
-            ))}
+            {CARD_VARIANTS.map((v) => {
+              const isPremiumLocked = !!v.premium && !isMember;
+              return (
+                <TouchableOpacity
+                  key={v.id}
+                  activeOpacity={isPremiumLocked ? 1 : 0.85}
+                  onPress={() => {
+                    if (isPremiumLocked) return;
+                    setCardColor(v.id);
+                    savePrefs.mutate({ card_color: v.id });
+                  }}
+                >
+                  <MiniCard variantId={v.id} isSelected={cardColor === v.id} locked={isPremiumLocked} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {!isMember && (
-            <Text style={a.lockedNote}>Kräver Österlenpasset</Text>
+            <Text style={a.lockedNote}>🔒 Obsidian och Koppar kräver Österlenpasset</Text>
           )}
         </View>
 
@@ -251,6 +258,12 @@ const a = StyleSheet.create({
     position: "absolute", top: 6, right: 6,
     width: 18, height: 18, borderRadius: 9,
     backgroundColor: GOLD,
+    alignItems: "center", justifyContent: "center",
+  },
+  lockOverlay: {
+    position: "absolute", top: 6, right: 6,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center", justifyContent: "center",
   },
 

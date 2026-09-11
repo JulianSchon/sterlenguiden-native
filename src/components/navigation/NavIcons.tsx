@@ -8,7 +8,7 @@ import Svg, { Path, Circle, Line, Rect } from "react-native-svg";
 const GOLD     = "#C5A059";
 const INACTIVE = "rgba(255,255,255,0.4)";
 const WHITE    = "#FFFFFF";
-const SIZE     = 26;
+const SIZE     = 28;
 
 interface IconProps { active: boolean }
 
