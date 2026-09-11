@@ -63,22 +63,13 @@ export function cardColors(variant: CardVariant): CardColors {
  * Varianter med bgImage använder PNG-bakgrund; övriga renderas som SVG-gradient.
  */
 export const CARD_VARIANTS: CardVariant[] = [
-  // ── Mörka varianter ─────────────────────────────────────────────────────────
   {
     id: "midnight",
     name: "Midnatt",
     bg:  "#0A0A0A",
     bg2: "#1A1208",
     glow: "rgba(197,160,89,0.22)",
-    // PNG sätts i profile.tsx via require() för att Metro ska hitta den
-    light: false,
-  },
-  {
-    id: "navy",
-    name: "Marin",
-    bg:  "#08192E",
-    bg2: "#0E2544",
-    glow: "rgba(50,120,220,0.18)",
+    bgImage: require("../../assets/card-bg.png"),
     light: false,
   },
   {
@@ -87,64 +78,8 @@ export const CARD_VARIANTS: CardVariant[] = [
     bg:  "#0A1E0D",
     bg2: "#152A18",
     glow: "rgba(50,160,70,0.16)",
+    bgImage: require("../../assets/card-forest.png"),
     light: false,
-  },
-  {
-    id: "wine",
-    name: "Bordeaux",
-    bg:  "#180A0D",
-    bg2: "#2B1016",
-    glow: "rgba(180,50,65,0.18)",
-    light: false,
-  },
-  {
-    id: "graphite",
-    name: "Grafit",
-    bg:  "#16162A",
-    bg2: "#1E1E3C",
-    glow: "rgba(110,90,220,0.14)",
-    light: false,
-  },
-  {
-    id: "obsidian",
-    name: "Obsidian",
-    bg:  "#0A0A0A",
-    bg2: "#1C1C1C",
-    glow: "rgba(200,200,200,0.06)",
-    light: false,
-  },
-  {
-    id: "copper",
-    name: "Koppar",
-    bg:  "#1A0E08",
-    bg2: "#2C1A0E",
-    glow: "rgba(180,100,40,0.22)",
-    light: false,
-  },
-  // ── Ljusa varianter ──────────────────────────────────────────────────────────
-  {
-    id: "sand",
-    name: "Sand",
-    bg:  "#F0E5C8",
-    bg2: "#E0D0A8",
-    glow: "rgba(160,120,40,0.30)",
-    light: true,
-  },
-  {
-    id: "ivory",
-    name: "Elfenben",
-    bg:  "#FDFAF2",
-    bg2: "#EDE8DA",
-    glow: "rgba(180,145,60,0.20)",
-    light: true,
-  },
-  {
-    id: "sage",
-    name: "Salvia",
-    bg:  "#CDE0CD",
-    bg2: "#B5CEB5",
-    glow: "rgba(50,110,55,0.22)",
-    light: true,
   },
 ];
 

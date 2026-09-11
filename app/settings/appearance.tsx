@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CARD_VARIANTS, cardColors } from "@/lib/cardVariants";
 
 // PNG-require måste vara statisk, hanteras här
-const MIDNIGHT_PNG = require("../../assets/card-bg.png");
+// kort-PNG:er refereras nu via cardVariants.bgImage
 
 const BG     = "#121212";
 const CARD   = "#1C1C1C";
@@ -76,17 +76,15 @@ function CircleRow({ selected, onSelect, locked }: {
 function MiniCard({ variantId, isSelected }: { variantId: string; isSelected: boolean }) {
   const v = CARD_VARIANTS.find((x) => x.id === variantId)!;
   const c = cardColors(v);
-  const hasPng = v.id === "midnight";
-
   return (
     <View style={[
       a.miniCard,
       isSelected && { borderColor: GOLD, borderWidth: 2 },
     ]}>
       {/* Bakgrund */}
-      {hasPng ? (
+      {v.bgImage ? (
         <ImageBackground
-          source={MIDNIGHT_PNG}
+          source={v.bgImage}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         />

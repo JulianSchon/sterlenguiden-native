@@ -49,7 +49,7 @@ const CARD_BG = "#1C1C1C";
 const MARK_SIZE = Math.round(CARD_H * 0.74);
 
 // PNG-bakgrund för Midnatt-varianten (require måste ligga här för Metro)
-const CARD_BG_IMG = require("../../assets/card-bg.png");
+// card-bg.png (midnatt) behålls i assets men refereras nu via cardVariants.bgImage
 
 // Felande fallback-färger för icke-members
 const NON_MEMBER_COLORS = {
@@ -171,7 +171,7 @@ function MemberCard({
 
   // Variant + färgpalett
   const variant = isMember ? getVariant(cardColor) : null;
-  const hasPng  = variant?.id === "midnight"; // enda varianten med PNG hittills
+  const hasPng  = !!(variant?.bgImage);          // alla varianter med bgImage får PNG
   const colors  = variant ? cardColors(variant) : NON_MEMBER_COLORS;
   const baseBg  = isMember ? (variant?.bg ?? "#0A0A0A") : "#110D07";
 
@@ -225,10 +225,10 @@ function MemberCard({
       {/* Solid base (alltid) */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: baseBg }]} />
 
-      {/* PNG – Midnatt */}
-      {isMember && hasPng && (
+      {/* PNG-bakgrund – varianter med bgImage */}
+      {isMember && hasPng && variant?.bgImage && (
         <ImageBackground
-          source={CARD_BG_IMG}
+          source={variant.bgImage}
           style={StyleSheet.absoluteFill}
           imageStyle={{ borderRadius: 16 }}
           resizeMode="cover"
@@ -302,8 +302,6 @@ function MemberCard({
         </View>
       </View>
 
-      {/* Inner border */}
-      <View style={[mc.innerBorder, { borderColor: colors.border }]} />
     </Animated.View>
   );
 
@@ -322,8 +320,6 @@ function MemberCard({
       <View style={[mc.markWrap, { opacity: 0.18 }]} pointerEvents="none">
         <OsterlenMark size={MARK_SIZE} opacity={1} />
       </View>
-      {/* Inner border */}
-      <View style={[mc.innerBorder, { borderColor: "rgba(215,178,78,0.18)" }]} />
       {/* Content */}
       <View style={mc.backContent}>
         <Text style={mc.verifyLabel}>VERIFIERING</Text>
