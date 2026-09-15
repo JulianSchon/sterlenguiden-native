@@ -5,7 +5,7 @@
  * Skärmen scrollar INTE – allt ryms på en telefonhöjd.
  * MemberCard är appens viktigaste UI-element: flipbar 3D-karta med animerade guldvågor.
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, cloneElement } from "react";
 import {
   View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet,
   Dimensions, Animated, Alert, Modal, Platform, Easing,
@@ -13,17 +13,18 @@ import {
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
-  Defs, ClipPath,
+  Defs,
   LinearGradient as SvgGrad,
   RadialGradient as SvgRadial,
-  Stop, Circle, G,
+  Stop,
   Path,
   Rect as SvgRect,
 } from "react-native-svg";
 import {
   Settings, Crown, ChevronRight, ClipboardList,
-  BarChart3, Medal, Heart, MapPin, Bookmark, BookOpen, Radio, Camera,
+  BarChart3, Medal, Heart, MapPin, Bookmark, BookOpen, Radio, Camera, Flame,
 } from "lucide-react-native";
 import { CARD_VARIANTS, cardColors, getVariant } from "@/lib/cardVariants";
 import { useProfile }   from "@/hooks/useProfile";
@@ -63,57 +64,6 @@ const NON_MEMBER_COLORS = {
   border:         "rgba(200,185,160,0.08)",
   sweep:          "rgba(255,255,255,0.02)",
 };
-
-// ─── Ö lettermark ─────────────────────────────────────────────────────────────
-function OsterlenMark({ size, muted = false, opacity = 1, color }: {
-  size: number; muted?: boolean; opacity?: number; color?: string;
-}) {
-  const cx   = size * 0.50;
-  const cy   = size * 0.58;
-  const r    = size * 0.37;
-  const sw   = Math.max(size * 0.020, 1.5);
-  const dotR = size * 0.054;
-  const dotY = size * 0.082;
-  const dx   = size * 0.138;
-  const col  = muted
-    ? `rgba(210,195,168,0.16)`
-    : color
-      ? `rgba(255,255,255,${opacity})`
-      : `rgba(215,178,78,${opacity})`;
-  const col2 = muted
-    ? `rgba(210,195,168,0.08)`
-    : color
-      ? `rgba(255,255,255,${opacity * 0.48})`
-      : `rgba(197,160,89,${opacity * 0.48})`;
-
-  const h1 = [
-    `M ${(cx - r * 0.86).toFixed(1)} ${(cy - r * 0.05).toFixed(1)}`,
-    `Q ${cx.toFixed(1)} ${(cy - r * 0.31).toFixed(1)}`,
-    `${(cx + r * 0.86).toFixed(1)} ${(cy - r * 0.13).toFixed(1)}`,
-  ].join(" ");
-  const h2 = [
-    `M ${(cx - r * 0.73).toFixed(1)} ${(cy + r * 0.22).toFixed(1)}`,
-    `Q ${(cx + r * 0.08).toFixed(1)} ${(cy + r * 0.10).toFixed(1)}`,
-    `${(cx + r * 0.73).toFixed(1)} ${(cy + r * 0.28).toFixed(1)}`,
-  ].join(" ");
-
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <Defs>
-        <ClipPath id="mc_oc">
-          <Circle cx={cx} cy={cy} r={r - sw * 0.4} />
-        </ClipPath>
-      </Defs>
-      <Circle cx={cx - dx} cy={dotY} r={dotR} fill={col} />
-      <Circle cx={cx + dx} cy={dotY} r={dotR} fill={col} />
-      <Circle cx={cx} cy={cy} r={r} stroke={col} strokeWidth={sw} fill="none" />
-      <G clipPath="url(#mc_oc)">
-        <Path d={h1} stroke={col} strokeWidth={sw * 0.88} fill="none" />
-        <Path d={h2} stroke={col2} strokeWidth={sw * 0.62} fill="none" />
-      </G>
-    </Svg>
-  );
-}
 
 // ─── NFC contactless icon ─────────────────────────────────────────────────────
 function NfcIcon({ color = GOLD_LT }: { color?: string }) {
@@ -719,6 +669,119 @@ const mc = StyleSheet.create({
 });
 
 // ─── PreviewCard ──────────────────────────────────────────────────────────────
+// ─── Djup-systemet för alla profilknappar (Lovable-spec) ─────────────────────
+// Diagonal gradient #1E1E1E → #121212, diskret vit kant, invändig högdager
+// uppe till vänster, mjuk bred yttre skugga. Samma recept på alla sex knappar.
+const TILE_GRADIENT_COLORS: [string, string] = ["#1E1E1E", "#121212"];
+const TILE_GRADIENT_START = { x: 0, y: 0 };
+const TILE_GRADIENT_END = { x: 1, y: 1 };
+
+// ─── ScalePress: fjäderanimerad tryckåterkoppling + djup-yta för profil-kort ──
+// shadowStyle bär den svarta lyft-skuggan (INGEN overflow/clipping — annars skär iOS bort skuggan).
+// glow är valfri extra JSX (t.ex. en SVG-radialglöd) som renderas bakom kortet, oklippt.
+// style bär bakgrund/border/radius/overflow-hidden och klipper faktiska innehållet.
+// gradient=true byter den platta ytan mot LinearGradient + invändig högdager (Lovable-djupet).
+function ScalePress({
+  onPress,
+  style,
+  shadowStyle,
+  glow,
+  outerStyle,
+  gradient,
+  children,
+  scaleTo = 0.96,
+}: {
+  onPress: () => void;
+  style?: any;
+  shadowStyle?: any;
+  glow?: React.ReactNode;
+  outerStyle?: any;
+  gradient?: boolean;
+  children: React.ReactNode;
+  scaleTo?: number;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onPressIn = () =>
+    Animated.spring(scale, { toValue: scaleTo, useNativeDriver: true, speed: 50, bounciness: 6 }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 6 }).start();
+  return (
+    <TouchableOpacity
+      activeOpacity={1}
+      onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={outerStyle}
+    >
+      <Animated.View style={[shadowStyle, { transform: [{ scale }] }]}>
+        {glow}
+        {gradient ? (
+          <LinearGradient
+            colors={TILE_GRADIENT_COLORS}
+            start={TILE_GRADIENT_START}
+            end={TILE_GRADIENT_END}
+            style={style}
+          >
+            <View pointerEvents="none" style={tileStyles.innerHighlight} />
+            {children}
+          </LinearGradient>
+        ) : (
+          <View style={style}>{children}</View>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+const tileStyles = StyleSheet.create({
+  innerHighlight: {
+    position: "absolute",
+    top: 1, left: 1, right: 1,
+    height: "45%",
+    borderTopLeftRadius: 19,
+    borderTopRightRadius: 19,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: "rgba(255,255,255,0.04)",
+  },
+});
+
+// ─── IconBadge: cirkulär ikonbricka, enhetligt bildspråk över hela profilen ───
+function IconBadge({
+  children,
+  size = 40,
+  premium = false,
+  variant = "gold",
+}: {
+  children: React.ReactNode;
+  size?: number;
+  premium?: boolean;
+  variant?: "gold" | "neutral";
+}) {
+  const bg = variant === "neutral"
+    ? "rgba(255,255,255,0.07)"
+    : premium ? "rgba(197,160,89,0.16)" : "rgba(197,160,89,0.10)";
+  const border = variant === "neutral"
+    ? "rgba(255,255,255,0.16)"
+    : premium ? "rgba(197,160,89,0.45)" : "rgba(197,160,89,0.22)";
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: bg,
+        borderWidth: 1,
+        borderColor: border,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
 function PreviewCard({
   icon,
   title,
@@ -741,8 +804,8 @@ function PreviewCard({
     if (!isPremium) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(shimX, { toValue: 1, duration: 3600, useNativeDriver: true }),
-        Animated.delay(6000),
+        Animated.timing(shimX, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.delay(4000),
         Animated.timing(shimX, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
     );
@@ -753,19 +816,35 @@ function PreviewCard({
   const shimTranslate = shimX.interpolate({ inputRange: [0, 1], outputRange: [-200, 200] });
 
   return (
-    <TouchableOpacity
+    <ScalePress
       onPress={onPress}
-      activeOpacity={0.88}
-      style={[pc.card, isPremium && pc.cardPremium]}
+      outerStyle={{ flex: 1 }}
+      shadowStyle={pc.card}
+      glow={isPremium ? <View style={pc.goldGlow} pointerEvents="none" /> : undefined}
+      gradient
+      style={[pc.cardInner, isPremium && pc.cardInnerPremium]}
     >
       {isPremium && (
         <Animated.View
           style={[pc.shimmer, { transform: [{ translateX: shimTranslate }, { skewX: "-18deg" }] }]}
-        />
+          pointerEvents="none"
+        >
+          <Svg width={70} height="100%" style={StyleSheet.absoluteFill}>
+            <Defs>
+              <SvgGrad id="pcShimmer" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0%"   stopColor="#FFEB96" stopOpacity={0}    />
+                <Stop offset="45%"  stopColor="#FFEB96" stopOpacity={0.10} />
+                <Stop offset="55%"  stopColor="#FFEB96" stopOpacity={0.10} />
+                <Stop offset="100%" stopColor="#FFEB96" stopOpacity={0}    />
+              </SvgGrad>
+            </Defs>
+            <SvgRect x={0} y={0} width={70} height="100%" fill="url(#pcShimmer)" />
+          </Svg>
+        </Animated.View>
       )}
-      {/* Icon + title */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-        {icon}
+
+      <View style={pc.headerRow}>
+        <IconBadge size={26} premium={isPremium}>{icon}</IconBadge>
         <Text style={pc.title}>{title}</Text>
       </View>
       <Text style={pc.subtitle} numberOfLines={1}>{subtitle}</Text>
@@ -789,41 +868,54 @@ function PreviewCard({
           <Text style={pc.emptyText}>{emptyText}</Text>
         )}
       </View>
-    </TouchableOpacity>
+    </ScalePress>
   );
 }
 
 const pc = StyleSheet.create({
+  // Skugg-lager — ingen overflow/clipping här, annars skär iOS bort skuggan.
+  // Bred, diskret skugga (Lovable-spec): 0 4px 14px -10px rgba(0,0,0,0.6)
   card: {
-    flex: 1,
-    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 3,
+  },
+  // Ambient guldglöd bakom premium-kortet (Förmåner)
+  goldGlow: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    shadowColor: GOLD,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 9,
+    elevation: 3,
+  },
+  // Innehålls-lager (LinearGradient) — radius/overflow-hidden (klipper shimmer/bilder)
+  cardInner: {
     borderRadius: 20,
     padding: 14,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.05)",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
   },
-  cardPremium: {
+  cardInnerPremium: {
+    borderWidth: 0.5,
     borderColor: "rgba(197,160,89,0.32)",
-    shadowColor: GOLD,
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
   },
   shimmer: {
     position: "absolute",
     top: 0, bottom: 0,
-    width: 60,
-    backgroundColor: "rgba(255,235,150,0.08)",
+    width: 70,
   },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
   title:    { fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG },
-  subtitle: { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 12 },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 10 },
   thumbRow: { flexDirection: "row", alignItems: "center", marginTop: "auto" as any },
   thumb: {
-    width: 32, height: 32, borderRadius: 9,
+    width: 32, height: 32, borderRadius: 10,
     borderWidth: 2, borderColor: BG,
     overflow: "hidden", backgroundColor: "#333",
   },
@@ -847,36 +939,63 @@ function SmallButton({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={sb.btn}>
-      <View style={sb.iconTile}>{icon}</View>
+    <ScalePress onPress={onPress} outerStyle={{ flex: 1 }} shadowStyle={sb.shadow} gradient style={sb.btn}>
+      <View style={sb.iconBox}>{icon}</View>
       <Text style={sb.label} numberOfLines={1}>{label}</Text>
       <Text style={sb.sub}  numberOfLines={1}>{sub}</Text>
-    </TouchableOpacity>
+    </ScalePress>
   );
 }
 
 const sb = StyleSheet.create({
-  btn: {
-    flex: 1,
-    backgroundColor: CARD_BG,
+  // Skugg-lager — samma breda, diskreta skugga som övriga knappar
+  shadow: {
     borderRadius: 20,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 3,
   },
-  iconTile: {
-    width: 40, height: 40, borderRadius: 10,
-    backgroundColor: "rgba(197,160,89,0.12)",
-    alignItems: "center", justifyContent: "center",
+  btn: {
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+    overflow: "hidden",
+  },
+  // Ikonruta — svagt nedsänkt, inte en cirkulär bricka
+  iconBox: {
+    width: 40, height: 40,
+    borderRadius: 10,
+    backgroundColor: "#2B2B2B",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 10,
+    shadowColor: "#000000",
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.4,
+    shadowRadius: 1.5,
   },
   label: { fontFamily: "Inter_500Medium", fontSize: 13, color: FG, marginBottom: 2 },
   sub:   { fontFamily: "Inter_400Regular", fontSize: 10, color: MUTED },
 });
+
+// ─── MoStat: en stat-cell i Mitt Österlen-remsan (ikon + siffra + etikett) ────
+// Tonas ner till grått tills värdet är > 0 — signalerar "inte påbörjat" utan att gömma siffran
+function MoStat({ icon, value, label }: { icon: React.ReactElement<any>; value: string; label: string }) {
+  const active = value !== "0";
+  const tint = active ? GOLD : "rgba(255,255,255,0.30)";
+  return (
+    <View style={s.moStat}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        {cloneElement(icon, { color: tint })}
+        <Text style={[s.moStatValue, !active && s.moStatValueMuted]}>{value}</Text>
+      </View>
+      <Text style={s.moStatLabel}>{label}</Text>
+    </View>
+  );
+}
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
@@ -938,7 +1057,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* ── MemberCard ────────────────────────────────────── */}
-      <View style={{ marginBottom: 16 }}>
+      <View style={{ marginBottom: 18 }}>
         <MemberCard
           displayName={displayName}
           isMember={isMember}
@@ -974,19 +1093,19 @@ export default function ProfileScreen() {
       {/* ── Tre knappar (Historik / Statistik / Utmaningar) ── */}
       <View style={s.row}>
         <SmallButton
-          icon={<ClipboardList size={18} color={GOLD} strokeWidth={1.5} />}
+          icon={<ClipboardList size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Historik"
           sub="Dina besök"
           onPress={() => router.push("/visits" as any)}
         />
         <SmallButton
-          icon={<BarChart3 size={18} color={GOLD} strokeWidth={1.5} />}
+          icon={<BarChart3 size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Statistik"
           sub="Se din aktivitet"
           onPress={() => router.push("/stats" as any)}
         />
         <SmallButton
-          icon={<Medal size={18} color={GOLD} strokeWidth={1.5} />}
+          icon={<Medal size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Utmaningar"
           sub="0 aktiva"
           onPress={() => router.push("/challenges" as any)}
@@ -994,32 +1113,63 @@ export default function ProfileScreen() {
       </View>
 
       {/* ── Mitt Österlen-kort ────────────────────────────── */}
-      <TouchableOpacity activeOpacity={0.88} style={s.mittOsterlen} onPress={() => {}}>
-        {/* Corner glow */}
-        <View style={s.moCornerGlow} />
-        {/* Left image */}
-        <View style={s.moImgWrap}>
-          <View style={s.moImgPlaceholder}>
-            <MapPin size={20} color={GOLD} strokeWidth={1.5} />
+      <ScalePress onPress={() => {}} shadowStyle={s.moShadow} style={s.mittOsterlen}>
+        {/* Foto-bakgrund + mörk fade så texten läses tydligt överallt */}
+        <Image
+          source={require("../../assets/hero-osterlen.jpg")}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs>
+            <SvgGrad id="moFade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor="#0E0B06" stopOpacity={0.50} />
+              <Stop offset="100%" stopColor="#0E0B06" stopOpacity={0.86} />
+            </SvgGrad>
+          </Defs>
+          <SvgRect width="100%" height="100%" fill="url(#moFade)" />
+        </Svg>
+
+        {/* Svagt guldsken övre högra hörnet — ~8% opacitet, ger djup ovanpå fotot */}
+        <Svg width={140} height={140} style={s.moGoldCorner} pointerEvents="none">
+          <Defs>
+            <SvgRadial id="moGoldCorner" cx="65%" cy="35%" rx="60%" ry="60%">
+              <Stop offset="0%"   stopColor={GOLD} stopOpacity={0.08} />
+              <Stop offset="100%" stopColor={GOLD} stopOpacity={0}    />
+            </SvgRadial>
+          </Defs>
+          <SvgRect width="100%" height="100%" fill="url(#moGoldCorner)" />
+        </Svg>
+
+        {/* Header */}
+        <View style={s.moHeaderRow}>
+          <IconBadge size={40} premium>
+            <Image
+              source={require("../../assets/Osterlenappen-logo.png")}
+              style={{ width: 24, height: 24 }}
+              resizeMode="contain"
+            />
+          </IconBadge>
+          <View style={{ flex: 1 }}>
+            <Text style={s.moTitle}>Mitt Österlen</Text>
+            <Text style={s.moSub}>Din resa på Österlen</Text>
           </View>
+          <ChevronRight size={20} color="rgba(255,255,255,0.30)" strokeWidth={2} />
         </View>
-        {/* Text */}
-        <View style={{ flex: 1 }}>
-          <Text style={s.moTitle}>Mitt Österlen</Text>
-          <Text style={s.moSub}>Dina listor, resor & planering</Text>
-          <View style={s.moMeta}>
-            <MapPin size={11} color={GOLD} strokeWidth={2} />
-            <Text style={s.moMetaText}>0 resor</Text>
-            <View style={s.moDot} />
-            <Bookmark size={11} color={GOLD} strokeWidth={2} />
-            <Text style={s.moMetaText}>0 listor</Text>
-            <View style={s.moDot} />
-            <BookOpen size={11} color={GOLD} strokeWidth={2} />
-            <Text style={s.moMetaText}>0 minnen</Text>
-          </View>
+
+        <View style={s.moDivider} />
+
+        {/* Statistik-remsa */}
+        <View style={s.moStatRow}>
+          <MoStat icon={<Flame size={14} strokeWidth={2} />} value="0" label="Streak" />
+          <View style={s.moStatSep} />
+          <MoStat icon={<MapPin size={14} strokeWidth={2} />} value="0" label="Stickers" />
+          <View style={s.moStatSep} />
+          <MoStat icon={<Bookmark size={14} strokeWidth={2} />} value="0" label="Listor" />
+          <View style={s.moStatSep} />
+          <MoStat icon={<BookOpen size={14} strokeWidth={2} />} value="0" label="Minnen" />
         </View>
-        <ChevronRight size={20} color="rgba(255,255,255,0.30)" strokeWidth={2} />
-      </TouchableOpacity>
+      </ScalePress>
 
     </View>
   );
@@ -1048,41 +1198,48 @@ const s = StyleSheet.create({
 
   row: { flexDirection: "row", gap: 12, marginBottom: 12 },
 
-  // Mitt Österlen
+  // Mitt Österlen — samma bas som övriga knappar men lite mer premiumkänsla
+  moShadow: {
+    borderRadius: 20,
+    marginBottom: 8,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
+  },
   mittOsterlen: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
     backgroundColor: CARD_BG,
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: "rgba(197,160,89,0.18)",
-    marginBottom: 8,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
   },
-  moCornerGlow: {
-    position: "absolute", top: -20, right: -20,
-    width: 120, height: 80, borderRadius: 999,
-    backgroundColor: "rgba(197,160,89,0.07)",
+  // Svagt guldsken i övre högra hörnet — knappt synligt, ger extra djup
+  moGoldCorner: {
+    position: "absolute",
+    top: -30, right: -30,
+    width: 140, height: 140,
   },
-  moImgWrap: { width: 44, height: 44 },
-  moImgPlaceholder: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: "rgba(197,160,89,0.12)",
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 0.5, borderColor: "rgba(197,160,89,0.35)",
+  moHeaderRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  moTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 15, color: FG, marginBottom: 1 },
+  moSub:   { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.50)" },
+  moDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginVertical: 9,
   },
-  moTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: FG, marginBottom: 2 },
-  moSub:   { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.50)", marginBottom: 6 },
-  moMeta:  { flexDirection: "row", alignItems: "center", gap: 4 },
-  moMetaText: { fontFamily: "Inter_400Regular", fontSize: 9.5, color: "rgba(255,255,255,0.65)" },
-  moDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "rgba(255,255,255,0.20)" },
+  moStatRow: { flexDirection: "row", alignItems: "center" },
+  moStatSep: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: "rgba(255,255,255,0.10)" },
+  moStat: { flex: 1, alignItems: "center", gap: 2 },
+  moStatValue: { fontFamily: "Inter_700Bold", fontSize: 14, color: FG },
+  moStatValueMuted: { color: "rgba(255,255,255,0.35)" },
+  moStatLabel: {
+    fontFamily: "Inter_400Regular", fontSize: 8.5, color: "rgba(255,255,255,0.45)",
+    textTransform: "uppercase", letterSpacing: 0.5,
+  },
 
   signOut: { alignSelf: "center", paddingVertical: 6, marginTop: 2 },
   signOutText: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.25)" },
