@@ -212,23 +212,23 @@ function MemberCard({
     setTimeout(() => setIsFlipped((v) => !v), 350);
   };
 
-  // Roterande guldgradient — GPU-driven via rotateZ, 4 sek/varv, native driver
+  // Roterande guldgradient — körs alltid (oavsett flip) så att baksidan
+  // aldrig ser gradienten "hoppa" till 0° när kortet vänds
   useEffect(() => {
-    if (!isFlipped) {
-      gradRotAnim.stopAnimation();
-      return;
-    }
-    const loop = Animated.loop(
+    const spin = () => {
+      gradRotAnim.setValue(0);
       Animated.timing(gradRotAnim, {
         toValue: 1,
         duration: 4000,
         easing: Easing.linear,
         useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [isFlipped]);
+      }).start(({ finished }) => {
+        if (finished) spin();
+      });
+    };
+    spin();
+    return () => gradRotAnim.stopAnimation();
+  }, []);
 
   const gradRotate = gradRotAnim.interpolate({
     inputRange: [0, 1],
