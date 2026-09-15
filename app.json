@@ -18,7 +18,6 @@
       "bundleIdentifier": "se.sterlenguiden.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Österlenappen läser din plats för att föreslå din hemort vid registrering.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
@@ -52,7 +51,10 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Österlenguiden behöver din plats för att visa kartan."
+          "locationWhenInUsePermission": "Österlenguiden behöver din plats för att visa kartan och föreslå din hemort vid registrering.",
+          "locationAlwaysAndWhenInUsePermission": "Österlenguiden använder din plats, även i bakgrunden, för att du automatiskt ska samla platsmärken (stickers) när du besöker platser på Österlen.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       "expo-secure-store",
