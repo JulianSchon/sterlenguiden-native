@@ -23,10 +23,10 @@ import {
   ChevronRight,
   Heart,
   Sparkles,
-  Share2,
   Utensils,
   BedDouble,
 } from "lucide-react-native";
+import { ShareIcon } from "@/components/ShareIcon";
 import Svg, {
   Circle as SvgCircle,
   Defs,
@@ -441,7 +441,7 @@ function FeedPost({
           />
         </TouchableOpacity>
         <TouchableOpacity style={s.feedActionBtn} onPress={handleShare} activeOpacity={0.7}>
-          <Share2 size={24} color={colors.foreground} />
+          <ShareIcon size={24} color={colors.foreground} />
         </TouchableOpacity>
       </View>
 

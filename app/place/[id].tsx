@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { ShareIcon } from "@/components/ShareIcon";
 import {
   ArrowLeft,
   MapPin,
@@ -23,7 +24,6 @@ import {
   Mail,
   Globe,
   Calendar,
-  Upload,
   Heart,
   UtensilsCrossed,
   BedDouble,
@@ -259,7 +259,7 @@ export default function PlaceDetailScreen() {
           <View style={[styles.topRightRow, { top: topBtnTop }]}>
             <TouchableOpacity style={styles.overlayBtnOuter} onPress={handleShare} activeOpacity={0.8}>
               <View style={styles.overlayBtnBlur}>
-                <Upload size={20} color="#fff" />
+                <ShareIcon size={20} color="#fff" />
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.overlayBtnOuter, styles.heartOverlap]} onPress={handleHeart} activeOpacity={0.8}>
