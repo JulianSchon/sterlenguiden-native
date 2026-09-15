@@ -13,7 +13,6 @@ import {
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
   Defs,
   LinearGradient as SvgGrad,
@@ -672,9 +671,9 @@ const mc = StyleSheet.create({
 // ─── Djup-systemet för alla profilknappar (Lovable-spec) ─────────────────────
 // Diagonal gradient #1E1E1E → #121212, diskret vit kant, invändig högdager
 // uppe till vänster, mjuk bred yttre skugga. Samma recept på alla sex knappar.
+// Byggd med react-native-svg (INTE expo-linear-gradient) — svg-motorn är redan
+// native-kompilerad i den installerade dev-clienten, så detta syns utan ny build.
 const TILE_GRADIENT_COLORS: [string, string] = ["#1E1E1E", "#121212"];
-const TILE_GRADIENT_START = { x: 0, y: 0 };
-const TILE_GRADIENT_END = { x: 1, y: 1 };
 
 // ─── ScalePress: fjäderanimerad tryckåterkoppling + djup-yta för profil-kort ──
 // shadowStyle bär den svarta lyft-skuggan (INGEN overflow/clipping — annars skär iOS bort skuggan).
@@ -716,15 +715,19 @@ function ScalePress({
       <Animated.View style={[shadowStyle, { transform: [{ scale }] }]}>
         {glow}
         {gradient ? (
-          <LinearGradient
-            colors={TILE_GRADIENT_COLORS}
-            start={TILE_GRADIENT_START}
-            end={TILE_GRADIENT_END}
-            style={style}
-          >
+          <View style={style}>
+            <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Defs>
+                <SvgGrad id="tileGrad" x1="0" y1="0" x2="1" y2="1">
+                  <Stop offset="0%"   stopColor={TILE_GRADIENT_COLORS[0]} />
+                  <Stop offset="100%" stopColor={TILE_GRADIENT_COLORS[1]} />
+                </SvgGrad>
+              </Defs>
+              <SvgRect width="100%" height="100%" fill="url(#tileGrad)" />
+            </Svg>
             <View pointerEvents="none" style={tileStyles.innerHighlight} />
             {children}
-          </LinearGradient>
+          </View>
         ) : (
           <View style={style}>{children}</View>
         )}
@@ -745,42 +748,6 @@ const tileStyles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.04)",
   },
 });
-
-// ─── IconBadge: cirkulär ikonbricka, enhetligt bildspråk över hela profilen ───
-function IconBadge({
-  children,
-  size = 40,
-  premium = false,
-  variant = "gold",
-}: {
-  children: React.ReactNode;
-  size?: number;
-  premium?: boolean;
-  variant?: "gold" | "neutral";
-}) {
-  const bg = variant === "neutral"
-    ? "rgba(255,255,255,0.07)"
-    : premium ? "rgba(197,160,89,0.16)" : "rgba(197,160,89,0.10)";
-  const border = variant === "neutral"
-    ? "rgba(255,255,255,0.16)"
-    : premium ? "rgba(197,160,89,0.45)" : "rgba(197,160,89,0.22)";
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: bg,
-        borderWidth: 1,
-        borderColor: border,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {children}
-    </View>
-  );
-}
 
 function PreviewCard({
   icon,
@@ -844,7 +811,7 @@ function PreviewCard({
       )}
 
       <View style={pc.headerRow}>
-        <IconBadge size={26} premium={isPremium}>{icon}</IconBadge>
+        {icon}
         <Text style={pc.title}>{title}</Text>
       </View>
       <Text style={pc.subtitle} numberOfLines={1}>{subtitle}</Text>
@@ -911,7 +878,7 @@ const pc = StyleSheet.create({
     width: 70,
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
-  title:    { fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG },
+  title:    { fontFamily: "Inter_500Medium", fontSize: 13, color: FG },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 10 },
   thumbRow: { flexDirection: "row", alignItems: "center", marginTop: "auto" as any },
   thumb: {
@@ -978,7 +945,7 @@ const sb = StyleSheet.create({
     shadowRadius: 1.5,
   },
   label: { fontFamily: "Inter_500Medium", fontSize: 13, color: FG, marginBottom: 2 },
-  sub:   { fontFamily: "Inter_400Regular", fontSize: 10, color: MUTED },
+  sub:   { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.45)" },
 });
 
 // ─── MoStat: en stat-cell i Mitt Österlen-remsan (ikon + siffra + etikett) ────
@@ -1072,7 +1039,7 @@ export default function ProfileScreen() {
       {/* ── PreviewCards (Favoriter + Förmåner) ──────────── */}
       <View style={s.row}>
         <PreviewCard
-          icon={<Heart size={14} color={GOLD} strokeWidth={2} />}
+          icon={<Heart size={18} color={GOLD} strokeWidth={2} />}
           title="Favoriter"
           subtitle={favCount > 0 ? `${favCount} sparade platser` : "Dina sparade guldkorn"}
           images={favImages}
@@ -1080,7 +1047,7 @@ export default function ProfileScreen() {
           onPress={() => router.push("/favorites" as any)}
         />
         <PreviewCard
-          icon={<Crown size={14} color={GOLD} strokeWidth={2} />}
+          icon={<Crown size={18} color={GOLD} strokeWidth={2} />}
           title="Förmåner"
           subtitle={isMember ? "Aktiva erbjudanden" : "Spara pengar med ditt kort"}
           images={offerImages}
@@ -1113,24 +1080,8 @@ export default function ProfileScreen() {
       </View>
 
       {/* ── Mitt Österlen-kort ────────────────────────────── */}
-      <ScalePress onPress={() => {}} shadowStyle={s.moShadow} style={s.mittOsterlen}>
-        {/* Foto-bakgrund + mörk fade så texten läses tydligt överallt */}
-        <Image
-          source={require("../../assets/hero-osterlen.jpg")}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <SvgGrad id="moFade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor="#0E0B06" stopOpacity={0.50} />
-              <Stop offset="100%" stopColor="#0E0B06" stopOpacity={0.86} />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#moFade)" />
-        </Svg>
-
-        {/* Svagt guldsken övre högra hörnet — ~8% opacitet, ger djup ovanpå fotot */}
+      <ScalePress onPress={() => {}} shadowStyle={s.moShadow} gradient style={s.mittOsterlen}>
+        {/* Svagt guldsken övre högra hörnet — ~8% opacitet, ger djup ovanpå gradienten */}
         <Svg width={140} height={140} style={s.moGoldCorner} pointerEvents="none">
           <Defs>
             <SvgRadial id="moGoldCorner" cx="65%" cy="35%" rx="60%" ry="60%">
@@ -1143,13 +1094,13 @@ export default function ProfileScreen() {
 
         {/* Header */}
         <View style={s.moHeaderRow}>
-          <IconBadge size={40} premium>
+          <View style={[sb.iconBox, { marginBottom: 0 }]}>
             <Image
               source={require("../../assets/Osterlenappen-logo.png")}
-              style={{ width: 24, height: 24 }}
+              style={{ width: 22, height: 22 }}
               resizeMode="contain"
             />
-          </IconBadge>
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={s.moTitle}>Mitt Österlen</Text>
             <Text style={s.moSub}>Din resa på Österlen</Text>
