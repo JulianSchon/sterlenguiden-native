@@ -31,6 +31,8 @@ import { useAuth }      from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePlaces }    from "@/hooks/usePlaces";
 import { useOffers }    from "@/hooks/useOffers";
+import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
+import { offerEligibility, estimateOfferValue, formatKr } from "@/lib/offers";
 import { format }  from "date-fns";
 import { sv }      from "date-fns/locale";
 
@@ -371,6 +373,7 @@ export default function ProfileScreen() {
   const { data: favorites = [] } = useFavorites();
   const { data: places = [] }    = usePlaces();
   const { data: offers = [] }    = useOffers();
+  const { data: redemptions = [] } = useOfferRedemptions();
 
   const displayName  = profile?.display_name ?? user?.email?.split("@")[0] ?? "Gäst";
   const isMember     = !!(profile?.is_member);
@@ -382,12 +385,16 @@ export default function ProfileScreen() {
   const favImages    = favPlaces.map((p) => p.logo_url).filter((url): url is string => !!url).slice(0, 5);
   const favCount     = favPlaces.length;
 
-  // Offer images — riktig data ur offers-tabellen, bara de med bild
-  const offerImages = offers
+  // Bara det som faktiskt går att lösa in just nu — samma regel som
+  // förmånssidans hero, annars läses "spara X kr" som vilseledande efter
+  // att ett erbjudande redan är inlöst
+  const activeOffers = offers.filter((o) => offerEligibility(o, redemptions).canUse);
+  const offerImages = activeOffers
     .map((o) => o.image_url ?? o.place?.logo_url ?? null)
     .filter((url): url is string => !!url)
     .slice(0, 5);
-  const offerCount = offers.length;
+  const offerCount   = activeOffers.length;
+  const offerSavings = activeOffers.reduce((sum, o) => sum + estimateOfferValue(o), 0);
 
   const safeTop    = Math.max(insets.top, 44);
   const safeBotPad = Math.max(insets.bottom, 6) + 56;
@@ -451,7 +458,7 @@ export default function ProfileScreen() {
           title="Förmåner"
           subtitle={
             offerCount > 0
-              ? `${offerCount} ${offerCount === 1 ? "aktivt erbjudande" : "aktiva erbjudanden"}`
+              ? `${offerCount} ${offerCount === 1 ? "aktiv" : "aktiva"} · spara ${formatKr(offerSavings)}`
               : "Spara pengar med ditt kort"
           }
           images={offerImages}

@@ -95,11 +95,12 @@ export default function OffersScreen() {
   }, [filtered, redemptions]);
 
   // Värde-hero: summan av det som faktiskt går att lösa in just nu
-  const { totalValue, businessCount } = useMemo(() => {
+  const { totalValue, businessCount, redeemedCount } = useMemo(() => {
     const usable = offers.filter((o) => offerEligibility(o, redemptions).canUse);
     const total = usable.reduce((sum, o) => sum + estimateOfferValue(o), 0);
     const businesses = new Set(offers.map((o) => o.place_id));
-    return { totalValue: total, businessCount: businesses.size };
+    const redeemed = offers.filter((o) => offerEligibility(o, redemptions).used).length;
+    return { totalValue: total, businessCount: businesses.size, redeemedCount: redeemed };
   }, [offers, redemptions]);
 
   // Priset finns i app/settings/pass.tsx, håll synkat om det ändras där
@@ -240,6 +241,14 @@ export default function OffersScreen() {
                     {businessCount === 1 ? "1 företag" : `${businessCount} företag`}
                   </Text>
                 </View>
+                {redeemedCount > 0 && (
+                  <View style={s.statItem}>
+                    <Check size={13} color={GOLD} strokeWidth={2} />
+                    <Text style={s.statText}>
+                      {redeemedCount === 1 ? "1 inlöst" : `${redeemedCount} inlösta`}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {!isMember && (
