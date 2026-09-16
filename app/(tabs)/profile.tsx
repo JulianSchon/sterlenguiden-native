@@ -32,6 +32,7 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { usePlaces }    from "@/hooks/usePlaces";
 import { useOffers }    from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
+import { useVisits } from "@/hooks/useVisits";
 import { offerEligibility, estimateOfferValue, formatKr } from "@/lib/offers";
 import { format }  from "date-fns";
 import { sv }      from "date-fns/locale";
@@ -374,6 +375,7 @@ export default function ProfileScreen() {
   const { data: places = [] }    = usePlaces();
   const { data: offers = [] }    = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
+  const { data: visits = [] }    = useVisits();
 
   const displayName  = profile?.display_name ?? user?.email?.split("@")[0] ?? "Gäst";
   const isMember     = !!(profile?.is_member);
@@ -395,6 +397,9 @@ export default function ProfileScreen() {
     .slice(0, 5);
   const offerCount   = activeOffers.length;
   const offerSavings = activeOffers.reduce((sum, o) => sum + estimateOfferValue(o), 0);
+
+  // Samma filter som historiksidan — besök utan matchande plats räknas inte med
+  const visitCount = visits.filter((v) => places.some((p) => p.id === v.place_id)).length;
 
   const safeTop    = Math.max(insets.top, 44);
   const safeBotPad = Math.max(insets.bottom, 6) + 56;
@@ -473,7 +478,7 @@ export default function ProfileScreen() {
         <SmallButton
           icon={<ClipboardList size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Historik"
-          sub="Dina besök"
+          sub={visitCount === 1 ? "1 besök" : `${visitCount} besök`}
           onPress={() => router.push("/visits" as any)}
         />
         <SmallButton

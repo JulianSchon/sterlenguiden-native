@@ -6,8 +6,11 @@
  *
  * Arbetsflöde för att lägga till PNG-bakgrund:
  *   1. Skapa design i Figma (utan rundade hörn)
- *   2. Exportera som PNG @1x/@2x/@3x till assets/cards/<id>/
- *   3. Sätt bgImage: require("../../assets/cards/<id>/card-bg.png") på varianten
+ *   2. Exportera som PNG card-<id>.png + card-<id>@2x.png + card-<id>@3x.png
+ *      till assets/cards/ (samma mapp, inte undermappar per id)
+ *   3. Sätt bgImage: require("../../assets/cards/card-<id>.png") på varianten
+ *      — RN hittar @2x/@3x-filerna automatiskt och väljer rätt upplösning
+ *      efter skärmens pixeltäthet.
  */
 
 export type CardVariant = {
@@ -70,7 +73,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     bg:  "#0A1E0D",
     bg2: "#152A18",
     glow: "rgba(50,160,70,0.16)",
-    bgImage: require("../../assets/card-forest.png"),
+    bgImage: require("../../assets/cards/card-forest.png"),
     light: false,
   },
   {
@@ -78,7 +81,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Rapsfält",
     bg:  "#F5E84A",
     bg2: "#E8D820",
-    bgImage: require("../../assets/card-rapeseed.png"),
+    bgImage: require("../../assets/cards/card-rapeseed.png"),
     light: true,
   },
   {
@@ -86,7 +89,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Hav",
     bg:  "#001A2E",
     bg2: "#002A44",
-    bgImage: require("../../assets/card-ocean.png"),
+    bgImage: require("../../assets/cards/card-ocean.png"),
     light: false,
   },
   {
@@ -94,7 +97,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Druvor",
     bg:  "#1A0A2E",
     bg2: "#2A1044",
-    bgImage: require("../../assets/card-grapes.png"),
+    bgImage: require("../../assets/cards/card-grapes.png"),
     light: false,
   },
   {
@@ -102,7 +105,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Obsidian",
     bg:  "#0A0A0A",
     bg2: "#1C1C1C",
-    bgImage: require("../../assets/card-obsidian.png"),
+    bgImage: require("../../assets/cards/card-obsidian.png"),
     light: false,
     premium: true,
   },
@@ -111,7 +114,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Koppar",
     bg:  "#1A0E08",
     bg2: "#2C1A0E",
-    bgImage: require("../../assets/card-copper.png"),
+    bgImage: require("../../assets/cards/card-copper.png"),
     light: false,
     premium: true,
   },
@@ -120,7 +123,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Sand",
     bg:  "#F0E5C8",
     bg2: "#E0D0A8",
-    bgImage: require("../../assets/card-sand.png"),
+    bgImage: require("../../assets/cards/card-sand.png"),
     light: true,
   },
 ];

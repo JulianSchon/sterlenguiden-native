@@ -58,7 +58,14 @@
         }
       ],
       "expo-secure-store",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Österlenguiden behöver tillgång till dina bilder för att du ska kunna ladda upp en profilbild eller ett verifieringsfoto till ditt medlemskort.",
+          "cameraPermission": "Österlenguiden behöver tillgång till kameran för att du ska kunna ta en profilbild eller ett verifieringsfoto till ditt medlemskort."
+        }
+      ]
     ],
     "scheme": "sterlenguiden",
     "experiments": {

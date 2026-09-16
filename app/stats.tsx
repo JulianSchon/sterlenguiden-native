@@ -1,238 +1,495 @@
 /**
- * Statistik – SVG ring chart + KPI cards + monthly bars
- * Spec: native-subpages-spec.md §4
+ * Statistik ("Din progression") — KPI-rad, kategoriring, månadskurva, topkategori.
+ * Spec: native-stats-spec.md
+ *
+ * Ett avsteg från spec, av tekniska skäl:
+ * - "Minnen"-KPI:n är hårdkodad till 0 — ingen memories-tabell finns än i
+ *   appen (samma platshållare som Mitt Österlen-remsan på profilen).
+ *
+ * "Utmaningar"-KPI:n delar räknemotor med app/challenges.tsx via
+ * src/lib/achievements.ts (computeUserStats + buildTrophies) — 7 grupper
+ * byggda på besök/favoriter/förmåner/svep, inte platskategorier längre
+ * (nollställt 2026-09-16). Samma motor på båda sidorna, så de aldrig
+ * kan visa olika siffror.
  */
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from "react-native";
+import { useEffect, useMemo, useRef } from "react";
+import {
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated, Easing,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import {
+  ArrowLeft, MapPin, Heart, Image as ImageIcon, Trophy, TrendingUp,
+  UtensilsCrossed, Coffee, Hotel, ShoppingBag, TreePine, Target, Landmark, Palette,
+} from "lucide-react-native";
 import Svg, {
-  G, Circle, Text as SvgText, Rect, Defs, LinearGradient, Stop,
+  Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect,
+  Circle as SvgCircle, Path as SvgPath, Text as SvgText,
 } from "react-native-svg";
 import { useVisits } from "@/hooks/useVisits";
+import { usePlaces, type Place } from "@/hooks/usePlaces";
+import { useFavorites } from "@/hooks/useFavorites";
+import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
+import { useDismissals } from "@/hooks/useDismissals";
 import { useAchievements } from "@/hooks/useAchievements";
-import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from "date-fns";
+import { buildTrophies, computeUserStats } from "@/lib/achievements";
+import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
-const BG    = "#121212";
-const CARD  = "#1C1C1C";
-const FG    = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD  = "#C5A059";
-const BORDER= "rgba(255,255,255,0.06)";
+const BG      = "#121212";
+const CARD    = "#1C1C1C";
+const FG      = "#F5F1E8";
+const MUTED   = "rgba(245,241,232,0.55)";
+const GOLD    = "#C5A059";
+const GOLD_LT = "#E8C674";
 
-const SW = Dimensions.get("window").width;
+const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
+const AnimatedPath   = Animated.createAnimatedComponent(SvgPath);
 
-// ─── Ring chart ───────────────────────────────────────────────────────────────
-const RING_R   = 90;
-const RING_W   = 22;
-const RING_CIRC= 2 * Math.PI * RING_R;
+// ─── Kategorier — samma dbValues som app/category/[categoryId].tsx ────────────
+interface StatCategory {
+  id: string;
+  label: string;
+  color: string;
+  Icon: React.ComponentType<any>;
+  dbValues: string[];
+}
 
-const CATEGORY_COLORS = [
-  "#C5A059", "#8B6FCF", "#5DA8E8", "#71C894", "#E86A5E",
+const STAT_CATEGORIES: StatCategory[] = [
+  { id: "mat-dryck",          label: "Mat & Dryck",          color: "#8B5F46", Icon: UtensilsCrossed, dbValues: ["Mat", "Mat & Dryck"] },
+  { id: "cafe-bageri",        label: "Café & Bageri",        color: "#A3814C", Icon: Coffee,          dbValues: ["Café & Bageri", "Cafe & Bageri"] },
+  { id: "hotell-bb",          label: "Hotell & B&B",         color: "#5A6580", Icon: Hotel,           dbValues: ["Hotell & B&B", "Boende"] },
+  { id: "butiker",            label: "Butiker",              color: "#9C5860", Icon: ShoppingBag,     dbValues: ["Butiker", "Gårdsbutik"] },
+  { id: "natur-upplevelser",  label: "Natur & Upplevelser",  color: "#4C7659", Icon: TreePine,        dbValues: ["Natur", "Natur & Upplevelser"] },
+  { id: "aktiviteter",        label: "Aktiviteter",          color: "#568495", Icon: Target,          dbValues: ["Aktiviteter"] },
+  { id: "sevardheter",        label: "Sevärdheter",          color: "#6C5C95", Icon: Landmark,        dbValues: ["Sevärdheter", "Konst"] },
+  { id: "hantverk-service",   label: "Design & Hantverk",    color: "#4F7D79", Icon: Palette,         dbValues: ["Hantverk & Service", "Hantverk"] },
 ];
 
-interface Slice { label: string; value: number; color: string }
-
-function RingChart({ slices, total }: { slices: Slice[]; total: number }) {
-  const SIZE = RING_R * 2 + RING_W + 20;
-  let cumPct  = 0;
-  const GAP   = 0.015; // gap fraction
-
-  return (
-    <View style={{ alignItems: "center", gap: 20 }}>
-      <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        <Defs>
-          <LinearGradient id="goldRing" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#F0D080" />
-            <Stop offset="1" stopColor="#C5A059" />
-          </LinearGradient>
-        </Defs>
-        <G transform={`translate(${SIZE / 2}, ${SIZE / 2}) rotate(-90)`}>
-          {/* Background track */}
-          <Circle r={RING_R} stroke="rgba(255,255,255,0.07)" strokeWidth={RING_W} fill="none" />
-          {total === 0 ? (
-            <Circle
-              r={RING_R} stroke="url(#goldRing)" strokeWidth={RING_W} fill="none"
-              strokeDasharray={`${RING_CIRC * 0.12} ${RING_CIRC * 0.88}`} strokeLinecap="round"
-            />
-          ) : (
-            slices.map((sl, i) => {
-              const pct      = (sl.value / total) * (1 - GAP * slices.length);
-              const offset   = cumPct * RING_CIRC;
-              cumPct        += pct + GAP;
-              const dashArr  = `${pct * RING_CIRC} ${(1 - pct) * RING_CIRC}`;
-              return (
-                <Circle
-                  key={i}
-                  r={RING_R} stroke={sl.color} strokeWidth={RING_W} fill="none"
-                  strokeDasharray={dashArr}
-                  strokeDashoffset={-offset}
-                  strokeLinecap="round"
-                />
-              );
-            })
-          )}
-        </G>
-        {/* Centre text — can't use position:absolute inside SVG, so use SvgText */}
-        <SvgText
-          x={SIZE / 2} y={SIZE / 2 - 10}
-          textAnchor="middle" fill={FG}
-          fontSize="36" fontFamily="PlayfairDisplay_700Bold"
-        >{total}</SvgText>
-        <SvgText
-          x={SIZE / 2} y={SIZE / 2 + 16}
-          textAnchor="middle" fill="rgba(245,241,232,0.55)"
-          fontSize="12" fontFamily="Inter_400Regular"
-        >besök totalt</SvgText>
-      </Svg>
-      {/* Legend */}
-      <View style={{ gap: 8, width: "100%" }}>
-        {slices.map((sl) => (
-          <View key={sl.label} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: sl.color }} />
-            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, flex: 1 }}>{sl.label}</Text>
-            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG }}>{sl.value}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
+interface CategoryStat extends StatCategory {
+  total: number;
+  visited: number;
+  percentage: number;
 }
 
-// ─── Monthly bars ─────────────────────────────────────────────────────────────
-const BAR_W = 28;
-const BAR_MAX_H = 100;
-
-function MonthlyBars({ visits }: { visits: { visited_at: string }[] }) {
-  const now    = new Date();
-  const months = eachMonthOfInterval({ start: subMonths(now, 5), end: now });
-
-  const counts = months.map((m) => {
-    const start = startOfMonth(m).toISOString();
-    const end   = endOfMonth(m).toISOString();
-    return { label: format(m, "MMM", { locale: sv }), count: visits.filter((v) => v.visited_at >= start && v.visited_at <= end).length };
+function placeMatchesCategory(place: Place, dbValues: string[]): boolean {
+  if (!place.categories) return false;
+  const parts = place.categories.split(",").map((s) => s.trim().toLowerCase());
+  return dbValues.some((v) => {
+    const t = v.toLowerCase();
+    return parts.some((p) => p === t || p.includes(t) || t.includes(p));
   });
+}
 
-  const maxCount = Math.max(1, ...counts.map((c) => c.count));
+// ─── Ringdiagram ────────────────────────────────────────────────────────────────
+const RING_SIZE   = 120;
+const RING_CENTER = 60;
+const RING_R      = 52;
+const RING_STROKE = 6;
+const RING_CIRC   = 2 * Math.PI * RING_R;
+
+function ProgressRing({ percent, centerValue }: { percent: number; centerValue: number }) {
+  const anim = useRef(new Animated.Value(RING_CIRC)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: RING_CIRC * (1 - percent / 100),
+      duration: 1200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [percent]);
 
   return (
-    <View>
-      <Text style={st.eyebrow}>SENASTE 6 MÅNADER</Text>
-      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 16 }}>
-        {counts.map(({ label, count }) => {
-          const h = (count / maxCount) * BAR_MAX_H;
-          return (
-            <View key={label} style={{ alignItems: "center", gap: 6 }}>
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: count > 0 ? GOLD : MUTED }}>{count || ""}</Text>
-              <View style={{ width: BAR_W, height: BAR_MAX_H, justifyContent: "flex-end" }}>
-                <View style={[st.bar, { height: Math.max(h, 4) }]} />
-              </View>
-              <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: MUTED, textTransform: "uppercase" }}>{label}</Text>
-            </View>
-          );
-        })}
+    <Svg width={RING_SIZE} height={RING_SIZE}>
+      <SvgCircle
+        cx={RING_CENTER} cy={RING_CENTER} r={RING_R}
+        stroke="rgba(197,160,89,0.12)" strokeWidth={RING_STROKE} fill="none"
+      />
+      <AnimatedCircle
+        cx={RING_CENTER} cy={RING_CENTER} r={RING_R}
+        stroke={GOLD} strokeWidth={RING_STROKE} fill="none"
+        strokeLinecap="round"
+        strokeDasharray={RING_CIRC}
+        strokeDashoffset={anim}
+        transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
+      />
+      <SvgText
+        x={RING_CENTER} y={RING_CENTER + 10} textAnchor="middle"
+        fontSize={30} fontFamily="PlayfairDisplay_700Bold" fill={GOLD}
+      >
+        {centerValue}
+      </SvgText>
+    </Svg>
+  );
+}
+
+// ─── Kategori-legendrad ─────────────────────────────────────────────────────────
+function CategoryLegendRow({ cat }: { cat: CategoryStat }) {
+  const Icon = cat.Icon;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={[lg.dot, { backgroundColor: cat.color }]}>
+        <Icon size={12} color="#FFFFFF" strokeWidth={2} />
       </View>
+      <Text style={lg.label} numberOfLines={1}>{cat.label}</Text>
+      <Text style={lg.pct}>{cat.percentage}%</Text>
     </View>
   );
 }
 
-// ─── KPI card ─────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+const lg = StyleSheet.create({
+  dot: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  label: { fontFamily: "Inter_400Regular", fontSize: 12, color: FG, flex: 1 },
+  pct: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: FG },
+});
+
+// ─── Månadskurva (SVG line + area) ──────────────────────────────────────────────
+const CHART_W = 280;
+const CHART_H = 100;
+
+function MonthlyLineChart({ data }: { data: { label: string; count: number }[] }) {
+  const maxMonthly = Math.max(...data.map((d) => d.count), 1);
+  const points = data.map((d, i) => ({
+    ...d,
+    x: (i / 5) * CHART_W,
+    y: CHART_H - (d.count / maxMonthly) * 90 - 5,
+  }));
+
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const areaPath = `${linePath} L ${CHART_W} ${CHART_H} L 0 ${CHART_H} Z`;
+
+  const totalLen = points.slice(1).reduce((sum, p, i) => {
+    const prev = points[i];
+    return sum + Math.hypot(p.x - prev.x, p.y - prev.y);
+  }, 0) || 1;
+
+  const drawAnim    = useRef(new Animated.Value(0)).current;
+  const areaOpacity = useRef(new Animated.Value(0)).current;
+  const pointAnims  = useRef(data.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    Animated.timing(drawAnim, { toValue: 1, duration: 1000, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    Animated.timing(areaOpacity, { toValue: 1, duration: 800, useNativeDriver: false }).start();
+    pointAnims.forEach((a, i) => {
+      Animated.timing(a, { toValue: 1, duration: 250, delay: 500 + i * 100, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    });
+  }, []);
+
+  const dashOffset = drawAnim.interpolate({ inputRange: [0, 1], outputRange: [totalLen, 0] });
+
   return (
-    <View style={st.kpiCard}>
-      <Text style={st.kpiValue}>{value}</Text>
-      <Text style={st.kpiLabel}>{label}</Text>
-      {sub && <Text style={st.kpiSub}>{sub}</Text>}
+    <Svg width="100%" height={140} viewBox="-10 -10 300 130">
+      <Defs>
+        <SvgGrad id="monthlyArea" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0%"   stopColor={GOLD} stopOpacity={0.25} />
+          <Stop offset="100%" stopColor={GOLD} stopOpacity={0}    />
+        </SvgGrad>
+      </Defs>
+      <AnimatedPath d={areaPath} fill="url(#monthlyArea)" opacity={areaOpacity} />
+      <AnimatedPath
+        d={linePath} stroke={GOLD} strokeWidth={2.5} fill="none"
+        strokeLinecap="round" strokeLinejoin="round"
+        strokeDasharray={totalLen}
+        strokeDashoffset={dashOffset}
+      />
+      {points.map((p, i) => (
+        <AnimatedCircle
+          key={`pt${i}`}
+          cx={p.x} cy={p.y}
+          r={pointAnims[i].interpolate({ inputRange: [0, 1], outputRange: [0, 3] })}
+          fill={GOLD} stroke={CARD} strokeWidth={1.5}
+        />
+      ))}
+      {points.map((p, i) => (
+        <SvgText
+          key={`lbl${i}`} x={p.x} y={118} textAnchor="middle"
+          fontSize={9} fontFamily="Inter_400Regular" fill={MUTED}
+        >
+          {p.label}
+        </SvgText>
+      ))}
+      {points.map((p, i) => p.count > 0 && (
+        <SvgText
+          key={`val${i}`} x={p.x} y={p.y - 10} textAnchor="middle"
+          fontSize={9} fontFamily="Inter_600SemiBold" fill={FG}
+        >
+          {p.count}
+        </SvgText>
+      ))}
+    </Svg>
+  );
+}
+
+// ─── KPI-kort ─────────────────────────────────────────────────────────────────
+function Kpi({
+  Icon, value, label, delay,
+}: {
+  Icon: React.ComponentType<any>;
+  value: number | string;
+  label: string;
+  delay: number;
+}) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1, duration: 250, delay,
+      easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        kp.card,
+        { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }] },
+      ]}
+    >
+      <View pointerEvents="none" style={kp.innerHighlight} />
+      <Icon size={14} color={GOLD} strokeWidth={1.5} />
+      <Text style={kp.value}>{value}</Text>
+      <Text style={kp.label}>{label}</Text>
+    </Animated.View>
+  );
+}
+
+const kp = StyleSheet.create({
+  card: {
+    flex: 1, borderRadius: 16, padding: 12,
+    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)",
+    alignItems: "flex-start", overflow: "hidden",
+  },
+  innerHighlight: {
+    position: "absolute", top: 0, left: 0, right: 0, height: "45%",
+    borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    borderTopWidth: 1, borderLeftWidth: 1, borderColor: "rgba(255,255,255,0.03)",
+  },
+  value: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 20, color: FG, marginTop: 6, lineHeight: 20 },
+  label: { fontFamily: "Inter_400Regular", fontSize: 10, color: "rgba(255,255,255,0.55)", marginTop: 4, letterSpacing: 0.3 },
+});
+
+// ─── Topkategori-kort ───────────────────────────────────────────────────────────
+function TopCategoryCard({ cat }: { cat: CategoryStat }) {
+  const Icon = cat.Icon;
+  const fillAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fillAnim, {
+      toValue: cat.percentage, duration: 1000,
+      easing: Easing.out(Easing.cubic), useNativeDriver: false,
+    }).start();
+  }, [cat.percentage]);
+  const fillWidth = fillAnim.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] });
+
+  return (
+    <View style={ov.card}>
+      <Text style={ov.title}>Mest besökta kategorin</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        <View style={[tc.icon, { backgroundColor: cat.color }]}>
+          <Icon size={24} color="#FFFFFF" strokeWidth={2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <Text style={tc.name} numberOfLines={1}>{cat.label}</Text>
+            <Text style={tc.count}>{cat.visited} besök</Text>
+          </View>
+          <View style={tc.track}>
+            <Animated.View style={{ width: fillWidth, height: "100%" }}>
+              <Svg width="100%" height="100%">
+                <Defs>
+                  <SvgGrad id="topCatFill" x1="0" y1="0" x2="1" y2="0">
+                    <Stop offset="0%"   stopColor={GOLD} />
+                    <Stop offset="100%" stopColor={GOLD_LT} />
+                  </SvgGrad>
+                </Defs>
+                <SvgRect width="100%" height="100%" fill="url(#topCatFill)" />
+              </Svg>
+            </Animated.View>
+          </View>
+        </View>
+      </View>
+      <Text style={tc.footer}>
+        {cat.visited} av {cat.total} besökta ({cat.percentage}%)
+      </Text>
     </View>
   );
 }
+
+const tc = StyleSheet.create({
+  icon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
+  name: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG, flexShrink: 1 },
+  count: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
+  track: { height: 6, borderRadius: 3, backgroundColor: "rgba(197,160,89,0.15)", overflow: "hidden", marginTop: 10 },
+  footer: { fontFamily: "Inter_400Regular", fontSize: 11, color: MUTED, marginTop: 6 },
+});
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data: visits = [] }       = useVisits();
-  const { data: achievements = [] } = useAchievements();
+  const { data: visits = [], isLoading: visitsLoading }   = useVisits();
+  const { data: places = [], isLoading: placesLoading }   = usePlaces();
+  const { data: favorites = [] }                          = useFavorites();
+  const { data: redemptions = [] }                        = useOfferRedemptions();
+  const { data: dismissedIds = [] }                       = useDismissals();
+  const { data: achievements = [] }                       = useAchievements();
+  const isLoading = visitsLoading || placesLoading;
   const safeTop = Math.max(insets.top, 44);
 
-  // Build category slices from visits (we'll approximate by using place sub_category if available — here we just use total without breakdown since visits don't carry category directly)
-  // For now build a single "Besök" slice in gold
-  const slices: Slice[] = visits.length > 0
-    ? [{ label: "Alla platser", value: visits.length, color: GOLD }]
-    : [];
+  // "Minnen" finns inte som funktion än — samma platshållare som Mitt Österlen-remsan på profilen
+  const memoriesCount = 0;
 
-  // Streak: consecutive days with visits
-  const sortedDates = [...visits].map((v) => v.visited_at.slice(0,10)).sort().reverse();
-  const uniqueDates = [...new Set(sortedDates)];
-  let streak = 0;
-  const today = new Date().toISOString().slice(0,10);
-  if (uniqueDates[0] === today || uniqueDates[0] === new Date(Date.now() - 86400000).toISOString().slice(0,10)) {
-    let check = uniqueDates[0];
-    for (const d of uniqueDates) {
-      if (d === check) { streak++; check = new Date(new Date(check).getTime() - 86400000).toISOString().slice(0,10); }
-      else break;
-    }
-  }
+  const visitedPlaceIds = useMemo(() => [...new Set(visits.map((v) => v.place_id))], [visits]);
+  const totalVisitedUnique = visitedPlaceIds.length;
+  const totalPlaces = places.length;
+  const exploredPercent = totalPlaces > 0 ? Math.round((totalVisitedUnique / totalPlaces) * 100) : 0;
 
-  const thisMonth = new Date().toISOString().slice(0,7);
-  const thisMonthCount = visits.filter((v) => v.visited_at.startsWith(thisMonth)).length;
+  // Samma räknemotor som troférastret (app/challenges.tsx) — "aktiv" = gruppens
+  // guldnivå inte klar än. 7 grupper nu (Kom igång/Utforskaren/Samlaren/
+  // Förmånsjägaren/Mångsidig/Bläddraren/Österlenlegend), inte platskategorier.
+  const achievementStats = useMemo(
+    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds),
+    [visits, places, favorites.length, redemptions, dismissedIds]
+  );
+  const trophies = useMemo(
+    () => buildTrophies(achievementStats, achievements),
+    [achievementStats, achievements]
+  );
+  const activeChallenges = trophies.filter((t) => t.tier === "gold" && !t.done).length;
+
+  const categoryStats: CategoryStat[] = useMemo(() => {
+    return STAT_CATEGORIES.map((cat) => {
+      const total = places.filter((p) => placeMatchesCategory(p, cat.dbValues)).length;
+      const visited = visitedPlaceIds.filter((pid) => {
+        const p = places.find((pp) => pp.id === pid);
+        return !!p && placeMatchesCategory(p, cat.dbValues);
+      }).length;
+      const percentage = total > 0 ? Math.round((visited / total) * 100) : 0;
+      return { ...cat, total, visited, percentage };
+    }).sort((a, b) => b.visited - a.visited);
+  }, [places, visitedPlaceIds]);
+
+  const topCategories = categoryStats.slice(0, 6);
+  const topCategory = categoryStats[0];
+
+  const monthly = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, idx) => {
+      const i = 5 - idx;
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const count = visits.filter((v) => {
+        const vd = new Date(v.visited_at);
+        return vd.getFullYear() === d.getFullYear() && vd.getMonth() === d.getMonth();
+      }).length;
+      return { label: format(d, "MMM", { locale: sv }), count };
+    });
+  }, [visits]);
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={[st.header, { paddingTop: safeTop }]}>
-        <TouchableOpacity style={st.backBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={st.headerTitle}>Statistik</Text>
-      </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.body}>
-        {/* Ring chart */}
-        <View style={st.card}>
-          <Text style={st.eyebrow}>BESÖK PER KATEGORI</Text>
-          <View style={{ marginTop: 16 }}>
-            <RingChart slices={slices} total={visits.length} />
+      <View style={[hd.header, { paddingTop: safeTop }]}>
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs>
+            <SvgGrad id="statsHeaderFade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor={BG} stopOpacity={1}    />
+              <Stop offset="55%"  stopColor={BG} stopOpacity={0.98} />
+              <Stop offset="100%" stopColor={BG} stopOpacity={0.78} />
+            </SvgGrad>
+          </Defs>
+          <SvgRect width="100%" height="100%" fill="url(#statsHeaderFade)" />
+        </Svg>
+        <View style={hd.row}>
+          <TouchableOpacity style={hd.iconBtn} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={hd.title}>Din progression</Text>
+            <Text style={hd.subtitle}>Detta har du upptäckt</Text>
           </View>
         </View>
+      </View>
 
-        {/* KPI row */}
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          <KpiCard label="Denna månad" value={thisMonthCount} />
-          <KpiCard label="Streak" value={`${streak}d`} sub={streak > 0 ? "🔥 Keep it up" : undefined} />
-          <KpiCard label="Badges" value={achievements.length} />
+      {isLoading ? (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED }}>Laddar statistik…</Text>
         </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 32, gap: 12 }}
+        >
+          {/* ── KPI-rad ── */}
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Kpi Icon={MapPin}    value={totalVisitedUnique} label="Besök"      delay={0} />
+            <Kpi Icon={Heart}     value={favorites.length}   label="Favoriter"  delay={50} />
+            <Kpi Icon={ImageIcon} value={memoriesCount}      label="Minnen"     delay={100} />
+            <Kpi Icon={Trophy}    value={activeChallenges}   label="Utmaningar" delay={150} />
+          </View>
 
-        {/* Monthly bars */}
-        <View style={st.card}>
-          <MonthlyBars visits={visits} />
-        </View>
-      </ScrollView>
+          {/* ── Översikt ── */}
+          <View style={ov.card}>
+            <Text style={ov.title}>Översikt</Text>
+            <View style={{ flexDirection: "row", gap: 20, alignItems: "center" }}>
+              <View style={{ alignItems: "center" }}>
+                <ProgressRing percent={exploredPercent} centerValue={totalVisitedUnique} />
+                {totalVisitedUnique === 0 ? (
+                  <>
+                    <Text style={ov.caption}>Du har bara börjat 👀</Text>
+                    <Text style={ov.caption}>{totalPlaces} platser väntar</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={ov.caption}>{totalVisitedUnique} av {totalPlaces}</Text>
+                    <Text style={ov.caption}>upptäckta platser</Text>
+                  </>
+                )}
+              </View>
+              <View style={{ flex: 1, gap: 8 }}>
+                {topCategories.map((c) => <CategoryLegendRow key={c.id} cat={c} />)}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Besök per månad ── */}
+          <View style={ov.card}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <TrendingUp size={16} color={GOLD} strokeWidth={2} />
+              <Text style={ov.title0}>Besök per månad</Text>
+            </View>
+            <MonthlyLineChart data={monthly} />
+          </View>
+
+          {/* ── Mest besökta kategorin ── */}
+          {topCategory && topCategory.visited > 0 && <TopCategoryCard cat={topCategory} />}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
-const st = StyleSheet.create({
+const hd = StyleSheet.create({
   header: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  row: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)",
-    backgroundColor: BG,
+    minHeight: 72, paddingHorizontal: 16, paddingVertical: 12, gap: 12,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
+  iconBtn: {
+    width: 48, height: 48, borderRadius: 24,
     backgroundColor: "rgba(255,255,255,0.06)",
-    alignItems: "center", justifyContent: "center", marginRight: 12,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, flex: 1 },
-  body: { padding: 20, gap: 16, paddingBottom: 80 },
-  card: { backgroundColor: CARD, borderRadius: 22, padding: 20, borderWidth: 1, borderColor: BORDER },
-  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: "rgba(197,160,89,0.75)", letterSpacing: 2, textTransform: "uppercase" },
-  bar: { width: BAR_W, borderRadius: 6, backgroundColor: GOLD },
-  kpiCard: {
-    flex: 1, backgroundColor: CARD, borderRadius: 20, padding: 16,
-    borderWidth: 1, borderColor: BORDER, gap: 4, alignItems: "center",
+  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG, lineHeight: 24 },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: 0.3, marginTop: 4 },
+});
+
+const ov = StyleSheet.create({
+  card: {
+    borderRadius: 16, padding: 20,
+    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
   },
-  kpiValue: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 28, color: GOLD },
-  kpiLabel: { fontFamily: "Inter_500Medium", fontSize: 11, color: MUTED, textAlign: "center" },
-  kpiSub: { fontFamily: "Inter_400Regular", fontSize: 10, color: "rgba(197,160,89,0.65)", textAlign: "center" },
+  title:  { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG, marginBottom: 16 },
+  title0: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG },
+  caption: { fontFamily: "Inter_400Regular", fontSize: 11, color: MUTED, textAlign: "center", marginTop: 2 },
 });
