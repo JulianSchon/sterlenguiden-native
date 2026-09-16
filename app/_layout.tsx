@@ -78,6 +78,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings/about" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass" options={{ headerShown: false }} />
         <Stack.Screen name="favorites" options={{ headerShown: false }} />
+        <Stack.Screen name="offers" options={{ headerShown: false }} />
         <Stack.Screen name="visits" options={{ headerShown: false }} />
         <Stack.Screen name="stats" options={{ headerShown: false }} />
         <Stack.Screen name="challenges" options={{ headerShown: false }} />

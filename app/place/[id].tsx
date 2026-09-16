@@ -11,6 +11,7 @@ import {
   Platform,
   Share,
   Animated,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -34,15 +35,27 @@ import {
   Landmark,
   Palette,
   Mountain,
+  Crown,
+  ChevronRight,
 } from "lucide-react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
+import Svg, {
+  Defs,
+  LinearGradient as SvgGrad,
+  RadialGradient as SvgRadial,
+  Stop,
+  Rect as SvgRect,
+} from "react-native-svg";
 import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
+import { useOffers } from "@/hooks/useOffers";
+import { OfferDrawer } from "@/components/offers/OfferDrawer";
 
 const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
+const SCREEN_W = Dimensions.get("window").width;
+const HERO_H   = 350;
 
 // Category → Lucide icon component
 function CategoryIcon({ category, size = 12, color = "#A8A192" }: { category: string; size?: number; color?: string }) {
@@ -147,13 +160,63 @@ function GoldButton({ label, icon, onPress }: { label: string; icon: React.React
   );
 }
 
+// ─── Hero-karusell ────────────────────────────────────────────────────────────
+// image_url innehåller flera bilder separerade med komma. Tidigare skickades
+// hela strängen in som en URL, vilket gjorde att inget alls visades.
+function HeroCarousel({ images }: { images: string[] }) {
+  const [index, setIndex] = useState(0);
+
+  if (images.length === 0) {
+    return <View style={[styles.heroImage, styles.heroPlaceholder]} />;
+  }
+
+  return (
+    <View>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={images.length > 1}
+        onMomentumScrollEnd={(e) =>
+          setIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))
+        }
+      >
+        {images.map((uri, i) => (
+          <Image
+            key={`${uri}-${i}`}
+            source={{ uri }}
+            style={{ width: SCREEN_W, height: HERO_H }}
+            resizeMode="cover"
+          />
+        ))}
+      </ScrollView>
+
+      {images.length > 1 && (
+        <View style={styles.dots} pointerEvents="none">
+          {images.map((_, i) => (
+            <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: place, isLoading, error } = usePlaceDetail(id ?? "");
+  const { data: offers = [] } = useOffers(id ? Number(id) : undefined);
+
+  // image_url är en kommaseparerad lista, inte en enda URL
+  const heroImages = (place?.image_url ?? "")
+    .split(",")
+    .map((u) => u.trim())
+    .filter(Boolean);
 
   const [favorited, setFavorited] = useState(false);
+  const [offersOpen, setOffersOpen] = useState(false);
   const heartScale = useRef(new Animated.Value(1)).current;
 
   const handleHeart = () => {
@@ -222,11 +285,7 @@ export default function PlaceDetailScreen() {
       >
         {/* Hero image */}
         <View style={styles.heroContainer}>
-          {place.image_url ? (
-            <Image source={{ uri: place.image_url }} style={styles.heroImage} resizeMode="cover" />
-          ) : (
-            <View style={[styles.heroImage, styles.heroPlaceholder]} />
-          )}
+          <HeroCarousel images={heroImages} />
 
           {/* Fade: bild → svart via SVG */}
           <Svg
@@ -339,6 +398,42 @@ export default function PlaceDetailScreen() {
           {/* Divider */}
           <View style={styles.divider} />
 
+          {/* Österlenpasset — dörren in till platsens erbjudanden.
+              Visas för alla, även icke-medlemmar: syftet är att locka. */}
+          {offers.length > 0 && (
+            <TouchableOpacity
+              style={styles.offerCard}
+              activeOpacity={0.9}
+              onPress={() => setOffersOpen(true)}
+            >
+              {/* Guldglans i övre högra hörnet */}
+              <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+                <Defs>
+                  <SvgRadial id="offerCardGlow" cx="100%" cy="0%" rx="120%" ry="80%">
+                    <Stop offset="0%"   stopColor="#E6C77A" stopOpacity={0.14} />
+                    <Stop offset="55%"  stopColor="#E6C77A" stopOpacity={0}    />
+                  </SvgRadial>
+                </Defs>
+                <SvgRect width="100%" height="100%" fill="url(#offerCardGlow)" />
+              </Svg>
+
+              <View style={styles.offerPill}>
+                <Crown size={12} color="#E6C77A" strokeWidth={2} />
+                <Text style={styles.offerPillText}>ÖSTERLENPASSET</Text>
+              </View>
+
+              <Text style={styles.offerTitle}>
+                {offers.length === 1 ? "1 aktivt erbjudande" : `${offers.length} aktiva erbjudanden`}
+              </Text>
+              <Text style={styles.offerSub}>Exklusivt för medlemmar</Text>
+
+              <View style={styles.offerCta}>
+                <Text style={styles.offerCtaText}>SE ERBJUDANDEN</Text>
+                <ChevronRight size={20} color="rgba(230,199,122,0.8)" strokeWidth={2} />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Om platsen */}
           {(place.description || place.short_description) && (
             <View style={styles.section}>
@@ -370,6 +465,12 @@ export default function PlaceDetailScreen() {
           />
         ) : null}
       </View>
+
+      <OfferDrawer
+        visible={offersOpen}
+        placeId={Number(id)}
+        onClose={() => setOffersOpen(false)}
+      />
     </View>
   );
 }
@@ -379,10 +480,70 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   errorText: { color: "#A8A192", fontSize: 16 },
 
+  // Österlenpasset-kortet
+  offerCard: {
+    marginHorizontal: 16, // content saknar sidmarginal, den sätts per sektion
+    marginBottom: 28,
+    padding: 16,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "#1A1A1D",
+    borderWidth: 0.5,
+    borderColor: "rgba(197,160,89,0.35)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.65,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  offerPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(212,168,79,0.12)",
+    borderWidth: 1, borderColor: "rgba(197,160,89,0.50)",
+    marginBottom: 10,
+  },
+  offerPillText: {
+    fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#E6C77A",
+    letterSpacing: 1.6,
+  },
+  offerTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: "#FFFFFF" },
+  offerSub: {
+    fontFamily: "Inter_400Regular", fontSize: 12,
+    color: "rgba(255,255,255,0.55)", marginTop: 2,
+  },
+  offerCta: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginTop: 14,
+  },
+  offerCtaText: {
+    fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#E6C77A",
+    letterSpacing: 1.76,
+  },
+
   // Hero
   heroContainer: { position: "relative" },
-  heroImage: { width: "100%", height: 350 },
+  heroImage: { width: "100%", height: HERO_H },
   heroPlaceholder: { backgroundColor: "#1E1E1E" },
+
+  // Bläddringsmarkör — aktiv pricka blir avlång så den syns tydligt
+  dots: {
+    position: "absolute",
+    bottom: 18, left: 0, right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+  },
+  dot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: "rgba(255,255,255,0.95)",
+  },
 
   // Overlay circle buttons — outer clips to circle, BlurView fills inside
   overlayBtnOuter: {

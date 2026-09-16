@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { ShareIcon } from "@/components/ShareIcon";
+import { CategoryChips } from "@/components/CategoryChips";
 
 const BG        = "#121212";
 const CARD      = "#1C1C1C";
@@ -23,7 +24,6 @@ const MUTED     = "rgba(245,241,232,0.55)";
 const GOLD      = "#C5A059";
 const RED       = "#EF4444";
 const BORDER    = "rgba(255,255,255,0.06)";
-const SECONDARY = "#242424"; // samma som chip-bakgrunden på Sök
 
 type FavKind = "place" | "event";
 
@@ -58,10 +58,10 @@ function matchesDbValues(categories: string | null, dbValues: string[]): boolean
 interface FavFilter { id: string; label: string; dbValues?: string[]; isEvent?: boolean }
 const FAV_FILTERS: FavFilter[] = [
   { id: "alla" },
-  { id: "ata",       label: "Äta",    dbValues: ["Mat", "Mat & Dryck", "Café & Bageri", "Cafe & Bageri"] },
-  { id: "sova",      label: "Sova",   dbValues: ["Hotell & B&B", "Boende"] },
-  { id: "gora",      label: "Göra",   dbValues: ["Aktiviteter", "Sevärdheter", "Konst", "Natur", "Natur & Upplevelser"] },
-  { id: "handla",    label: "Handla", dbValues: ["Butiker", "Hantverk & Service", "Hantverk"] },
+  { id: "ata",       label: "Mat",         dbValues: ["Mat", "Mat & Dryck", "Café & Bageri", "Cafe & Bageri"] },
+  { id: "sova",      label: "Boende",      dbValues: ["Hotell & B&B", "Boende"] },
+  { id: "gora",      label: "Upplevelser", dbValues: ["Aktiviteter", "Sevärdheter", "Konst", "Natur", "Natur & Upplevelser"] },
+  { id: "handla",    label: "Shopping",    dbValues: ["Butiker", "Hantverk & Service", "Hantverk"] },
   { id: "evenemang", label: "Evenemang", isEvent: true },
 ].map((f) => ({ ...f, label: f.label ?? "Alla" }));
 
@@ -232,25 +232,9 @@ export default function FavoritesScreen() {
 
       {!isLoading && items.length > 0 && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={fav.list}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={fav.chipsScroll}
-            contentContainerStyle={fav.chipsContent}
-          >
-            {FAV_FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f.id}
-                style={[fav.chip, activeFilter === f.id && fav.chipActive]}
-                activeOpacity={0.85}
-                onPress={() => setActiveFilter(f.id)}
-              >
-                <Text style={[fav.chipText, activeFilter === f.id && fav.chipTextActive]}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <View style={{ marginHorizontal: -20, marginBottom: 4 }}>
+            <CategoryChips chips={FAV_FILTERS} activeId={activeFilter} onChange={setActiveFilter} />
+          </View>
 
           {visible.map((item) => (
             <FavoriteRow
@@ -344,29 +328,6 @@ const fav = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   headerTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG, flex: 1 },
-
-  // Chips — exakt samma stil som Sök-sidans kategori-chips
-  chipsScroll: { flexGrow: 0, height: 44, marginHorizontal: -20 },
-  chipsContent: {
-    paddingHorizontal: 12,
-    gap: 6,
-    flexDirection: "row",
-    paddingBottom: 8,
-  },
-  chip: {
-    flexShrink: 0,
-    paddingVertical: 9,
-    paddingHorizontal: 18,
-    borderRadius: 9999,
-    backgroundColor: SECONDARY,
-  },
-  chipActive: { backgroundColor: FG },
-  chipText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13.5,
-    color: FG,
-  },
-  chipTextActive: { color: BG },
 
   list: { padding: 20, paddingBottom: 80, gap: 12 },
   // Kortet: overflow-hidden + borderRadius på YTTERRAMEN gör att bilden
