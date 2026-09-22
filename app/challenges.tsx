@@ -87,7 +87,15 @@ function GlowCanvas({
   const pad = Math.max(neededHalf - size / 2, 0) + size * 0.1;
   const canvasSize = size + pad * 2;
   return (
-    <Canvas style={{ position: "absolute", width: canvasSize, height: canvasSize, left: -pad, top: -pad }}>
+    // pointerEvents="none" är kritiskt: duken kan bli mycket större än den
+    // synliga medaljen (se hero-glöden, som sträcker sig ~350px åt varje
+    // håll) och skulle annars fånga tryck som var menade för det som ligger
+    // ovanför/bredvid — t.ex. headerns tillbaka-knapp — trots att den är
+    // osynlig där.
+    <Canvas
+      style={{ position: "absolute", width: canvasSize, height: canvasSize, left: -pad, top: -pad }}
+      pointerEvents="none"
+    >
       <Circle cx={canvasSize / 2} cy={canvasSize / 2} r={size * radiusRatio} color={color} opacity={opacity}>
         <BlurMask blur={size * blurRatio} style="normal" />
       </Circle>
@@ -437,7 +445,7 @@ export default function ChallengesScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       {isLoading ? (
         <View style={{ flex: 1 }}>
-          <ChallengesHeader safeTop={safeTop} onBack={() => router.replace("/(tabs)/profile" as any)} />
+          <ChallengesHeader safeTop={safeTop} onBack={() => router.back()} />
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
             <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED }}>Laddar utmaningar…</Text>
           </View>
@@ -453,7 +461,7 @@ export default function ChallengesScreen() {
         >
           {/* Headern ligger i scrollflödet, inte fast/sticky ovanpå —
               den ska scrolla bort tillsammans med resten av sidan. */}
-          <ChallengesHeader safeTop={safeTop} onBack={() => router.replace("/(tabs)/profile" as any)} />
+          <ChallengesHeader safeTop={safeTop} onBack={() => router.back()} />
           <TrophyGrid
             trophies={trophies}
             celebratingKeys={celebrating}
