@@ -5,7 +5,7 @@
  * Skärmen scrollar INTE – allt ryms på en telefonhöjd.
  * MemberCard är appens viktigaste UI-element: flipbar 3D-karta med animerade guldvågor.
  */
-import { useState, useRef, useEffect, cloneElement } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, cloneElement } from "react";
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
   Dimensions, Animated, Alert,
@@ -25,6 +25,10 @@ import {
   Settings, Crown, ChevronRight, ClipboardList,
   BarChart3, Medal, Heart, MapPin, Bookmark, BookOpen, Flame,
 } from "lucide-react-native";
+import {
+  Canvas, RoundedRect, LinearGradient as SkiaLinearGradient,
+  RadialGradient as SkiaRadialGradient, vec,
+} from "@shopify/react-native-skia";
 import { MemberCard } from "@/components/MemberCard";
 import { useProfile }   from "@/hooks/useProfile";
 import { useAuth }      from "@/hooks/useAuth";
@@ -33,6 +37,9 @@ import { usePlaces }    from "@/hooks/usePlaces";
 import { useOffers }    from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useVisits } from "@/hooks/useVisits";
+import { useDismissals } from "@/hooks/useDismissals";
+import { useAchievements } from "@/hooks/useAchievements";
+import { buildTrophies, computeUserStats } from "@/lib/achievements";
 import { offerEligibility, estimateOfferValue, formatKr } from "@/lib/offers";
 import { format }  from "date-fns";
 import { sv }      from "date-fns/locale";
@@ -70,11 +77,45 @@ function BgGlow() {
 
 // ─── PreviewCard ──────────────────────────────────────────────────────────────
 // ─── Djup-systemet för alla profilknappar (Lovable-spec) ─────────────────────
-// Diagonal gradient #1E1E1E → #121212, diskret vit kant, invändig högdager
-// uppe till vänster, mjuk bred yttre skugga. Samma recept på alla sex knappar.
-// Byggd med react-native-svg (INTE expo-linear-gradient) — svg-motorn är redan
-// native-kompilerad i den installerade dev-clienten, så detta syns utan ny build.
-const TILE_GRADIENT_COLORS: [string, string] = ["#1E1E1E", "#121212"];
+// Diagonal gradient #191919 → #121212 + en mycket svag ljuskälla uppe till vänster,
+// mjuk bred yttre skugga. Samma recept på alla sex knappar.
+// Äkta Skia-gradient (TileGradient nedan), inte SVG: den gamla SVG-varianten
+// hade en osynligt svag diagonal gradient (#1E1E1E→#121212 är nästan samma
+// färg) och lutade sig i praktiken på en separat "innerHighlight"-box med
+// HÅRD kant vid 45% höjd för att se levande ut — resultatet var en tydlig
+// rektangel med annat ljus i övre halvan, inte en sammanhängande gradient.
+// Skia ger en riktig mjuk radiell ljuskälla ovanpå diagonalen, utan kant.
+const TILE_GRADIENT_COLORS: [string, string] = ["#191919", "#121212"];
+
+function TileGradient({ borderRadius = 20 }: { borderRadius?: number }) {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const onLayout = useCallback((e: any) => {
+    const { width, height } = e.nativeEvent.layout;
+    setSize({ width, height });
+  }, []);
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={onLayout}>
+      {size.width > 0 && size.height > 0 && (
+        <Canvas style={{ width: size.width, height: size.height }}>
+          <RoundedRect x={0} y={0} width={size.width} height={size.height} r={borderRadius}>
+            <SkiaLinearGradient
+              start={vec(0, 0)}
+              end={vec(size.width, size.height)}
+              colors={TILE_GRADIENT_COLORS}
+            />
+          </RoundedRect>
+          <RoundedRect x={0} y={0} width={size.width} height={size.height} r={borderRadius}>
+            <SkiaRadialGradient
+              c={vec(size.width * 0.18, size.height * 0.12)}
+              r={size.width * 0.95}
+              colors={["rgba(255,255,255,0.035)", "rgba(255,255,255,0)"]}
+            />
+          </RoundedRect>
+        </Canvas>
+      )}
+    </View>
+  );
+}
 
 // ─── ScalePress: fjäderanimerad tryckåterkoppling + djup-yta för profil-kort ──
 // shadowStyle bär den svarta lyft-skuggan (INGEN overflow/clipping — annars skär iOS bort skuggan).
@@ -117,16 +158,7 @@ function ScalePress({
         {glow}
         {gradient ? (
           <View style={style}>
-            <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Defs>
-                <SvgGrad id="tileGrad" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0%"   stopColor={TILE_GRADIENT_COLORS[0]} />
-                  <Stop offset="100%" stopColor={TILE_GRADIENT_COLORS[1]} />
-                </SvgGrad>
-              </Defs>
-              <SvgRect width="100%" height="100%" fill="url(#tileGrad)" />
-            </Svg>
-            <View pointerEvents="none" style={tileStyles.innerHighlight} />
+            <TileGradient />
             {children}
           </View>
         ) : (
@@ -136,19 +168,6 @@ function ScalePress({
     </TouchableOpacity>
   );
 }
-
-const tileStyles = StyleSheet.create({
-  innerHighlight: {
-    position: "absolute",
-    top: 1, left: 1, right: 1,
-    height: "45%",
-    borderTopLeftRadius: 19,
-    borderTopRightRadius: 19,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: "rgba(255,255,255,0.04)",
-  },
-});
 
 function PreviewCard({
   icon,
@@ -376,6 +395,8 @@ export default function ProfileScreen() {
   const { data: offers = [] }    = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
   const { data: visits = [] }    = useVisits();
+  const { data: dismissedIds = [] } = useDismissals();
+  const { data: achievements = [] } = useAchievements();
 
   const displayName  = profile?.display_name ?? user?.email?.split("@")[0] ?? "Gäst";
   const isMember     = !!(profile?.is_member);
@@ -400,6 +421,18 @@ export default function ProfileScreen() {
 
   // Samma filter som historiksidan — besök utan matchande plats räknas inte med
   const visitCount = visits.filter((v) => places.some((p) => p.id === v.place_id)).length;
+
+  // Samma räknemotor som Utmaningar/Statistik (src/lib/achievements.ts) —
+  // antal av de 21 troféerna som är klara, inte "aktiva guldnivåer" som
+  // Statistiks KPI visar.
+  const achievementStats = useMemo(
+    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds),
+    [visits, places, favorites.length, redemptions, dismissedIds]
+  );
+  const trophiesDone = useMemo(
+    () => buildTrophies(achievementStats, achievements).filter((t) => t.done).length,
+    [achievementStats, achievements]
+  );
 
   const safeTop    = Math.max(insets.top, 44);
   const safeBotPad = Math.max(insets.bottom, 6) + 56;
@@ -490,7 +523,7 @@ export default function ProfileScreen() {
         <SmallButton
           icon={<Medal size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Utmaningar"
-          sub="0 aktiva"
+          sub={`${trophiesDone}/21 klarade`}
           onPress={() => router.push("/challenges" as any)}
         />
       </View>
