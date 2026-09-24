@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import {
@@ -23,13 +23,16 @@ import {
   Clock, MapPin, UtensilsCrossed, Coffee, Trees, Landmark,
   BedDouble, Zap, ShoppingBag, Palette, Layers,
   ParkingSquare, Wifi, Dog, Sun, Accessibility,
-  Baby, Leaf, CalendarCheck,
+  Baby, Leaf, CalendarCheck, Star,
 } from "lucide-react-native";
 import Svg, {
   Defs, LinearGradient as SvgGrad, Stop,
   Rect as SvgRect, Circle, Path,
 } from "react-native-svg";
 import { usePlaces, isPlaceOpen, type Place } from "@/hooks/usePlaces";
+import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
+import { StickerPin } from "@/components/stickers/StickerPin";
+import { StickerCard } from "@/components/stickers/StickerCard";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
@@ -132,6 +135,7 @@ function SelectedPin() {
 // ─── Huvud-komponent ─────────────────────────────────────────────────────────
 export default function MapScreen() {
   const router  = useRouter();
+  const { sticker: stickerParam } = useLocalSearchParams<{ sticker?: string }>();
   const insets  = useSafeAreaInsets();
   const mapRef  = useRef<MapView>(null);
 
@@ -139,6 +143,8 @@ export default function MapScreen() {
   const [selectedCats, setSelectedCats]           = useState<Set<string>>(new Set());
   const [practicalFilters, setPracticalFilters]   = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen]               = useState(false);
+  const [selectedSticker, setSelectedSticker]     = useState<Collectible | null>(null);
+  const [stickersOnly, setStickersOnly]           = useState(false);
   const [userLoc, setUserLoc]                     = useState<{ latitude: number; longitude: number } | null>(null);
   const locDone       = useRef(false);
   // Förhindrar att MapView.onPress nollställer kortet direkt efter marker-press
@@ -147,6 +153,13 @@ export default function MapScreen() {
   const cardAnim = useRef(new Animated.Value(0)).current;
 
   const { data: places = [] } = usePlaces();
+  const { data: collectibles = [] } = useCollectibles();
+  const { data: collected = new Map<string, string>() } = useCollected();
+  // En plats som också är ett samlarobjekt visas bara som lila sticker-nål, aldrig som vanlig grön
+  const stickerPlaceIds = useMemo(
+    () => new Set(collectibles.map((c) => c.placeId).filter((id): id is number => id != null)),
+    [collectibles]
+  );
 
   // ── Användarposition ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -216,7 +229,7 @@ export default function MapScreen() {
 
   // ── Aktiva filterpiller ────────────────────────────────────────────────────
   const activePills = useMemo(() => {
-    const out: { id: string; label: string; type: "cat" | "prac" }[] = [];
+    const out: { id: string; label: string; type: "cat" | "prac" | "sticker" }[] = [];
     selectedCats.forEach((id) => {
       const c = CAT_FILTERS.find((x) => x.id === id);
       if (c) out.push({ id, label: c.label, type: "cat" });
@@ -225,14 +238,16 @@ export default function MapScreen() {
       const p = PRACTICAL.find((x) => x.id === id);
       if (p) out.push({ id, label: p.label, type: "prac" });
     });
+    if (stickersOnly) out.unshift({ id: "stickers", label: "Samlarobjekt", type: "sticker" });
     return out;
-  }, [selectedCats, practicalFilters]);
+  }, [selectedCats, practicalFilters, stickersOnly]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleMarkerPress = useCallback((place: Place) => {
     markerJustPressed.current = true;
     setTimeout(() => { markerJustPressed.current = false; }, 300);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setSelectedSticker(null);
     setSelectedPlace(place);
     if (place.lat && place.lng) {
       mapRef.current?.animateToRegion(
@@ -242,9 +257,29 @@ export default function MapScreen() {
     }
   }, []);
 
+  const handleStickerPress = useCallback((c: Collectible) => {
+    markerJustPressed.current = true;
+    setTimeout(() => { markerJustPressed.current = false; }, 300);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setSelectedPlace(null);
+    setSelectedSticker(c);
+    mapRef.current?.animateToRegion(
+      { latitude: c.lat - 0.006, longitude: c.lng, latitudeDelta: 0.04, longitudeDelta: 0.04 },
+      800,
+    );
+  }, []);
+
+  // Från Hem eller Mitt Österlen: öppna en viss stickers kort direkt
+  useEffect(() => {
+    if (!stickerParam) return;
+    const c = collectibles.find((x) => x.id === stickerParam);
+    if (c) handleStickerPress(c);
+  }, [stickerParam, collectibles, handleStickerPress]);
+
   const handleMapPress = useCallback(() => {
     if (markerJustPressed.current) return; // ignorera tap som hörde till marker
     setSelectedPlace(null);
+    setSelectedSticker(null);
   }, []);
 
   const handleLocate = useCallback(() => {
@@ -284,8 +319,10 @@ export default function MapScreen() {
   }, []);
 
   const removePill = useCallback(
-    (pill: { id: string; type: "cat" | "prac" }) => {
-      if (pill.type === "cat") {
+    (pill: { id: string; type: "cat" | "prac" | "sticker" }) => {
+      if (pill.type === "sticker") {
+        setStickersOnly(false);
+      } else if (pill.type === "cat") {
         setSelectedCats((prev) => { const n = new Set(prev); n.delete(pill.id); return n; });
       } else {
         setPracticalFilters((prev) => { const n = new Set(prev); n.delete(pill.id); return n; });
@@ -297,6 +334,7 @@ export default function MapScreen() {
   const resetFilters = useCallback(() => {
     setSelectedCats(new Set());
     setPracticalFilters(new Set());
+    setStickersOnly(false);
   }, []);
 
   // ── Avstånd till vald plats ────────────────────────────────────────────────
@@ -336,7 +374,7 @@ export default function MapScreen() {
         legalLabelInsets={{ bottom: insets.bottom + 2, left: 8, right: 0, top: 0 }}
         onPress={handleMapPress}
       >
-        {filtered.map((place) => {
+        {!stickersOnly && filtered.filter((p) => !stickerPlaceIds.has(p.id)).map((place) => {
           const isSelected = selectedPlace?.id === place.id;
           return (
             <Marker
@@ -347,6 +385,23 @@ export default function MapScreen() {
               tracksViewChanges={isSelected}
             >
               {isSelected ? <SelectedPin /> : <StandardPin />}
+            </Marker>
+          );
+        })}
+
+        {/* Samlarobjekt: alltid synliga, lila (ljus = ej upplåst, mörk = upplåst) */}
+        {collectibles.map((c) => {
+          const isSelected = selectedSticker?.id === c.id;
+          const has = collected.has(c.id);
+          return (
+            <Marker
+              key={`sticker-${c.id}-${has}`}
+              coordinate={{ latitude: c.lat, longitude: c.lng }}
+              onPress={() => handleStickerPress(c)}
+              anchor={{ x: 0.5, y: 1 }}
+              tracksViewChanges={isSelected}
+            >
+              <StickerPin collected={has} selected={isSelected} />
             </Marker>
           );
         })}
@@ -537,6 +592,17 @@ export default function MapScreen() {
         </Animated.View>
       )}
 
+      {/* ── Samlarobjekt-kort ──────────────────────────────────────────────── */}
+      {selectedSticker && (
+        <StickerCard
+          collectible={selectedSticker}
+          collectedAt={collected.get(selectedSticker.id)}
+          userLoc={userLoc}
+          bottom={56 + insets.bottom + 16}
+          onClose={() => setSelectedSticker(null)}
+        />
+      )}
+
       {/* ── Filtersheet ───────────────────────────────────────────────────── */}
       <Modal
         visible={filterOpen}
@@ -614,6 +680,19 @@ export default function MapScreen() {
                 );
               })}
             </View>
+
+            {/* Samlarobjekt */}
+            <Text style={[s.sheetSection, { marginTop: 28 }]}>SAMLAROBJEKT</Text>
+            <View style={s.chipWrap}>
+              <TouchableOpacity
+                style={[s.chip, stickersOnly && s.chipActive]}
+                onPress={() => setStickersOnly((v) => !v)}
+                activeOpacity={0.8}
+              >
+                <Star size={14} color={stickersOnly ? GOLD : "rgba(255,255,255,0.7)"} strokeWidth={2} />
+                <Text style={[s.chipText, stickersOnly && s.chipTextActive]}>Visa bara samlarobjekt</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
 
           {/* Sidfot */}
@@ -642,7 +721,9 @@ export default function MapScreen() {
                 </Defs>
                 <SvgRect width="100%" height="100%" fill="url(#gbtn)" rx={16} />
               </Svg>
-              <Text style={s.applyText}>Visa {filtered.length} platser</Text>
+              <Text style={s.applyText}>
+                Visa {stickersOnly ? collectibles.length : filtered.length} {stickersOnly ? "samlarobjekt" : "platser"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

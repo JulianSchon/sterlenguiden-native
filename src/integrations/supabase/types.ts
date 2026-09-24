@@ -138,6 +138,48 @@ export type Database = {
           },
         ]
       }
+      collectibles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_path: string | null
+          lat: number
+          lng: number
+          name: string
+          place_id: number | null
+          published: boolean
+          sort_order: number
+          town: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_path?: string | null
+          lat: number
+          lng: number
+          name: string
+          place_id?: number | null
+          published?: boolean
+          sort_order?: number
+          town?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_path?: string | null
+          lat?: number
+          lng?: number
+          name?: string
+          place_id?: number | null
+          published?: boolean
+          sort_order?: number
+          town?: string | null
+        }
+        Relationships: []
+      }
       completed_levels: {
         Row: {
           completed_at: string | null
@@ -721,6 +763,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_collectibles: {
+        Row: {
+          collected_at: string
+          collectible_id: string
+          user_id: string
+        }
+        Insert: {
+          collected_at?: string
+          collectible_id: string
+          user_id: string
+        }
+        Update: {
+          collected_at?: string
+          collectible_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_collectibles_collectible_id_fkey"
+            columns: ["collectible_id"]
+            isOneToOne: false
+            referencedRelation: "collectibles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_farm: {
         Row: {
           crop_left_variant: string | null
@@ -901,6 +969,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      collect_sticker: {
+        Args: { p_collectible_id: string; p_lat: number; p_lng: number }
+        Returns: string
+      }
       join_list: { Args: { code: string }; Returns: string }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }
       get_place_favorites_count: {

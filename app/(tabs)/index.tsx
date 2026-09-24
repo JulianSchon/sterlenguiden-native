@@ -43,6 +43,7 @@ import { useBusinessStories } from "@/hooks/useBusinessStories";
 import { useStoryViews } from "@/hooks/useStoryViews";
 import { StoryViewer, type StoryGroupData, type StoryType } from "@/components/StoryViewer";
 import { NearbyCheckInPrompt } from "@/components/checkin/NearbyCheckInPrompt";
+import { NearbyStickerPrompt } from "@/components/stickers/NearbyStickerPrompt";
 import { EventBottomSheet } from "./calendar";
 import { useNews, type NewsItem } from "@/hooks/useNews";
 import { colors } from "@/lib/colors";
@@ -678,6 +679,7 @@ export default function HomeScreen() {
         <View style={s.contentCard}>
           {/* ── Du verkar vara vid X (bara när exakt en plats är inom incheckningsradien) ── */}
           <NearbyCheckInPrompt places={places} lat={userLat} lng={userLng} />
+          <NearbyStickerPrompt lat={userLat} lng={userLng} />
 
           {/* ── Stories ── */}
           {storyGroups.length > 0 && (
