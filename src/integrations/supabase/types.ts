@@ -553,6 +553,90 @@ export type Database = {
         }
         Relationships: []
       }
+      pass_gifts: {
+        Row: {
+          activation_date: string | null
+          buyer_id: string
+          claim_code: string
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          delivery_method: string
+          id: string
+          message: string | null
+          period: string
+          price: number
+          recipient_email: string | null
+          recipient_name: string
+          status: string
+        }
+        Insert: {
+          activation_date?: string | null
+          buyer_id: string
+          claim_code: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          delivery_method: string
+          id?: string
+          message?: string | null
+          period: string
+          price: number
+          recipient_email?: string | null
+          recipient_name: string
+          status: string
+        }
+        Update: {
+          activation_date?: string | null
+          buyer_id?: string
+          claim_code?: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          delivery_method?: string
+          id?: string
+          message?: string | null
+          period?: string
+          price?: number
+          recipient_email?: string | null
+          recipient_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      pass_purchases: {
+        Row: {
+          created_at: string
+          gift_id: string | null
+          id: string
+          kind: string
+          note: string | null
+          period: string
+          price: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gift_id?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+          period: string
+          price: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gift_id?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          period?: string
+          price?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       pass_products: {
         Row: {
           active: boolean

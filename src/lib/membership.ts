@@ -66,3 +66,16 @@ export function membershipStatus(
 export function isActiveMember(profile: MembershipFields | null | undefined, now = new Date()): boolean {
   return membershipStatus(profile, now).active;
 }
+
+const PERIOD_LABELS: Record<string, string> = {
+  week: "1 vecka",
+  month: "1 månad",
+  quarter: "3 månader",
+  summer: "Sommarpass",
+  year: "12 månader",
+};
+
+/** Visningsnamn för en passperiod ("month" → "1 månad"). Okända id:n visas som de är. */
+export function periodLabel(period: string | null | undefined): string {
+  return period ? PERIOD_LABELS[period] ?? period : "";
+}

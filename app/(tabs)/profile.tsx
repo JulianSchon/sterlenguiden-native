@@ -381,7 +381,7 @@ export default function ProfileScreen() {
           cardColor={profile?.card_color}
           avatarUrl={(profile as any)?.avatar_url ?? null}
           profileImageUrl={(profile as any)?.profile_image_url ?? null}
-          onBuyPress={() => router.push("/settings/pass" as any)}
+          onBuyPress={() => router.push("/settings/pass-buy" as any)}
         />
       </View>
 

@@ -9,7 +9,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Animated, Easing, Alert,
+  View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Animated, Easing,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -104,9 +104,6 @@ export default function OffersScreen() {
     return { totalValue: total, businessCount: businesses.size, redeemedCount: redeemed };
   }, [offers, redemptions]);
 
-  // Priset finns i app/settings/pass.tsx, håll synkat om det ändras där
-  const PASS_PRICE_KR = 49;
-
   const countAnim = useRef(new Animated.Value(0)).current;
   const [displayValue, setDisplayValue] = useState(0);
   useEffect(() => {
@@ -122,7 +119,7 @@ export default function OffersScreen() {
 
   const handleCardPress = (offer: Offer) => {
     if (!isMember) {
-      Alert.alert("Österlenpasset", "Köpflödet öppnas snart!", [{ text: "OK" }]);
+      router.push("/settings/pass-buy" as any);
       return;
     }
     setDrawerPlaceId(offer.place_id);
@@ -256,9 +253,9 @@ export default function OffersScreen() {
                 <TouchableOpacity
                   style={s.heroCta}
                   activeOpacity={0.9}
-                  onPress={() => Alert.alert("Österlenpasset", "Köpflödet öppnas snart!", [{ text: "OK" }])}
+                  onPress={() => router.push("/settings/pass-buy" as any)}
                 >
-                  <Text style={s.heroCtaText}>Skaffa Österlenpasset — {PASS_PRICE_KR} kr/mån</Text>
+                  <Text style={s.heroCtaText}>Skaffa Österlenpasset</Text>
                 </TouchableOpacity>
               )}
             </View>

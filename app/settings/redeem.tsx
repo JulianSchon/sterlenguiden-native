@@ -46,8 +46,8 @@ export default function RedeemCodeScreen() {
   }
 
   const errorText =
-    failure === "used" ? "Koden har redan använts."
-    : failure === "not_found" ? "Ogiltig kod. Kontrollera och försök igen."
+    failure === "used" ? "Den här koden är redan inlöst."
+    : failure === "not_found" ? "Vi hittar ingen present med den koden. Kontrollera att den är rätt skriven."
     : failure === "unlimited" ? "Du har redan ett pass utan slutdatum, så koden behövs inte."
     : failure === "error" ? "Det gick inte att lösa in koden. Försök igen."
     : null;
@@ -83,7 +83,7 @@ export default function RedeemCodeScreen() {
         ) : (
           <>
             <Text style={s.title}>Lös in din kod</Text>
-            <Text style={s.sub}>Skriv in koden du fått, till exempel som present.</Text>
+            <Text style={s.sub}>Skriv in koden från ditt presentkort. Har du flera koder läggs tiden ihop.</Text>
             <TextInput
               style={[s.input, failure && s.inputError]}
               value={code}
@@ -105,7 +105,12 @@ export default function RedeemCodeScreen() {
             >
               {busy ? <ActivityIndicator color="#121212" /> : <Text style={s.buttonText}>Aktivera passet</Text>}
             </TouchableOpacity>
-            <Text style={s.note}>Har du redan ett pass läggs tiden på. Är ditt pass förnyande sparas tiden och används när det slutar förnyas.</Text>
+            <View style={s.tips}>
+              <Text style={s.tipsTitle}>Bra att veta</Text>
+              <Text style={s.tip}>• Koder läggs på din tid: 1 månad + 1 vecka blir 1 månad och 1 vecka.</Text>
+              <Text style={s.tip}>• Har du ett pass som förnyas sparas tiden och används när du slutar förnya. Den försvinner aldrig.</Text>
+              <Text style={s.tip}>• Det spelar ingen roll om koden kom via mejl eller på ett presentkort i papper.</Text>
+            </View>
           </>
         )}
       </View>
@@ -136,5 +141,11 @@ const s = StyleSheet.create({
   button: { backgroundColor: GOLD, borderRadius: 14, height: 52, alignItems: "center", justifyContent: "center", width: "100%" },
   buttonText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#121212" },
   note: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(245,241,232,0.4)", textAlign: "center", lineHeight: 18 },
+  tips: {
+    marginTop: 10, padding: 16, borderRadius: 16, gap: 8,
+    backgroundColor: "rgba(255,255,255,0.02)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
+  },
+  tipsTitle: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: FG },
+  tip: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: MUTED },
   check: { width: 64, height: 64, borderRadius: 32, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" },
 });
