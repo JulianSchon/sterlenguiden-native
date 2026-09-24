@@ -1,8 +1,10 @@
 import { Stack, router } from "expo-router";
+import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { View } from "react-native";
 import { useFonts } from "expo-font";
 import {
   PlayfairDisplay_400Regular,
@@ -18,8 +20,10 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { ShareTechMono_400Regular } from "@expo-google-fonts/share-tech-mono";
-import { Montserrat_700Bold } from "@expo-google-fonts/montserrat";
+import { Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
 import { supabase } from "@/integrations/supabase/client";
+import { loadSavedLanguage } from "@/i18n";
+import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -33,6 +37,8 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
     ShareTechMono_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
     Montserrat_700Bold,
   });
 
@@ -57,12 +63,38 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Vänta på både typsnitt och auth innan appen visas
-  if (!fontsLoaded || !authReady) return null;
+  // Ett tidigare valt språk läses in innan appen visas, så ingen ser fel språk blinka förbi
+  const [languageReady, setLanguageReady] = useState(false);
+  useEffect(() => {
+    loadSavedLanguage().finally(() => setLanguageReady(true));
+  }, []);
+
+  // Vänta på typsnitt, auth och språk innan appen visas
+  if (!fontsLoaded || !authReady || !languageReady) return null;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Stack>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppStack />
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppStack() {
+  const { colors, scheme } = useTheme();
+
+  // Navigeringens egen bakgrund är vit som standard och syns i hörnen medan en
+  // sida glider in över en annan. Ge den temats bakgrund.
+  const navigationTheme = useMemo(() => {
+    const base = scheme === "light" ? DefaultTheme : DarkTheme;
+    return { ...base, colors: { ...base.colors, background: colors.bg, card: colors.bg, border: colors.border } };
+  }, [scheme, colors]);
+
+  return (
+    <NavigationThemeProvider value={navigationTheme}>
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -93,7 +125,8 @@ export default function RootLayout() {
         <Stack.Screen name="memories/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="light" />
-    </QueryClientProvider>
+      <StatusBar style={scheme === "light" ? "dark" : "light"} />
+      </View>
+    </NavigationThemeProvider>
   );
 }

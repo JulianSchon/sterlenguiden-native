@@ -1,86 +1,43 @@
 /**
- * Inställningar › Utseende
+ * Inställningar › Utseende: tema (följ systemet / ljust / mörkt) och kortdesign.
+ * Cirkelns färg ändras på membercardet, inte här.
  */
-import { useState } from "react";
-import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  Switch, ImageBackground, Dimensions,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { ChevronLeft, Check } from "lucide-react-native";
+import { View, Text, TouchableOpacity, ImageBackground, Dimensions, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Check, Moon, Smartphone, Sun, type LucideIcon } from "lucide-react-native";
 import Svg, {
   Defs, LinearGradient as SvgGrad, RadialGradient as SvgRadial,
   Stop, Rect as SvgRect,
 } from "react-native-svg";
-import { useProfile } from "@/hooks/useProfile";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
+import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { CARD_VARIANTS, cardColors } from "@/lib/cardVariants";
-
-// PNG-require måste vara statisk, hanteras här
-// kort-PNG:er refereras nu via cardVariants.bgImage
-
-const BG     = "#121212";
-const CARD   = "#1C1C1C";
-const FG     = "#F5F1E8";
-const MUTED  = "rgba(245,241,232,0.55)";
-const GOLD   = "#C5A059";
-const BORDER = "rgba(255,255,255,0.06)";
+import { CARD_VARIANTS } from "@/lib/cardVariants";
+import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { useTheme, useThemedStyles, type ThemeMode } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
 const { width: SW } = Dimensions.get("window");
-// Bredd på varje mini-kort: (skärm - body-padding*2 - card-padding*2 - gap) / 2
-const MINI_W = Math.floor((SW - 40 - 40 - 12) / 2);
+// Två kort per rad: skärmbredd − sidmarginal − kortets inre marginal − mellanrum
+const MINI_W = Math.floor((SW - 32 - 32 - 12) / 2);
 const MINI_H = Math.round(MINI_W * 0.54);
 
-// Cirkelns färger
-const CIRCLE_COLORS = [
-  { id: "gold",   hex: "#C5A059", label: "Guld"   },
-  { id: "silver", hex: "#A8A8A8", label: "Silver" },
-  { id: "copper", hex: "#B87333", label: "Koppar" },
-  { id: "white",  hex: "#F5F1E8", label: "Vit"    },
-  { id: "sage",   hex: "#78917C", label: "Salvia" },
-] as const;
+const THEME_OPTIONS: { mode: ThemeMode; icon: LucideIcon; key: "themeSystem" | "themeLight" | "themeDark" }[] = [
+  { mode: "system", icon: Smartphone, key: "themeSystem" },
+  { mode: "light", icon: Sun, key: "themeLight" },
+  { mode: "dark", icon: Moon, key: "themeDark" },
+];
 
-type Swatch = { id: string; hex: string; label: string };
-
-function CircleRow({ selected, onSelect }: { selected: string; onSelect: (id: string) => void }) {
-  return (
-    <View style={{ gap: 12 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Text style={a.eyebrow}>CIRKELNS FÄRG</Text>
-      </View>
-      <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
-        {CIRCLE_COLORS.map((sw) => (
-          <TouchableOpacity
-            key={sw.id}
-            style={{ alignItems: "center", gap: 6 }}
-            onPress={() => onSelect(sw.id)}
-          >
-            <View style={[a.swatch, { backgroundColor: sw.hex }, selected === sw.id && a.swatchActive]} />
-            <Text style={[a.swatchLabel, selected === sw.id && { color: GOLD }]}>{sw.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-/** Mini-förhandsgranskning av ett kort — SVG-gradient eller PNG */
+/** Mini-förhandsgranskning av ett kort — bild eller SVG-gradient */
 function MiniCard({ variantId, isSelected }: { variantId: string; isSelected: boolean }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const v = CARD_VARIANTS.find((x) => x.id === variantId)!;
   return (
-    <View style={[
-      a.miniCard,
-      isSelected && { borderColor: GOLD, borderWidth: 2 },
-    ]}>
-      {/* Bakgrund */}
+    <View style={[s.miniCard, isSelected && { borderColor: colors.gold, borderWidth: 2 }]}>
       {v.bgImage ? (
-        <ImageBackground
-          source={v.bgImage}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
+        <ImageBackground source={v.bgImage} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <Svg style={StyleSheet.absoluteFill} width={MINI_W} height={MINI_H}>
           <Defs>
@@ -100,16 +57,13 @@ function MiniCard({ variantId, isSelected }: { variantId: string; isSelected: bo
         </Svg>
       )}
 
-      {/* Variant-namn — alltid vit text med skugga för läsbarhet */}
+      {/* Namnet ligger alltid som vit text med skugga så det syns på alla kort */}
       <View style={{ position: "absolute", bottom: 7, left: 10 }}>
-        <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 9, color: "rgba(255,255,255,0.92)", letterSpacing: 1.4, textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
-          {v.name.toUpperCase()}
-        </Text>
+        <Text style={s.miniName}>{v.name.toUpperCase()}</Text>
       </View>
 
-      {/* Bock vid valt */}
       {isSelected && (
-        <View style={a.miniCheck}>
+        <View style={s.miniCheck}>
           <Check size={9} color="#000" strokeWidth={3} />
         </View>
       )}
@@ -118,128 +72,94 @@ function MiniCard({ variantId, isSelected }: { variantId: string; isSelected: bo
 }
 
 export default function AppearanceSettings() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const { t } = useTranslation();
   const qc = useQueryClient();
+  const { colors, mode, setMode } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { data: profile } = useProfile();
+  const cardColor = profile?.card_color ?? "midnight";
 
-  const [darkMode,    setDarkMode]    = useState(true);
-  const [cardColor,   setCardColor]   = useState<string>(profile?.card_color ?? "midnight");
-  const [circleColor, setCircleColor] = useState<string>(profile?.circle_color ?? "gold");
-
-  const savePrefs = useMutation({
-    mutationFn: async (update: Record<string, string>) => {
+  const saveCardColor = useMutation({
+    mutationFn: async (id: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      await supabase.from("profiles").update(update).eq("user_id", user.id);
+      await supabase.from("profiles").update({ card_color: id }).eq("user_id", user.id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["profile"] }),
   });
 
-  const safeTop = Math.max(insets.top, 44);
-
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={[a.header, { paddingTop: safeTop }]}>
-        <TouchableOpacity style={a.backBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={a.headerTitle}>Utseende</Text>
+    <SettingsScreen title={t("appearance.title")}>
+      <View>
+        <Text style={s.label}>{t("appearance.theme")}</Text>
+        <View style={s.segment}>
+          {THEME_OPTIONS.map(({ mode: m, icon: Icon, key }) => {
+            const active = mode === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[s.segmentItem, active && s.segmentItemActive]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  setMode(m);
+                }}
+              >
+                <Icon size={16} color={active ? colors.onGold : colors.muted} strokeWidth={2} />
+                <Text style={[s.segmentText, active && { color: colors.onGold }]}>{t(`appearance.${key}`)}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={a.body}>
-        {/* Tema */}
-        <View style={a.card}>
-          <Text style={a.eyebrow}>TEMA</Text>
-          <View style={a.row}>
-            <Text style={a.rowLabel}>Mörkt läge</Text>
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ false: "rgba(255,255,255,0.12)", true: "rgba(197,160,89,0.55)" }}
-              thumbColor={darkMode ? GOLD : "rgba(255,255,255,0.5)"}
-            />
-          </View>
-          <Text style={a.noteText}>Ljust tema lanseras i en kommande uppdatering.</Text>
+      <View>
+        <Text style={s.label}>{t("appearance.cardDesign")}</Text>
+        <View style={s.cardGrid}>
+          {CARD_VARIANTS.map((v) => (
+            <TouchableOpacity
+              key={v.id}
+              activeOpacity={0.85}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                saveCardColor.mutate(v.id);
+              }}
+            >
+              <MiniCard variantId={v.id} isSelected={cardColor === v.id} />
+            </TouchableOpacity>
+          ))}
         </View>
-
-        {/* Kortdesign */}
-        <View style={a.card}>
-          <Text style={a.eyebrow}>KORTDESIGN</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-            {CARD_VARIANTS.map((v) => {
-              return (
-                <TouchableOpacity
-                  key={v.id}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setCardColor(v.id);
-                    savePrefs.mutate({ card_color: v.id });
-                  }}
-                >
-                  <MiniCard variantId={v.id} isSelected={cardColor === v.id} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Cirkelns färg */}
-        <View style={a.card}>
-          <CircleRow
-            selected={circleColor}
-            onSelect={(id) => {
-              setCircleColor(id);
-              savePrefs.mutate({ circle_color: id });
-            }}
-          />
-        </View>
-      </ScrollView>
-    </View>
+      </View>
+    </SettingsScreen>
   );
 }
 
-const a = StyleSheet.create({
-  header: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)",
-    backgroundColor: BG,
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  label: {
+    fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, color: c.muted,
+    paddingLeft: 6, marginBottom: 10, textTransform: "uppercase",
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    alignItems: "center", justifyContent: "center", marginRight: 12,
+  segment: {
+    flexDirection: "row", padding: 4, gap: 4, borderRadius: 16, backgroundColor: c.fill,
   },
-  headerTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, flex: 1 },
-  body: { padding: 20, gap: 16, paddingBottom: 60 },
-  card: { backgroundColor: CARD, borderRadius: 22, padding: 20, borderWidth: 1, borderColor: BORDER, gap: 16 },
-  eyebrow: {
-    fontFamily: "Inter_600SemiBold", fontSize: 10,
-    color: "rgba(197,160,89,0.75)", letterSpacing: 2, textTransform: "uppercase",
+  segmentItem: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 11, borderRadius: 12,
   },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  rowLabel: { fontFamily: "Inter_500Medium", fontSize: 14.5, color: FG },
-  noteText: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, lineHeight: 18 },
+  segmentItemActive: { backgroundColor: c.gold },
+  segmentText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
 
-  // Mini-kort
+  cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   miniCard: {
-    width: MINI_W,
-    height: MINI_H,
-    borderRadius: 10,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
+    width: MINI_W, height: MINI_H, borderRadius: 10, overflow: "hidden",
+    borderWidth: 1, borderColor: c.borderStrong,
+  },
+  miniName: {
+    fontFamily: "Inter_600SemiBold", fontSize: 9, color: "rgba(255,255,255,0.92)", letterSpacing: 1.4,
+    textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
   miniCheck: {
-    position: "absolute", top: 6, right: 6,
-    width: 18, height: 18, borderRadius: 9,
-    backgroundColor: GOLD,
-    alignItems: "center", justifyContent: "center",
+    position: "absolute", top: 6, right: 6, width: 16, height: 16, borderRadius: 8,
+    backgroundColor: c.gold, alignItems: "center", justifyContent: "center",
   },
-
-  // Cirkel-swatches
-  swatch: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)" },
-  swatchActive: { borderWidth: 2, borderColor: GOLD },
-  swatchLabel: { fontFamily: "Inter_400Regular", fontSize: 11, color: MUTED },
 });
