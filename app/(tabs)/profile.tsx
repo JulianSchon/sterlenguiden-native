@@ -32,6 +32,7 @@ import {
 import { MemberCard } from "@/components/MemberCard";
 import { useProfile }   from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useAuth }      from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePlaces }    from "@/hooks/usePlaces";
@@ -317,6 +318,7 @@ export default function ProfileScreen() {
 
   const displayName  = profile?.display_name ?? user?.email?.split("@")[0] ?? "Gäst";
   const { isMember } = useMembership();
+  const avatarUrl = useAvatarUrl();
   const memberSince  = profile?.created_at
     ? format(new Date(profile.created_at), "MMMM yyyy", { locale: sv })
     : null;
@@ -379,7 +381,8 @@ export default function ProfileScreen() {
           isMember={isMember}
           memberSince={memberSince}
           cardColor={profile?.card_color}
-          avatarUrl={(profile as any)?.avatar_url ?? null}
+          avatarUrl={avatarUrl}
+          circleColor={profile?.circle_color}
           profileImageUrl={(profile as any)?.profile_image_url ?? null}
           onBuyPress={() => router.push("/settings/pass-buy" as any)}
         />

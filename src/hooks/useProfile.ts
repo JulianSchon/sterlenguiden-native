@@ -13,6 +13,9 @@ export interface Profile {
   member_until: string | null;
   member_auto_renew: boolean | null;
   member_bonus_days: number | null;
+  display_name_changed_at: string | null;
+  birth_date: string | null;
+  lives_in_osterlen: boolean | null;
   preferred_language: string;
   notifications_enabled: boolean;
   dark_mode: boolean;

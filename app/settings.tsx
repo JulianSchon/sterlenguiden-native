@@ -7,11 +7,12 @@ import { Text, TouchableOpacity, Pressable, Alert, StyleSheet } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus, Trash2 } from "lucide-react-native";
+import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { supabase } from "@/integrations/supabase/client";
 import { setLanguage, currentLanguage, type LanguageCode } from "@/i18n";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
@@ -36,8 +37,8 @@ export default function SettingsHub() {
   const [langOpen, setLangOpen] = useState(false);
 
   const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? "";
-  // avatar_url = profilbilden (framsidan). profile_image_url är kortfotot på baksidan och ska inte visas här.
-  const photo = profile?.avatar_url ?? null;
+  // profilbilden (framsidan). Kortfotot på baksidan (profile_image_url) ska inte visas här.
+  const photo = useAvatarUrl();
 
   const saveLanguage = useMutation({
     mutationFn: async (code: LanguageCode) => {
@@ -58,28 +59,6 @@ export default function SettingsHub() {
     Alert.alert(t("settings.signOut.title"), t("settings.signOut.message"), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("settings.signOut.action"), style: "destructive", onPress: signOut },
-    ]);
-  };
-
-  // OBS: raderar än så länge bara delar av datan. Byts mot en riktig radering i nästa steg.
-  const confirmDelete = () => {
-    Alert.alert(t("settings.deleteAccount.title"), t("settings.deleteAccount.message"), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("settings.deleteAccount.confirm"), style: "destructive",
-        onPress: async () => {
-          try {
-            const { data: { user: u } } = await supabase.auth.getUser();
-            if (!u) return;
-            await supabase.from("favorites").delete().eq("user_id", u.id);
-            await supabase.from("visits").delete().eq("user_id", u.id);
-            await supabase.from("achievements").delete().eq("user_id", u.id);
-            await supabase.from("profiles").delete().eq("user_id", u.id);
-          } finally {
-            signOut();
-          }
-        },
-      },
     ]);
   };
 
@@ -139,12 +118,6 @@ export default function SettingsHub() {
           </GradientCard>
         </Rise>
 
-        <Rise index={4}>
-          <TouchableOpacity style={s.deleteBtn} onPress={confirmDelete}>
-            <Trash2 size={16} color={colors.danger} strokeWidth={1.7} />
-            <Text style={s.deleteText}>{t("settings.deleteAccount.action")}</Text>
-          </TouchableOpacity>
-        </Rise>
       </SettingsScreen>
 
       <LanguageMenu
@@ -167,6 +140,4 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   signOutPressed: { backgroundColor: c.fill },
   signOutText: { fontFamily: "Montserrat_500Medium", fontSize: 14.5, letterSpacing: -0.3, color: c.text },
 
-  deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 10 },
-  deleteText: { fontFamily: "Montserrat_500Medium", fontSize: 13.5, letterSpacing: -0.3, color: c.danger },
 });

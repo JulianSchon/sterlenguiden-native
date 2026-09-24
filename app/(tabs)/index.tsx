@@ -38,6 +38,8 @@ import Svg, {
 import { usePlaces, isPlaceOpen, getTierScore, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { useProfile } from "@/hooks/useProfile";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { initialsOf, toneOnTone } from "@/lib/color";
 import { useFavorites, useToggleFavorite, useIsFavorite } from "@/hooks/useFavorites";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
 import { useStoryViews } from "@/hooks/useStoryViews";
@@ -531,6 +533,7 @@ export default function HomeScreen() {
 
 
   const { data: profile } = useProfile();
+  const avatarUrl = useAvatarUrl();
   const { data: places = [], isLoading: placesLoading } = usePlaces();
   const { data: events = [], isLoading: eventsLoading } = useEvents();
   const { data: businessStories = [] } = useBusinessStories();
@@ -656,15 +659,15 @@ export default function HomeScreen() {
             activeOpacity={0.85}
           >
             <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
-              {profile?.avatar_url ? (
+              {avatarUrl ? (
                 <Image
-                  source={{ uri: profile.avatar_url }}
+                  source={{ uri: avatarUrl }}
                   style={StyleSheet.absoluteFill}
                   resizeMode="cover"
                 />
               ) : (
-                <Text style={s.avatarInitials}>
-                  {(profile?.display_name ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                <Text style={[s.avatarInitials, { color: toneOnTone(profile?.circle_color ?? "#2A2A2A") }]}>
+                  {initialsOf(profile?.display_name ?? "") || "?"}
                 </Text>
               )}
             </View>
@@ -907,7 +910,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",
   },
-  avatarInitials: { fontSize: 16, fontWeight: "700", color: colors.foreground },
+  avatarInitials: { fontSize: 18, fontFamily: "PlayfairDisplay_700Bold", color: colors.foreground },
   levelBadge: {
     position: "absolute", bottom: -2, right: -2,
     width: 20, height: 20, borderRadius: 10,

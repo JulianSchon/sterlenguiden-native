@@ -22,6 +22,7 @@ import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useAuth } from "@/hooks/useAuth";
 import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
@@ -77,6 +78,7 @@ export default function OffersScreen() {
     : null;
   const safeTop = Math.max(insets.top, 44);
   const { isMember } = useMembership();
+  const avatarUrl = useAvatarUrl();
 
   const filter = OFFER_FILTERS.find((f) => f.id === activeFilter) ?? OFFER_FILTERS[0];
   const filtered = useMemo(() => {
@@ -192,7 +194,8 @@ export default function OffersScreen() {
                     isMember={isMember}
                     memberSince={memberSince}
                     cardColor={(profile as any)?.card_color}
-                    avatarUrl={(profile as any)?.avatar_url ?? null}
+                    avatarUrl={avatarUrl}
+                    circleColor={profile?.circle_color}
                     profileImageUrl={(profile as any)?.profile_image_url ?? null}
                     onBuyPress={() => {}}
                     disableFlip

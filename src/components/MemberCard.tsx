@@ -11,7 +11,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet,
-  Dimensions, Animated, Alert, Modal, Platform, Easing,
+  Dimensions, Animated, Platform, Easing,
 } from "react-native";
 import Svg, {
   Defs,
@@ -23,6 +23,7 @@ import Svg, {
 } from "react-native-svg";
 import { Crown, Radio, Camera } from "lucide-react-native";
 import { cardColors, getVariant } from "@/lib/cardVariants";
+import { initialsOf, toneOnTone } from "@/lib/color";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -72,6 +73,7 @@ export function MemberCard({
   memberSince,
   cardColor,
   avatarUrl,
+  circleColor,
   profileImageUrl,
   onBuyPress,
   showBackOnly = false,
@@ -83,6 +85,8 @@ export function MemberCard({
   memberSince: string | null;
   cardColor?: string | null;
   avatarUrl?: string | null;
+  /** Användarens valda cirkelfärg när ingen profilbild finns */
+  circleColor?: string | null;
   profileImageUrl?: string | null;
   onBuyPress: () => void;
   /** Låser kortet till baksidan utan flip — används av aktiva erbjudande-vyn,
@@ -102,8 +106,6 @@ export function MemberCard({
   const [isFlipped, setIsFlipped]           = useState(showBackOnly);
   const [time, setTime]                     = useState(new Date());
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const firstModalShown = useRef(false);
 
   // Variant + färgpalett
   const variant = isMember ? getVariant(cardColor) : null;
@@ -165,32 +167,6 @@ export function MemberCard({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
   });
-
-  // Förstagångs-modal: ny medlem utan verifikationsbild.
-  // Hoppas över i showBackOnly — en modal får aldrig poppa upp mitt i en
-  // pågående erbjudandeaktivering, då personalen står och tittar på skärmen.
-  useEffect(() => {
-    if (showBackOnly) return;
-    if (isMember && !profileImageUrl && isFlipped && !firstModalShown.current) {
-      firstModalShown.current = true;
-      const t = setTimeout(() => setShowUploadModal(true), 700);
-      return () => clearTimeout(t);
-    }
-  }, [isMember, profileImageUrl, isFlipped, showBackOnly]);
-
-  // Fotoknapp-handler
-  const handlePhotoPress = () => {
-    if (showBackOnly) return;
-    if (profileImageUrl) {
-      Alert.alert(
-        "Bilden är låst 🔒",
-        "Din verifikationsbild är permanent efter uppladdning. Kontakta support om du behöver ändra den.",
-        [{ text: "Okej" }]
-      );
-      return;
-    }
-    setShowUploadModal(true);
-  };
 
   // Live clock — only when back is showing
   useEffect(() => {
@@ -273,9 +249,9 @@ export function MemberCard({
               {avatarUrl ? (
                 <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
               ) : (
-                <View style={[mc.avatarInner, { backgroundColor: colors.avatarBg }]}>
-                  <Text style={[mc.avatarInitials, { color: colors.avatarInitials }]}>
-                    {displayName.slice(0, 2).toUpperCase()}
+                <View style={[mc.avatarInner, { backgroundColor: circleColor ?? colors.avatarBg }]}>
+                  <Text style={[mc.avatarInitials, { color: circleColor ? toneOnTone(circleColor) : colors.avatarInitials }]}>
+                    {initialsOf(displayName)}
                   </Text>
                 </View>
               )}
@@ -361,20 +337,17 @@ export function MemberCard({
         <Text style={mc.liveLabel}>LIVE-VERIFIERING</Text>
 
         {/* Profilbild-cirkel */}
-        <TouchableOpacity
-          style={mc.backCircle}
-          onPress={handlePhotoPress}
-          activeOpacity={0.88}
-        >
+        {/* Kortfotot ändras under Österlenpasset (en gång i månaden), inte här */}
+        <View style={mc.backCircle}>
           {profileImageUrl ? (
             <Image source={{ uri: profileImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           ) : (
             <View style={mc.backCirclePlaceholder}>
               <Camera size={24} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />
-              <Text style={mc.uploadText}>Ladda upp</Text>
+              <Text style={mc.uploadText}>Foto saknas</Text>
             </View>
           )}
-        </TouchableOpacity>
+        </View>
 
         <Text style={mc.backMemberName} numberOfLines={1}>{displayName}</Text>
         <Text style={mc.liveClock}>{clockStr}</Text>
@@ -385,47 +358,6 @@ export function MemberCard({
       </View>
 
     </Animated.View>
-  );
-
-  // ── Upload modal ───────────────────────────────────────────────────────────
-  const UploadModal = (
-    <Modal
-      visible={showUploadModal}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowUploadModal(false)}
-    >
-      <View style={mc.modalOverlay}>
-        <View style={mc.modalCard}>
-          {/* Kamera-ikon i guldcirkel */}
-          <View style={mc.modalIconCircle}>
-            <Camera size={32} color="#0C0A02" strokeWidth={1.5} />
-          </View>
-
-          <Text style={mc.modalTitle}>Lägg till din verifikationsbild</Text>
-          <Text style={mc.modalBody}>
-            Personalen ser din bild direkt när du visar kortet. Bilden låses permanent efter uppladdning.
-          </Text>
-
-          {/* Primär guldknapp */}
-          <TouchableOpacity
-            style={mc.modalPrimaryBtn}
-            activeOpacity={0.85}
-            onPress={() => {
-              setShowUploadModal(false);
-              Alert.alert("Bilduppladdning", "Aktiveras i nästa appuppdatering — håll utkik! 📸");
-            }}
-          >
-            <Text style={mc.modalPrimaryText}>Öppna kameran</Text>
-          </TouchableOpacity>
-
-          {/* Sekundär länk */}
-          <TouchableOpacity style={mc.modalSecBtn} onPress={() => setShowUploadModal(false)}>
-            <Text style={mc.modalSecText}>Gör det senare</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
   );
 
   return (
@@ -439,7 +371,6 @@ export function MemberCard({
         {!showBackOnly && Front}
         {isMember && Back}
       </TouchableOpacity>
-      {!showBackOnly && UploadModal}
     </View>
   );
 }
@@ -598,56 +529,6 @@ const mc = StyleSheet.create({
   },
 
   // ── Upload modal ──────────────────────────────────────────────────────────
-  modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
-    alignItems: "center", justifyContent: "flex-end",
-    paddingBottom: 40, paddingHorizontal: 20,
-  },
-  modalCard: {
-    width: "100%", backgroundColor: "#1A1610",
-    borderRadius: 28, padding: 28,
-    alignItems: "center", gap: 12,
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.20)",
-    shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 30, shadowOffset: { width: 0, height: -8 },
-  },
-  modalIconCircle: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: GOLD, alignItems: "center", justifyContent: "center",
-    marginBottom: 4,
-    shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
-  },
-  modalTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: FG,
-    textAlign: "center",
-  },
-  modalBody: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: MUTED,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  modalPrimaryBtn: {
-    width: "100%", height: 52, borderRadius: 16,
-    backgroundColor: GOLD,
-    alignItems: "center", justifyContent: "center",
-    marginTop: 4,
-  },
-  modalPrimaryText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    color: "#0C0A02",
-  },
-  modalSecBtn: {
-    paddingVertical: 8,
-  },
-  modalSecText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: MUTED,
-  },
 
   // Gamla back-stilar (används ej längre men behåller för ev. backward-compat)
   backContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },

@@ -768,6 +768,9 @@ export type Database = {
           created_at: string
           dark_mode: boolean | null
           display_name: string | null
+          display_name_changed_at: string | null
+          birth_date: string | null
+          lives_in_osterlen: boolean | null
           id: string
           is_member: boolean | null
           member_auto_renew: boolean | null
@@ -791,6 +794,9 @@ export type Database = {
           created_at?: string
           dark_mode?: boolean | null
           display_name?: string | null
+          display_name_changed_at?: string | null
+          birth_date?: string | null
+          lives_in_osterlen?: boolean | null
           id?: string
           is_member?: boolean | null
           member_auto_renew?: boolean | null
@@ -814,6 +820,9 @@ export type Database = {
           created_at?: string
           dark_mode?: boolean | null
           display_name?: string | null
+          display_name_changed_at?: string | null
+          birth_date?: string | null
+          lives_in_osterlen?: boolean | null
           id?: string
           is_member?: boolean | null
           member_auto_renew?: boolean | null
@@ -1107,6 +1116,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_my_account: { Args: never; Returns: undefined }
       redeem_pass_code: { Args: { _code: string }; Returns: Json }
       collect_sticker: {
         Args: { p_collectible_id: string; p_lat: number; p_lng: number }
