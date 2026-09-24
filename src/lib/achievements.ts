@@ -68,6 +68,9 @@ export interface UserStats {
   redemptionsDistinct: number;
   dismissalsCount: number;
   categoriesVisited: number; // 0–8
+  /** Listor användaren själv skapat (inte de hen bara gått med i) */
+  listsCreated: number;
+  memoriesCount: number;
 }
 
 export function computeUserStats(
@@ -76,6 +79,8 @@ export function computeUserStats(
   favoritesCount: number,
   redemptions: RedemptionRow[],
   dismissedPlaceIds: number[],
+  listsCreated: number,
+  memoriesCount: number,
 ): UserStats {
   const placesById = new Map(places.map((p) => [p.id, p]));
   const uniqueVisitedIds = [...new Set(visits.map((v) => v.place_id))];
@@ -93,6 +98,8 @@ export function computeUserStats(
     redemptionsDistinct: new Set(redemptions.map((r) => r.offer_id)).size,
     dismissalsCount: dismissedPlaceIds.length,
     categoriesVisited,
+    listsCreated,
+    memoriesCount,
   };
 }
 
@@ -120,10 +127,8 @@ const GROUPS: GroupDef[] = [
     Icon: Sparkles,
     tiers: [
       { target: 1, progress: (s) => Math.min(s.uniqueVisits, 1), requirementText: "Besök en plats", levelName: "Första besöket" },
-      // Ingen lista-funktion byggd än — går inte att låsa upp förrän den finns.
-      { target: 1, progress: () => 0, requirementText: "Skapa en lista", levelName: "Första listan" },
-      // Ingen minnes-funktion byggd än — går inte att låsa upp förrän den finns.
-      { target: 1, progress: () => 0, requirementText: "Spara ett minne", levelName: "Första minnet" },
+      { target: 1, progress: (s) => Math.min(s.listsCreated, 1), requirementText: "Skapa en lista", levelName: "Första listan" },
+      { target: 1, progress: (s) => Math.min(s.memoriesCount, 1), requirementText: "Spara ett minne", levelName: "Första minnet" },
     ],
   },
   {

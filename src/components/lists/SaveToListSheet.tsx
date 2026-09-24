@@ -4,7 +4,7 @@ import { Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useLists, useAddPlaceToList } from "@/hooks/useLists";
 import { ListCover } from "./ListCover";
-import { Sheet } from "./Sheet";
+import { Sheet } from "@/components/Sheet";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";

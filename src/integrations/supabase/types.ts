@@ -463,6 +463,54 @@ export type Database = {
         }
         Relationships: []
       }
+      memories: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          highlight: string | null
+          id: string
+          memory_date: string
+          people: string[] | null
+          photo_paths: string[] | null
+          place_ids: number[] | null
+          story: string | null
+          title: string
+          trip_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          highlight?: string | null
+          id?: string
+          memory_date: string
+          people?: string[] | null
+          photo_paths?: string[] | null
+          place_ids?: number[] | null
+          story?: string | null
+          title: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          highlight?: string | null
+          id?: string
+          memory_date?: string
+          people?: string[] | null
+          photo_paths?: string[] | null
+          place_ids?: number[] | null
+          story?: string | null
+          title?: string
+          trip_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       places: {
         Row: {
           book_url: string | null

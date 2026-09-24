@@ -1,6 +1,6 @@
 /**
  * Mitt Österlen — streak överst (eld, siffra, nyckeltal, veckan).
- * Under streaken ligger Dina listor; Samlarobjekt och Minnen läggs till i senare steg.
+ * Under streaken ligger Dina listor och Dina minnen; Samlarobjekt läggs till i ett senare steg.
  *
  * Streaken räknas ur app_days (en rad per svensk kalenderdag med appöppning),
  * se src/lib/streak.ts.
@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { ListsSection } from "@/components/lists/ListsSection";
+import { MemoriesSection } from "@/components/memories/MemoriesSection";
 import { useAppDays } from "@/hooks/useAppDays";
 import { computeStreak, swedishDay, weekDays } from "@/lib/streak";
 
@@ -104,6 +105,7 @@ export default function MittOsterlenScreen() {
         </View>
 
         <ListsSection />
+        <MemoriesSection />
       </ScrollView>
     </View>
   );

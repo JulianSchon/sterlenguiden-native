@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, TextInput } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useCreateList } from "@/hooks/useLists";
-import { Sheet, PrimaryButton, sheetInput } from "./Sheet";
+import { Sheet, PrimaryButton, sheetInput } from "@/components/Sheet";
 
 export function CreateListSheet({
   visible, onClose, onCreated,

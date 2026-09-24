@@ -4,6 +4,9 @@ import { usePlaces } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useDismissals } from "@/hooks/useDismissals";
+import { useAuth } from "@/hooks/useAuth";
+import { useLists } from "@/hooks/useLists";
+import { useMemories } from "@/hooks/useMemories";
 import { useAchievements, useGrantAchievement } from "@/hooks/useAchievements";
 import { buildTrophies, computeUserStats, type Trophy } from "@/lib/achievements";
 
@@ -19,10 +22,14 @@ export function useTrophies() {
   const { data: redemptions = [] } = useOfferRedemptions();
   const { data: dismissedIds = [] } = useDismissals();
   const { data: achievements = [], isLoading: achievementsLoading } = useAchievements();
+  const { user } = useAuth();
+  const { data: lists = [] } = useLists();
+  const { data: memories = [] } = useMemories();
+  const listsCreated = lists.filter((l) => l.ownerId === user?.id).length;
 
   const stats = useMemo(
-    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds),
-    [visits, places, favorites.length, redemptions, dismissedIds]
+    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds, listsCreated, memories.length),
+    [visits, places, favorites.length, redemptions, dismissedIds, listsCreated, memories.length]
   );
   const trophies = useMemo(() => buildTrophies(stats, achievements), [stats, achievements]);
 

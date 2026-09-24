@@ -149,11 +149,21 @@ export function CheckInReward({
               </TouchableOpacity>
             )}
 
-            {/* Minnen byggs i ett senare steg — visas som inaktiv så layouten syns */}
-            <View style={s.memoryBtn}>
+            {/* Öppnar minnesformuläret med platsen och titeln ifyllda */}
+            <TouchableOpacity
+              style={s.memoryBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                onClose();
+                router.push({
+                  pathname: "/memories/edit",
+                  params: { placeId: String(place.id), title: `Besök på ${place.name}` },
+                } as any);
+              }}
+            >
               <Text style={s.memoryText}>Skapa minne</Text>
-              <Text style={s.memorySoon}>Kommer snart</Text>
-            </View>
+              <Text style={s.memorySub}>Spara foton och en berättelse från besöket</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={s.doneBtn} activeOpacity={0.85} onPress={onClose}>
               <Text style={s.doneText}>Klar</Text>
@@ -207,10 +217,10 @@ const s = StyleSheet.create({
   offerText: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: GOLD_LT },
   memoryBtn: {
     marginTop: 16, paddingVertical: 13, borderRadius: 14, alignItems: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1, borderColor: "rgba(197,160,89,0.55)",
   },
-  memoryText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: "rgba(255,255,255,0.35)" },
-  memorySoon: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.30)", marginTop: 2 },
+  memoryText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: GOLD_LT },
+  memorySub: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.55)", marginTop: 2 },
   doneBtn: { marginTop: 12, paddingVertical: 15, borderRadius: 14, alignItems: "center", backgroundColor: GOLD },
   doneText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: "#121212" },
 });
