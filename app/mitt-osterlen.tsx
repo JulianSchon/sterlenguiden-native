@@ -1,6 +1,6 @@
 /**
  * Mitt Österlen — streak överst (eld, siffra, nyckeltal, veckan).
- * Samlarobjekt, Listor och Minnen läggs till under streaken i senare steg.
+ * Under streaken ligger Dina listor; Samlarobjekt och Minnen läggs till i senare steg.
  *
  * Streaken räknas ur app_days (en rad per svensk kalenderdag med appöppning),
  * se src/lib/streak.ts.
@@ -14,6 +14,7 @@ import { Canvas, Circle, Group, RadialGradient, vec } from "@shopify/react-nativ
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { StreakFlame } from "@/components/streak/StreakFlame";
+import { ListsSection } from "@/components/lists/ListsSection";
 import { useAppDays } from "@/hooks/useAppDays";
 import { computeStreak, swedishDay, weekDays } from "@/lib/streak";
 
@@ -101,6 +102,8 @@ export default function MittOsterlenScreen() {
             })}
           </View>
         </View>
+
+        <ListsSection />
       </ScrollView>
     </View>
   );

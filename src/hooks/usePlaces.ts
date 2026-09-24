@@ -7,6 +7,11 @@ export type Place = Tables<"places"> & {
   business_tier?: string;
 };
 
+/** En plats image_url kan innehålla flera adresser skilda med komma. Returnerar den första. */
+export function firstImageUrl(imageUrl: string | null | undefined): string | null {
+  return imageUrl?.split(",")[0].trim() || null;
+}
+
 export function getTierScore(tier?: string | null): number {
   if (tier === "premium") return 200;
   if (tier === "partner") return 100;

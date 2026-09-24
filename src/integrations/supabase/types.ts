@@ -368,6 +368,101 @@ export type Database = {
         }
         Relationships: []
       }
+      list_members: {
+        Row: {
+          joined_at: string
+          list_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          joined_at?: string
+          list_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          joined_at?: string
+          list_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_members_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_places: {
+        Row: {
+          added_by: string
+          created_at: string
+          id: string
+          list_id: string
+          place_id: number
+        }
+        Insert: {
+          added_by: string
+          created_at?: string
+          id?: string
+          list_id: string
+          place_id: number
+        }
+        Update: {
+          added_by?: string
+          created_at?: string
+          id?: string
+          list_id?: string
+          place_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_places_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "list_places_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lists: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          invite_code: string
+          name: string
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invite_code?: string
+          name: string
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          invite_code?: string
+          name?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
       places: {
         Row: {
           book_url: string | null
@@ -758,6 +853,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      join_list: { Args: { code: string }; Returns: string }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }
       get_place_favorites_count: {
         Args: { p_place_id: number }

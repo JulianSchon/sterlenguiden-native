@@ -26,6 +26,7 @@ import {
   Globe,
   Calendar,
   Heart,
+  Bookmark,
   UtensilsCrossed,
   BedDouble,
   Coffee,
@@ -52,6 +53,7 @@ import { colors } from "@/lib/colors";
 import { useOffers } from "@/hooks/useOffers";
 import { OfferDrawer } from "@/components/offers/OfferDrawer";
 import { CheckInSection } from "@/components/checkin/CheckInSection";
+import { SaveToListSheet } from "@/components/lists/SaveToListSheet";
 
 const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
@@ -218,6 +220,7 @@ export default function PlaceDetailScreen() {
 
   const [favorited, setFavorited] = useState(false);
   const [offersOpen, setOffersOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const heartScale = useRef(new Animated.Value(1)).current;
 
   const handleHeart = () => {
@@ -402,6 +405,13 @@ export default function PlaceDetailScreen() {
           {/* "Jag är här!" — visas bara när man är nära nog (se CheckInSection) */}
           <CheckInSection place={place} />
 
+          {/* Spara platsen i en av dina (gemensamma) listor */}
+          <TouchableOpacity style={styles.saveToList} activeOpacity={0.7} onPress={() => setSaveOpen(true)}>
+            <Bookmark size={18} color="#C5A059" strokeWidth={2} />
+            <Text style={styles.saveToListText}>Spara i lista</Text>
+          </TouchableOpacity>
+          <SaveToListSheet visible={saveOpen} onClose={() => setSaveOpen(false)} placeId={place.id} />
+
           {/* Österlenpasset — dörren in till platsens erbjudanden.
               Visas för alla, även icke-medlemmar: syftet är att locka. */}
           {offers.length > 0 && (
@@ -480,6 +490,11 @@ export default function PlaceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  saveToList: {
+    flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start",
+    marginHorizontal: 20, marginTop: 12, paddingVertical: 8,
+  },
+  saveToListText: { fontFamily: "Inter_500Medium", fontSize: 14, color: "#C5A059" },
   container: { flex: 1, backgroundColor: CHARCOAL },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   errorText: { color: "#A8A192", fontSize: 16 },
