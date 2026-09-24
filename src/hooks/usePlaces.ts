@@ -27,7 +27,7 @@ export function usePlaces() {
       const { data, error } = await supabase
         .from("places")
         .select(
-          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level"
+          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level, checkin_enabled, qr_token, site_group"
         )
         .order("name");
       if (error) throw error;

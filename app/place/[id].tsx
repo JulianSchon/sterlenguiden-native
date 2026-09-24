@@ -51,6 +51,7 @@ import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
 import { useOffers } from "@/hooks/useOffers";
 import { OfferDrawer } from "@/components/offers/OfferDrawer";
+import { CheckInSection } from "@/components/checkin/CheckInSection";
 
 const GOLD = "#C9A24C";
 const CHARCOAL = "#121212";
@@ -397,6 +398,9 @@ export default function PlaceDetailScreen() {
 
           {/* Divider */}
           <View style={styles.divider} />
+
+          {/* "Jag är här!" — visas bara när man är nära nog (se CheckInSection) */}
+          <CheckInSection place={place} />
 
           {/* Österlenpasset — dörren in till platsens erbjudanden.
               Visas för alla, även icke-medlemmar: syftet är att locka. */}

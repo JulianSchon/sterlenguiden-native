@@ -5,7 +5,7 @@
  * Skärmen scrollar INTE – allt ryms på en telefonhöjd.
  * MemberCard är appens viktigaste UI-element: flipbar 3D-karta med animerade guldvågor.
  */
-import { useState, useRef, useEffect, useMemo, useCallback, cloneElement } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
   Dimensions, Animated, Alert,
@@ -37,9 +37,7 @@ import { usePlaces }    from "@/hooks/usePlaces";
 import { useOffers }    from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useVisits } from "@/hooks/useVisits";
-import { useDismissals } from "@/hooks/useDismissals";
-import { useAchievements } from "@/hooks/useAchievements";
-import { buildTrophies, computeUserStats } from "@/lib/achievements";
+import { useTrophies } from "@/hooks/useTrophies";
 import { offerEligibility, estimateOfferValue, formatKr } from "@/lib/offers";
 import { format }  from "date-fns";
 import { sv }      from "date-fns/locale";
@@ -52,7 +50,6 @@ const BG      = "#121212";
 const FG      = "#F5F1E8";
 const MUTED   = "rgba(245,241,232,0.55)";
 const BORDER  = "rgba(255,255,255,0.10)";
-const CARD_BG = "#1C1C1C";
 
 // ─── Background SVG radial glow ───────────────────────────────────────────────
 function BgGlow() {
@@ -186,55 +183,17 @@ function PreviewCard({
   isPremium?: boolean;
   onPress: () => void;
 }) {
-  const shimX = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!isPremium) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimX, { toValue: 1, duration: 2000, useNativeDriver: true }),
-        Animated.delay(4000),
-        Animated.timing(shimX, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [isPremium]);
-
-  const shimTranslate = shimX.interpolate({ inputRange: [0, 1], outputRange: [-200, 200] });
-
   return (
     <ScalePress
       onPress={onPress}
       outerStyle={{ flex: 1 }}
-      shadowStyle={pc.card}
-      glow={isPremium ? <View style={pc.goldGlow} pointerEvents="none" /> : undefined}
-      gradient
-      style={[pc.cardInner, isPremium && pc.cardInnerPremium]}
+      style={[pc.flatCard, isPremium && pc.flatCardPremium]}
     >
-      {isPremium && (
-        <Animated.View
-          style={[pc.shimmer, { transform: [{ translateX: shimTranslate }, { skewX: "-18deg" }] }]}
-          pointerEvents="none"
-        >
-          <Svg width={70} height="100%" style={StyleSheet.absoluteFill}>
-            <Defs>
-              <SvgGrad id="pcShimmer" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0%"   stopColor="#FFEB96" stopOpacity={0}    />
-                <Stop offset="45%"  stopColor="#FFEB96" stopOpacity={0.10} />
-                <Stop offset="55%"  stopColor="#FFEB96" stopOpacity={0.10} />
-                <Stop offset="100%" stopColor="#FFEB96" stopOpacity={0}    />
-              </SvgGrad>
-            </Defs>
-            <SvgRect x={0} y={0} width={70} height="100%" fill="url(#pcShimmer)" />
-          </Svg>
-        </Animated.View>
-      )}
-
       <View style={pc.headerRow}>
         {icon}
         <Text style={pc.title}>{title}</Text>
       </View>
-      <Text style={pc.subtitle} numberOfLines={1}>{subtitle}</Text>
+      <Text style={[pc.subtitle, isPremium && pc.subtitlePremium]} numberOfLines={1}>{subtitle}</Text>
 
       {/* Stacked image thumbnails */}
       <View style={pc.thumbRow}>
@@ -260,46 +219,28 @@ function PreviewCard({
 }
 
 const pc = StyleSheet.create({
-  // Skugg-lager — ingen overflow/clipping här, annars skär iOS bort skuggan.
-  // Bred, diskret skugga (Lovable-spec): 0 4px 14px -10px rgba(0,0,0,0.6)
-  card: {
-    borderRadius: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 7,
-    elevation: 3,
-  },
-  // Ambient guldglöd bakom premium-kortet (Förmåner)
-  goldGlow: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
-    shadowColor: GOLD,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 9,
-    elevation: 3,
-  },
-  // Innehålls-lager (LinearGradient) — radius/overflow-hidden (klipper shimmer/bilder)
-  cardInner: {
+  // Favoriter/Förmåner — test: bara en tunn ytterlinje, ingen
+  // fyllning/gradient/skugga. Innehållet (bilder, siffror) är mer gjort
+  // för en avgränsad yta än det avboxade läget vi testade innan.
+  flatCard: {
     borderRadius: 20,
     padding: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
   },
-  cardInnerPremium: {
-    borderWidth: 0.5,
-    borderColor: "rgba(197,160,89,0.32)",
-  },
-  shimmer: {
-    position: "absolute",
-    top: 0, bottom: 0,
-    width: 70,
+  // Förmåner: statisk guldkant istället för en andra shimmer-animation
+  // (MemberCard har redan en) — det är knappen som faktiskt drar in pengar,
+  // så den ska sticka ut permanent, inte bara blinka till då och då.
+  flatCardPremium: {
+    borderColor: "rgba(197,160,89,0.45)",
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
-  title:    { fontFamily: "Inter_500Medium", fontSize: 13, color: FG },
-  subtitle: { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginBottom: 10 },
+  title:    { fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.45)", marginBottom: 10 },
+  // Spar-summan är säljargumentet — fet och guldfärgad istället för samma
+  // grå ton som Favoriter-texten
+  subtitlePremium: { fontFamily: "Inter_600SemiBold", color: GOLD },
   thumbRow: { flexDirection: "row", alignItems: "center", marginTop: "auto" as any },
   thumb: {
     width: 32, height: 32, borderRadius: 10,
@@ -314,6 +255,10 @@ const pc = StyleSheet.create({
 });
 
 // ─── SmallButton ──────────────────────────────────────────────────────────────
+// Ingen kort-yta längre (ingen bakgrund/kant/skugga) — bara ikonplattan,
+// etiketten och undertexten flyter direkt mot sidbakgrunden. Tre identiska
+// mörka lådor i rad var det tydligaste "AI-mall"-draget på sidan; en enkel
+// ikonrad läser mer som navigation, mindre som tre påhittade innehållskort.
 function SmallButton({
   icon,
   label,
@@ -326,7 +271,7 @@ function SmallButton({
   onPress: () => void;
 }) {
   return (
-    <ScalePress onPress={onPress} outerStyle={{ flex: 1 }} shadowStyle={sb.shadow} gradient style={sb.btn}>
+    <ScalePress onPress={onPress} outerStyle={{ flex: 1 }} style={sb.btn} scaleTo={0.94}>
       <View style={sb.iconBox}>{icon}</View>
       <Text style={sb.label} numberOfLines={1}>{label}</Text>
       <Text style={sb.sub}  numberOfLines={1}>{sub}</Text>
@@ -335,26 +280,14 @@ function SmallButton({
 }
 
 const sb = StyleSheet.create({
-  // Skugg-lager — samma breda, diskreta skugga som övriga knappar
-  shadow: {
-    borderRadius: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 7,
-    elevation: 3,
-  },
   btn: {
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
-    overflow: "hidden",
+    alignItems: "center",
+    paddingVertical: 10,
   },
-  // Ikonruta — svagt nedsänkt, inte en cirkulär bricka
+  // Ikonruta — svagt nedsänkt, inte en cirkulär bricka.
   iconBox: {
-    width: 40, height: 40,
-    borderRadius: 10,
+    width: 44, height: 44,
+    borderRadius: 11,
     backgroundColor: "#2B2B2B",
     alignItems: "center",
     justifyContent: "center",
@@ -364,25 +297,9 @@ const sb = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 1.5,
   },
-  label: { fontFamily: "Inter_500Medium", fontSize: 13, color: FG, marginBottom: 2 },
-  sub:   { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.45)" },
+  label: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: FG, marginBottom: 2 },
+  sub:   { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)" },
 });
-
-// ─── MoStat: en stat-cell i Mitt Österlen-remsan (ikon + siffra + etikett) ────
-// Tonas ner till grått tills värdet är > 0 — signalerar "inte påbörjat" utan att gömma siffran
-function MoStat({ icon, value, label }: { icon: React.ReactElement<any>; value: string; label: string }) {
-  const active = value !== "0";
-  const tint = active ? GOLD : "rgba(255,255,255,0.30)";
-  return (
-    <View style={s.moStat}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        {cloneElement(icon, { color: tint })}
-        <Text style={[s.moStatValue, !active && s.moStatValueMuted]}>{value}</Text>
-      </View>
-      <Text style={s.moStatLabel}>{label}</Text>
-    </View>
-  );
-}
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
@@ -395,8 +312,7 @@ export default function ProfileScreen() {
   const { data: offers = [] }    = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
   const { data: visits = [] }    = useVisits();
-  const { data: dismissedIds = [] } = useDismissals();
-  const { data: achievements = [] } = useAchievements();
+  const { trophies } = useTrophies();
 
   const displayName  = profile?.display_name ?? user?.email?.split("@")[0] ?? "Gäst";
   const isMember     = !!(profile?.is_member);
@@ -422,17 +338,9 @@ export default function ProfileScreen() {
   // Samma filter som historiksidan — besök utan matchande plats räknas inte med
   const visitCount = visits.filter((v) => places.some((p) => p.id === v.place_id)).length;
 
-  // Samma räknemotor som Utmaningar/Statistik (src/lib/achievements.ts) —
-  // antal av de 21 troféerna som är klara, inte "aktiva guldnivåer" som
+  // Antal av de 21 troféerna som är klara, inte "aktiva guldnivåer" som
   // Statistiks KPI visar.
-  const achievementStats = useMemo(
-    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds),
-    [visits, places, favorites.length, redemptions, dismissedIds]
-  );
-  const trophiesDone = useMemo(
-    () => buildTrophies(achievementStats, achievements).filter((t) => t.done).length,
-    [achievementStats, achievements]
-  );
+  const trophiesDone = trophies.filter((t) => t.done).length;
 
   const safeTop    = Math.max(insets.top, 44);
   const safeBotPad = Math.max(insets.bottom, 6) + 56;
@@ -469,7 +377,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* ── MemberCard ────────────────────────────────────── */}
-      <View style={{ marginBottom: 18 }}>
+      <View style={{ marginBottom: 28 }}>
         <MemberCard
           displayName={displayName}
           isMember={isMember}
@@ -482,7 +390,10 @@ export default function ProfileScreen() {
       </View>
 
       {/* ── PreviewCards (Favoriter + Förmåner) ──────────── */}
-      <View style={s.row}>
+      {/* Tunn ytterlinje, ingen fyllning/skugga (se pc.flatCard). Ingen
+          manuell knuff behövs här — de synliga kantlinjerna gav ögat en
+          egen referenspunkt, till skillnad från när ytan var helt osynlig. */}
+      <View style={[s.row, { marginBottom: 24 }]}>
         <PreviewCard
           icon={<Heart size={18} color={GOLD} strokeWidth={2} />}
           title="Favoriter"
@@ -506,70 +417,54 @@ export default function ProfileScreen() {
         />
       </View>
 
+      <View style={s.sectionDivider} />
+
       {/* ── Tre knappar (Historik / Statistik / Utmaningar) ── */}
       <View style={s.row}>
         <SmallButton
-          icon={<ClipboardList size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
+          icon={<ClipboardList size={19} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Historik"
           sub={visitCount === 1 ? "1 besök" : `${visitCount} besök`}
           onPress={() => router.push("/visits" as any)}
         />
         <SmallButton
-          icon={<BarChart3 size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
+          icon={<BarChart3 size={19} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Statistik"
           sub="Se din aktivitet"
           onPress={() => router.push("/stats" as any)}
         />
         <SmallButton
-          icon={<Medal size={18} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
+          icon={<Medal size={19} color="rgba(255,255,255,0.70)" strokeWidth={1.5} />}
           label="Utmaningar"
           sub={`${trophiesDone}/21 klarade`}
           onPress={() => router.push("/challenges" as any)}
         />
       </View>
 
-      {/* ── Mitt Österlen-kort ────────────────────────────── */}
-      <ScalePress onPress={() => {}} shadowStyle={s.moShadow} gradient style={s.mittOsterlen}>
-        {/* Svagt guldsken övre högra hörnet — ~8% opacitet, ger djup ovanpå gradienten */}
-        <Svg width={140} height={140} style={s.moGoldCorner} pointerEvents="none">
-          <Defs>
-            <SvgRadial id="moGoldCorner" cx="65%" cy="35%" rx="60%" ry="60%">
-              <Stop offset="0%"   stopColor={GOLD} stopOpacity={0.08} />
-              <Stop offset="100%" stopColor={GOLD} stopOpacity={0}    />
-            </SvgRadial>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#moGoldCorner)" />
-        </Svg>
+      <View style={[s.sectionDivider, { marginBottom: 24 }]} />
 
-        {/* Header */}
-        <View style={s.moHeaderRow}>
-          <View style={[sb.iconBox, { marginBottom: 0 }]}>
-            <Image
-              source={require("../../assets/Osterlenappen-logo.png")}
-              style={{ width: 22, height: 22 }}
-              resizeMode="contain"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.moTitle}>Mitt Österlen</Text>
-            <Text style={s.moSub}>Din resa på Österlen</Text>
-          </View>
-          <ChevronRight size={20} color="rgba(255,255,255,0.30)" strokeWidth={2} />
+      {/* ── Mitt Österlen ─────────────────────────────────── */}
+      {/* Bara logga + rubrik/undertext, ingen box, ingen statsremsa. De 4
+          statsiffrorna (streak/stickers/listor/minnen) var alla hårdkodade
+          "0" — såg lika oäkta ut som resten av sidan gjorde innan
+          omdesignen. Blir en ren ingång till den riktiga Mitt Österlen-
+          sidan (byggs nästa pass) istället för att låtsas visa data. */}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={[s.mittOsterlen, { transform: [{ translateX: 6 }] }]}
+        onPress={() => {}}
+      >
+        <Image
+          source={require("../../assets/Osterlenappen-logo.png")}
+          style={s.moIcon}
+          resizeMode="contain"
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={s.moTitle}>Mitt Österlen</Text>
+          <Text style={s.moSub}>Din resa på Österlen</Text>
         </View>
-
-        <View style={s.moDivider} />
-
-        {/* Statistik-remsa */}
-        <View style={s.moStatRow}>
-          <MoStat icon={<Flame size={14} strokeWidth={2} />} value="0" label="Streak" />
-          <View style={s.moStatSep} />
-          <MoStat icon={<MapPin size={14} strokeWidth={2} />} value="0" label="Stickers" />
-          <View style={s.moStatSep} />
-          <MoStat icon={<Bookmark size={14} strokeWidth={2} />} value="0" label="Listor" />
-          <View style={s.moStatSep} />
-          <MoStat icon={<BookOpen size={14} strokeWidth={2} />} value="0" label="Minnen" />
-        </View>
-      </ScalePress>
+        <ChevronRight size={20} color="rgba(255,255,255,0.30)" strokeWidth={2} />
+      </TouchableOpacity>
 
     </View>
   );
@@ -596,50 +491,22 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: BORDER,
   },
 
-  row: { flexDirection: "row", gap: 12, marginBottom: 12 },
-
-  // Mitt Österlen — samma bas som övriga knappar men lite mer premiumkänsla
-  moShadow: {
-    borderRadius: 20,
-    marginBottom: 8,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  mittOsterlen: {
-    backgroundColor: CARD_BG,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "rgba(197,160,89,0.18)",
-    overflow: "hidden",
-  },
-  // Svagt guldsken i övre högra hörnet — knappt synligt, ger extra djup
-  moGoldCorner: {
-    position: "absolute",
-    top: -30, right: -30,
-    width: 140, height: 140,
-  },
-  moHeaderRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  moTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 15, color: FG, marginBottom: 1 },
-  moSub:   { fontFamily: "Inter_400Regular", fontSize: 10.5, color: "rgba(255,255,255,0.50)" },
-  moDivider: {
+  row: { flexDirection: "row", gap: 12, marginBottom: 8 },
+  sectionDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    marginVertical: 9,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    marginBottom: 14,
   },
-  moStatRow: { flexDirection: "row", alignItems: "center" },
-  moStatSep: { width: StyleSheet.hairlineWidth, height: 20, backgroundColor: "rgba(255,255,255,0.10)" },
-  moStat: { flex: 1, alignItems: "center", gap: 2 },
-  moStatValue: { fontFamily: "Inter_700Bold", fontSize: 14, color: FG },
-  moStatValueMuted: { color: "rgba(255,255,255,0.35)" },
-  moStatLabel: {
-    fontFamily: "Inter_400Regular", fontSize: 8.5, color: "rgba(255,255,255,0.45)",
-    textTransform: "uppercase", letterSpacing: 0.5,
+
+  // Mitt Österlen — bara en rad (logga + rubrik/undertext + pil), ingen
+  // box, ingen statsremsa. Se JSX-kommentaren där den används för varför.
+  mittOsterlen: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingVertical: 4,
   },
+  moIcon: { width: 42, height: 42 },
+  moTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: FG, marginBottom: 2 },
+  moSub:   { fontFamily: "Inter_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.50)" },
 
   signOut: { alignSelf: "center", paddingVertical: 6, marginTop: 2 },
   signOutText: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.25)" },

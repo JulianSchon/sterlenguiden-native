@@ -29,10 +29,7 @@ import Svg, {
 import { useVisits } from "@/hooks/useVisits";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
-import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
-import { useDismissals } from "@/hooks/useDismissals";
-import { useAchievements } from "@/hooks/useAchievements";
-import { buildTrophies, computeUserStats } from "@/lib/achievements";
+import { useTrophies } from "@/hooks/useTrophies";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
@@ -328,9 +325,7 @@ export default function StatsScreen() {
   const { data: visits = [], isLoading: visitsLoading }   = useVisits();
   const { data: places = [], isLoading: placesLoading }   = usePlaces();
   const { data: favorites = [] }                          = useFavorites();
-  const { data: redemptions = [] }                        = useOfferRedemptions();
-  const { data: dismissedIds = [] }                       = useDismissals();
-  const { data: achievements = [] }                       = useAchievements();
+  const { trophies }                                      = useTrophies();
   const isLoading = visitsLoading || placesLoading;
   const safeTop = Math.max(insets.top, 44);
 
@@ -342,17 +337,9 @@ export default function StatsScreen() {
   const totalPlaces = places.length;
   const exploredPercent = totalPlaces > 0 ? Math.round((totalVisitedUnique / totalPlaces) * 100) : 0;
 
-  // Samma räknemotor som troférastret (app/challenges.tsx) — "aktiv" = gruppens
-  // guldnivå inte klar än. 7 grupper nu (Kom igång/Utforskaren/Samlaren/
-  // Förmånsjägaren/Mångsidig/Bläddraren/Österlenlegend), inte platskategorier.
-  const achievementStats = useMemo(
-    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds),
-    [visits, places, favorites.length, redemptions, dismissedIds]
-  );
-  const trophies = useMemo(
-    () => buildTrophies(achievementStats, achievements),
-    [achievementStats, achievements]
-  );
+  // "Aktiv" = gruppens guldnivå inte klar än. 7 grupper (Kom igång/
+  // Utforskaren/Samlaren/Förmånsjägaren/Mångsidig/Bläddraren/Österlenlegend),
+  // inte platskategorier.
   const activeChallenges = trophies.filter((t) => t.tier === "gold" && !t.done).length;
 
   const categoryStats: CategoryStat[] = useMemo(() => {

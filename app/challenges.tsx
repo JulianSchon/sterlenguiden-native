@@ -20,23 +20,16 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, Image, TouchableOpacity, Pressable, ScrollView, StyleSheet, Animated, Easing, Modal,
+  View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Animated, Easing, Modal,
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, X } from "lucide-react-native";
-import {
-  Canvas, Circle, SweepGradient, RadialGradient, BlurMask, vec,
-} from "@shopify/react-native-skia";
 import * as Haptics from "expo-haptics";
-import { useVisits } from "@/hooks/useVisits";
-import { usePlaces } from "@/hooks/usePlaces";
-import { useFavorites } from "@/hooks/useFavorites";
-import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
-import { useDismissals } from "@/hooks/useDismissals";
-import { useAchievements, useGrantAchievement } from "@/hooks/useAchievements";
-import { buildTrophies, computeUserStats, TIER_PALETTE, GROUP_ORDER, type Trophy, type Tier } from "@/lib/achievements";
+import { useTrophies, useGrantNewTrophies } from "@/hooks/useTrophies";
+import { TrophyMedal, GlowCanvas } from "@/components/trophies/TrophyMedal";
+import { TIER_PALETTE, GROUP_ORDER, type Trophy } from "@/lib/achievements";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
@@ -45,131 +38,6 @@ const FG    = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD  = "#C5A059";
 const GOLD_LT = "#E8C674";
-
-// ─── Riktig trofékonst (ChatGPT-genererad, beskuren till transparent PNG per
-// grupp+nivå). Bara grupper som finns här får en riktig troféillustration —
-// resten faller tillbaka på den ritade Skia-medaljen tills fler bilder finns.
-const BADGE_IMAGES: Partial<Record<string, any>> = {
-  "utforskaren-bronze": require("../assets/badges/utforskaren-bronze.png"),
-  "utforskaren-silver": require("../assets/badges/utforskaren-silver.png"),
-  "utforskaren-gold": require("../assets/badges/utforskaren-gold.png"),
-  "formansjagaren-bronze": require("../assets/badges/formansjagaren-bronze.png"),
-  "formansjagaren-silver": require("../assets/badges/formansjagaren-silver.png"),
-  "formansjagaren-gold": require("../assets/badges/formansjagaren-gold.png"),
-  "samlaren-bronze": require("../assets/badges/samlaren-bronze.png"),
-  "samlaren-silver": require("../assets/badges/samlaren-silver.png"),
-  "samlaren-gold": require("../assets/badges/samlaren-gold.png"),
-  "mangsidig-bronze": require("../assets/badges/mangsidig-bronze.png"),
-  "mangsidig-silver": require("../assets/badges/mangsidig-silver.png"),
-  "mangsidig-gold": require("../assets/badges/mangsidig-gold.png"),
-  "bladdraren-bronze": require("../assets/badges/bladdraren-bronze.png"),
-  "bladdraren-silver": require("../assets/badges/bladdraren-silver.png"),
-  "bladdraren-gold": require("../assets/badges/bladdraren-gold.png"),
-  "osterlenlegend-bronze": require("../assets/badges/osterlenlegend-bronze.png"),
-  "osterlenlegend-silver": require("../assets/badges/osterlenlegend-silver.png"),
-  "osterlenlegend-gold": require("../assets/badges/osterlenlegend-gold.png"),
-  "kom-igang-bronze": require("../assets/badges/kom-igang-bronze.png"),
-  "kom-igang-silver": require("../assets/badges/kom-igang-silver.png"),
-  "kom-igang-gold": require("../assets/badges/kom-igang-gold.png"),
-};
-
-// ─── GlowCanvas — en mjukt suddig cirkel bakom en medalj/troféart.
-// Kantfelet vi hade tidigare: Canvas-ytan var exakt lika stor som den
-// synliga medaljen, så Skia klippte den suddiga kanten (BlurMask) rakt av
-// vid Canvas-kanten — resultatet blev en tydlig FYRKANT bakom den runda
-// glöden istället för en mjuk avtoning. Fixen är att rita på en mycket
-// större, osynlig duk centrerad bakom medaljen så oskärpan hinner tona
-// bort helt innan den når kanten.
-function GlowCanvas({
-  size, color, opacity = 0.5, radiusRatio = 0.34, blurRatio = 0.18,
-}: { size: number; color: string; opacity?: number; radiusRatio?: number; blurRatio?: number }) {
-  const neededHalf = size * radiusRatio + size * blurRatio * 3.5; // ~3.5 sigma = helt utfasad
-  const pad = Math.max(neededHalf - size / 2, 0) + size * 0.1;
-  const canvasSize = size + pad * 2;
-  return (
-    // pointerEvents="none" är kritiskt: duken kan bli mycket större än den
-    // synliga medaljen (se hero-glöden, som sträcker sig ~350px åt varje
-    // håll) och skulle annars fånga tryck som var menade för det som ligger
-    // ovanför/bredvid — t.ex. headerns tillbaka-knapp — trots att den är
-    // osynlig där.
-    <Canvas
-      style={{ position: "absolute", width: canvasSize, height: canvasSize, left: -pad, top: -pad }}
-      pointerEvents="none"
-    >
-      <Circle cx={canvasSize / 2} cy={canvasSize / 2} r={size * radiusRatio} color={color} opacity={opacity}>
-        <BlurMask blur={size * blurRatio} style="normal" />
-      </Circle>
-    </Canvas>
-  );
-}
-
-// ─── TrophyMedal — rund SVG-medalj, ersätter web-varianten helt (ingen Skia) ──
-function TrophyMedal({
-  size, tier, Icon, unlocked, groupId,
-}: {
-  size: number; tier: Tier; Icon: React.ComponentType<any>; unlocked: boolean; groupId: string;
-}) {
-  const artwork = BADGE_IMAGES[`${groupId}-${tier}`];
-  const palette = TIER_PALETTE[tier];
-
-  // Har vi riktig trofékonst för den här? Då ersätter illustrationen hela
-  // den ritade myntmedaljen. Upplåst = fullfärg + mjuk glöd. Låst = en mörk
-  // siluett av SAMMA form (tintColor följer bildens alfakanal) istället för
-  // den generiska grå cirkeln med "?" — man ska ana formen utan att se den.
-  if (artwork) {
-    return (
-      <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center", opacity: unlocked ? 1 : 0.6 }}>
-        {unlocked && <GlowCanvas size={size} color={palette.rim} opacity={0.55} radiusRatio={0.34} blurRatio={0.18} />}
-        <Image
-          source={artwork}
-          style={{
-            width: size * 1.06,
-            height: size * 1.06,
-            tintColor: unlocked ? undefined : "#3A3A3A",
-          }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-  const rim   = unlocked ? palette.rim : "#3A3A3A";
-  const field = unlocked ? palette.field : (["#4A4A4A", "#333333", "#232323"] as const);
-  const ink   = unlocked ? palette.ink : "rgba(255,255,255,0.28)";
-
-  const c = size / 2;
-  const rimR   = size / 2 - 1;
-  const fieldR = size / 2 - size * 0.09;
-
-  // Graverad kant — äkta konisk gradient (SweepGradient). Det här gick
-  // inte i SVG, som bara har linjära/radiella gradienter — resultatet där
-  // var en platt ensfärgad ring. Skia ger en riktig "borstat metall"-kant.
-  const rimColors = unlocked
-    ? [rim, "#1a1a1a", rim, "#0d0d0d", rim]
-    : [rim, "#161616", rim, "#0a0a0a", rim];
-
-  return (
-    <View style={{ width: size, height: size, opacity: unlocked ? 1 : 0.6 }}>
-      {unlocked && <GlowCanvas size={size} color={rim} opacity={0.5} radiusRatio={fieldR / size} blurRatio={0.16} />}
-      <Canvas style={{ width: size, height: size }}>
-        <Circle cx={c} cy={c} r={rimR} style="stroke" strokeWidth={Math.max(2, size * 0.07)}>
-          <SweepGradient c={vec(c, c)} colors={rimColors} />
-        </Circle>
-        <Circle cx={c} cy={c} r={fieldR}>
-          <RadialGradient c={vec(c * 0.75, c * 0.65)} r={size * 0.85} colors={field as unknown as string[]} />
-        </Circle>
-      </Canvas>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          {unlocked ? (
-            <Icon size={size * 0.38} color={ink} strokeWidth={1.6} />
-          ) : (
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: size * 0.36, color: "rgba(255,255,255,0.30)" }}>?</Text>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-}
 
 // ─── Den stora utmärkelsen överst — senast upplåsta, eller om inget är
 // upplåst än, den du är närmast att klara. Inget kort/ram runt — precis
@@ -379,40 +247,14 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
 export default function ChallengesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data: visits = [] }                             = useVisits();
-  const { data: places = [], isLoading: placesLoading }    = usePlaces();
-  const { data: favorites = [] }                           = useFavorites();
-  const { data: redemptions = [] }                         = useOfferRedemptions();
-  const { data: dismissedIds = [] }                        = useDismissals();
-  const { data: achievements = [], isLoading: achLoading } = useAchievements();
-  const grant = useGrantAchievement();
+  const { trophies, isLoading } = useTrophies();
   const [selected, setSelected] = useState<Trophy | null>(null);
   const safeTop = Math.max(insets.top, 44);
-  const isLoading = placesLoading || achLoading;
 
-  const stats = useMemo(
-    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds),
-    [visits, places, favorites.length, redemptions, dismissedIds]
+  // Spara nyklara troféer (datum för när de klarades) — se useGrantNewTrophies
+  useGrantNewTrophies(trophies, !isLoading, () =>
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
   );
-  const trophies = useMemo(
-    () => buildTrophies(stats, achievements),
-    [stats, achievements]
-  );
-
-  // Lås upp nya troféer automatiskt när villkoren är uppfyllda (ingen
-  // separat check-in-hook — det räcker att räkna om varje gång skåpet öppnas)
-  const grantedRef = useRef(new Set<string>());
-  useEffect(() => {
-    trophies.forEach((t) => {
-      if (t.done && !t.doneAt && !grantedRef.current.has(t.key)) {
-        grantedRef.current.add(t.key);
-        grant.mutate(
-          { achievement_type: t.groupId, category: null, level: t.tier },
-          { onSuccess: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}) }
-        );
-      }
-    });
-  }, [trophies]);
 
   // Vilka troféer just låstes upp under den här sessionen — driver
   // guldglöd-firandet i TrophyTile. Ingen fira-animation vid första

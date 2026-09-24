@@ -358,6 +358,7 @@ export type Database = {
           book_url: string | null
           business_tier: string
           categories: string | null
+          checkin_enabled: boolean
           description: string | null
           email: string | null
           facebook_url: string | null
@@ -373,7 +374,9 @@ export type Database = {
           opening_hours: Json | null
           phone: string | null
           price_level: number | null
+          qr_token: string | null
           short_description: string | null
+          site_group: string | null
           sub_category: string | null
           website_url: string | null
         }
@@ -381,6 +384,7 @@ export type Database = {
           book_url?: string | null
           business_tier?: string
           categories?: string | null
+          checkin_enabled?: boolean
           description?: string | null
           email?: string | null
           facebook_url?: string | null
@@ -396,7 +400,9 @@ export type Database = {
           opening_hours?: Json | null
           phone?: string | null
           price_level?: number | null
+          qr_token?: string | null
           short_description?: string | null
+          site_group?: string | null
           sub_category?: string | null
           website_url?: string | null
         }
@@ -404,6 +410,7 @@ export type Database = {
           book_url?: string | null
           business_tier?: string
           categories?: string | null
+          checkin_enabled?: boolean
           description?: string | null
           email?: string | null
           facebook_url?: string | null
@@ -419,7 +426,9 @@ export type Database = {
           opening_hours?: Json | null
           phone?: string | null
           price_level?: number | null
+          qr_token?: string | null
           short_description?: string | null
+          site_group?: string | null
           sub_category?: string | null
           website_url?: string | null
         }
@@ -698,6 +707,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          method: string
           place_id: number
           user_id: string
           visited_at: string
@@ -705,6 +715,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          method?: string
           place_id: number
           user_id: string
           visited_at?: string
@@ -712,6 +723,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          method?: string
           place_id?: number
           user_id?: string
           visited_at?: string
