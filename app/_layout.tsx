@@ -18,6 +18,7 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { ShareTechMono_400Regular } from "@expo-google-fonts/share-tech-mono";
+import { Montserrat_700Bold } from "@expo-google-fonts/montserrat";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function RootLayout() {
@@ -32,6 +33,7 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
     ShareTechMono_400Regular,
+    Montserrat_700Bold,
   });
 
   // INITIAL_SESSION är Supabase-klientens signal att sessionen

@@ -14,7 +14,8 @@ import {
   type SkPath,
 } from "@shopify/react-native-skia";
 
-// Ritytan är 300 × 332 enheter och skalas till `size` i bredd.
+// Ritytan är 300 × 332 enheter. Den stora elden visar hela ytan; den kompakta
+// (veckoraden, milstolpar) beskärs tätt runt själva lågan.
 const W = 300;
 const H = 332;
 const CX = 150;
@@ -167,23 +168,37 @@ function Ember({ t, index }: { t: SharedValue<number>; index: number }) {
   );
 }
 
-export function StreakFlame({ size = 260 }: { size?: number }) {
-  const t = useClock();
-  const scale = size / W;
+const VIEW_FULL = { x: 0, y: TOP_CROP, w: W, h: H };
+const VIEW_COMPACT = { x: 40, y: 58, w: 220, h: 296 };
+
+type StreakFlameProps = {
+  /** Bredd i pixlar; höjden följer av formen */
+  size?: number;
+  /** Liten variant utan gnistor och flamdroppar, beskuren tätt runt lågan */
+  compact?: boolean;
+  /** Förskjuter animationen (ms) så flera lågor bredvid varandra inte rör sig i takt */
+  timeOffset?: number;
+};
+
+export function StreakFlame({ size = 215, compact = false, timeOffset = 0 }: StreakFlameProps) {
+  const clock = useClock();
+  const t = useDerivedValue(() => clock.value + timeOffset);
+  const view = compact ? VIEW_COMPACT : VIEW_FULL;
+  const scale = size / view.w;
 
   return (
-    <Canvas style={{ width: size, height: H * scale }} pointerEvents="none">
-      <Group transform={[{ scale }, { translateY: -TOP_CROP }]}>
+    <Canvas style={{ width: size, height: view.h * scale }} pointerEvents="none">
+      <Group transform={[{ scale }, { translateX: -view.x }, { translateY: -view.y }]}>
         {BODIES.map((b, i) => (
           <BodyLayer key={i} t={t} body={b} />
         ))}
         {INNERS.map((n, i) => (
           <InnerFlame key={i} t={t} inner={n} />
         ))}
-        {Array.from({ length: DROPLETS }, (_, i) => (
+        {!compact && Array.from({ length: DROPLETS }, (_, i) => (
           <Droplet key={i} t={t} index={i} />
         ))}
-        {Array.from({ length: EMBERS }, (_, i) => (
+        {!compact && Array.from({ length: EMBERS }, (_, i) => (
           <Ember key={i} t={t} index={i} />
         ))}
       </Group>

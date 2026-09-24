@@ -44,6 +44,21 @@ export type Database = {
         }
         Relationships: []
       }
+      app_days: {
+        Row: {
+          day: string
+          user_id: string
+        }
+        Insert: {
+          day: string
+          user_id: string
+        }
+        Update: {
+          day?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       business_analytics: {
         Row: {
           created_at: string
