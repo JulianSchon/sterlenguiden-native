@@ -82,6 +82,7 @@ export default function RootLayout() {
         <Stack.Screen name="visits" options={{ headerShown: false }} />
         <Stack.Screen name="stats" options={{ headerShown: false }} />
         <Stack.Screen name="challenges" options={{ headerShown: false }} />
+        <Stack.Screen name="mitt-osterlen" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />

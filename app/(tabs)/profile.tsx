@@ -452,7 +452,7 @@ export default function ProfileScreen() {
       <TouchableOpacity
         activeOpacity={0.7}
         style={[s.mittOsterlen, { transform: [{ translateX: 6 }] }]}
-        onPress={() => {}}
+        onPress={() => router.push("/mitt-osterlen" as any)}
       >
         <Image
           source={require("../../assets/Osterlenappen-logo.png")}

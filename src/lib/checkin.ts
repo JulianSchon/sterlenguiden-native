@@ -7,6 +7,7 @@
  * kluster — QR byggs i ett senare steg).
  */
 import type { Visit } from "@/hooks/useVisits";
+import type { Place } from "@/hooks/usePlaces";
 
 /** Inom så här långt kan man checka in (knappen är aktiv). */
 export const CHECKIN_RADIUS_M = 100;
@@ -25,6 +26,20 @@ export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: n
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Platser där incheckning är påslagen och som ligger inom `radius` meter,
+ * närmast först. Platser utan koordinater eller med checkin_enabled = false
+ * (kyrkor, naturplatser…) räknas inte — de ska inte heller kunna göra en
+ * annan plats tvetydig.
+ */
+export function placesNear(places: Place[], lat: number, lng: number, radius: number) {
+  return places
+    .filter((p) => p.checkin_enabled !== false && p.lat != null && p.lng != null)
+    .map((place) => ({ place, distance: distanceMeters(lat, lng, place.lat!, place.lng!) }))
+    .filter((x) => x.distance <= radius)
+    .sort((a, b) => a.distance - b.distance);
 }
 
 /** "320 m" under en kilometer, annars "1,2 km". */
