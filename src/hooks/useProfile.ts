@@ -8,6 +8,11 @@ export interface Profile {
   avatar_url: string | null;
   profile_image_url: string | null;
   is_member: boolean;
+  member_period: string | null;
+  member_started_at: string | null;
+  member_until: string | null;
+  member_auto_renew: boolean | null;
+  member_bonus_days: number | null;
   preferred_language: string;
   notifications_enabled: boolean;
   dark_mode: boolean;

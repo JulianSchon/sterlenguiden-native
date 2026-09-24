@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Lock, Check } from "lucide-react-native";
+import { ChevronLeft, Check } from "lucide-react-native";
 import Svg, {
   Defs, LinearGradient as SvgGrad, RadialGradient as SvgRadial,
   Stop, Rect as SvgRect,
@@ -33,7 +33,7 @@ const { width: SW } = Dimensions.get("window");
 const MINI_W = Math.floor((SW - 40 - 40 - 12) / 2);
 const MINI_H = Math.round(MINI_W * 0.54);
 
-// Circle badge colors (member only)
+// Cirkelns färger
 const CIRCLE_COLORS = [
   { id: "gold",   hex: "#C5A059", label: "Guld"   },
   { id: "silver", hex: "#A8A8A8", label: "Silver" },
@@ -44,42 +44,35 @@ const CIRCLE_COLORS = [
 
 type Swatch = { id: string; hex: string; label: string };
 
-function CircleRow({ selected, onSelect, locked }: {
-  selected: string; onSelect: (id: string) => void; locked?: boolean;
-}) {
+function CircleRow({ selected, onSelect }: { selected: string; onSelect: (id: string) => void }) {
   return (
     <View style={{ gap: 12 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Text style={a.eyebrow}>CIRKELNS FÄRG</Text>
-        {locked && <Lock size={12} color={GOLD} strokeWidth={2} />}
       </View>
-      <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap", opacity: locked ? 0.45 : 1 }}>
+      <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
         {CIRCLE_COLORS.map((sw) => (
           <TouchableOpacity
             key={sw.id}
             style={{ alignItems: "center", gap: 6 }}
-            onPress={() => !locked && onSelect(sw.id)}
+            onPress={() => onSelect(sw.id)}
           >
             <View style={[a.swatch, { backgroundColor: sw.hex }, selected === sw.id && a.swatchActive]} />
             <Text style={[a.swatchLabel, selected === sw.id && { color: GOLD }]}>{sw.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
-      {locked && (
-        <Text style={a.lockedNote}>Kräver Österlenpasset</Text>
-      )}
     </View>
   );
 }
 
 /** Mini-förhandsgranskning av ett kort — SVG-gradient eller PNG */
-function MiniCard({ variantId, isSelected, locked }: { variantId: string; isSelected: boolean; locked?: boolean }) {
+function MiniCard({ variantId, isSelected }: { variantId: string; isSelected: boolean }) {
   const v = CARD_VARIANTS.find((x) => x.id === variantId)!;
   return (
     <View style={[
       a.miniCard,
       isSelected && { borderColor: GOLD, borderWidth: 2 },
-      locked && { opacity: 0.5 },
     ]}>
       {/* Bakgrund */}
       {v.bgImage ? (
@@ -114,15 +107,8 @@ function MiniCard({ variantId, isSelected, locked }: { variantId: string; isSele
         </Text>
       </View>
 
-      {/* Lås-ikon för premium-kort */}
-      {locked && (
-        <View style={a.lockOverlay}>
-          <Lock size={14} color={GOLD} strokeWidth={2} />
-        </View>
-      )}
-
       {/* Bock vid valt */}
-      {isSelected && !locked && (
+      {isSelected && (
         <View style={a.miniCheck}>
           <Check size={9} color="#000" strokeWidth={3} />
         </View>
@@ -136,8 +122,6 @@ export default function AppearanceSettings() {
   const router = useRouter();
   const qc = useQueryClient();
   const { data: profile } = useProfile();
-
-  const isMember = !!(profile as any)?.is_member;
 
   const [darkMode,    setDarkMode]    = useState(true);
   const [cardColor,   setCardColor]   = useState<string>(profile?.card_color ?? "midnight");
@@ -184,32 +168,26 @@ export default function AppearanceSettings() {
           <Text style={a.eyebrow}>KORTDESIGN</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
             {CARD_VARIANTS.map((v) => {
-              const isPremiumLocked = !!v.premium && !isMember;
               return (
                 <TouchableOpacity
                   key={v.id}
-                  activeOpacity={isPremiumLocked ? 1 : 0.85}
+                  activeOpacity={0.85}
                   onPress={() => {
-                    if (isPremiumLocked) return;
                     setCardColor(v.id);
                     savePrefs.mutate({ card_color: v.id });
                   }}
                 >
-                  <MiniCard variantId={v.id} isSelected={cardColor === v.id} locked={isPremiumLocked} />
+                  <MiniCard variantId={v.id} isSelected={cardColor === v.id} />
                 </TouchableOpacity>
               );
             })}
           </View>
-          {!isMember && (
-            <Text style={a.lockedNote}>🔒 Obsidian och Koppar kräver Österlenpasset</Text>
-          )}
         </View>
 
         {/* Cirkelns färg */}
         <View style={a.card}>
           <CircleRow
             selected={circleColor}
-            locked={!isMember}
             onSelect={(id) => {
               setCircleColor(id);
               savePrefs.mutate({ circle_color: id });
@@ -243,7 +221,6 @@ const a = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   rowLabel: { fontFamily: "Inter_500Medium", fontSize: 14.5, color: FG },
   noteText: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, lineHeight: 18 },
-  lockedNote: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(197,160,89,0.65)" },
 
   // Mini-kort
   miniCard: {
@@ -258,12 +235,6 @@ const a = StyleSheet.create({
     position: "absolute", top: 6, right: 6,
     width: 18, height: 18, borderRadius: 9,
     backgroundColor: GOLD,
-    alignItems: "center", justifyContent: "center",
-  },
-  lockOverlay: {
-    position: "absolute", top: 6, right: 6,
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center", justifyContent: "center",
   },
 

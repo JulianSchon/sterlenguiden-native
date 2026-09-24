@@ -31,6 +31,7 @@ import {
 } from "@shopify/react-native-skia";
 import { MemberCard } from "@/components/MemberCard";
 import { useProfile }   from "@/hooks/useProfile";
+import { useMembership } from "@/hooks/useMembership";
 import { useAuth }      from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePlaces }    from "@/hooks/usePlaces";
@@ -315,7 +316,7 @@ export default function ProfileScreen() {
   const { trophies } = useTrophies();
 
   const displayName  = profile?.display_name ?? user?.email?.split("@")[0] ?? "Gäst";
-  const isMember     = !!(profile?.is_member);
+  const { isMember } = useMembership();
   const memberSince  = profile?.created_at
     ? format(new Date(profile.created_at), "MMMM yyyy", { locale: sv })
     : null;
@@ -344,11 +345,6 @@ export default function ProfileScreen() {
 
   const safeTop    = Math.max(insets.top, 44);
   const safeBotPad = Math.max(insets.bottom, 6) + 56;
-
-  const handleBuyPress = () => {
-    // TODO: Navigate to paywall when built
-    Alert.alert("Österlenpasset", "Köpflödet öppnas snart!", [{ text: "OK" }]);
-  };
 
   const handleSignOut = () => {
     Alert.alert("Logga ut", "Är du säker?", [
@@ -385,7 +381,7 @@ export default function ProfileScreen() {
           cardColor={profile?.card_color}
           avatarUrl={(profile as any)?.avatar_url ?? null}
           profileImageUrl={(profile as any)?.profile_image_url ?? null}
-          onBuyPress={handleBuyPress}
+          onBuyPress={() => router.push("/settings/pass" as any)}
         />
       </View>
 

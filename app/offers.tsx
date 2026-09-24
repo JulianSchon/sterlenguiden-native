@@ -21,6 +21,7 @@ import Svg, {
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useProfile } from "@/hooks/useProfile";
+import { useMembership } from "@/hooks/useMembership";
 import { useAuth } from "@/hooks/useAuth";
 import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
@@ -75,7 +76,7 @@ export default function OffersScreen() {
     ? format(new Date(profile.created_at), "MMMM yyyy", { locale: sv })
     : null;
   const safeTop = Math.max(insets.top, 44);
-  const isMember = !!profile?.is_member;
+  const { isMember } = useMembership();
 
   const filter = OFFER_FILTERS.find((f) => f.id === activeFilter) ?? OFFER_FILTERS[0];
   const filtered = useMemo(() => {

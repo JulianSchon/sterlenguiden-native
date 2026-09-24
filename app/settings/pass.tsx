@@ -1,13 +1,20 @@
 /**
  * Inställningar › Österlenpasset
- * Shows current membership status + upsell or management CTA
+ * Medlem: status (aktivt till/förnyas, sparade presentdagar). Ej medlem: förmåner,
+ * val av pass och köpknapp. Själva betalningen är inte inkopplad än — köpknappen
+ * säger tills vidare att den öppnar vid lansering.
  */
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
+import { useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Crown, Check, Star } from "lucide-react-native";
+import { ChevronLeft, Crown, Check, Ticket } from "lucide-react-native";
 import Svg, { Defs, RadialGradient, Stop, Ellipse, Path, LinearGradient, Rect } from "react-native-svg";
-import { useProfile } from "@/hooks/useProfile";
+import { format } from "date-fns";
+import { sv } from "date-fns/locale";
+import { useMembership } from "@/hooks/useMembership";
+import { useIsBusiness } from "@/hooks/useUserRole";
+import { usePassProducts, type PassProduct } from "@/hooks/usePassProducts";
 
 const BG    = "#121212";
 const CARD  = "#1C1C1C";
@@ -17,12 +24,12 @@ const GOLD  = "#C5A059";
 const BORDER= "rgba(255,255,255,0.06)";
 
 const PERKS = [
-  "Exklusiva rabatter hos lokala partners",
-  "Tidiga biljetter till populära events",
-  "Tillgång till Mitt Österlen-reseparet",
-  "Personliga rekommendationer",
-  "Stöd till lokala företag och kulturen",
+  "Rabatter och förmåner hos lokala företag på Österlen",
+  "Nya erbjudanden och upplevelser tillkommer under säsongen",
+  "Du stöder lokala företag och kulturen på Österlen",
 ] as const;
+
+const DEFAULT_PRODUCT = "month";
 
 function GoldMiniCard() {
   return (
@@ -58,17 +65,27 @@ function GoldMiniCard() {
   );
 }
 
+const longDate = (d: Date) => format(d, "d MMMM yyyy", { locale: sv });
+const price = (p: PassProduct) => `${Math.round(p.priceSek)} kr`;
+
 export default function PassSettings() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data: profile } = useProfile();
+  const membership = useMembership();
+  const { isBusiness } = useIsBusiness();
+  const { data: products = [], isLoading: productsLoading } = usePassProducts();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const isMember = !!(profile as any)?.is_member;
-  const expiresAt = (profile as any)?.membership_expires_at as string | undefined;
   const safeTop = Math.max(insets.top, 44);
+  const selected = products.find((x) => x.id === (selectedId ?? DEFAULT_PRODUCT)) ?? products[0];
+  const currentPlan = products.find((x) => x.id === membership.period);
 
   const handlePurchase = () => {
-    Alert.alert("Österlenpasset", "Betalningsflödet lanseras snart. Vi meddelar dig när det är klart!", [{ text: "OK" }]);
+    Alert.alert("Österlenpasset", "Betalningen öppnar vid lansering. Vi meddelar dig när det är klart!", [{ text: "OK" }]);
+  };
+
+  const handleManage = () => {
+    Alert.alert("Hantera medlemskap", "Här kan du snart se och avsluta ditt pass. Det öppnas när betalningen är på plats.", [{ text: "OK" }]);
   };
 
   return (
@@ -79,70 +96,112 @@ export default function PassSettings() {
         </TouchableOpacity>
         <Text style={p.headerTitle}>Österlenpasset</Text>
       </View>
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={p.body}>
-        {/* Card visual */}
-        <View style={p.cardVisualWrap}>
-          <GoldMiniCard />
-          {isMember && (
-            <View style={p.activeBadge}>
-              <Crown size={13} color="#121212" strokeWidth={2.2} />
-              <Text style={p.activeBadgeText}>AKTIVT</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Status section */}
-        <View style={p.card}>
-          <Text style={p.eyebrow}>STATUS</Text>
-          {isMember ? (
-            <>
-              <Text style={p.statusActive}>Ditt kort är aktivt</Text>
-              {expiresAt && (
-                <Text style={p.statusSub}>
-                  Förnyas {new Date(expiresAt).toLocaleDateString("sv-SE", { year: "numeric", month: "long", day: "numeric" })}
-                </Text>
-              )}
-              <TouchableOpacity style={p.manageBtn}>
-                <Text style={p.manageBtnText}>Hantera prenumeration</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Text style={p.statusInactive}>Inget aktivt kort</Text>
-              <Text style={p.statusSub}>Få tillgång till exklusiva erbjudanden och upplevelser på Österlen.</Text>
-            </>
-          )}
-        </View>
-
-        {/* Perks */}
-        {!isMember && (
+        {isBusiness ? (
           <View style={p.card}>
-            <Text style={p.eyebrow}>VADDÅ INGÅR</Text>
-            <View style={{ gap: 12 }}>
-              {PERKS.map((perk) => (
-                <View key={perk} style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-                  <View style={p.checkCircle}><Check size={11} color="#121212" strokeWidth={2.8} /></View>
-                  <Text style={p.perkText}>{perk}</Text>
+            <Text style={p.statusInactive}>För besökare</Text>
+            <Text style={p.statusSub}>Österlenpasset är till för besökare och kan inte köpas med ett företagskonto.</Text>
+          </View>
+        ) : (
+          <>
+            <View style={p.cardVisualWrap}>
+              <GoldMiniCard />
+              {membership.isMember && (
+                <View style={p.activeBadge}>
+                  <Crown size={13} color="#121212" strokeWidth={2.2} />
+                  <Text style={p.activeBadgeText}>AKTIVT</Text>
                 </View>
-              ))}
+              )}
             </View>
-          </View>
-        )}
 
-        {/* Price + CTA */}
-        {!isMember && (
-          <View style={p.priceCard}>
-            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
-              <Text style={p.price}>49 kr</Text>
-              <Text style={p.priceSub}>/månad</Text>
-            </View>
-            <Text style={p.priceNote}>Avsluta när du vill. Inga bindningstider.</Text>
-            <TouchableOpacity style={p.ctaBtn} onPress={handlePurchase}>
-              <Crown size={16} color="#121212" strokeWidth={2.2} />
-              <Text style={p.ctaBtnText}>Aktivera Österlenpasset</Text>
+            {membership.isMember ? (
+              <View style={p.card}>
+                <Text style={p.eyebrow}>STATUS</Text>
+                <Text style={p.statusActive}>Ditt pass är aktivt</Text>
+                {currentPlan && <Text style={p.statusSub}>{currentPlan.name}</Text>}
+                {membership.renewsOn ? (
+                  <Text style={p.statusSub}>Förnyas {longDate(membership.renewsOn)}</Text>
+                ) : membership.until ? (
+                  <Text style={p.statusSub}>Gäller till {longDate(membership.until)}</Text>
+                ) : null}
+                {membership.waitingBonusDays > 0 && (
+                  <Text style={p.statusSub}>
+                    {membership.waitingBonusDays} dagar från presentkod är sparade och används när passet slutar förnyas.
+                  </Text>
+                )}
+                <TouchableOpacity style={p.manageBtn} onPress={handleManage}>
+                  <Text style={p.manageBtnText}>Hantera medlemskap</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={p.card}>
+                  <Text style={p.eyebrow}>VAD INGÅR</Text>
+                  <View style={{ gap: 12 }}>
+                    {PERKS.map((perk) => (
+                      <View key={perk} style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+                        <View style={p.checkCircle}><Check size={11} color="#121212" strokeWidth={2.8} /></View>
+                        <Text style={p.perkText}>{perk}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {productsLoading ? (
+                  <ActivityIndicator color={GOLD} />
+                ) : (
+                  <>
+                    <View style={p.card}>
+                      <Text style={p.eyebrow}>VÄLJ PASS</Text>
+                      <View style={{ gap: 10 }}>
+                        {products.map((product) => {
+                          const active = selected?.id === product.id;
+                          return (
+                            <TouchableOpacity
+                              key={product.id}
+                              style={[p.plan, active && p.planActive]}
+                              activeOpacity={0.85}
+                              onPress={() => setSelectedId(product.id)}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={p.planName}>{product.name}</Text>
+                                {product.description ? <Text style={p.planDesc}>{product.description}</Text> : null}
+                              </View>
+                              <Text style={[p.planPrice, active && { color: GOLD }]}>{price(product)}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {selected && (
+                      <View style={p.priceCard}>
+                        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+                          <Text style={p.price}>{price(selected)}</Text>
+                          <Text style={p.priceSub}>{selected.autoRenew ? "förnyas automatiskt" : "engångsköp"}</Text>
+                        </View>
+                        <TouchableOpacity style={p.ctaBtn} onPress={handlePurchase}>
+                          <Crown size={16} color="#121212" strokeWidth={2.2} />
+                          <Text style={p.ctaBtnText}>Aktivera Österlenpasset</Text>
+                        </TouchableOpacity>
+                        <Text style={p.priceFooter}>
+                          {selected.autoRenew
+                            ? "Passet förnyas automatiskt tills du avslutar det. Priset kan ändras; du får besked i förväg och kan avsluta innan ändringen börjar gälla. Du avslutar när du vill under Hantera medlemskap."
+                            : "Engångsköp som inte förnyas. Priset gäller för hela perioden."}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            <TouchableOpacity style={p.codeLink} onPress={() => router.push("/settings/redeem" as any)}>
+              <Ticket size={15} color={MUTED} strokeWidth={2} />
+              <Text style={p.codeLinkText}>Har du en presentkod?</Text>
             </TouchableOpacity>
-            <Text style={p.priceFooter}>Priser kan ändras. Faktureras månadsvis via Apple / Google.</Text>
-          </View>
+          </>
         )}
       </ScrollView>
     </View>
@@ -190,13 +249,21 @@ const p = StyleSheet.create({
   },
   perkText: { fontFamily: "Inter_400Regular", fontSize: 14, color: FG, flex: 1, lineHeight: 20 },
 
+  plan: {
+    flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 14,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  planActive: { borderColor: "rgba(197,160,89,0.8)", backgroundColor: "rgba(197,160,89,0.08)" },
+  planName: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
+  planDesc: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 2 },
+  planPrice: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: MUTED },
+
   priceCard: {
     backgroundColor: CARD, borderRadius: 22, padding: 24, borderWidth: 1,
     borderColor: "rgba(197,160,89,0.22)", gap: 10, alignItems: "center",
   },
   price: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 38, color: FG },
-  priceSub: { fontFamily: "Inter_400Regular", fontSize: 16, color: MUTED },
-  priceNote: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
+  priceSub: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED },
   ctaBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, height: 52, borderRadius: 14, backgroundColor: GOLD,
@@ -204,4 +271,7 @@ const p = StyleSheet.create({
   },
   ctaBtnText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#121212" },
   priceFooter: { fontFamily: "Inter_400Regular", fontSize: 11, color: MUTED, textAlign: "center", lineHeight: 17 },
+
+  codeLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8 },
+  codeLinkText: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
 });

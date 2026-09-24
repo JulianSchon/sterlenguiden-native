@@ -553,6 +553,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pass_products: {
+        Row: {
+          active: boolean
+          auto_renew: boolean
+          available_from: string | null
+          available_until: string | null
+          days: number
+          description: string | null
+          id: string
+          name: string
+          price_sek: number
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          auto_renew?: boolean
+          available_from?: string | null
+          available_until?: string | null
+          days: number
+          description?: string | null
+          id: string
+          name: string
+          price_sek: number
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          auto_renew?: boolean
+          available_from?: string | null
+          available_until?: string | null
+          days?: number
+          description?: string | null
+          id?: string
+          name?: string
+          price_sek?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
       places: {
         Row: {
           book_url: string | null
@@ -647,6 +686,11 @@ export type Database = {
           display_name: string | null
           id: string
           is_member: boolean | null
+          member_auto_renew: boolean | null
+          member_bonus_days: number | null
+          member_period: string | null
+          member_started_at: string | null
+          member_until: string | null
           notifications_enabled: boolean | null
           preferred_language: string | null
           profile_image_url: string | null
@@ -665,6 +709,11 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_member?: boolean | null
+          member_auto_renew?: boolean | null
+          member_bonus_days?: number | null
+          member_period?: string | null
+          member_started_at?: string | null
+          member_until?: string | null
           notifications_enabled?: boolean | null
           preferred_language?: string | null
           profile_image_url?: string | null
@@ -683,6 +732,11 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_member?: boolean | null
+          member_auto_renew?: boolean | null
+          member_bonus_days?: number | null
+          member_period?: string | null
+          member_started_at?: string | null
+          member_until?: string | null
           notifications_enabled?: boolean | null
           preferred_language?: string | null
           profile_image_url?: string | null
@@ -969,6 +1023,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      redeem_pass_code: { Args: { _code: string }; Returns: Json }
       collect_sticker: {
         Args: { p_collectible_id: string; p_lat: number; p_lng: number }
         Returns: string
