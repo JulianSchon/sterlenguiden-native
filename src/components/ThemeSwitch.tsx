@@ -49,9 +49,25 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
   // En vibration per temabyte, i samma stund som knappen tar sig an sitt nya läge (när man släpper eller
   // trycker). Ingen vibration medan man drar, och ingen om knappen hoppar tillbaka.
   const buzz = useCallback(() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }, []);
-  // Själva temabytet för resten av appen sker när knappen är framme
+  // Temat för resten av appen byts strax efter att man släppt, inte först när rörelsen är klar: lämnar man
+  // sidan direkt (eller är telefonens statusrad på väg att byta färg) ska valet redan gälla. Den korta
+  // väntan låter rörelsen få starta utan att hela appen ritas om i samma stund. Lämnar man sidan innan
+  // tiden gått genomförs bytet direkt.
+  const pending = useRef<{ timer: ReturnType<typeof setTimeout>; toLight: boolean } | null>(null);
   const commit = useCallback((toLight: boolean) => {
-    setMode(toLight ? "light" : "dark");
+    if (pending.current) clearTimeout(pending.current.timer);
+    pending.current = {
+      toLight,
+      timer: setTimeout(() => {
+        pending.current = null;
+        setMode(toLight ? "light" : "dark");
+      }, 120),
+    };
+  }, [setMode]);
+  useEffect(() => () => {
+    if (!pending.current) return;
+    clearTimeout(pending.current.timer);
+    setMode(pending.current.toLight ? "light" : "dark");
   }, [setMode]);
 
   // Knappen står där temat är (och följer med om temat ändras på annat håll)
@@ -78,9 +94,8 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
       side.value = next;
       runOnJS(buzz)();
     }
-    x.value = withSpring(toLight ? travel() : 0, SPRING, (done) => {
-      if (done) runOnJS(commit)(toLight);
-    });
+    runOnJS(commit)(toLight);
+    x.value = withSpring(toLight ? travel() : 0, SPRING);
   };
 
   const pan = Gesture.Pan()
