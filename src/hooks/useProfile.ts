@@ -7,6 +7,7 @@ export interface Profile {
   display_name: string | null;
   avatar_url: string | null;
   profile_image_url: string | null;
+  card_photo_changed_at: string | null;
   is_member: boolean;
   member_period: string | null;
   member_started_at: string | null;

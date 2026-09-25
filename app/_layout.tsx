@@ -113,6 +113,7 @@ function AppStack() {
         <Stack.Screen name="settings/pass" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass-buy" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass-gift" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/pass-manage" options={{ headerShown: false }} />
         <Stack.Screen name="settings/redeem" options={{ headerShown: false }} />
         <Stack.Screen name="favorites" options={{ headerShown: false }} />
         <Stack.Screen name="offers" options={{ headerShown: false }} />

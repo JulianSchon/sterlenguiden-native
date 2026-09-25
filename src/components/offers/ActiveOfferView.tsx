@@ -23,6 +23,7 @@ import Svg, {
 } from "react-native-svg";
 import { MemberCard } from "@/components/MemberCard";
 import { useProfile } from "@/hooks/useProfile";
+import { useAvatarUrl, useCardPhotoUrl } from "@/hooks/useAvatarUrl";
 import { useAuth } from "@/hooks/useAuth";
 import { ACTIVE_SECS } from "@/lib/offers";
 import { format } from "date-fns";
@@ -64,6 +65,8 @@ export function ActiveOfferView({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { data: profile } = useProfile();
+  const avatarUrl = useAvatarUrl();
+  const cardPhotoUrl = useCardPhotoUrl();
 
   const [remaining, setRemaining] = useState(() => secsLeft(activatedAt));
   const ringAnim  = useRef(new Animated.Value(1)).current;
@@ -216,8 +219,8 @@ export function ActiveOfferView({
             isMember
             memberSince={memberSince}
             cardColor={profile?.card_color}
-            avatarUrl={(profile as any)?.avatar_url ?? null}
-            profileImageUrl={(profile as any)?.profile_image_url ?? null}
+            avatarUrl={avatarUrl}
+            profileImageUrl={cardPhotoUrl}
             onBuyPress={() => {}}
           />
         </View>

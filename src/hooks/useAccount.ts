@@ -13,14 +13,16 @@ import { AVATAR_BUCKET, isAvatarPath } from "@/hooks/useAvatarUrl";
 /** Profilbilder visas som mest ~400 px, så 512 räcker gott */
 const AVATAR_MAX_EDGE = 512;
 
-async function requireUserId(): Promise<string> {
+export async function requireUserId(): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("not_authenticated");
   return user.id;
 }
 
+export type PhotoSource = "library" | "camera";
+
 /** Öppnar bildväljaren eller kameran med en fyrkantig beskärning. null = användaren avbröt. */
-async function pickAvatar(source: "library" | "camera"): Promise<PickedPhoto | null> {
+export async function pickSquarePhoto(source: PhotoSource): Promise<PickedPhoto | null> {
   const options: ImagePicker.ImagePickerOptions = { allowsEditing: true, aspect: [1, 1], quality: 0.8 };
   let result: ImagePicker.ImagePickerResult;
   if (source === "camera") {
@@ -36,10 +38,11 @@ async function pickAvatar(source: "library" | "camera"): Promise<PickedPhoto | n
 }
 
 /**
- * Sökvägen i profilbild-mappen för ett värde ur profiles.avatar_url: antingen
- * själva sökvägen (nytt) eller en hel öppen adress (äldre). Annars null.
+ * Sökvägen i den privata bildmappen för ett värde ur profiles (avatar_url eller
+ * profile_image_url): antingen själva sökvägen (nytt) eller en hel öppen adress
+ * (äldre). Annars null.
  */
-function avatarPath(value: string | null | undefined): string | null {
+export function storagePath(value: string | null | undefined): string | null {
   if (!value) return null;
   if (isAvatarPath(value)) return value;
   const marker = `/storage/v1/object/public/${AVATAR_BUCKET}/`;
@@ -47,8 +50,8 @@ function avatarPath(value: string | null | undefined): string | null {
   return i >= 0 ? decodeURIComponent(value.slice(i + marker.length).split("?")[0]) : null;
 }
 
-async function removeAvatarFile(value: string | null | undefined) {
-  const path = avatarPath(value);
+export async function removeStoredImage(value: string | null | undefined) {
+  const path = storagePath(value);
   if (path) await supabase.storage.from(AVATAR_BUCKET).remove([path]);
 }
 
@@ -56,8 +59,8 @@ async function removeAvatarFile(value: string | null | undefined) {
 export function useChangeAvatar() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (source: "library" | "camera"): Promise<boolean> => {
-      const photo = await pickAvatar(source);
+    mutationFn: async (source: PhotoSource): Promise<boolean> => {
+      const photo = await pickSquarePhoto(source);
       if (!photo) return false;
       const userId = await requireUserId();
 
@@ -70,10 +73,10 @@ export function useChangeAvatar() {
       const { data: previous } = await supabase.from("profiles").select("avatar_url").eq("user_id", userId).maybeSingle();
       const { error } = await supabase.from("profiles").update({ avatar_url: path }).eq("user_id", userId);
       if (error) {
-        await removeAvatarFile(path);
+        await removeStoredImage(path);
         throw error;
       }
-      await removeAvatarFile(previous?.avatar_url);
+      await removeStoredImage(previous?.avatar_url);
       return true;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profile"] }),
@@ -88,7 +91,7 @@ export function useRemoveAvatar() {
       const { data: current } = await supabase.from("profiles").select("avatar_url").eq("user_id", userId).maybeSingle();
       const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("user_id", userId);
       if (error) throw error;
-      await removeAvatarFile(current?.avatar_url);
+      await removeStoredImage(current?.avatar_url);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profile"] }),
   });

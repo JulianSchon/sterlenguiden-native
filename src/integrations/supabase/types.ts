@@ -607,6 +607,8 @@ export type Database = {
       pass_purchases: {
         Row: {
           created_at: string
+          card_brand: string | null
+          card_last4: string | null
           gift_id: string | null
           id: string
           kind: string
@@ -617,6 +619,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          card_brand?: string | null
+          card_last4?: string | null
           gift_id?: string | null
           id?: string
           kind: string
@@ -627,6 +631,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          card_brand?: string | null
+          card_last4?: string | null
           gift_id?: string | null
           id?: string
           kind?: string
@@ -781,6 +787,7 @@ export type Database = {
           notifications_enabled: boolean | null
           preferred_language: string | null
           profile_image_url: string | null
+          card_photo_changed_at: string | null
           updated_at: string
           user_id: string
         }
@@ -807,6 +814,7 @@ export type Database = {
           notifications_enabled?: boolean | null
           preferred_language?: string | null
           profile_image_url?: string | null
+          card_photo_changed_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -833,6 +841,7 @@ export type Database = {
           notifications_enabled?: boolean | null
           preferred_language?: string | null
           profile_image_url?: string | null
+          card_photo_changed_at?: string | null
           updated_at?: string
           user_id?: string
         }

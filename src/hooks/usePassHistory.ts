@@ -9,6 +9,9 @@ export interface PassPurchase {
   period: string;
   priceSek: number;
   createdAt: string;
+  /** Kortet betalningen gjordes med (fylls i av betalningsleverantören), annars null */
+  cardBrand: string | null;
+  cardLast4: string | null;
 }
 
 export interface PassGift {
@@ -41,6 +44,7 @@ export function usePassPurchases() {
       if (error) throw error;
       return (data ?? []).map((r) => ({
         id: r.id, kind: r.kind, period: r.period, priceSek: r.price, createdAt: r.created_at,
+        cardBrand: r.card_brand ?? null, cardLast4: r.card_last4 ?? null,
       }));
     },
   });

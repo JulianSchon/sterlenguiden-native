@@ -8,18 +8,16 @@ export const AVATAR_BUCKET = "profile-images";
 export const isAvatarPath = (value: string) => !value.startsWith("http");
 
 /**
- * Adressen att visa användarens profilbild med. profiles.avatar_url innehåller
- * en sökväg i den privata mappen, som byts mot en tillfällig länk (giltig 1
- * timme). Äldre profiler kan ha en hel öppen adress; den används som den är.
- * Returnerar null om användaren inte har någon bild (eller medan länken hämtas).
+ * Adressen att visa en bild i den privata mappen med. Profilen innehåller en
+ * sökväg, som byts mot en tillfällig länk (giltig 1 timme). Äldre profiler kan
+ * ha en hel öppen adress; den används som den är. Returnerar null om det inte
+ * finns någon bild (eller medan länken hämtas).
  */
-export function useAvatarUrl(): string | null {
-  const { data: profile } = useProfile();
-  const entry = profile?.avatar_url ?? null;
+function useSignedImageUrl(kind: string, entry: string | null): string | null {
   const needsSigning = !!entry && isAvatarPath(entry);
 
   const { data: signed } = useQuery({
-    queryKey: ["avatar-url", entry],
+    queryKey: [kind, entry],
     enabled: needsSigning,
     staleTime: 50 * 60 * 1000,
     queryFn: async () => {
@@ -31,4 +29,16 @@ export function useAvatarUrl(): string | null {
 
   if (!entry) return null;
   return needsSigning ? signed ?? null : entry;
+}
+
+/** Profilbilden (framsidan av kortet, Hem, Inställningar). */
+export function useAvatarUrl(): string | null {
+  const { data: profile } = useProfile();
+  return useSignedImageUrl("avatar-url", profile?.avatar_url ?? null);
+}
+
+/** Kortfotot på baksidan av medlemskortet. */
+export function useCardPhotoUrl(): string | null {
+  const { data: profile } = useProfile();
+  return useSignedImageUrl("card-photo-url", profile?.profile_image_url ?? null);
 }

@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, Alert, ActionSheetIOS, Linking, Platform,
+  View, Text, TextInput, TouchableOpacity, Alert,
   ActivityIndicator, StyleSheet,
 } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { usePhotoMenu } from "@/hooks/usePhotoMenu";
 import { useChangeAvatar, useRemoveAvatar, useUpdateProfile, useDeleteAccount } from "@/hooks/useAccount";
 import { formatDate } from "@/i18n/dates";
 import { toIsoDate, ageOn } from "@/lib/birthDate";
@@ -88,37 +89,8 @@ export default function AccountSettings() {
   const [confPw, setConfPw] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
 
-  async function pickPhoto(source: "library" | "camera") {
-    try {
-      await changeAvatar.mutateAsync(source);
-    } catch (e) {
-      if (e instanceof Error && e.message === "camera_denied") {
-        Alert.alert(t("account.photo.cameraDeniedTitle"), t("account.photo.cameraDeniedBody"), [
-          { text: t("common.cancel"), style: "cancel" },
-          { text: t("account.photo.openSettings"), onPress: () => Linking.openSettings() },
-        ]);
-      } else {
-        Alert.alert(t("common.error"), t("account.photo.failed"));
-      }
-    }
-  }
-
   /** Kameraringen: välj bild eller ta foto (systemets egen meny på iOS). */
-  function addPhoto() {
-    const options = [t("account.photo.choose"), t("account.photo.take"), t("common.cancel")];
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 2 }, (index) => {
-        if (index === 0) pickPhoto("library");
-        if (index === 1) pickPhoto("camera");
-      });
-    } else {
-      Alert.alert(t("account.photo.title"), undefined, [
-        { text: options[0], onPress: () => pickPhoto("library") },
-        { text: options[1], onPress: () => pickPhoto("camera") },
-        { text: options[2], style: "cancel" },
-      ]);
-    }
-  }
+  const addPhoto = usePhotoMenu(changeAvatar.mutateAsync, t("account.photo.title"));
 
   async function saveName() {
     try {
