@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, TextInput } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useCreateList } from "@/hooks/useLists";
-import { Sheet, PrimaryButton, sheetInput } from "@/components/Sheet";
+import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
 
 export function CreateListSheet({
   visible, onClose, onCreated,
@@ -10,6 +10,7 @@ export function CreateListSheet({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const create = useCreateList();
+  const sheetInput = useSheetInput();
 
   async function submit() {
     const id = await create.mutateAsync({ name, description });

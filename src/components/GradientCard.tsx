@@ -8,8 +8,8 @@
  * Skuggan ligger på ett yttre lager, eftersom den försvinner om samma vy
  * också klipper sitt innehåll (overflow: hidden). Färgerna kommer från temat.
  */
-import type { ReactNode } from "react";
-import { View, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { useState, type ReactNode } from "react";
+import { View, StyleSheet, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -17,6 +17,9 @@ export function GradientCard({
   children, style, borderColor, radius = 22,
 }: { children: ReactNode; style?: StyleProp<ViewStyle>; borderColor?: string; radius?: number }) {
   const { colors, scheme } = useTheme();
+  // Gradienten ritas i exakta pixlar och mäts om när kortet ändrar storlek
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const onLayout = (e: LayoutChangeEvent) => setSize(e.nativeEvent.layout);
   return (
     <View
       style={[
@@ -33,11 +36,12 @@ export function GradientCard({
       ]}
     >
       <View
+        onLayout={onLayout}
         style={{
           borderRadius: radius, overflow: "hidden", borderWidth: 0.5, borderColor: borderColor ?? colors.border,
         }}
       >
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none" pointerEvents="none">
+        <Svg style={StyleSheet.absoluteFill} width={size.width} height={size.height} pointerEvents="none">
           <Defs>
             <LinearGradient id="card-gradient" x1="0" y1="0" x2="1" y2="1">
               <Stop offset="0" stopColor={colors.cardTop} />
@@ -49,8 +53,8 @@ export function GradientCard({
               <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
             </LinearGradient>
           </Defs>
-          <Rect width="100%" height="100%" fill="url(#card-gradient)" />
-          <Rect width="100%" height="100%" fill="url(#card-highlight)" />
+          <Rect width={size.width} height={size.height} fill="url(#card-gradient)" />
+          <Rect width={size.width} height={size.height} fill="url(#card-highlight)" />
         </Svg>
         {children}
       </View>

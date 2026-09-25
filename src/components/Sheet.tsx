@@ -1,6 +1,6 @@
 /**
- * Bottenpanel som alla listdialoger delar (skapa, gå med, lägg till plats,
- * spara i lista), plus den guldiga huvudknappen.
+ * Bottenpanel som listdialogerna delar, plus huvudknappen och textfältens
+ * stil. Färgerna kommer från temat.
  */
 import type { ReactNode } from "react";
 import {
@@ -9,14 +9,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
-
-const FG = "#F5F1E8";
-const GOLD = "#C5A059";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
 export function Sheet({
   visible, onClose, title, tall = false, children,
 }: { visible: boolean; onClose: () => void; title: string; tall?: boolean; children: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -25,7 +26,7 @@ export function Sheet({
           <View style={s.head}>
             <Text style={s.title}>{title}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={12}>
-              <X size={22} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+              <X size={22} color={colors.muted} strokeWidth={2} />
             </TouchableOpacity>
           </View>
           {children}
@@ -38,6 +39,8 @@ export function Sheet({
 export function PrimaryButton({
   label, onPress, disabled = false, loading = false,
 }: { label: string; onPress: () => void; disabled?: boolean; loading?: boolean }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   return (
     <TouchableOpacity
       style={[s.button, (disabled || loading) && { opacity: 0.4 }]}
@@ -45,27 +48,37 @@ export function PrimaryButton({
       disabled={disabled || loading}
       onPress={onPress}
     >
-      {loading ? <ActivityIndicator color="#121212" /> : <Text style={s.buttonText}>{label}</Text>}
+      {loading ? <ActivityIndicator color={colors.onGold} /> : <Text style={s.buttonText}>{label}</Text>}
     </TouchableOpacity>
   );
 }
 
-/** Gemensam stil för textfälten i panelerna. fontSize 16 hindrar iOS från att zooma vid fokus. */
+/** Textfältens stil i paneler. fontSize 16 hindrar iOS från att zooma in vid fokus. */
+export function useSheetInput() {
+  const { colors } = useTheme();
+  return {
+    fontFamily: "Inter_400Regular", fontSize: 16, color: colors.text,
+    backgroundColor: colors.raised, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: colors.borderStrong,
+  } as const;
+}
+
+/** Mörk variant för sidor som inte fått tema än (minnesformuläret). Byts mot useSheetInput när sidan migreras. */
 export const sheetInput = {
-  fontFamily: "Inter_400Regular", fontSize: 16, color: FG,
+  fontFamily: "Inter_400Regular", fontSize: 16, color: "#F5F1E8",
   backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 12,
   paddingHorizontal: 14, paddingVertical: 12,
   borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
 } as const;
 
-const s = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: c.overlay },
   sheet: {
-    backgroundColor: "#1A1A1D", borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: 20, paddingTop: 20,
   },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: FG },
-  button: { backgroundColor: GOLD, borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 8 },
-  buttonText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: "#121212" },
+  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: c.text },
+  button: { backgroundColor: c.gold, borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 8 },
+  buttonText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: c.onGold },
 });

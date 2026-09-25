@@ -29,7 +29,7 @@ export function SettingsGroup({ label, children }: { label?: string; children: R
 }
 
 export function SettingsRow({
-  icon: Icon, label, subtitle, value, onPress, destructive = false, compact = false, strong = false, tint, right,
+  icon: Icon, label, subtitle, value, onPress, destructive = false, compact = false, dense = false, strong = false, tint, right,
 }: {
   icon?: LucideIcon;
   label: string;
@@ -41,6 +41,8 @@ export function SettingsRow({
   destructive?: boolean;
   /** Lägre rad för mindre viktiga val */
   compact?: boolean;
+  /** Informationsrad (etikett och värde) utan ikon, lägre än en vanlig rad */
+  dense?: boolean;
   /** Större, halvfet etikett */
   strong?: boolean;
   /** Färg på ikonen och underrubriken (etiketten behåller textfärgen) */
@@ -55,7 +57,7 @@ export function SettingsRow({
 
   return (
     <Pressable
-      style={({ pressed }) => [s.row, compact && s.rowCompact, pressed && onPress ? s.rowPressed : null]}
+      style={({ pressed }) => [s.row, compact && s.rowCompact, dense && s.rowDense, pressed && onPress ? s.rowPressed : null]}
       disabled={!onPress}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -87,6 +89,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.border },
   row: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 18, paddingVertical: 12, minHeight: 68 },
   rowCompact: { gap: 12, paddingVertical: 12, minHeight: 64 },
+  rowDense: { gap: 12, paddingVertical: 10, minHeight: 56 },
   rowPressed: { backgroundColor: c.fill, transform: [{ scale: 0.985 }] },
   // Ikonrutan ser nedsänkt ut: mörkare yta med tunn kant
   tile: {
@@ -99,5 +102,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   labelCompact: { fontSize: 13.5 },
   labelStrong: { fontFamily: "Montserrat_600SemiBold", fontSize: 14.5 },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 17, color: c.muted, marginTop: 2 },
-  value: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted },
+  value: { flexShrink: 1, maxWidth: "55%", textAlign: "right", fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted },
 });

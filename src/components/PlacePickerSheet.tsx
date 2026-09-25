@@ -4,10 +4,9 @@ import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet } 
 import { Check, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useSearchPlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
-import { Sheet, sheetInput } from "@/components/Sheet";
-
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
+import { Sheet, useSheetInput } from "@/components/Sheet";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
 export function PlacePickerSheet({
   visible, onClose, title, selectedIds, onPick,
@@ -21,6 +20,9 @@ export function PlacePickerSheet({
 }) {
   const [query, setQuery] = useState("");
   const { data: places = [] } = useSearchPlaces(query);
+  const sheetInput = useSheetInput();
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
 
   return (
     <Sheet visible={visible} onClose={onClose} title={title} tall>
@@ -54,7 +56,7 @@ export function PlacePickerSheet({
                 <Text style={s.name} numberOfLines={1}>{p.name}</Text>
                 {p.nearest_town ? <Text style={s.sub} numberOfLines={1}>{p.nearest_town}</Text> : null}
               </View>
-              {selected ? <Check size={20} color="#C5A059" strokeWidth={2.5} /> : <Plus size={20} color={MUTED} strokeWidth={2} />}
+              {selected ? <Check size={20} color={colors.goldText} strokeWidth={2.5} /> : <Plus size={20} color={colors.muted} strokeWidth={2} />}
             </TouchableOpacity>
           );
         }}
@@ -63,9 +65,9 @@ export function PlacePickerSheet({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  thumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.06)" },
-  name: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 1 },
+  thumb: { width: 48, height: 48, borderRadius: 10, backgroundColor: c.fill },
+  name: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 1 },
 });

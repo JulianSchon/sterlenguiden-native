@@ -1,15 +1,19 @@
 /**
- * Inställningar › Konto: profilbild, visningsnamn (en gång i månaden),
- * personuppgifter, e-post, lösenord och radering av kontot.
+ * Inställningar › Konto: profilbild med cirkelfärger, en box med namn (går att
+ * ändra en gång i månaden), födelsedatum och e-post (låsta), lösenord, om man
+ * bor på Österlen och radering av kontot.
  *
  * Kortfotot på baksidan av medlemskortet hör till Österlenpasset, inte hit.
  */
-import { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, Linking, ActivityIndicator, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import {
+  View, Text, TextInput, TouchableOpacity, Alert, ActionSheetIOS, Linking, Platform,
+  ActivityIndicator, StyleSheet,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { addDays } from "date-fns";
-import { Camera, Image as ImageIcon, Lock, Mail, KeyRound, Trash2, type LucideIcon } from "lucide-react-native";
+import Svg, { Circle } from "react-native-svg";
+import { Calendar, Camera, ChevronDown, ChevronUp, Lock, Mail, Pencil, Trash2 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
@@ -17,52 +21,55 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useChangeAvatar, useRemoveAvatar, useUpdateProfile, useDeleteAccount } from "@/hooks/useAccount";
 import { formatDate } from "@/i18n/dates";
+import { toIsoDate, ageOn } from "@/lib/birthDate";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
-import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { GradientCard } from "@/components/GradientCard";
+import { IconSwitch } from "@/components/IconSwitch";
 import { Avatar } from "@/components/profile/Avatar";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-// Åtta färger, fyra mörka och fyra ljusa om vartannat (mörk cirkel → ljusa bokstäver,
+// Sex färger, tre mörka och tre ljusa om vartannat (mörk cirkel → ljusa bokstäver,
 // ljus cirkel → mörka bokstäver; bokstäverna får automatiskt samma nyans som cirkeln).
-const CIRCLE_COLORS = ["#1F3A5F", "#C5A059", "#24493A", "#8FB8DE", "#5C2A35", "#9DB8A0", "#4A2F5C", "#D9A5A5"];
+const CIRCLE_COLORS = ["#1F3A5F", "#C5A059", "#24493A", "#8FB8DE", "#5C2A35", "#D9A5A5"];
 const NAME_COOLDOWN_DAYS = 30;
 const MIN_AGE = 13;
+const CAMERA_RING = 42;
+const COLOR_RING = 34;
 
-/** "2005-3-9" (delar) → "2005-03-09", eller null om det inte är ett riktigt datum. */
-function toIsoDate(day: string, month: string, year: string): string | null {
-  const d = Number(day), m = Number(month), y = Number(year);
-  if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(y) || year.length !== 4) return null;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
-  return date.toISOString().slice(0, 10);
-}
-
-function ageOn(isoDate: string, now = new Date()): number {
-  const birth = new Date(isoDate);
-  let age = now.getUTCFullYear() - birth.getUTCFullYear();
-  const beforeBirthday =
-    now.getUTCMonth() < birth.getUTCMonth() ||
-    (now.getUTCMonth() === birth.getUTCMonth() && now.getUTCDate() < birth.getUTCDate());
-  if (beforeBirthday) age -= 1;
-  return age;
-}
-
-function ActionPill({ icon: Icon, label, onPress, busy }: { icon: LucideIcon; label: string; onPress: () => void; busy?: boolean }) {
+/** En knapp som smälter in: dämpad bakgrund i stället för accentfärg. */
+function QuietButton({ label, onPress, disabled, loading }: { label: string; onPress: () => void; disabled?: boolean; loading?: boolean }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
-    <TouchableOpacity style={s.pill} activeOpacity={0.8} disabled={busy} onPress={onPress}>
-      <Icon size={16} color={colors.text} strokeWidth={1.7} />
-      <Text style={s.pillText}>{label}</Text>
+    <TouchableOpacity
+      style={[s.quietButton, (disabled || loading) && { opacity: 0.4 }]}
+      activeOpacity={0.7}
+      disabled={disabled || loading}
+      onPress={onPress}
+    >
+      {loading ? <ActivityIndicator color={colors.text} /> : <Text style={s.quietButtonText}>{label}</Text>}
+    </TouchableOpacity>
+  );
+}
+
+/** Guldig ring av korta streck med en kamera i mitten: lägg till foto. */
+function CameraRing({ size, onPress, disabled, label }: { size: number; onPress: () => void; disabled: boolean; label: string }) {
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity onPress={onPress} disabled={disabled} accessibilityLabel={label} style={{ width: size, height: size }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Circle cx={size / 2} cy={size / 2} r={size / 2 - 1.5} stroke={colors.gold} strokeWidth={2} strokeDasharray="3 4" fill="none" />
+      </Svg>
+      <View style={styles.cameraIcon}>
+        <Camera size={size * 0.42} color={colors.gold} strokeWidth={1.8} />
+      </View>
     </TouchableOpacity>
   );
 }
 
 export default function AccountSettings() {
   const { t } = useTranslation();
-  const router = useRouter();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const { user } = useAuth();
@@ -74,30 +81,33 @@ export default function AccountSettings() {
   const deleteAccount = useDeleteAccount();
 
   const displayName = profile?.display_name ?? "";
+  const circleColor = profile?.circle_color ?? "#2A2A2A";
+
+  const nameInput = useRef<TextInput>(null);
+  const [nameFocused, setNameFocused] = useState(false);
   const [name, setName] = useState(displayName);
   useEffect(() => setName(displayName), [displayName]);
+  const nextNameChange = profile?.display_name_changed_at
+    ? addDays(new Date(profile.display_name_changed_at), NAME_COOLDOWN_DAYS)
+    : null;
+  const nameLocked = !!nextNameChange && nextNameChange.getTime() > Date.now();
+  const nameChanged = name.trim().length > 1 && name.trim() !== displayName;
 
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
+  const birthComplete = !!birthDay && !!birthMonth && birthYear.length === 4;
+
   const [pwOpen, setPwOpen] = useState(false);
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
 
-  const nextNameChange = profile?.display_name_changed_at
-    ? addDays(new Date(profile.display_name_changed_at), NAME_COOLDOWN_DAYS)
-    : null;
-  const nameLocked = !!nextNameChange && nextNameChange.getTime() > Date.now();
-  const nameChanged = name.trim() !== displayName && name.trim().length > 1;
-
-  const errorMessage = (e: unknown) => (e instanceof Error ? e.message : t("common.error"));
-
   async function pickPhoto(source: "library" | "camera") {
     try {
       await changeAvatar.mutateAsync(source);
     } catch (e) {
-      if (errorMessage(e) === "camera_denied") {
+      if (e instanceof Error && e.message === "camera_denied") {
         Alert.alert(t("account.photo.cameraDeniedTitle"), t("account.photo.cameraDeniedBody"), [
           { text: t("common.cancel"), style: "cancel" },
           { text: t("account.photo.openSettings"), onPress: () => Linking.openSettings() },
@@ -108,12 +118,30 @@ export default function AccountSettings() {
     }
   }
 
+  /** Kameraringen: välj bild eller ta foto (systemets egen meny på iOS). */
+  function addPhoto() {
+    const options = [t("account.photo.choose"), t("account.photo.take"), t("common.cancel")];
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: 2 }, (index) => {
+        if (index === 0) pickPhoto("library");
+        if (index === 1) pickPhoto("camera");
+      });
+    } else {
+      Alert.alert(t("account.photo.title"), undefined, [
+        { text: options[0], onPress: () => pickPhoto("library") },
+        { text: options[1], onPress: () => pickPhoto("camera") },
+        { text: options[2], style: "cancel" },
+      ]);
+    }
+  }
+
   async function saveName() {
     try {
       await updateProfile.mutateAsync({ display_name: name.trim() });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) {
-      Alert.alert(t("common.error"), errorMessage(e) === "display_name_cooldown" ? t("account.name.cooldown") : t("common.error"));
+      const cooldown = e instanceof Error && e.message === "display_name_cooldown";
+      Alert.alert(t("common.error"), cooldown ? t("account.name.cooldown") : t("common.error"));
     }
   }
 
@@ -152,148 +180,129 @@ export default function AccountSettings() {
     ]);
   }
 
-  const circleColor = profile?.circle_color ?? "#2A2A2A";
-  const hasPhoto = !!profile?.avatar_url;
-  const input = [s.input];
+  const busyPhoto = changeAvatar.isPending || removeAvatar.isPending;
 
   return (
     <SettingsScreen title={t("account.title")}>
-      {/* Profilbild */}
-      <View style={s.photoBlock}>
+      {/* Profilbild och cirkelfärger */}
+      <View style={s.profile}>
         <View>
-          <Avatar size={108} uri={avatarUrl} name={displayName || user?.email || ""} color={circleColor} />
-          {changeAvatar.isPending && (
-            <View style={s.photoBusy}><ActivityIndicator color="#FFFFFF" /></View>
-          )}
+          <Avatar size={96} uri={avatarUrl} name={displayName || user?.email || ""} color={circleColor} />
+          {busyPhoto && <View style={s.busy}><ActivityIndicator color="#FFFFFF" /></View>}
         </View>
-        <View style={s.pillRow}>
-          <ActionPill icon={ImageIcon} label={t("account.photo.choose")} onPress={() => pickPhoto("library")} busy={changeAvatar.isPending} />
-          <ActionPill icon={Camera} label={t("account.photo.take")} onPress={() => pickPhoto("camera")} busy={changeAvatar.isPending} />
+        <Text style={s.name} numberOfLines={1}>{displayName}</Text>
+
+        {/* Kameran längst till vänster, sedan färgerna (som försvinner om du har en bild) */}
+        <View style={s.rings}>
+          <CameraRing size={CAMERA_RING} onPress={addPhoto} disabled={busyPhoto} label={t("account.photo.choose")} />
+          {!avatarUrl && CIRCLE_COLORS.map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[s.ring, { backgroundColor: c }, circleColor === c && { borderColor: colors.gold, borderWidth: 2 }]}
+              onPress={() => updateProfile.mutate({ circle_color: c })}
+              accessibilityLabel={t("account.photo.circleColor")}
+            />
+          ))}
         </View>
-        {hasPhoto ? (
+        {avatarUrl ? (
           <TouchableOpacity onPress={() => removeAvatar.mutate()} hitSlop={8}>
             <Text style={s.removeText}>{t("account.photo.remove")}</Text>
           </TouchableOpacity>
-        ) : (
-          <View style={s.colorBlock}>
-            <Text style={s.hint}>{t("account.photo.circleColorHint")}</Text>
-            <View style={s.colorRow}>
-              {CIRCLE_COLORS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[s.swatch, { backgroundColor: c }, circleColor === c && { borderColor: colors.gold, borderWidth: 2 }]}
-                  onPress={() => updateProfile.mutate({ circle_color: c })}
-                  accessibilityLabel={t("account.photo.circleColor")}
-                />
-              ))}
-            </View>
-          </View>
-        )}
+        ) : null}
       </View>
 
-      {/* Visningsnamn */}
+      {/* Kontouppgifter: namn (går att ändra) och födelsedatum + e-post (låsta) */}
       <View>
-        <Text style={s.label}>{t("account.name.title")}</Text>
-        <GradientCard style={s.card}>
+        <Text style={s.sectionLabel}>{t("account.details")}</Text>
+        <GradientCard>
           <View style={s.cardBody}>
-            <TextInput
-              style={[...input, nameLocked && s.inputLocked]}
-              value={name}
-              onChangeText={setName}
-              editable={!nameLocked}
-              maxLength={40}
-              autoCapitalize="words"
-              placeholder={t("account.name.placeholder")}
-              placeholderTextColor={colors.faint}
-            />
+            {/* Namnfältet är en tydlig ruta; pennan sätter markören i den, och ramen blir guld när den är vald */}
+            <View style={[s.nameField, nameFocused && s.nameFieldFocused, nameLocked && { opacity: 0.6 }]}>
+              <TextInput
+                ref={nameInput}
+                style={s.nameInput}
+                value={name}
+                onChangeText={setName}
+                onFocus={() => setNameFocused(true)}
+                onBlur={() => setNameFocused(false)}
+                editable={!nameLocked}
+                selectTextOnFocus
+                maxLength={40}
+                autoCapitalize="words"
+                placeholder={t("account.name.placeholder")}
+                placeholderTextColor={colors.faint}
+              />
+              {nameLocked ? (
+                <Lock size={16} color={colors.faint} strokeWidth={1.8} />
+              ) : (
+                <TouchableOpacity onPress={() => nameInput.current?.focus()} hitSlop={12} accessibilityLabel={t("account.name.placeholder")}>
+                  <Pencil size={17} color={colors.goldText} strokeWidth={1.8} />
+                </TouchableOpacity>
+              )}
+            </View>
             <Text style={s.hint}>
               {nameLocked && nextNameChange
                 ? t("account.name.nextChange", { date: formatDate(nextNameChange, "d MMMM yyyy") })
                 : t("account.name.hint")}
             </Text>
-            {!nameLocked && (
-              <TouchableOpacity
-                style={[s.button, (!nameChanged || updateProfile.isPending) && s.buttonOff]}
-                disabled={!nameChanged || updateProfile.isPending}
-                onPress={saveName}
-              >
-                <Text style={s.buttonText}>{t("account.name.save")}</Text>
-              </TouchableOpacity>
+            {!nameLocked && nameChanged && (
+              <QuietButton label={t("account.name.save")} onPress={saveName} loading={updateProfile.isPending} />
             )}
-          </View>
-        </GradientCard>
-      </View>
 
-      {/* Om dig */}
-      <View>
-        <Text style={s.label}>{t("account.about.title")}</Text>
-        <GradientCard style={s.card}>
-          <View style={s.cardBody}>
-            <Text style={s.fieldTitle}>{t("account.about.birthDate")}</Text>
             {profile?.birth_date ? (
-              <View style={s.lockedRow}>
-                <Lock size={15} color={colors.muted} strokeWidth={1.8} />
-                <Text style={s.lockedText}>{formatDate(profile.birth_date, "d MMMM yyyy")}</Text>
+              <View style={[s.row, s.detailRow]}>
+                <Calendar size={16} color={colors.faint} strokeWidth={1.7} />
+                <Text style={s.value}>{formatDate(profile.birth_date, "d MMMM yyyy")}</Text>
+                <Lock size={16} color={colors.faint} strokeWidth={1.8} />
               </View>
             ) : (
-              <>
+              <View style={[s.detailRow, { gap: 10 }]}>
                 <View style={s.dateRow}>
-                  <TextInput style={[...input, s.dateInput]} value={birthDay} onChangeText={setBirthDay} placeholder={t("account.about.day")} placeholderTextColor={colors.faint} keyboardType="number-pad" maxLength={2} />
-                  <TextInput style={[...input, s.dateInput]} value={birthMonth} onChangeText={setBirthMonth} placeholder={t("account.about.month")} placeholderTextColor={colors.faint} keyboardType="number-pad" maxLength={2} />
-                  <TextInput style={[...input, s.dateInputYear]} value={birthYear} onChangeText={setBirthYear} placeholder={t("account.about.year")} placeholderTextColor={colors.faint} keyboardType="number-pad" maxLength={4} />
+                  <TextInput style={[s.input, s.dateInput]} value={birthDay} onChangeText={setBirthDay} placeholder={t("account.about.day")} placeholderTextColor={colors.faint} keyboardType="number-pad" maxLength={2} />
+                  <TextInput style={[s.input, s.dateInput]} value={birthMonth} onChangeText={setBirthMonth} placeholder={t("account.about.month")} placeholderTextColor={colors.faint} keyboardType="number-pad" maxLength={2} />
+                  <TextInput style={[s.input, s.dateInputYear]} value={birthYear} onChangeText={setBirthYear} placeholder={t("account.about.year")} placeholderTextColor={colors.faint} keyboardType="number-pad" maxLength={4} />
                 </View>
                 <Text style={s.hint}>{t("account.about.birthDateHint")}</Text>
-                <TouchableOpacity
-                  style={[s.button, (!birthDay || !birthMonth || birthYear.length !== 4) && s.buttonOff]}
-                  disabled={!birthDay || !birthMonth || birthYear.length !== 4}
-                  onPress={saveBirthDate}
-                >
-                  <Text style={s.buttonText}>{t("account.about.saveBirthDate")}</Text>
-                </TouchableOpacity>
-              </>
+                {birthComplete && <QuietButton label={t("account.about.saveBirthDate")} onPress={saveBirthDate} loading={updateProfile.isPending} />}
+              </View>
             )}
 
-            <View style={s.separator} />
-
-            <Text style={s.fieldTitle}>{t("account.about.lives")}</Text>
-            <View style={s.segment}>
-              {([true, false] as const).map((value) => {
-                const active = profile?.lives_in_osterlen === value;
-                return (
-                  <TouchableOpacity
-                    key={String(value)}
-                    style={[s.segmentItem, active && s.segmentItemActive]}
-                    activeOpacity={0.8}
-                    onPress={() => updateProfile.mutate({ lives_in_osterlen: value })}
-                  >
-                    <Text style={[s.segmentText, active && { color: colors.onGold }]}>
-                      {value ? t("account.about.livesHere") : t("account.about.visitor")}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={s.row}>
+              <Mail size={16} color={colors.faint} strokeWidth={1.7} />
+              <Text style={s.value} numberOfLines={1}>{user?.email ?? ""}</Text>
+              <Lock size={16} color={colors.faint} strokeWidth={1.8} />
             </View>
           </View>
         </GradientCard>
       </View>
 
-      {/* E-post och lösenord */}
-      <SettingsGroup>
-        <SettingsRow icon={Mail} label={t("account.email.title")} value={user?.email ?? ""} />
-        <SettingsRow icon={KeyRound} label={t("account.password.change")} onPress={() => setPwOpen((open) => !open)} />
-      </SettingsGroup>
-
-      {pwOpen && (
-        <GradientCard style={s.card}>
-          <View style={s.cardBody}>
-            <TextInput style={input} value={newPw} onChangeText={setNewPw} secureTextEntry autoCapitalize="none" placeholder={t("account.password.newPassword")} placeholderTextColor={colors.faint} />
-            <TextInput style={input} value={confPw} onChangeText={setConfPw} secureTextEntry autoCapitalize="none" placeholder={t("account.password.confirm")} placeholderTextColor={colors.faint} />
-            <TouchableOpacity style={[s.button, (pwBusy || !newPw) && s.buttonOff]} disabled={pwBusy || !newPw} onPress={changePassword}>
-              {pwBusy ? <ActivityIndicator color={colors.onGold} /> : <Text style={s.buttonText}>{t("account.password.update")}</Text>}
-            </TouchableOpacity>
+      {/* Lösenord */}
+      <GradientCard>
+        <TouchableOpacity style={[s.cardBody, s.row]} activeOpacity={0.7} onPress={() => setPwOpen((open) => !open)}>
+          <Text style={s.label}>{t("account.password.change")}</Text>
+          <View style={{ flex: 1 }} />
+          {pwOpen ? <ChevronUp size={18} color={colors.faint} strokeWidth={2} /> : <ChevronDown size={18} color={colors.faint} strokeWidth={2} />}
+        </TouchableOpacity>
+        {pwOpen && (
+          <View style={[s.cardBody, { paddingTop: 0 }]}>
+            <TextInput style={s.input} value={newPw} onChangeText={setNewPw} secureTextEntry autoCapitalize="none" placeholder={t("account.password.newPassword")} placeholderTextColor={colors.faint} />
+            <TextInput style={s.input} value={confPw} onChangeText={setConfPw} secureTextEntry autoCapitalize="none" placeholder={t("account.password.confirm")} placeholderTextColor={colors.faint} />
+            <QuietButton label={t("account.password.update")} onPress={changePassword} disabled={!newPw || !confPw} loading={pwBusy} />
           </View>
-        </GradientCard>
-      )}
+        )}
+      </GradientCard>
+
+      {/* Bor du på Österlen? */}
+      <GradientCard>
+        <View style={[s.cardBody, s.row]}>
+          <Text style={s.label}>{t("account.about.lives")}</Text>
+          <View style={{ flex: 1 }} />
+          <IconSwitch
+            value={profile?.lives_in_osterlen === true}
+            onChange={(value) => updateProfile.mutate({ lives_in_osterlen: value })}
+          />
+        </View>
+      </GradientCard>
 
       <TouchableOpacity style={s.deleteBtn} onPress={confirmDelete} disabled={deleteAccount.isPending}>
         {deleteAccount.isPending ? (
@@ -309,52 +318,52 @@ export default function AccountSettings() {
   );
 }
 
+const styles = StyleSheet.create({
+  cameraIcon: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+});
+
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  photoBlock: { alignItems: "center", gap: 14 },
-  photoBusy: {
-    ...StyleSheet.absoluteFillObject, borderRadius: 54, backgroundColor: "rgba(0,0,0,0.45)",
+  profile: { alignItems: "center", gap: 10, paddingVertical: 4 },
+  busy: {
+    ...StyleSheet.absoluteFillObject, borderRadius: 48, backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center", justifyContent: "center",
   },
-  pillRow: { flexDirection: "row", gap: 10 },
-  pill: {
-    flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 11,
-    borderRadius: 999, backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
-  },
-  pillText: { fontFamily: "Montserrat_500Medium", fontSize: 13.5, letterSpacing: -0.2, color: c.text },
+  name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: c.text, marginTop: 4 },
+  rings: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 9 },
+  ring: { width: COLOR_RING, height: COLOR_RING, borderRadius: COLOR_RING / 2, borderWidth: 1, borderColor: c.borderStrong },
   removeText: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.danger },
-  colorBlock: { alignItems: "center", gap: 12 },
-  colorRow: { flexDirection: "row", justifyContent: "center", gap: 10 },
-  swatch: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: c.borderStrong },
 
-  label: {
+  cardBody: { padding: 16, gap: 10 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  sectionLabel: {
     fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, color: c.muted,
     paddingLeft: 6, marginBottom: 8, textTransform: "uppercase",
   },
-  card: {},
-  cardBody: { padding: 16, gap: 12 },
-  fieldTitle: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.text },
+  detailRow: { marginTop: 6 },
+  label: { fontFamily: "Inter_500Medium", fontSize: 15, color: c.text },
+  value: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15, color: c.muted },
+  nameField: {
+    flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 12, backgroundColor: c.raised, borderWidth: 1, borderColor: c.borderStrong,
+  },
+  nameFieldFocused: { borderColor: c.gold },
+  // fontSize över 16 hindrar iOS från att zooma in vid fokus
+  nameInput: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 18, color: c.text, paddingVertical: 4 },
   hint: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.muted },
-  // fontSize 16 hindrar iOS från att zooma in vid fokus
   input: {
     fontFamily: "Inter_400Regular", fontSize: 16, color: c.text, backgroundColor: c.raised,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
     borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
   },
-  inputLocked: { opacity: 0.55 },
+  quietButton: {
+    height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center",
+    backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
+  },
+  quietButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text },
+
   dateRow: { flexDirection: "row", gap: 10 },
   dateInput: { flex: 1, textAlign: "center" },
   dateInputYear: { flex: 1.6, textAlign: "center" },
-  lockedRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  lockedText: { fontFamily: "Inter_500Medium", fontSize: 15, color: c.text },
-  separator: { height: StyleSheet.hairlineWidth, backgroundColor: c.border, marginVertical: 4 },
-  button: { height: 46, borderRadius: 12, backgroundColor: c.gold, alignItems: "center", justifyContent: "center" },
-  buttonOff: { opacity: 0.4 },
-  buttonText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.onGold },
-
-  segment: { flexDirection: "row", padding: 4, gap: 4, borderRadius: 14, backgroundColor: c.fill },
-  segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center" },
-  segmentItemActive: { backgroundColor: c.gold },
-  segmentText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.muted },
 
   deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12 },
   deleteText: { fontFamily: "Montserrat_500Medium", fontSize: 13.5, letterSpacing: -0.3, color: c.danger },

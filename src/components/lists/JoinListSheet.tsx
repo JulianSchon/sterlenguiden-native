@@ -2,13 +2,14 @@ import { useState } from "react";
 import { View, Text, TextInput } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useJoinList } from "@/hooks/useLists";
-import { Sheet, PrimaryButton, sheetInput } from "@/components/Sheet";
+import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
 
 export function JoinListSheet({
   visible, onClose, onJoined,
 }: { visible: boolean; onClose: () => void; onJoined: (listId: string) => void }) {
   const [code, setCode] = useState("");
   const join = useJoinList();
+  const sheetInput = useSheetInput();
 
   async function submit() {
     const id = await join.mutateAsync(code);

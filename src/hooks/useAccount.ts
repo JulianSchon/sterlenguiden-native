@@ -7,6 +7,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { preparePhoto, type PickedPhoto } from "@/lib/photos";
+import type { Profile } from "@/hooks/useProfile";
 import { AVATAR_BUCKET, isAvatarPath } from "@/hooks/useAvatarUrl";
 
 /** Profilbilder visas som mest ~400 px, så 512 räcker gott */
@@ -101,8 +102,10 @@ type ProfileChanges = {
 };
 
 /**
- * Sparar ändringar på profilen. Kastar Error("display_name_cooldown") om namnet
- * ändrats för nyligen och Error("birth_date_locked") om födelsedatum redan är satt.
+ * Sparar ändringar på profilen. Skärmen uppdateras direkt (optimistiskt) och
+ * sparandet sker i bakgrunden; misslyckas det återställs profilen. Kastar
+ * Error("display_name_cooldown") om namnet ändrats för nyligen och
+ * Error("birth_date_locked") om födelsedatum redan är satt.
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
@@ -116,7 +119,16 @@ export function useUpdateProfile() {
         throw error;
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profile"] }),
+    onMutate: async (changes) => {
+      await queryClient.cancelQueries({ queryKey: ["profile"] });
+      const previous = queryClient.getQueryData<Profile | null>(["profile"]);
+      if (previous) queryClient.setQueryData<Profile>(["profile"], { ...previous, ...changes });
+      return { previous };
+    },
+    onError: (_error, _changes, context) => {
+      if (context?.previous) queryClient.setQueryData(["profile"], context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["profile"] }),
   });
 }
 
