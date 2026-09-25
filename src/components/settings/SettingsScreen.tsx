@@ -55,6 +55,8 @@ export function SettingsScreen({
       </Animated.View>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        // Sidor som ryms på skärmen ska stå stilla; bara längre sidor (eller små skärmar) gungar och scrollar
+        alwaysBounceVertical={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[s.body, compact && s.bodyCompact, { paddingBottom: Math.max(insets.bottom, 16) + (compact ? 8 : 40) }]}
       >
