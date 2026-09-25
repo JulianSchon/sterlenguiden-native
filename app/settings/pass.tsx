@@ -33,8 +33,8 @@ import type { ThemeColors } from "@/theme/colors";
 
 const longDate = (d: Date | string) => formatDate(d, "d MMMM yyyy");
 
-/** Kortet visas i miniformat i statusrutan */
-const CARD_SCALE = 0.58;
+/** Kortet visas något mindre än sin fulla bredd så att det ryms i statusrutan */
+const CARD_SCALE = 0.84;
 
 /** Rund snabbknapp med etikett under, som i bankappar. */
 function QuickAction({ icon: Icon, label, badge, onPress }: { icon: LucideIcon; label: string; badge?: number; onPress: () => void }) {
@@ -96,6 +96,11 @@ export default function PassHub() {
     : daysLeft === 0 ? t(renews ? "pass.status.renewsToday" : "pass.status.endsToday")
     : daysLeft === 1 ? t(renews ? "pass.status.renewsInOne" : "pass.status.endsInOne")
     : t(renews ? "pass.status.renewsIn" : "pass.status.endsIn", { count: daysLeft });
+  // Hur stor del av passperioden som gått, för tidslinjen under kortet
+  const startedAt = profile?.member_started_at ? new Date(profile.member_started_at).getTime() : null;
+  const progress = startedAt !== null && membership.until && membership.until.getTime() > startedAt
+    ? Math.min(1, Math.max(0, (Date.now() - startedAt) / (membership.until.getTime() - startedAt)))
+    : null;
   const cheapest = products.length ? Math.round(Math.min(...products.map((p) => p.priceSek))) : null;
   const nextPhotoChange = nextCardPhotoChange(profile);
 
@@ -118,43 +123,52 @@ export default function PassHub() {
 
   return (
     <SettingsScreen title={t("pass.title")}>
-      {/* Statusruta: kortet i miniformat (baksidan först, går att vända) och status bredvid.
-          Genomskinlig med guldkant för medlemmar, grå kant annars. */}
+      {/* Statusruta: status och pass överst, kortet (baksidan först, går att vända)
+          i mitten och nedräkning med tidslinje under. Genomskinlig; guldkant för medlemmar. */}
       <View style={[s.hero, membership.isMember && s.heroActive]}>
-        <View style={s.heroInfo}>
+        <View style={s.heroTop}>
           <View style={s.statusRow}>
             <View style={[s.dot, membership.isMember && { backgroundColor: colors.success }]} />
             <Text style={[s.statusLabel, membership.isMember && { color: colors.success }]}>
               {membership.isMember ? t("pass.status.active") : t("pass.status.none")}
             </Text>
           </View>
-          {membership.isMember ? (
-            <>
-              <Text style={s.period}>{periodLabel(membership.period)}</Text>
-              <View style={{ gap: 2 }}>
-                <Text style={s.countdown}>{countdown}</Text>
-                {membership.until && <Text style={s.hint}>{formatDate(membership.until, "d MMM yyyy")}</Text>}
-              </View>
-            </>
-          ) : (
-            <Text style={s.hint}>{t("pass.status.pitch")}</Text>
-          )}
+          {membership.isMember && <Text style={s.period}>{periodLabel(membership.period)}</Text>}
         </View>
-        <View style={{ width: CARD_W * CARD_SCALE, height: CARD_H * CARD_SCALE }}>
-          <View style={s.cardScaler}>
-            <MemberCard
-              displayName={profile?.display_name ?? ""}
-              isMember={membership.isMember}
-              memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
-              cardColor={profile?.card_color}
-              avatarUrl={avatarUrl}
-              circleColor={profile?.circle_color}
-              profileImageUrl={cardPhotoUrl}
-              onBuyPress={() => router.push("/settings/pass-buy" as any)}
-              startOnBack
-            />
+
+        <View style={s.cardShadow}>
+          <View style={{ width: CARD_W * CARD_SCALE, height: CARD_H * CARD_SCALE }}>
+            <View style={s.cardScaler}>
+              <MemberCard
+                displayName={profile?.display_name ?? ""}
+                isMember={membership.isMember}
+                memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
+                cardColor={profile?.card_color}
+                avatarUrl={avatarUrl}
+                circleColor={profile?.circle_color}
+                profileImageUrl={cardPhotoUrl}
+                onBuyPress={() => router.push("/settings/pass-buy" as any)}
+                startOnBack
+              />
+            </View>
           </View>
         </View>
+
+        {membership.isMember ? (
+          <View style={{ gap: 10 }}>
+            {progress !== null && (
+              <View style={s.track}>
+                <View style={[s.trackFill, { width: `${Math.round(progress * 100)}%` }]} />
+              </View>
+            )}
+            <View style={s.countdownRow}>
+              <Text style={s.countdown}>{countdown}</Text>
+              {membership.until && <Text style={s.hint}>{formatDate(membership.until, "d MMM yyyy")}</Text>}
+            </View>
+          </View>
+        ) : (
+          <Text style={[s.hint, { textAlign: "center" }]}>{t("pass.status.pitch")}</Text>
+        )}
       </View>
       {membership.waitingBonusDays > 0 && (
         <Text style={s.bonus}>{t("pass.status.bonus", { count: membership.waitingBonusDays })}</Text>
@@ -261,27 +275,28 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   cardTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.text },
   hint: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, color: c.muted },
 
-  hero: {
-    flexDirection: "row", alignItems: "center", gap: 12, minHeight: 190, paddingVertical: 20, paddingLeft: 20, paddingRight: 16,
-    borderRadius: 24, borderWidth: 1, borderColor: c.borderStrong,
-  },
+  hero: { gap: 18, padding: 18, borderRadius: 28, borderWidth: 1, borderColor: c.borderStrong },
   heroActive: { borderColor: c.goldBorder },
-  // Skalas runt mitten och flyttas sedan så att övre vänstra hörnet hamnar i sin ruta
-  cardScaler: {
-    width: CARD_W, height: CARD_H, transformOrigin: "center",
-    transform: [
-      { translateX: -(CARD_W * (1 - CARD_SCALE)) / 2 },
-      { translateY: -(CARD_H * (1 - CARD_SCALE)) / 2 },
-      { scale: CARD_SCALE },
-    ],
-  },
-  heroInfo: { flex: 1, alignSelf: "stretch", justifyContent: "space-between" },
-  statusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.faint },
-  statusLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.4, color: c.muted },
+  heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.faint },
+  statusLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.6, textTransform: "uppercase", color: c.muted },
   // Samma stil som sidans rubrik
-  period: { fontFamily: "Montserrat_700Bold", fontSize: 14, letterSpacing: 1.2, textTransform: "uppercase", color: c.text },
-  countdown: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.goldText },
+  period: { fontFamily: "Montserrat_700Bold", fontSize: 14, letterSpacing: 1.5, textTransform: "uppercase", color: c.text },
+  cardShadow: {
+    alignSelf: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
+  },
+  // Kortet skalas runt sin mitt och läggs så att det övre vänstra hörnet hamnar i sin ruta
+  cardScaler: {
+    position: "absolute", width: CARD_W, height: CARD_H,
+    left: -(CARD_W * (1 - CARD_SCALE)) / 2, top: -(CARD_H * (1 - CARD_SCALE)) / 2,
+    transform: [{ scale: CARD_SCALE }],
+  },
+  track: { height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: "hidden" },
+  trackFill: { height: 4, borderRadius: 2, backgroundColor: c.gold },
+  countdownRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  countdown: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
   bonus: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.muted, textAlign: "center" },
   from: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, textAlign: "center" },
 
