@@ -1,6 +1,6 @@
 /**
- * Inställningar › Utseende: tema (svepknapp, mörkt förvalt), kortdesign som en
- * svepbar rad med ditt eget kort i varje design, och profilring. Ringar tjänas in
+ * Inställningar › Utseende: kortdesign som en svepbar rad med ditt eget kort i varje
+ * design, profilring och underst temat (svepknapp, mörkt förvalt). Ringar tjänas in
  * och säljs aldrig; låsta ringar syns gråa med lås (src/lib/avatarRings.ts).
  * Cirkelns färg ändras på Konto, inte här.
  */
@@ -26,8 +26,8 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 const { width: SW } = Dimensions.get("window");
-const ITEM_W = Math.round(CARD_W * 0.84);
-const GAP = 14;
+const ITEM_W = Math.round(CARD_W * 0.94);
+const GAP = 12;
 const STEP = ITEM_W + GAP;
 /** Sidopadding så att mittenkortet ligger mitt på skärmen och grannarna tittar fram */
 const SIDE = (SW - ITEM_W) / 2;
@@ -95,11 +95,6 @@ export default function AppearanceSettings() {
 
   return (
     <SettingsScreen title={t("appearance.title")}>
-      <View>
-        <Text style={s.label}>{t("appearance.theme")}</Text>
-        <ThemeSwitch />
-      </View>
-
       <View>
         <Text style={s.label}>{t("appearance.cardDesign")}</Text>
         <ScrollView
@@ -177,6 +172,12 @@ export default function AppearanceSettings() {
           })}
         </View>
       </View>
+
+      <View>
+        <Text style={s.label}>{t("appearance.theme")}</Text>
+        <ThemeSwitch />
+      </View>
+
     </SettingsScreen>
   );
 }
