@@ -227,4 +227,21 @@ export const de: typeof sv = {
     },
     note: "Du musst Benachrichtigungen für Österlenappen außerdem in den Einstellungen deines Telefons erlauben.",
   },
+  about: {
+    title: "Über",
+    appName: "Österlenappen",
+    tagline: "Jeder Ort. Jede Erinnerung.",
+    description: "Dein Guide für Österlen: Orte, Events, Angebote und deine eigenen Erinnerungen.",
+    legal: {
+      title: "Rechtliches",
+      privacy: "Datenschutzerklärung",
+      terms: "Nutzungsbedingungen",
+      passTerms: "Bedingungen für den Österlen-Pass",
+      notPublished: "Dieser Text ist noch nicht veröffentlicht.",
+      updated: "Zuletzt aktualisiert am {{date}}",
+    },
+    contact: "Kontakt",
+    version: "Version {{version}}",
+    rights: "© {{year}} Österlenappen",
+  },
 };

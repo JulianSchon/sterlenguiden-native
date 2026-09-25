@@ -230,4 +230,21 @@ export const sv = {
     },
     note: "Du behöver också tillåta notiser för Österlenappen i telefonens inställningar.",
   },
+  about: {
+    title: "Om",
+    appName: "Österlenappen",
+    tagline: "Varje plats. Varje minne.",
+    description: "Din guide till Österlen: platser, event, erbjudanden och dina egna minnen.",
+    legal: {
+      title: "Juridik",
+      privacy: "Integritetspolicy",
+      terms: "Användarvillkor",
+      passTerms: "Villkor för Österlenpasset",
+      notPublished: "Den här texten är inte publicerad än.",
+      updated: "Senast uppdaterad {{date}}",
+    },
+    contact: "Kontakta oss",
+    version: "Version {{version}}",
+    rights: "© {{year}} Österlenappen",
+  },
 };

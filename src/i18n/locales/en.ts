@@ -227,4 +227,21 @@ export const en: typeof sv = {
     },
     note: "You also need to allow notifications for Österlenappen in your phone's settings.",
   },
+  about: {
+    title: "About",
+    appName: "Österlenappen",
+    tagline: "Every place. Every memory.",
+    description: "Your guide to Österlen: places, events, offers and your own memories.",
+    legal: {
+      title: "Legal",
+      privacy: "Privacy policy",
+      terms: "Terms of use",
+      passTerms: "Österlen Pass terms",
+      notPublished: "This text has not been published yet.",
+      updated: "Last updated {{date}}",
+    },
+    contact: "Contact us",
+    version: "Version {{version}}",
+    rights: "© {{year}} Österlenappen",
+  },
 };
