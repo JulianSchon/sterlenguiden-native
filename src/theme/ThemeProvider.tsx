@@ -1,15 +1,15 @@
 /**
- * Tema: mörkt, ljust eller "följ systemet". Valet sparas lokalt på enheten
+ * Tema: mörkt (förvalt) eller ljust. Valet sparas lokalt på enheten
  * (SecureStore, samma som inloggningen använder) så att det gäller redan innan
  * man loggat in. Sidor läser färger med useTheme() och bygger sina stilar med
  * useThemedStyles().
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { StyleSheet, useColorScheme } from "react-native";
+import { Appearance, StyleSheet } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { darkColors, lightColors, type ThemeColors } from "./colors";
 
-export type ThemeMode = "system" | "light" | "dark";
+export type ThemeMode = "light" | "dark";
 
 const STORAGE_KEY = "app-theme-mode";
 
@@ -24,16 +24,19 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const system = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>("system");
+  const [mode, setModeState] = useState<ThemeMode>("dark");
 
   useEffect(() => {
     SecureStore.getItemAsync(STORAGE_KEY)
       .then((stored) => {
-        if (stored === "light" || stored === "dark" || stored === "system") setModeState(stored);
+        // Ett äldre sparat "system" ignoreras och blir förvalet mörkt
+        if (stored === "light") setModeState(stored);
       })
       .catch(() => {});
   }, []);
+
+  // Systemets egna delar (tangentbord, menyer) följer appens val i stället för telefonens
+  useEffect(() => Appearance.setColorScheme(mode), [mode]);
 
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);
@@ -41,9 +44,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<ThemeContextValue>(() => {
-    const scheme = mode === "system" ? (system === "light" ? "light" : "dark") : mode;
-    return { mode, setMode, scheme, colors: scheme === "light" ? lightColors : darkColors };
-  }, [mode, system, setMode]);
+    return { mode, setMode, scheme: mode, colors: mode === "light" ? lightColors : darkColors };
+  }, [mode, setMode]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

@@ -144,7 +144,7 @@ export default function AccountSettings() {
       {/* Profilbild och cirkelfärger */}
       <View style={s.profile}>
         <View>
-          <Avatar size={96} uri={avatarUrl} name={displayName || user?.email || ""} color={circleColor} />
+          <Avatar size={96} uri={avatarUrl} name={displayName || user?.email || ""} color={circleColor} ring={profile?.avatar_ring} />
           {busyPhoto && <View style={s.busy}><ActivityIndicator color="#FFFFFF" /></View>}
         </View>
         <Text style={s.name} numberOfLines={1}>{displayName}</Text>

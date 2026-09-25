@@ -145,6 +145,7 @@ export default function PassHub() {
             cardColor={profile?.card_color}
             avatarUrl={avatarUrl}
             circleColor={profile?.circle_color}
+            avatarRing={profile?.avatar_ring}
             profileImageUrl={cardPhotoUrl}
             onBuyPress={() => router.push("/settings/pass-buy" as any)}
             startOnBack

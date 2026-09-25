@@ -34,10 +34,19 @@ export const sv = {
   appearance: {
     title: "Utseende",
     theme: "Tema",
-    themeSystem: "Följ systemet",
     themeLight: "Ljust",
     themeDark: "Mörkt",
+    themeRecommended: "Rekommenderas",
     cardDesign: "Kortdesign",
+    designs: { forest: "Skog", rapeseed: "Rapsfält", ocean: "Hav", grapes: "Druvor", obsidian: "Obsidian", copper: "Koppar", sand: "Sand" },
+    ring: {
+      title: "Profilring",
+      none: "Ingen",
+      gold: "Guld",
+      lightning: "Blixt",
+      lockedTitle: "Låst",
+      lockedBody: "Den här ringen låses upp längre fram.",
+    },
   },
   account: {
     title: "Konto",

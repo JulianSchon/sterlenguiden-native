@@ -31,10 +31,19 @@ export const de: typeof sv = {
   appearance: {
     title: "Darstellung",
     theme: "Design",
-    themeSystem: "System folgen",
     themeLight: "Hell",
     themeDark: "Dunkel",
+    themeRecommended: "Empfohlen",
     cardDesign: "Kartendesign",
+    designs: { forest: "Wald", rapeseed: "Rapsfeld", ocean: "Meer", grapes: "Trauben", obsidian: "Obsidian", copper: "Kupfer", sand: "Sand" },
+    ring: {
+      title: "Profilring",
+      none: "Keiner",
+      gold: "Gold",
+      lightning: "Blitz",
+      lockedTitle: "Gesperrt",
+      lockedBody: "Dieser Ring wird später freigeschaltet.",
+    },
   },
   account: {
     title: "Konto",

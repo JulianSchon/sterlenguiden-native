@@ -197,6 +197,7 @@ export default function OffersScreen() {
                     cardColor={(profile as any)?.card_color}
                     avatarUrl={avatarUrl}
                     circleColor={profile?.circle_color}
+                    avatarRing={profile?.avatar_ring}
                     profileImageUrl={cardPhotoUrl}
                     onBuyPress={() => {}}
                     disableFlip

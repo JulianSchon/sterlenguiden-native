@@ -787,6 +787,7 @@ export type Database = {
           notifications_enabled: boolean | null
           preferred_language: string | null
           profile_image_url: string | null
+          avatar_ring: string | null
           card_photo_changed_at: string | null
           updated_at: string
           user_id: string
@@ -814,6 +815,7 @@ export type Database = {
           notifications_enabled?: boolean | null
           preferred_language?: string | null
           profile_image_url?: string | null
+          avatar_ring?: string | null
           card_photo_changed_at?: string | null
           updated_at?: string
           user_id: string
@@ -841,6 +843,7 @@ export type Database = {
           notifications_enabled?: boolean | null
           preferred_language?: string | null
           profile_image_url?: string | null
+          avatar_ring?: string | null
           card_photo_changed_at?: string | null
           updated_at?: string
           user_id?: string

@@ -26,6 +26,7 @@ import Svg, {
 import { Crown, Radio, Camera } from "lucide-react-native";
 import { cardColors, getVariant } from "@/lib/cardVariants";
 import { initialsOf, toneOnTone } from "@/lib/color";
+import { AvatarRing } from "@/components/profile/AvatarRing";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -55,6 +56,7 @@ export function MemberCard({
   cardColor,
   avatarUrl,
   circleColor,
+  avatarRing,
   profileImageUrl,
   onBuyPress,
   showBackOnly = false,
@@ -70,6 +72,8 @@ export function MemberCard({
   avatarUrl?: string | null;
   /** Användarens valda cirkelfärg när ingen profilbild finns */
   circleColor?: string | null;
+  /** Profilringen runt profilbilden (se src/lib/avatarRings.ts) */
+  avatarRing?: string | null;
   profileImageUrl?: string | null;
   onBuyPress: () => void;
   /** Låser kortet till baksidan utan flip — används av aktiva erbjudande-vyn,
@@ -246,17 +250,19 @@ export function MemberCard({
         {/* Övre rad: avatar + Radio-ikon */}
         <View style={mc.topRow}>
           <View style={[mc.avatarShadow, { shadowColor: "#000" }]}>
-            <View style={mc.avatarRing}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
-              ) : (
-                <View style={[mc.avatarInner, { backgroundColor: circleColor ?? colors.avatarBg }]}>
-                  <Text style={[mc.avatarInitials, { color: circleColor ? toneOnTone(circleColor) : colors.avatarInitials }]}>
-                    {initialsOf(displayName)}
-                  </Text>
-                </View>
-              )}
-            </View>
+            <AvatarRing ring={avatarRing} size={64 * k}>
+              <View style={mc.avatarRing}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
+                ) : (
+                  <View style={[mc.avatarInner, { backgroundColor: circleColor ?? colors.avatarBg }]}>
+                    <Text style={[mc.avatarInitials, { color: circleColor ? toneOnTone(circleColor) : colors.avatarInitials }]}>
+                      {initialsOf(displayName)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </AvatarRing>
           </View>
           <Radio size={20 * k} color={colors.accent} strokeWidth={1.5} style={{ marginTop: 4 * k }} />
         </View>

@@ -74,7 +74,7 @@ export default function SettingsHub() {
         {/* Blocken tonas in ett i taget: sidan veckas ut uppifrån och ner */}
         <Rise index={0}>
           <TouchableOpacity style={s.profile} activeOpacity={0.8} onPress={() => router.push("/settings/account" as any)}>
-            <Avatar size={76} uri={photo} name={displayName} color={profile?.circle_color ?? "#2A2A2A"} />
+            <Avatar size={76} uri={photo} name={displayName} color={profile?.circle_color ?? "#2A2A2A"} ring={profile?.avatar_ring} />
             <Text style={s.name} numberOfLines={1}>{displayName}</Text>
           </TouchableOpacity>
         </Rise>

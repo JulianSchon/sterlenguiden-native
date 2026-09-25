@@ -31,10 +31,19 @@ export const en: typeof sv = {
   appearance: {
     title: "Appearance",
     theme: "Theme",
-    themeSystem: "Follow system",
     themeLight: "Light",
     themeDark: "Dark",
+    themeRecommended: "Recommended",
     cardDesign: "Card design",
+    designs: { forest: "Forest", rapeseed: "Rapeseed field", ocean: "Sea", grapes: "Grapes", obsidian: "Obsidian", copper: "Copper", sand: "Sand" },
+    ring: {
+      title: "Profile ring",
+      none: "None",
+      gold: "Gold",
+      lightning: "Lightning",
+      lockedTitle: "Locked",
+      lockedBody: "This ring will be unlocked later.",
+    },
   },
   account: {
     title: "Account",

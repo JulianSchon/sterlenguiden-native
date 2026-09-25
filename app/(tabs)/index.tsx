@@ -39,6 +39,7 @@ import { usePlaces, isPlaceOpen, getTierScore, type Place } from "@/hooks/usePla
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { AvatarRing } from "@/components/profile/AvatarRing";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { useFavorites, useToggleFavorite, useIsFavorite } from "@/hooks/useFavorites";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
@@ -658,19 +659,21 @@ export default function HomeScreen() {
             onPress={() => router.push("/(tabs)/profile" as any)}
             activeOpacity={0.85}
           >
-            <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
-              {avatarUrl ? (
-                <Image
-                  source={{ uri: avatarUrl }}
-                  style={StyleSheet.absoluteFill}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Text style={[s.avatarInitials, { color: toneOnTone(profile?.circle_color ?? "#2A2A2A") }]}>
-                  {initialsOf(profile?.display_name ?? "") || "?"}
-                </Text>
-              )}
-            </View>
+            <AvatarRing ring={profile?.avatar_ring} size={50}>
+              <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
+                {avatarUrl ? (
+                  <Image
+                    source={{ uri: avatarUrl }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={[s.avatarInitials, { color: toneOnTone(profile?.circle_color ?? "#2A2A2A") }]}>
+                    {initialsOf(profile?.display_name ?? "") || "?"}
+                  </Text>
+                )}
+              </View>
+            </AvatarRing>
             <View style={s.levelBadge}>
               <Text style={s.levelText}>1</Text>
             </View>

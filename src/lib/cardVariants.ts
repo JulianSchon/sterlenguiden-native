@@ -21,7 +21,6 @@ export type CardVariant = {
   glow?: string;     // Radial-glow, rgba-sträng
   bgImage?: any;     // require()'d PNG – sätts när Figma-bild finns
   light: boolean;    // true = ljust kort → mörk text
-  premium?: boolean; // true = enbart Österlenpasset-innehavare
 };
 
 export type CardColors = {
@@ -107,7 +106,6 @@ export const CARD_VARIANTS: CardVariant[] = [
     bg2: "#1C1C1C",
     bgImage: require("../../assets/cards/card-obsidian.png"),
     light: false,
-    premium: true,
   },
   {
     id: "copper",
@@ -116,7 +114,6 @@ export const CARD_VARIANTS: CardVariant[] = [
     bg2: "#2C1A0E",
     bgImage: require("../../assets/cards/card-copper.png"),
     light: false,
-    premium: true,
   },
   {
     id: "sand",

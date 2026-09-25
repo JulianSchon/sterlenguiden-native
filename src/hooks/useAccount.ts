@@ -89,6 +89,8 @@ type ProfileChanges = {
   circle_color?: string;
   birth_date?: string;
   lives_in_osterlen?: boolean;
+  card_color?: string;
+  avatar_ring?: string;
 };
 
 /**
