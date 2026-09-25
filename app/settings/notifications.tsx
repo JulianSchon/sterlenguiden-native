@@ -88,7 +88,7 @@ export default function NotificationsSettings() {
                   const active = prefs.towns.includes(town);
                   return (
                     <TouchableOpacity key={town} style={[s.chip, active && s.chipActive]} activeOpacity={0.8} onPress={() => toggleTown(town)}>
-                      <Text style={[s.chipText, active && { color: colors.goldText }]}>{town}</Text>
+                      <Text style={[s.chipText, active && { color: colors.goldText }]} numberOfLines={1}>{town}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -116,7 +116,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
 
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    height: 38, paddingHorizontal: 14, justifyContent: "center", borderRadius: 19,
     borderWidth: 1, borderColor: c.borderStrong, backgroundColor: "transparent",
   },
   chipActive: { borderColor: c.goldBorder, backgroundColor: c.goldSoft },

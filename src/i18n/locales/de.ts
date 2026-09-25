@@ -225,6 +225,6 @@ export const de: typeof sv = {
       pick: "Wähle die Orte, von denen du Benachrichtigungen möchtest.",
       hint: "Gilt für neue Events und Angebote. Mit ganz Österlen bekommst du alles, mit Orten nur das, was in der Nähe ist.",
     },
-    note: "Du musst Benachrichtigungen für Österlenguiden außerdem in den Einstellungen deines Telefons erlauben.",
+    note: "Du musst Benachrichtigungen für Österlenappen außerdem in den Einstellungen deines Telefons erlauben.",
   },
 };

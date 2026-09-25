@@ -5,6 +5,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { uniqueTowns } from "@/lib/towns";
 
 export interface NotificationPrefs {
   events: boolean;
@@ -74,8 +75,7 @@ export function usePlaceTowns() {
     queryFn: async (): Promise<string[]> => {
       const { data, error } = await supabase.from("places").select("nearest_town").not("nearest_town", "is", null);
       if (error) throw error;
-      const towns = new Set((data ?? []).map((r) => r.nearest_town as string).filter(Boolean));
-      return [...towns].sort((a, b) => a.localeCompare(b, "sv"));
+      return uniqueTowns((data ?? []).map((r) => r.nearest_town as string));
     },
   });
 }

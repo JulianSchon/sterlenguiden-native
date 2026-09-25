@@ -228,6 +228,6 @@ export const sv = {
       pick: "Välj de orter du vill ha notiser från.",
       hint: "Gäller nya event och erbjudanden. Väljer du hela Österlen får du allt, och väljer du orter får du bara det som är nära.",
     },
-    note: "Du behöver också tillåta notiser för Österlenguiden i telefonens inställningar.",
+    note: "Du behöver också tillåta notiser för Österlenappen i telefonens inställningar.",
   },
 };

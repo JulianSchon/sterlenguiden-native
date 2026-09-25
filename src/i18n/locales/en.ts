@@ -225,6 +225,6 @@ export const en: typeof sv = {
       pick: "Choose the towns you want notifications from.",
       hint: "Applies to new events and offers. Choose all of Österlen to get everything, or pick towns to only hear about what's close.",
     },
-    note: "You also need to allow notifications for Österlenguiden in your phone's settings.",
+    note: "You also need to allow notifications for Österlenappen in your phone's settings.",
   },
 };
