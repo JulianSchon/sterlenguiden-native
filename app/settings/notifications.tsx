@@ -6,7 +6,7 @@
  */
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Crown, Newspaper, Tag, type LucideIcon } from "lucide-react-native";
+import { CalendarDays, Check, Crown, Newspaper, Tag, type LucideIcon } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useNotificationPrefs, useUpdateNotificationPrefs, usePlaceTowns, type NotificationPrefs } from "@/hooks/useNotificationPrefs";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
@@ -74,7 +74,8 @@ export default function NotificationsSettings() {
               const active = prefs.scope === scope;
               return (
                 <TouchableOpacity key={scope} style={[s.segmentItem, active && s.segmentItemActive]} activeOpacity={0.8} onPress={() => chooseScope(scope)}>
-                  <Text style={[s.segmentText, active && { color: colors.text }]}>{t(`notifications.area.${scope}`)}</Text>
+                  {active && <Check size={16} color={colors.onGold} strokeWidth={3} />}
+                  <Text style={[s.segmentText, active && { color: colors.onGold }]}>{t(`notifications.area.${scope}`)}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -110,8 +111,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     paddingLeft: 6, textTransform: "uppercase",
   },
   segment: { flexDirection: "row", padding: 4, gap: 4, borderRadius: 16, backgroundColor: c.fill },
-  segmentItem: { flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: "transparent" },
-  segmentItemActive: { backgroundColor: c.card, borderColor: c.goldBorder },
+  segmentItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12 },
+  // Det valda alternativet är fyllt med guld och har en bock, så det inte går att missta sig
+  segmentItemActive: { backgroundColor: c.gold },
   segmentText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.muted },
 
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
