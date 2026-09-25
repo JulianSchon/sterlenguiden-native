@@ -77,6 +77,7 @@ export function MemberCard({
   profileImageUrl,
   onBuyPress,
   showBackOnly = false,
+  startOnBack = false,
   disableFlip = false,
   onCardPress,
 }: {
@@ -92,6 +93,8 @@ export function MemberCard({
   /** Låser kortet till baksidan utan flip — används av aktiva erbjudande-vyn,
    *  där kortet bara är personalens verifieringsunderlag. */
   showBackOnly?: boolean;
+  /** Visar baksidan först men går fortfarande att vända (bara för medlemmar). */
+  startOnBack?: boolean;
   /** Låser kortet till framsidan — inget flip vid tryck för medlemmar.
    *  Används där kortet bara ska visas (t.ex. Förmåner-sidans hero),
    *  inte fungera som verifieringsyta. onBuyPress gäller fortfarande
@@ -101,9 +104,9 @@ export function MemberCard({
   onCardPress?: () => void;
 }) {
   // flipAnim 1 = baksidan vänd mot betraktaren (backRotate landar på 360°)
-  const flipAnim  = useRef(new Animated.Value(showBackOnly ? 1 : 0)).current;
+  const flipAnim  = useRef(new Animated.Value(showBackOnly || (startOnBack && isMember) ? 1 : 0)).current;
   const sweepAnim = useRef(new Animated.Value(0)).current;
-  const [isFlipped, setIsFlipped]           = useState(showBackOnly);
+  const [isFlipped, setIsFlipped]           = useState(showBackOnly || (startOnBack && isMember));
   const [time, setTime]                     = useState(new Date());
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
 
@@ -112,6 +115,13 @@ export function MemberCard({
   const hasPng  = !!(variant?.bgImage);          // alla varianter med bgImage får PNG
   const colors  = variant ? cardColors(variant) : NON_MEMBER_COLORS;
   const baseBg  = isMember ? (variant?.bg ?? "#0A0A0A") : "#110D07";
+
+  // Medlemskapet laddas efter första bilden; då ska kortet ändå landa på baksidan
+  useEffect(() => {
+    if (!startOnBack || !isMember) return;
+    flipAnim.setValue(1);
+    setIsFlipped(true);
+  }, [startOnBack, isMember]);
 
   // Light sweep (member only)
   useEffect(() => {

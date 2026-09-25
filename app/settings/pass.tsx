@@ -4,18 +4,19 @@
  * egen skärm (settings/pass-buy.tsx), presenten på settings/pass-gift.tsx och
  * medlemskapet hanteras på settings/pass-manage.tsx. Tomma listor visas inte alls.
  */
+import { useMemo } from "react";
 import { View, Text, Image, Pressable, TouchableOpacity, Alert, Share, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { differenceInCalendarDays } from "date-fns";
-import { ArrowUp, Camera, Copy, Gift, Settings2, Tag, Ticket, type LucideIcon } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Camera, Copy, Gift, Settings2, Tag, Ticket, type LucideIcon } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
 import { useIsBusiness } from "@/hooks/useUserRole";
 import { useOffers } from "@/hooks/useOffers";
 import { usePassProducts } from "@/hooks/usePassProducts";
-import { usePassPurchases, usePassGifts } from "@/hooks/usePassHistory";
+import { usePassPurchases, usePassGifts, useRedeemedGifts } from "@/hooks/usePassHistory";
 import { usePeriodLabel } from "@/hooks/usePeriodLabel";
 import { useAvatarUrl, useCardPhotoUrl } from "@/hooks/useAvatarUrl";
 import { useChangeCardPhoto, nextCardPhotoChange } from "@/hooks/useCardPhoto";
@@ -24,13 +25,17 @@ import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { GradientCard } from "@/components/GradientCard";
-import { MemberCard } from "@/components/MemberCard";
+import { MemberCard, CARD_W, CARD_H } from "@/components/MemberCard";
 import { ActivityRow, AmountColumn, CardLine } from "@/components/pass/ActivityRow";
 import { PrimaryButton } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 const longDate = (d: Date | string) => formatDate(d, "d MMMM yyyy");
+const shortDate = (d: Date | string) => formatDate(d, "d MMM");
+
+/** Kortet visas i miniformat i statusrutan */
+const CARD_SCALE = 0.52;
 
 /** Rund snabbknapp med etikett under, som i bankappar. */
 function QuickAction({ icon: Icon, label, badge, onPress }: { icon: LucideIcon; label: string; badge?: number; onPress: () => void }) {
@@ -66,6 +71,7 @@ export default function PassHub() {
   const { data: products = [] } = usePassProducts();
   const { data: purchases = [] } = usePassPurchases();
   const { data: gifts = [] } = usePassGifts();
+  const { data: redeemed = [] } = useRedeemedGifts();
   const avatarUrl = useAvatarUrl();
   const cardPhotoUrl = useCardPhotoUrl();
   const changeCardPhoto = useChangeCardPhoto();
@@ -85,14 +91,20 @@ export default function PassHub() {
   }
 
   const validity = membership.renewsOn
-    ? t("pass.status.renews", { date: longDate(membership.renewsOn) })
+    ? t("pass.status.renews", { date: shortDate(membership.renewsOn) })
     : membership.until
-      ? t("pass.status.until", { date: longDate(membership.until) })
+      ? t("pass.status.until", { date: shortDate(membership.until) })
       : t("pass.status.unlimited");
 
   const daysLeft = membership.until ? Math.max(0, differenceInCalendarDays(membership.until, new Date())) : null;
   const cheapest = products.length ? Math.round(Math.min(...products.map((p) => p.priceSek))) : null;
   const nextPhotoChange = nextCardPhotoChange(profile);
+
+  // Köp och inlösta koder i en lista, nyast först
+  const history = useMemo(() => [
+    ...purchases.map((p) => ({ type: "purchase" as const, id: p.id, at: p.createdAt, purchase: p })),
+    ...redeemed.map((r) => ({ type: "redeemed" as const, id: r.id, at: r.claimedAt, gift: r })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()), [purchases, redeemed]);
 
   const changePhoto = () => {
     if (nextPhotoChange) Alert.alert(t("pass.card.title"), t("pass.card.next", { date: longDate(nextPhotoChange) }));
@@ -107,35 +119,47 @@ export default function PassHub() {
 
   return (
     <SettingsScreen title={t("pass.title")}>
-      <MemberCard
-        displayName={profile?.display_name ?? ""}
-        isMember={membership.isMember}
-        memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
-        cardColor={profile?.card_color}
-        avatarUrl={avatarUrl}
-        circleColor={profile?.circle_color}
-        profileImageUrl={cardPhotoUrl}
-        onBuyPress={() => router.push("/settings/pass-buy" as any)}
-      />
-
-      {/* Status under kortet */}
-      <View style={s.status}>
-        {membership.isMember ? (
-          <>
-            <Text style={s.statusLine}>
-              {periodLabel(membership.period)}{membership.period ? " · " : ""}{validity}
+      {/* Statusruta: kortet i miniformat (baksidan först, går att vända) och status bredvid.
+          Genomskinlig med guldkant för medlemmar, grå kant annars. */}
+      <View style={[s.hero, membership.isMember && s.heroActive]}>
+        <View style={{ width: CARD_W * CARD_SCALE, height: CARD_H * CARD_SCALE }}>
+          <View style={s.cardScaler}>
+            <MemberCard
+              displayName={profile?.display_name ?? ""}
+              isMember={membership.isMember}
+              memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
+              cardColor={profile?.card_color}
+              avatarUrl={avatarUrl}
+              circleColor={profile?.circle_color}
+              profileImageUrl={cardPhotoUrl}
+              onBuyPress={() => router.push("/settings/pass-buy" as any)}
+              startOnBack
+            />
+          </View>
+        </View>
+        <View style={s.heroInfo}>
+          <View style={s.statusRow}>
+            <View style={[s.dot, membership.isMember && { backgroundColor: colors.success }]} />
+            <Text style={[s.statusLabel, membership.isMember && { color: colors.success }]}>
+              {membership.isMember ? t("pass.status.active") : t("pass.status.none")}
             </Text>
-            {daysLeft !== null && (
-              <Text style={s.daysLeft}>{daysLeft === 1 ? t("pass.status.dayLeft") : t("pass.status.daysLeft", { count: daysLeft })}</Text>
-            )}
-            {membership.waitingBonusDays > 0 && (
-              <Text style={s.hint}>{t("pass.status.bonus", { count: membership.waitingBonusDays })}</Text>
-            )}
-          </>
-        ) : (
-          <Text style={s.statusLine}>{t("pass.status.pitch")}</Text>
-        )}
+          </View>
+          {membership.isMember ? (
+            <>
+              <Text style={s.period}>{periodLabel(membership.period)}</Text>
+              <Text style={s.hint}>{validity}</Text>
+              {daysLeft !== null && (
+                <Text style={s.daysLeft}>{daysLeft === 1 ? t("pass.status.dayLeft") : t("pass.status.daysLeft", { count: daysLeft })}</Text>
+              )}
+            </>
+          ) : (
+            <Text style={s.hint}>{t("pass.status.pitch")}</Text>
+          )}
+        </View>
       </View>
+      {membership.waitingBonusDays > 0 && (
+        <Text style={s.bonus}>{t("pass.status.bonus", { count: membership.waitingBonusDays })}</Text>
+      )}
 
       {!membership.isMember && (
         <View style={{ gap: 8 }}>
@@ -166,19 +190,28 @@ export default function PassHub() {
         </SettingsGroup>
       )}
 
-      {purchases.length > 0 && (
+      {history.length > 0 && (
         <View>
           <Text style={s.groupLabel}>{t("pass.history.title")}</Text>
           <View style={{ gap: 10 }}>
-            {purchases.map((p) => (
+            {history.map((entry) => entry.type === "purchase" ? (
               <ActivityRow
-                key={p.id}
-                icon={p.kind === "gift" ? Gift : ArrowUp}
-                title={periodLabel(p.period)}
-                subtitle={p.cardLast4
-                  ? <CardLine brand={p.cardBrand} last4={p.cardLast4} />
-                  : p.kind === "gift" ? t("pass.history.gift") : t("pass.history.self")}
-                right={<AmountColumn amount={`− ${p.priceSek} kr`} date={formatDate(p.createdAt, "d MMM yyyy")} />}
+                key={`purchase-${entry.id}`}
+                icon={entry.purchase.kind === "gift" ? Gift : ArrowUp}
+                title={periodLabel(entry.purchase.period)}
+                subtitle={entry.purchase.cardLast4
+                  ? <CardLine brand={entry.purchase.cardBrand} last4={entry.purchase.cardLast4} />
+                  : entry.purchase.kind === "gift" ? t("pass.history.gift") : t("pass.history.self")}
+                right={<AmountColumn amount={`− ${entry.purchase.priceSek} kr`} date={formatDate(entry.at, "d MMM yyyy")} />}
+              />
+            ) : (
+              <ActivityRow
+                key={`redeemed-${entry.id}`}
+                icon={ArrowDown}
+                tone="success"
+                title={periodLabel(entry.gift.period)}
+                subtitle={t("pass.history.redeemed")}
+                right={<AmountColumn positive amount={`+ ${entry.gift.priceSek} kr`} date={formatDate(entry.at, "d MMM yyyy")} />}
               />
             ))}
           </View>
@@ -193,7 +226,7 @@ export default function PassHub() {
               <ActivityRow
                 key={g.id}
                 icon={Gift}
-                gold
+                tone="gold"
                 title={g.recipientName || t("pass.given.fallbackName")}
                 subtitle={[
                   periodLabel(g.period),
@@ -230,9 +263,19 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   cardTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.text },
   hint: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, color: c.muted },
 
-  status: { alignItems: "center", gap: 4, paddingHorizontal: 8 },
-  statusLine: { fontFamily: "Inter_500Medium", fontSize: 14, lineHeight: 20, color: c.muted, textAlign: "center" },
+  hero: {
+    flexDirection: "row", alignItems: "center", gap: 14, padding: 12,
+    borderRadius: 22, borderWidth: 1, borderColor: c.borderStrong,
+  },
+  heroActive: { borderColor: c.goldBorder },
+  cardScaler: { width: CARD_W, height: CARD_H, transformOrigin: "top left", transform: [{ scale: CARD_SCALE }] },
+  heroInfo: { flex: 1, gap: 4 },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.faint },
+  statusLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.4, color: c.muted },
+  period: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.text },
   daysLeft: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.goldText },
+  bonus: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.muted, textAlign: "center" },
   from: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, textAlign: "center" },
 
   actions: { flexDirection: "row", justifyContent: "space-evenly" },

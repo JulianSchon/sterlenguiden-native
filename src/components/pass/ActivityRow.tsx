@@ -10,11 +10,11 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 export function ActivityRow({
-  icon: Icon, gold = false, title, subtitle, right,
+  icon: Icon, tone = "neutral", title, subtitle, right,
 }: {
   icon: LucideIcon;
-  /** Guldig ikonruta (gåvor) i stället för neutral (köp) */
-  gold?: boolean;
+  /** Ikonrutans ton: neutral (köp), guld (gåvor du gett) eller grön (pengar in) */
+  tone?: "neutral" | "gold" | "success";
   title: string;
   /** Text eller eget innehåll (t.ex. CardLine) under rubriken */
   subtitle?: ReactNode;
@@ -25,8 +25,8 @@ export function ActivityRow({
   return (
     <GradientCard radius={30}>
       <View style={s.row}>
-        <View style={[s.circle, gold && s.circleGold]}>
-          <Icon size={20} color={gold ? colors.goldText : colors.muted} strokeWidth={1.7} />
+        <View style={[s.circle, tone === "gold" && s.circleGold, tone === "success" && s.circleSuccess]}>
+          <Icon size={20} color={tone === "gold" ? colors.goldText : tone === "success" ? colors.success : colors.muted} strokeWidth={1.7} />
         </View>
         <View style={{ flex: 1, gap: 5 }}>
           <Text style={s.title} numberOfLines={1}>{title}</Text>
@@ -38,12 +38,13 @@ export function ActivityRow({
   );
 }
 
-/** Beloppet och datumet till höger på en köprad: "− 69 kr" och 12 okt 2026. */
-export function AmountColumn({ amount, date }: { amount: string; date: string }) {
+/** Beloppet och datumet till höger på en rad: "− 69 kr" (köp) eller grönt "+ 69 kr" (inlöst). */
+export function AmountColumn({ amount, date, positive = false }: { amount: string; date: string; positive?: boolean }) {
+  const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
     <View style={s.amountColumn}>
-      <Text style={s.amount}>{amount}</Text>
+      <Text style={[s.amount, positive && { color: colors.success }]}>{amount}</Text>
       <Text style={s.subtitle}>{date}</Text>
     </View>
   );
@@ -78,6 +79,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.fill,
   },
   circleGold: { backgroundColor: c.goldSoft },
+  circleSuccess: { backgroundColor: `${c.success}22` },
   title: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted },
   amountColumn: { alignItems: "flex-end", gap: 5 },

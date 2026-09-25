@@ -94,7 +94,7 @@ export const en: typeof sv = {
       body: "The Österlen Pass is for visitors and can't be bought with a business account.",
     },
     status: {
-      active: "Active Österlen Pass",
+      active: "Active",
       none: "No active pass",
       pitch: "Discounts and perks at local businesses in Österlen.",
       from: "From {{price}} SEK",
@@ -128,7 +128,7 @@ export const en: typeof sv = {
       cancel: "Stop renewal",
       soon: "Soon you'll be able to stop renewal here. It opens once payments are in place.",
     },
-    history: { title: "Purchase history", self: "Own purchase", gift: "Gift" },
+    history: { title: "History", self: "Own purchase", gift: "Gift", redeemed: "Redeemed gift code" },
     given: {
       title: "Gifts you've given",
       fallbackName: "Gift card",

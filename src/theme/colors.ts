@@ -42,6 +42,8 @@ export interface ThemeColors {
   /** Dämpad varm ton för mindre viktig text (som "Varje plats. Varje minne." på Profil) */
   warm: string;
   danger: string;
+  /** Pengar in, aktiv status */
+  success: string;
   /** Mörkläggning bakom paneler och dialoger */
   overlay: string;
 }
@@ -68,6 +70,7 @@ export const darkColors: ThemeColors = {
   purple: "#A78BFA",
   warm: "#A09880",
   danger: "#EF4444",
+  success: "#34C759",
   overlay: "rgba(0,0,0,0.6)",
 };
 
@@ -93,5 +96,6 @@ export const lightColors: ThemeColors = {
   purple: "#7C3AED",
   warm: "#7A6F55",
   danger: "#DC2626",
+  success: "#1E9E4A",
   overlay: "rgba(20,15,5,0.45)",
 };

@@ -25,6 +25,15 @@ export interface PassGift {
   createdAt: string;
 }
 
+/** En kod du själv löst in: tiden du fick i present. */
+export interface RedeemedGift {
+  id: string;
+  period: string;
+  /** Vad presenten var värd */
+  priceSek: number;
+  claimedAt: string;
+}
+
 async function requireUserId(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id ?? null;
@@ -45,6 +54,25 @@ export function usePassPurchases() {
       return (data ?? []).map((r) => ({
         id: r.id, kind: r.kind, period: r.period, priceSek: r.price, createdAt: r.created_at,
         cardBrand: r.card_brand ?? null, cardLast4: r.card_last4 ?? null,
+      }));
+    },
+  });
+}
+
+export function useRedeemedGifts() {
+  return useQuery({
+    queryKey: ["pass-redeemed"],
+    queryFn: async (): Promise<RedeemedGift[]> => {
+      const userId = await requireUserId();
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from("pass_gifts")
+        .select("*")
+        .eq("claimed_by", userId)
+        .order("claimed_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((r) => ({
+        id: r.id, period: r.period, priceSek: r.price, claimedAt: r.claimed_at ?? r.created_at,
       }));
     },
   });

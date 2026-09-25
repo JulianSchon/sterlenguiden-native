@@ -94,7 +94,7 @@ export const de: typeof sv = {
       body: "Der Österlen-Pass ist für Besucher gedacht und kann nicht mit einem Firmenkonto gekauft werden.",
     },
     status: {
-      active: "Aktiver Österlen-Pass",
+      active: "Aktiv",
       none: "Kein aktiver Pass",
       pitch: "Rabatte und Vorteile bei lokalen Unternehmen in Österlen.",
       from: "Ab {{price}} SEK",
@@ -128,7 +128,7 @@ export const de: typeof sv = {
       cancel: "Verlängerung beenden",
       soon: "Hier kannst du bald die Verlängerung beenden. Das wird freigeschaltet, sobald die Zahlung eingerichtet ist.",
     },
-    history: { title: "Kaufverlauf", self: "Eigener Kauf", gift: "Geschenk" },
+    history: { title: "Verlauf", self: "Eigener Kauf", gift: "Geschenk", redeemed: "Eingelöster Geschenkcode" },
     given: {
       title: "Von dir verschenkt",
       fallbackName: "Geschenkkarte",

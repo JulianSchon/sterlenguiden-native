@@ -97,7 +97,7 @@ export const sv = {
       body: "Österlenpasset är till för besökare och kan inte köpas med ett företagskonto.",
     },
     status: {
-      active: "Aktivt Österlenpass",
+      active: "Aktiv",
       none: "Inget aktivt pass",
       pitch: "Rabatter och förmåner hos lokala företag på Österlen.",
       from: "Från {{price}} kr",
@@ -131,7 +131,7 @@ export const sv = {
       cancel: "Avsluta förnyelse",
       soon: "Här kan du snart avsluta förnyelsen. Det öppnas när betalningen är på plats.",
     },
-    history: { title: "Köphistorik", self: "Eget köp", gift: "Present" },
+    history: { title: "Historik", self: "Eget köp", gift: "Present", redeemed: "Inlöst presentkod" },
     given: {
       title: "Presenter du gett bort",
       fallbackName: "Presentkort",
