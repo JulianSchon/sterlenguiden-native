@@ -1,16 +1,16 @@
 /**
- * Inställningar › Utseende: förhandsvisning av kortet med vald design och ring,
- * tema (mörkt rekommenderas, eller ljust), kortdesign och profilring. Ringar
- * tjänas in och säljs aldrig; låsta ringar syns gråa med lås (src/lib/avatarRings.ts).
+ * Inställningar › Utseende: tema (svepknapp, mörkt förvalt), kortdesign som en
+ * svepbar rad med ditt eget kort i varje design, och profilring. Ringar tjänas in
+ * och säljs aldrig; låsta ringar syns gråa med lås (src/lib/avatarRings.ts).
  * Cirkelns färg ändras på Konto, inte här.
  */
-import { View, Text, TouchableOpacity, ImageBackground, Alert, StyleSheet } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  View, Text, TouchableOpacity, ScrollView, Alert, Dimensions, StyleSheet,
+  type NativeScrollEvent, type NativeSyntheticEvent,
+} from "react-native";
 import { useTranslation } from "react-i18next";
-import { Check, Lock, Moon, Sun, type LucideIcon } from "lucide-react-native";
-import Svg, {
-  Defs, LinearGradient as SvgGrad, RadialGradient as SvgRadial,
-  Stop, Rect as SvgRect,
-} from "react-native-svg";
+import { Lock } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpdateProfile } from "@/hooks/useAccount";
@@ -19,76 +19,62 @@ import { CARD_VARIANTS } from "@/lib/cardVariants";
 import { AVATAR_RINGS } from "@/lib/avatarRings";
 import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { MemberCard, CARD_W } from "@/components/MemberCard";
 import { Avatar } from "@/components/profile/Avatar";
-import { useTheme, useThemedStyles, type ThemeMode } from "@/theme/ThemeProvider";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-const PREVIEW_WIDTH = Math.round(CARD_W * 0.9);
-// Två kort per rad: sidans bredd minus mellanrum
-const MINI_W = Math.floor((CARD_W - 12) / 2);
-const MINI_H = Math.round(MINI_W * 0.54);
-
-// Mörkt först: det är förvalet och det som rekommenderas
-const THEME_OPTIONS: { mode: ThemeMode; icon: LucideIcon; key: "themeDark" | "themeLight" }[] = [
-  { mode: "dark", icon: Moon, key: "themeDark" },
-  { mode: "light", icon: Sun, key: "themeLight" },
-];
-
-/** Mini-förhandsgranskning av ett kort — bild eller SVG-gradient */
-function MiniCard({ variantId, name, isSelected }: { variantId: string; name: string; isSelected: boolean }) {
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
-  const v = CARD_VARIANTS.find((x) => x.id === variantId)!;
-  return (
-    <View style={[s.miniCard, isSelected && { borderColor: colors.gold, borderWidth: 2 }]}>
-      {v.bgImage ? (
-        <ImageBackground source={v.bgImage} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      ) : (
-        <Svg style={StyleSheet.absoluteFill} width={MINI_W} height={MINI_H}>
-          <Defs>
-            <SvgGrad id={`g_${v.id}`} x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor={v.bg} />
-              <Stop offset="100%" stopColor={v.bg2} />
-            </SvgGrad>
-            {v.glow ? (
-              <SvgRadial id={`r_${v.id}`} cx="70%" cy="30%" rx="60%" ry="60%">
-                <Stop offset="0%" stopColor={v.glow} stopOpacity={1} />
-                <Stop offset="100%" stopColor={v.glow} stopOpacity={0} />
-              </SvgRadial>
-            ) : null}
-          </Defs>
-          <SvgRect x={0} y={0} width={MINI_W} height={MINI_H} fill={`url(#g_${v.id})`} />
-          {v.glow ? <SvgRect x={0} y={0} width={MINI_W} height={MINI_H} fill={`url(#r_${v.id})`} /> : null}
-        </Svg>
-      )}
-
-      {/* Namnet ligger alltid som vit text med skugga så det syns på alla kort */}
-      <View style={{ position: "absolute", bottom: 7, left: 10 }}>
-        <Text style={s.miniName}>{name.toUpperCase()}</Text>
-      </View>
-
-      {isSelected && (
-        <View style={s.miniCheck}>
-          <Check size={9} color={colors.onGold} strokeWidth={3} />
-        </View>
-      )}
-    </View>
-  );
-}
+const { width: SW } = Dimensions.get("window");
+const ITEM_W = Math.round(CARD_W * 0.84);
+const GAP = 14;
+const STEP = ITEM_W + GAP;
+/** Sidopadding så att mittenkortet ligger mitt på skärmen och grannarna tittar fram */
+const SIDE = (SW - ITEM_W) / 2;
+/** SettingsScreen har 16 px marginal; raden ska gå kant i kant */
+const BODY_MARGIN = 16;
 
 export default function AppearanceSettings() {
   const { t } = useTranslation();
-  const { colors, mode, setMode } = useTheme();
+  const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const { data: profile } = useProfile();
   const avatarUrl = useAvatarUrl();
   const updateProfile = useUpdateProfile();
 
-  const cardColor = profile?.card_color ?? CARD_VARIANTS[0].id;
+  const savedIndex = Math.max(0, CARD_VARIANTS.findIndex((v) => v.id === (profile?.card_color ?? CARD_VARIANTS[0].id)));
   const ring = profile?.avatar_ring ?? "none";
   const displayName = profile?.display_name ?? "";
   const circleColor = profile?.circle_color ?? "#2A2A2A";
+
+  const scroller = useRef<ScrollView>(null);
+  const [index, setIndex] = useState(savedIndex);
+  const positioned = useRef(false);
+
+  // Raden startar på det kort som är valt; profilen kan komma efter första bilden
+  useEffect(() => {
+    if (!profile || positioned.current) return;
+    positioned.current = true;
+    setIndex(savedIndex);
+    scroller.current?.scrollTo({ x: savedIndex * STEP, animated: false });
+  }, [profile, savedIndex]);
+
+  const indexAt = (e: NativeSyntheticEvent<NativeScrollEvent>) =>
+    Math.min(CARD_VARIANTS.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / STEP)));
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = indexAt(e);
+    if (next !== index) {
+      Haptics.selectionAsync().catch(() => {});
+      setIndex(next);
+    }
+  };
+
+  // Designen sparas när raden stannat
+  const onSettled = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = indexAt(e);
+    if (CARD_VARIANTS[next].id !== profile?.card_color) updateProfile.mutate({ card_color: CARD_VARIANTS[next].id });
+  };
 
   const designNames = {
     forest: t("appearance.designs.forest"),
@@ -105,63 +91,60 @@ export default function AppearanceSettings() {
     lightning: t("appearance.ring.lightning"),
   } as Record<string, string>;
 
+  const current = CARD_VARIANTS[index];
+
   return (
     <SettingsScreen title={t("appearance.title")}>
-      {/* Förhandsvisning: visar alltid framsidan med vald design och ring, även utan pass */}
-      <View style={s.preview}>
-        <MemberCard
-          width={PREVIEW_WIDTH}
-          displayName={displayName}
-          isMember
-          disableFlip
-          memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
-          cardColor={cardColor}
-          avatarUrl={avatarUrl}
-          circleColor={circleColor}
-          avatarRing={ring}
-          onBuyPress={() => {}}
-        />
-      </View>
-
       <View>
         <Text style={s.label}>{t("appearance.theme")}</Text>
-        <View style={s.themeRow}>
-          {THEME_OPTIONS.map(({ mode: m, icon: Icon, key }) => {
-            const active = mode === m;
-            return (
-              <TouchableOpacity
-                key={m}
-                style={[s.themeTile, active && s.themeTileActive]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  Haptics.selectionAsync().catch(() => {});
-                  setMode(m);
-                }}
-              >
-                <Icon size={22} color={active ? colors.goldText : colors.muted} strokeWidth={1.7} />
-                <Text style={[s.themeText, active && { color: colors.text }]}>{t(`appearance.${key}`)}</Text>
-                {m === "dark" && <Text style={s.recommended}>{t("appearance.themeRecommended")}</Text>}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <ThemeSwitch />
       </View>
 
       <View>
         <Text style={s.label}>{t("appearance.cardDesign")}</Text>
-        <View style={s.cardGrid}>
-          {CARD_VARIANTS.map((v) => (
-            <TouchableOpacity
-              key={v.id}
-              activeOpacity={0.85}
-              onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
-                updateProfile.mutate({ card_color: v.id });
-              }}
-            >
-              <MiniCard variantId={v.id} name={designNames[v.id] ?? v.name} isSelected={cardColor === v.id} />
-            </TouchableOpacity>
+        <ScrollView
+          ref={scroller}
+          horizontal
+          style={{ marginHorizontal: -BODY_MARGIN }}
+          contentContainerStyle={{ paddingHorizontal: SIDE, paddingVertical: 14, gap: GAP }}
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToOffsets={CARD_VARIANTS.map((_, i) => i * STEP)}
+          snapToAlignment="start"
+          scrollEventThrottle={16}
+          onScroll={onScroll}
+          onMomentumScrollEnd={onSettled}
+          onScrollEndDrag={(e) => {
+            // Utan sväng efter släppet kommer ingen momentum-händelse
+            if (Math.abs(e.nativeEvent.velocity?.x ?? 0) < 0.05) onSettled(e);
+          }}
+        >
+          {CARD_VARIANTS.map((v, i) => (
+            <View key={v.id} style={s.cardShadow}>
+              <MemberCard
+                width={ITEM_W}
+                displayName={displayName}
+                isMember
+                disableFlip
+                memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
+                cardColor={v.id}
+                avatarUrl={avatarUrl}
+                circleColor={circleColor}
+                avatarRing={ring}
+                onBuyPress={() => {}}
+                onCardPress={() => scroller.current?.scrollTo({ x: i * STEP, animated: true })}
+              />
+            </View>
           ))}
+        </ScrollView>
+
+        <View style={s.designFooter}>
+          <Text style={s.designName}>{designNames[current.id] ?? current.name}</Text>
+          <View style={s.dots}>
+            {CARD_VARIANTS.map((v, i) => (
+              <View key={v.id} style={[s.dot, i === index && s.dotActive]} />
+            ))}
+          </View>
         </View>
       </View>
 
@@ -173,8 +156,8 @@ export default function AppearanceSettings() {
             return (
               <TouchableOpacity
                 key={r.id}
-                style={[s.ringTile, selected && s.ringTileActive]}
-                activeOpacity={0.85}
+                style={s.ringItem}
+                activeOpacity={0.8}
                 onPress={() => {
                   Haptics.selectionAsync().catch(() => {});
                   if (r.unlocked) updateProfile.mutate({ avatar_ring: r.id });
@@ -182,14 +165,13 @@ export default function AppearanceSettings() {
                 }}
               >
                 <View style={[s.ringPreview, !r.unlocked && { opacity: 0.35 }]}>
-                  <Avatar size={46} uri={avatarUrl} name={displayName} color={circleColor} ring={r.id} />
+                  <Avatar size={60} uri={avatarUrl} name={displayName} color={circleColor} ring={r.id} />
                 </View>
-                <Text style={s.ringName} numberOfLines={1}>{ringNames[r.id]}</Text>
-                {!r.unlocked && (
-                  <View style={s.lock}>
-                    <Lock size={11} color={colors.muted} strokeWidth={2.2} />
-                  </View>
-                )}
+                <View style={s.ringNameRow}>
+                  {!r.unlocked && <Lock size={12} color={colors.muted} strokeWidth={2.2} />}
+                  <Text style={[s.ringName, selected && { color: colors.goldText }]} numberOfLines={1}>{ringNames[r.id]}</Text>
+                </View>
+                <View style={[s.selectedDot, selected && { backgroundColor: colors.gold }]} />
               </TouchableOpacity>
             );
           })}
@@ -204,41 +186,21 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, color: c.muted,
     paddingLeft: 6, marginBottom: 10, textTransform: "uppercase",
   },
-  preview: {
-    alignSelf: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
-  },
 
-  themeRow: { flexDirection: "row", gap: 12 },
-  themeTile: {
-    flex: 1, alignItems: "center", gap: 6, paddingVertical: 18, borderRadius: 18,
-    backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
+  cardShadow: {
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
   },
-  themeTileActive: { borderColor: c.goldBorder, backgroundColor: c.goldSoft },
-  themeText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.muted },
-  recommended: { fontFamily: "Inter_500Medium", fontSize: 11, color: c.goldText },
+  designFooter: { alignItems: "center", gap: 10 },
+  designName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.text },
+  dots: { flexDirection: "row", gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderStrong },
+  dotActive: { width: 18, backgroundColor: c.gold },
 
-  cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  miniCard: {
-    width: MINI_W, height: MINI_H, borderRadius: 10, overflow: "hidden",
-    borderWidth: 1, borderColor: c.borderStrong,
-  },
-  miniName: {
-    fontFamily: "Inter_600SemiBold", fontSize: 9, color: "rgba(255,255,255,0.92)", letterSpacing: 1.4,
-    textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
-  },
-  miniCheck: {
-    position: "absolute", top: 6, right: 6, width: 16, height: 16, borderRadius: 8,
-    backgroundColor: c.gold, alignItems: "center", justifyContent: "center",
-  },
-
-  ringRow: { flexDirection: "row", gap: 12 },
-  ringTile: {
-    flex: 1, alignItems: "center", gap: 10, paddingTop: 20, paddingBottom: 14, borderRadius: 18,
-    backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
-  },
-  ringTileActive: { borderColor: c.goldBorder, backgroundColor: c.goldSoft },
-  ringPreview: { width: 46, height: 46, marginBottom: 2 },
-  ringName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.text },
-  lock: { position: "absolute", top: 8, right: 8 },
+  // Ringarna ligger direkt mot bakgrunden, utan ruta
+  ringRow: { flexDirection: "row", justifyContent: "space-evenly", paddingTop: 6 },
+  ringItem: { alignItems: "center", gap: 10, paddingVertical: 6, minWidth: 96 },
+  ringPreview: { width: 60, height: 60 },
+  ringNameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  ringName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
+  selectedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "transparent" },
 });
