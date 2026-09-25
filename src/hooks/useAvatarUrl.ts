@@ -4,31 +4,41 @@ import { useProfile } from "@/hooks/useProfile";
 
 export const AVATAR_BUCKET = "profile-images";
 
-/** Är värdet en sökväg i den privata mappen (ny) och inte en hel adress (äldre)? */
-export const isAvatarPath = (value: string) => !value.startsWith("http");
+/**
+ * Sökvägen i den privata bildmappen för ett värde ur profiles (avatar_url eller
+ * profile_image_url): antingen själva sökvägen (nytt) eller en hel öppen adress
+ * ur den tid mappen var öppen (äldre). Annars null (en adress någon annanstans).
+ */
+export function storagePath(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (!value.startsWith("http")) return value;
+  const marker = `/storage/v1/object/public/${AVATAR_BUCKET}/`;
+  const i = value.indexOf(marker);
+  return i >= 0 ? decodeURIComponent(value.slice(i + marker.length).split("?")[0]) : null;
+}
 
 /**
  * Adressen att visa en bild i den privata mappen med. Profilen innehåller en
- * sökväg, som byts mot en tillfällig länk (giltig 1 timme). Äldre profiler kan
- * ha en hel öppen adress; den används som den är. Returnerar null om det inte
- * finns någon bild (eller medan länken hämtas).
+ * sökväg (eller en äldre öppen adress till samma mapp), som byts mot en
+ * tillfällig länk (giltig 1 timme). Returnerar null om det inte finns någon bild
+ * (eller medan länken hämtas).
  */
 function useSignedImageUrl(kind: string, entry: string | null): string | null {
-  const needsSigning = !!entry && isAvatarPath(entry);
+  const path = storagePath(entry);
 
   const { data: signed } = useQuery({
     queryKey: [kind, entry],
-    enabled: needsSigning,
+    enabled: !!path,
     staleTime: 50 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrl(entry!, 3600);
+      const { data, error } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrl(path!, 3600);
       if (error) throw error;
       return data.signedUrl;
     },
   });
 
   if (!entry) return null;
-  return needsSigning ? signed ?? null : entry;
+  return path ? signed ?? null : entry;
 }
 
 /** Profilbilden (framsidan av kortet, Hem, Inställningar). */

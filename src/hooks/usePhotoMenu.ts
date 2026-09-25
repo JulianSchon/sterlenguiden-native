@@ -23,7 +23,8 @@ export function usePhotoMenu(change: (source: PhotoSource) => Promise<unknown>, 
       } else if (message === "card_photo_cooldown") {
         Alert.alert(t("common.error"), t("pass.card.cooldown"));
       } else {
-        Alert.alert(t("common.error"), t("account.photo.failed"));
+        // I utvecklingsläget visas även själva felet, så att vi ser vad som gick fel
+        Alert.alert(t("common.error"), __DEV__ && message ? `${t("account.photo.failed")}\n\n${message}` : t("account.photo.failed"));
       }
     }
   }

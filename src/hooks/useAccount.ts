@@ -8,7 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { preparePhoto, type PickedPhoto } from "@/lib/photos";
 import type { Profile } from "@/hooks/useProfile";
-import { AVATAR_BUCKET, isAvatarPath } from "@/hooks/useAvatarUrl";
+import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
 
 /** Profilbilder visas som mest ~400 px, så 512 räcker gott */
 const AVATAR_MAX_EDGE = 512;
@@ -35,19 +35,6 @@ export async function pickSquarePhoto(source: PhotoSource): Promise<PickedPhoto 
   if (result.canceled) return null;
   const asset = result.assets[0];
   return { uri: asset.uri, width: asset.width, height: asset.height };
-}
-
-/**
- * Sökvägen i den privata bildmappen för ett värde ur profiles (avatar_url eller
- * profile_image_url): antingen själva sökvägen (nytt) eller en hel öppen adress
- * (äldre). Annars null.
- */
-export function storagePath(value: string | null | undefined): string | null {
-  if (!value) return null;
-  if (isAvatarPath(value)) return value;
-  const marker = `/storage/v1/object/public/${AVATAR_BUCKET}/`;
-  const i = value.indexOf(marker);
-  return i >= 0 ? decodeURIComponent(value.slice(i + marker.length).split("?")[0]) : null;
 }
 
 export async function removeStoredImage(value: string | null | undefined) {

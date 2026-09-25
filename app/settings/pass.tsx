@@ -35,7 +35,7 @@ const longDate = (d: Date | string) => formatDate(d, "d MMMM yyyy");
 const shortDate = (d: Date | string) => formatDate(d, "d MMM");
 
 /** Kortet visas i miniformat i statusrutan */
-const CARD_SCALE = 0.52;
+const CARD_SCALE = 0.58;
 
 /** Rund snabbknapp med etikett under, som i bankappar. */
 function QuickAction({ icon: Icon, label, badge, onPress }: { icon: LucideIcon; label: string; badge?: number; onPress: () => void }) {
@@ -122,6 +122,25 @@ export default function PassHub() {
       {/* Statusruta: kortet i miniformat (baksidan först, går att vända) och status bredvid.
           Genomskinlig med guldkant för medlemmar, grå kant annars. */}
       <View style={[s.hero, membership.isMember && s.heroActive]}>
+        <View style={s.heroInfo}>
+          <View style={s.statusRow}>
+            <View style={[s.dot, membership.isMember && { backgroundColor: colors.success }]} />
+            <Text style={[s.statusLabel, membership.isMember && { color: colors.success }]}>
+              {membership.isMember ? t("pass.status.active") : t("pass.status.none")}
+            </Text>
+          </View>
+          {membership.isMember ? (
+            <View style={{ gap: 4 }}>
+              <Text style={s.period}>{periodLabel(membership.period)}</Text>
+              <Text style={s.hint}>{validity}</Text>
+            </View>
+          ) : (
+            <Text style={s.hint}>{t("pass.status.pitch")}</Text>
+          )}
+          {membership.isMember && daysLeft !== null ? (
+            <Text style={s.daysLeft}>{daysLeft === 1 ? t("pass.status.dayLeft") : t("pass.status.daysLeft", { count: daysLeft })}</Text>
+          ) : <View />}
+        </View>
         <View style={{ width: CARD_W * CARD_SCALE, height: CARD_H * CARD_SCALE }}>
           <View style={s.cardScaler}>
             <MemberCard
@@ -136,25 +155,6 @@ export default function PassHub() {
               startOnBack
             />
           </View>
-        </View>
-        <View style={s.heroInfo}>
-          <View style={s.statusRow}>
-            <View style={[s.dot, membership.isMember && { backgroundColor: colors.success }]} />
-            <Text style={[s.statusLabel, membership.isMember && { color: colors.success }]}>
-              {membership.isMember ? t("pass.status.active") : t("pass.status.none")}
-            </Text>
-          </View>
-          {membership.isMember ? (
-            <>
-              <Text style={s.period}>{periodLabel(membership.period)}</Text>
-              <Text style={s.hint}>{validity}</Text>
-              {daysLeft !== null && (
-                <Text style={s.daysLeft}>{daysLeft === 1 ? t("pass.status.dayLeft") : t("pass.status.daysLeft", { count: daysLeft })}</Text>
-              )}
-            </>
-          ) : (
-            <Text style={s.hint}>{t("pass.status.pitch")}</Text>
-          )}
         </View>
       </View>
       {membership.waitingBonusDays > 0 && (
@@ -264,16 +264,16 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   hint: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, color: c.muted },
 
   hero: {
-    flexDirection: "row", alignItems: "center", gap: 14, padding: 12,
-    borderRadius: 22, borderWidth: 1, borderColor: c.borderStrong,
+    flexDirection: "row", alignItems: "center", gap: 12, minHeight: 190, paddingVertical: 20, paddingLeft: 20, paddingRight: 16,
+    borderRadius: 24, borderWidth: 1, borderColor: c.borderStrong,
   },
   heroActive: { borderColor: c.goldBorder },
   cardScaler: { width: CARD_W, height: CARD_H, transformOrigin: "top left", transform: [{ scale: CARD_SCALE }] },
-  heroInfo: { flex: 1, gap: 4 },
+  heroInfo: { flex: 1, alignSelf: "stretch", justifyContent: "space-between" },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.faint },
   statusLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.4, color: c.muted },
-  period: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.text },
+  period: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 19, color: c.text },
   daysLeft: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.goldText },
   bonus: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.muted, textAlign: "center" },
   from: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, textAlign: "center" },
