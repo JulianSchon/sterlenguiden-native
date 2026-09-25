@@ -110,6 +110,7 @@ function AppStack() {
         <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
         <Stack.Screen name="settings/notifications" options={{ headerShown: false }} />
         <Stack.Screen name="settings/about" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/suggest" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass-buy" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass-gift" options={{ headerShown: false }} />

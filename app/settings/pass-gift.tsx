@@ -9,9 +9,9 @@
  * (kräver paket i nästa EAS-bygge). Tills dess skrivs startdatumet som dag/månad/år.
  */
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, type TextInputProps } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Gift, Send, Printer, User, Mail, Calendar, MessageSquareText, type LucideIcon } from "lucide-react-native";
+import { Gift, Send, Printer, User, Mail, Calendar, MessageSquareText } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { usePassProducts, type PassProduct } from "@/hooks/usePassProducts";
 import { usePeriodLabel } from "@/hooks/usePeriodLabel";
@@ -20,6 +20,7 @@ import { toIsoDate } from "@/lib/birthDate";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { PrimaryButton } from "@/components/Sheet";
+import { LabeledField as Field } from "@/components/LabeledField";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -32,28 +33,6 @@ const EMAIL_PATTERN = /\S+@\S+\.\S+/;
 function todayIso(): string {
   const now = new Date();
   return toIsoDate(String(now.getDate()), String(now.getMonth() + 1), String(now.getFullYear())) ?? "";
-}
-
-/** Textfält med ikon och etikett; ramen blir guld när fältet är valt. */
-function Field({ icon: Icon, label, ...input }: { icon: LucideIcon; label: string } & TextInputProps) {
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
-  const [focused, setFocused] = useState(false);
-  return (
-    <View style={{ gap: 6 }}>
-      <View style={s.fieldLabelRow}>
-        <Icon size={13} color={colors.muted} strokeWidth={1.8} />
-        <Text style={s.fieldLabel}>{label}</Text>
-      </View>
-      <TextInput
-        {...input}
-        style={[s.input, focused && { borderColor: colors.gold }, input.style]}
-        placeholderTextColor={colors.faint}
-        onFocus={(e) => { setFocused(true); input.onFocus?.(e); }}
-        onBlur={(e) => { setFocused(false); input.onBlur?.(e); }}
-      />
-    </View>
-  );
 }
 
 export default function GiftPassScreen() {
@@ -184,7 +163,6 @@ export default function GiftPassScreen() {
           placeholder={t("pass.gift.messagePlaceholder")}
           multiline
           maxLength={220}
-          style={s.messageInput}
         />
       </View>
 
@@ -243,7 +221,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: "Inter_400Regular", fontSize: 16, color: c.text, backgroundColor: c.raised,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: c.borderStrong,
   },
-  messageInput: { minHeight: 86, textAlignVertical: "top" },
   dateRow: { flexDirection: "row", gap: 10 },
   dateInput: { flex: 1, textAlign: "center" },
   dateInputYear: { flex: 1.6, textAlign: "center" },

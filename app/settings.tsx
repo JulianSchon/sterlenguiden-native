@@ -99,6 +99,7 @@ export default function SettingsHub() {
               subtitle={t("settings.suggest.subtitle")}
               strong
               tint={colors.warm}
+              onPress={() => router.push("/settings/suggest" as any)}
             />
           </SettingsGroup>
         </Rise>
