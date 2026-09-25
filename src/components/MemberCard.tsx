@@ -362,12 +362,12 @@ export function MemberCard({
   );
 
   return (
-    <View style={{ height: cardH }}>
+    <View style={{ width: cardW, height: cardH }}>
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={1}
         disabled={showBackOnly}
-        style={{ height: cardH }}
+        style={{ width: cardW, height: cardH }}
       >
         {!showBackOnly && Front}
         {isMember && Back}
