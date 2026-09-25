@@ -29,7 +29,6 @@ export default function AboutSettings() {
         <Image source={require("../../assets/Osterlenappen-logo.png")} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
         <Text style={s.appName}>{t("about.appName")}</Text>
         <Text style={s.tagline}>{t("about.tagline")}</Text>
-        <Text style={s.description}>{t("about.description")}</Text>
       </View>
 
       {legalRows.length > 0 && (
@@ -59,10 +58,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   logo: { width: 92, height: 104, marginBottom: 6 },
   appName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 28, color: c.text },
   tagline: { fontFamily: "Inter_500Medium", fontSize: 13, letterSpacing: 0.4, color: c.warm },
-  description: {
-    fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: c.muted,
-    textAlign: "center", paddingHorizontal: 20, marginTop: 6,
-  },
   footer: { alignItems: "center", gap: 4, paddingTop: 8 },
   footerText: { fontFamily: "Inter_400Regular", fontSize: 12, color: c.faint },
 });

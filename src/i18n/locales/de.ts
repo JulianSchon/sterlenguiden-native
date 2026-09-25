@@ -231,7 +231,6 @@ export const de: typeof sv = {
     title: "Über",
     appName: "Österlenappen",
     tagline: "Die digitale Plattform für Österlen",
-    description: "Dein Guide für Österlen: Orte, Events, Angebote und deine eigenen Erinnerungen.",
     legal: {
       title: "Rechtliches",
       privacy: "Datenschutzerklärung",
