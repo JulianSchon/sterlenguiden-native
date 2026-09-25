@@ -119,13 +119,12 @@ export default function SettingsHub() {
           </GradientCard>
         </Rise>
 
-        {/* Loggan i samma grå ton som resten av sidan (tintColor färgar den genomskinliga PNG:n) */}
+        {/* Loggan i sin egen guldfärg, som en diskret signatur */}
         <Rise index={4}>
           <Image
             source={require("../assets/Osterlenappen-logo.png")}
             style={s.logo}
             resizeMode="contain"
-            tintColor={colors.faint}
             accessibilityIgnoresInvertColors
           />
         </Rise>
@@ -152,5 +151,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   signOutPressed: { backgroundColor: c.fill },
   signOutText: { fontFamily: "Montserrat_500Medium", fontSize: 14.5, letterSpacing: -0.3, color: c.text },
 
-  logo: { alignSelf: "center", width: 40, height: 45, marginTop: 8, opacity: 0.8 },
+  logo: { alignSelf: "center", width: 40, height: 45, marginTop: 8 },
 });

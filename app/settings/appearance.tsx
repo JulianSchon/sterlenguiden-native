@@ -45,6 +45,9 @@ const BODY_MARGIN = 16;
 const SIDE_SCALE = 0.84;
 const SIDE_DIM = 0.55;
 
+/** Kortets hörnradie vid den storlek det ritas här (16 vid full bredd) */
+const CARD_RADIUS = 16 * (ITEM_W / CARD_W);
+
 const RING_AVATAR = 72;
 const RING_TILE = 104;
 
@@ -66,8 +69,14 @@ function DesignCard({ index, scrollX, onPress, children }: {
     const distance = Math.abs(scrollX.value - index * STEP) / STEP;
     return { opacity: interpolate(distance, [0, 1], [0, SIDE_DIM], Extrapolation.CLAMP) };
   });
+  const { scheme } = useTheme();
+  // Skuggan ligger på en rundad yta med egen bakgrund (helt dold bakom kortet), annars blir den
+  // en otydlig grå ruta mot ljus bakgrund. Ljust läge får en mjukare, varmare skugga.
+  const shadow = scheme === "light"
+    ? { shadowColor: "#4A3A1A", shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } }
+    : { shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } };
   return (
-    <Animated.View style={[st.cardShadow, cardStyle]}>
+    <Animated.View style={[st.cardShadow, shadow, cardStyle]}>
       {children({ onCardPress: onPress })}
       <Animated.View style={[st.dim, dimStyle]} pointerEvents="none" />
     </Animated.View>
@@ -363,10 +372,8 @@ const st = StyleSheet.create({
   // Svepknappen behöver mer luft upptill än de andra rubrikernas innehåll
   themeLabel: { marginBottom: 20 },
 
-  cardShadow: {
-    borderRadius: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
-  },
-  dim: { ...StyleSheet.absoluteFillObject, borderRadius: 16, backgroundColor: "#000" },
+  cardShadow: { borderRadius: CARD_RADIUS, backgroundColor: "#111111", elevation: 6 },
+  dim: { ...StyleSheet.absoluteFillObject, borderRadius: CARD_RADIUS, backgroundColor: "#000" },
 
   designFooter: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 },
   rule: { flex: 1, height: StyleSheet.hairlineWidth },

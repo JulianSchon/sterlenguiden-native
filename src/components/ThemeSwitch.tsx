@@ -118,7 +118,8 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
   useAnimatedReaction(
     () => progress.value,
     (value) => {
-      if (report) report.value = value;
+      // Innan bredden är känd finns inget riktigt värde att rapportera
+      if (report && trackW.value > 0) report.value = value;
     }
   );
 
@@ -162,6 +163,12 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
           onLayout={(e) => {
             const w = e.nativeEvent.layout.width;
             trackW.value = w;
+            // Knappen ställs på rätt plats i samma ögonblick som bredden blir känd, så sidan
+            // aldrig hinner få ett felaktigt läge (t.ex. ett blänk av mörkt i ljust läge)
+            if (!placed.current) {
+              placed.current = true;
+              x.value = modeRef.current === "light" ? Math.max(0, w - HANDLE - PAD * 2) : 0;
+            }
             setWidth(w);
           }}
           accessible
