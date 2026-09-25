@@ -108,6 +108,9 @@ export function MemberCard({
   const [time, setTime]                     = useState(new Date());
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
 
+  // Baksidan ritas bara när den kan bli synlig; kort som är låsta till framsidan slipper dess animationer
+  const backVisible = isMember && (showBackOnly || startOnBack || !disableFlip);
+
   // Variant + färgpalett
   const variant = isMember ? getVariant(cardColor) : null;
   const hasPng  = !!(variant?.bgImage);          // alla varianter med bgImage får PNG
@@ -156,6 +159,7 @@ export function MemberCard({
   // Roterande guldgradient — körs alltid (oavsett flip) så att baksidan
   // aldrig ser gradienten "hoppa" till 0° när kortet vänds
   useEffect(() => {
+    if (!backVisible) return;
     const spin = () => {
       gradRotAnim.setValue(0);
       Animated.timing(gradRotAnim, {
@@ -169,7 +173,7 @@ export function MemberCard({
     };
     spin();
     return () => gradRotAnim.stopAnimation();
-  }, []);
+  }, [backVisible]);
 
   const gradRotate = gradRotAnim.interpolate({
     inputRange: [0, 1],
@@ -379,7 +383,7 @@ export function MemberCard({
         style={{ width: cardW, height: cardH }}
       >
         {!showBackOnly && Front}
-        {isMember && Back}
+        {backVisible && Back}
       </TouchableOpacity>
     </View>
   );

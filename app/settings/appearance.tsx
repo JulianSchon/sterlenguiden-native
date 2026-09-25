@@ -9,9 +9,9 @@
  * eftersom det är den enda sida där man ser knappen röra sig.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { View, TouchableOpacity, Alert, Dimensions, StyleSheet } from "react-native";
+import { View, TouchableOpacity, Alert, Dimensions, InteractionManager, StyleSheet } from "react-native";
 import Animated, {
-  Extrapolation, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
+  Extrapolation, FadeIn, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
   interpolateColor, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, type SharedValue,
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -25,7 +25,7 @@ import { AVATAR_RINGS, type AvatarRingDef } from "@/lib/avatarRings";
 import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
-import { MemberCard, CARD_W } from "@/components/MemberCard";
+import { MemberCard, CARD_W, CARD_H } from "@/components/MemberCard";
 import { Avatar } from "@/components/profile/Avatar";
 import { SwitchableAvatarRing } from "@/components/profile/AvatarRing";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -178,15 +178,22 @@ export default function AppearanceSettings() {
   const [index, setIndex] = useState(savedIndex);
   const positioned = useRef(false);
 
+  // Korten (bilder, gradienter) ritas först när sidan glidit in, så inträdet inte hackar
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setReady(true));
+    return () => task.cancel();
+  }, []);
+
   // Raden startar på det kort som är valt; profilen kan komma efter första bilden
   useEffect(() => {
-    if (!profile || positioned.current) return;
+    if (!profile || !ready || positioned.current) return;
     positioned.current = true;
     setIndex(savedIndex);
     lastIndex.value = savedIndex;
     scrollX.value = savedIndex * STEP;
     scroller.current?.scrollTo({ x: savedIndex * STEP, animated: false });
-  }, [profile, savedIndex, scroller, scrollX, lastIndex]);
+  }, [profile, ready, savedIndex, scroller, scrollX, lastIndex]);
 
   const onIndexChange = useCallback((next: number) => {
     Haptics.selectionAsync().catch(() => {});
@@ -238,8 +245,11 @@ export default function AppearanceSettings() {
     <SettingsScreen title={t("appearance.title")} morph={progress}>
       <View>
         <Animated.Text style={[st.label, mMuted]}>{t("appearance.cardDesign")}</Animated.Text>
+        {ready ? (
         <Animated.ScrollView
+          entering={FadeIn.duration(300)}
           ref={scroller}
+          contentOffset={{ x: savedIndex * STEP, y: 0 }}
           horizontal
           style={{ marginHorizontal: -BODY_MARGIN }}
           contentContainerStyle={{ paddingHorizontal: SIDE, paddingVertical: 16, alignItems: "center" }}
@@ -275,6 +285,9 @@ export default function AppearanceSettings() {
             </DesignCard>
           ))}
         </Animated.ScrollView>
+        ) : (
+          <View style={{ height: (CARD_H * ITEM_W) / CARD_W + 32 }} />
+        )}
 
         {/* Namnet på valt kort, mellan två fina guldlinjer */}
         <View style={st.designFooter}>
