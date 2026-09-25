@@ -45,11 +45,15 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
-  const commit = useCallback((toLight: boolean) => {
-    const next = toLight ? "light" : "dark";
-    if (modeRef.current === next) return;
+  // Vibrationen kommer när man släpper och knappen tar sig an sitt läge, i takt med rörelsen,
+  // inte först när fjädern stannat
+  const announce = useCallback((toLight: boolean) => {
+    if (modeRef.current === (toLight ? "light" : "dark")) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    setMode(next);
+  }, []);
+  // Själva temabytet för resten av appen sker när knappen är framme
+  const commit = useCallback((toLight: boolean) => {
+    setMode(toLight ? "light" : "dark");
   }, [setMode]);
   const tick = useCallback(() => { Haptics.selectionAsync().catch(() => {}); }, []);
 
@@ -71,6 +75,7 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
   };
   const finish = (toLight: boolean) => {
     "worklet";
+    runOnJS(announce)(toLight);
     x.value = withSpring(toLight ? travel() : 0, SPRING, (done) => {
       if (done) runOnJS(commit)(toLight);
     });

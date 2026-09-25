@@ -52,9 +52,11 @@ const RING_AVATAR = 72;
 const RING_TILE = 104;
 
 /** Ett kort i raden. Storlek och mörkning följer avståndet till mitten. */
-function DesignCard({ index, scrollX, onPress, children }: {
+function DesignCard({ index, scrollX, progress, onPress, children }: {
   index: number;
   scrollX: SharedValue<number>;
+  /** Temaövergången (0 = mörkt, 1 = ljust), så skuggan byts i takt med resten av sidan */
+  progress: SharedValue<number>;
   onPress: () => void;
   children: (props: { onCardPress: () => void }) => React.ReactNode;
 }) {
@@ -69,14 +71,16 @@ function DesignCard({ index, scrollX, onPress, children }: {
     const distance = Math.abs(scrollX.value - index * STEP) / STEP;
     return { opacity: interpolate(distance, [0, 1], [0, SIDE_DIM], Extrapolation.CLAMP) };
   });
-  const { scheme } = useTheme();
   // Skuggan ligger på en rundad yta med egen bakgrund (helt dold bakom kortet), annars blir den
   // en otydlig grå ruta mot ljus bakgrund. Ljust läge får en mjukare, varmare skugga.
-  const shadow = scheme === "light"
-    ? { shadowColor: "#4A3A1A", shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } }
-    : { shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } };
+  const shadowStyle = useAnimatedStyle(() => ({
+    shadowColor: interpolateColor(progress.value, [0, 1], ["#000000", "#4A3A1A"]),
+    shadowOpacity: interpolate(progress.value, [0, 1], [0.3, 0.16]),
+    shadowRadius: interpolate(progress.value, [0, 1], [14, 10]),
+    shadowOffset: { width: 0, height: interpolate(progress.value, [0, 1], [8, 6]) },
+  }));
   return (
-    <Animated.View style={[st.cardShadow, shadow, cardStyle]}>
+    <Animated.View style={[st.cardShadow, shadowStyle, cardStyle]}>
       {children({ onCardPress: onPress })}
       <Animated.View style={[st.dim, dimStyle]} pointerEvents="none" />
     </Animated.View>
@@ -101,10 +105,11 @@ function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, cir
   onPress: () => void;
 }) {
   const { t } = useTranslation();
-  const { colors } = useTheme();
   const mFaint = useMorphStyle(progress, "color", "faint");
   const mBadgeBg = useMorphStyle(progress, "backgroundColor", "bg");
   const mBadgeBorder = useMorphStyle(progress, "borderColor", "borderStrong");
+  const lockDark = useAnimatedStyle(() => ({ opacity: 1 - progress.value }));
+  const lockLight = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   // 1 när ringen är vald, 0 annars; fjädrar mellan värdena på UI-tråden
   const on = useDerivedValue(() => withSpring(selectedIdx.value === index ? 1 : 0, { damping: 14, stiffness: 200, mass: 0.7 }));
@@ -140,7 +145,13 @@ function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, cir
         </Animated.View>
         {!def.unlocked && (
           <Animated.View style={[st.lockBadge, mBadgeBg, mBadgeBorder]}>
-            <Lock size={13} color={colors.text} strokeWidth={2.2} />
+            {/* Låset finns i båda temats färger och tonas över i takt med temaknappen */}
+            <Animated.View style={[StyleSheet.absoluteFill, st.lockCenter, lockDark]}>
+              <Lock size={13} color={darkColors.text} strokeWidth={2.2} />
+            </Animated.View>
+            <Animated.View style={[StyleSheet.absoluteFill, st.lockCenter, lockLight]}>
+              <Lock size={13} color={lightColors.text} strokeWidth={2.2} />
+            </Animated.View>
           </Animated.View>
         )}
       </View>
@@ -297,6 +308,7 @@ export default function AppearanceSettings() {
               key={v.id}
               index={i}
               scrollX={scrollX}
+              progress={progress}
               onPress={() => scroller.current?.scrollTo({ x: i * STEP, animated: true })}
             >
               {({ onCardPress }) => (
@@ -388,6 +400,7 @@ const st = StyleSheet.create({
     position: "absolute", right: 12, bottom: 10, width: 26, height: 26, borderRadius: 13,
     alignItems: "center", justifyContent: "center", backgroundColor: "#E8C674",
   },
+  lockCenter: { alignItems: "center", justifyContent: "center" },
   lockBadge: {
     position: "absolute", right: 14, bottom: 12, width: 24, height: 24, borderRadius: 12,
     alignItems: "center", justifyContent: "center", borderWidth: 1,
