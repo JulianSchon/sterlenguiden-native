@@ -3,7 +3,7 @@
  * rader. Språket väljs med flaggan uppe till höger.
  */
 import { useState } from "react";
-import { Text, TouchableOpacity, Pressable, Alert, StyleSheet } from "react-native";
+import { Text, TouchableOpacity, Pressable, Alert, Image, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -118,6 +118,17 @@ export default function SettingsHub() {
           </GradientCard>
         </Rise>
 
+        {/* Loggan i samma grå ton som resten av sidan (tintColor färgar den genomskinliga PNG:n) */}
+        <Rise index={4}>
+          <Image
+            source={require("../assets/Osterlenappen-logo.png")}
+            style={s.logo}
+            resizeMode="contain"
+            tintColor={colors.faint}
+            accessibilityIgnoresInvertColors
+          />
+        </Rise>
+
       </SettingsScreen>
 
       <LanguageMenu
@@ -140,4 +151,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   signOutPressed: { backgroundColor: c.fill },
   signOutText: { fontFamily: "Montserrat_500Medium", fontSize: 14.5, letterSpacing: -0.3, color: c.text },
 
+  logo: { alignSelf: "center", width: 40, height: 45, marginTop: 8, opacity: 0.8 },
 });

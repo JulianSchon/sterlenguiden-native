@@ -25,6 +25,7 @@ import { toIsoDate, ageOn } from "@/lib/birthDate";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { IconSwitch } from "@/components/IconSwitch";
+import { QuietButton } from "@/components/QuietButton";
 import { Avatar } from "@/components/profile/Avatar";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -36,22 +37,6 @@ const NAME_COOLDOWN_DAYS = 30;
 const MIN_AGE = 13;
 const CAMERA_RING = 42;
 const COLOR_RING = 34;
-
-/** En knapp som smälter in: dämpad bakgrund i stället för accentfärg. */
-function QuietButton({ label, onPress, disabled, loading }: { label: string; onPress: () => void; disabled?: boolean; loading?: boolean }) {
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
-  return (
-    <TouchableOpacity
-      style={[s.quietButton, (disabled || loading) && { opacity: 0.4 }]}
-      activeOpacity={0.7}
-      disabled={disabled || loading}
-      onPress={onPress}
-    >
-      {loading ? <ActivityIndicator color={colors.text} /> : <Text style={s.quietButtonText}>{label}</Text>}
-    </TouchableOpacity>
-  );
-}
 
 /** Guldig ring av korta streck med en kamera i mitten: lägg till foto. */
 function CameraRing({ size, onPress, disabled, label }: { size: number; onPress: () => void; disabled: boolean; label: string }) {
@@ -355,11 +340,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
     borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
   },
-  quietButton: {
-    height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center",
-    backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
-  },
-  quietButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text },
 
   dateRow: { flexDirection: "row", gap: 10 },
   dateInput: { flex: 1, textAlign: "center" },
