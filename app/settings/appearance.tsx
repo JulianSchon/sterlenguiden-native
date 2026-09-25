@@ -159,9 +159,32 @@ export default function AppearanceSettings() {
   const ring = profile?.avatar_ring ?? "none";
   const ringIndex = Math.max(0, AVATAR_RINGS.findIndex((r) => r.id === ring));
   const selectedRing = useSharedValue(ringIndex);
+  // Det man trycker på gäller direkt. Sparandet sker först när man slutat trycka (bara sista valet),
+  // och under tiden får inget som kommer från servern skriva över valet.
+  const pendingRing = useRef<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // mutate byter identitet mellan renderingar; håll senaste i en ref så flushRing kan vara stabil
+  const mutateRef = useRef(updateProfile.mutate);
+  mutateRef.current = updateProfile.mutate;
+  const flushRing = useCallback(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    const id = pendingRing.current;
+    pendingRing.current = null;
+    if (id) mutateRef.current({ avatar_ring: id });
+  }, []);
+  const chooseRing = (index: number, id: string) => {
+    selectedRing.value = index;
+    pendingRing.current = id;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(flushRing, 500);
+  };
+  // Lämnar man sidan innan tiden gått sparas valet ändå
+  useEffect(() => flushRing, [flushRing]);
   useEffect(() => {
+    if (pendingRing.current || updateProfile.isPending) return;
     selectedRing.value = ringIndex;
-  }, [ringIndex, selectedRing]);
+  }, [ringIndex, updateProfile.isPending, selectedRing]);
   // Korten byter ring direkt när man trycker, via samma värde som ringvalet
   const CardRing = useMemo(
     () => function CardRing({ size, children }: { ring?: string | null; size: number; children: ReactNode }) {
@@ -314,9 +337,7 @@ export default function AppearanceSettings() {
               onPress={() => {
                 Haptics.selectionAsync().catch(() => {});
                 if (!r.unlocked) return Alert.alert(t("appearance.ring.lockedTitle"), t("appearance.ring.lockedBody"));
-                // Rörelsen startar direkt; sparandet (som ritar om korten ovanför) väntar tills den är klar
-                selectedRing.value = i;
-                setTimeout(() => updateProfile.mutate({ avatar_ring: r.id }), 300);
+                chooseRing(i, r.id);
               }}
             />
           ))}
