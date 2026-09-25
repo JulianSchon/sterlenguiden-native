@@ -5,7 +5,7 @@
  * medlemskapet hanteras på settings/pass-manage.tsx. Tomma listor visas inte alls.
  */
 import { useMemo } from "react";
-import { View, Text, Image, Pressable, TouchableOpacity, Alert, Share, StyleSheet } from "react-native";
+import { View, Text, Pressable, TouchableOpacity, Alert, Share, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { differenceInCalendarDays } from "date-fns";
@@ -32,7 +32,6 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 const longDate = (d: Date | string) => formatDate(d, "d MMMM yyyy");
-const shortDate = (d: Date | string) => formatDate(d, "d MMM");
 
 /** Kortet visas i miniformat i statusrutan */
 const CARD_SCALE = 0.58;
@@ -90,13 +89,13 @@ export default function PassHub() {
     );
   }
 
-  const validity = membership.renewsOn
-    ? t("pass.status.renews", { date: shortDate(membership.renewsOn) })
-    : membership.until
-      ? t("pass.status.until", { date: shortDate(membership.until) })
-      : t("pass.status.unlimited");
-
+  // "Förnyas om 12 dagar" (eller "Går ut om …" om passet inte förnyas) med datumet under
   const daysLeft = membership.until ? Math.max(0, differenceInCalendarDays(membership.until, new Date())) : null;
+  const renews = membership.autoRenews;
+  const countdown = daysLeft === null ? t("pass.status.unlimited")
+    : daysLeft === 0 ? t(renews ? "pass.status.renewsToday" : "pass.status.endsToday")
+    : daysLeft === 1 ? t(renews ? "pass.status.renewsInOne" : "pass.status.endsInOne")
+    : t(renews ? "pass.status.renewsIn" : "pass.status.endsIn", { count: daysLeft });
   const cheapest = products.length ? Math.round(Math.min(...products.map((p) => p.priceSek))) : null;
   const nextPhotoChange = nextCardPhotoChange(profile);
 
@@ -130,16 +129,16 @@ export default function PassHub() {
             </Text>
           </View>
           {membership.isMember ? (
-            <View style={{ gap: 4 }}>
+            <>
               <Text style={s.period}>{periodLabel(membership.period)}</Text>
-              <Text style={s.hint}>{validity}</Text>
-            </View>
+              <View style={{ gap: 2 }}>
+                <Text style={s.countdown}>{countdown}</Text>
+                {membership.until && <Text style={s.hint}>{formatDate(membership.until, "d MMM yyyy")}</Text>}
+              </View>
+            </>
           ) : (
             <Text style={s.hint}>{t("pass.status.pitch")}</Text>
           )}
-          {membership.isMember && daysLeft !== null ? (
-            <Text style={s.daysLeft}>{daysLeft === 1 ? t("pass.status.dayLeft") : t("pass.status.daysLeft", { count: daysLeft })}</Text>
-          ) : <View />}
         </View>
         <View style={{ width: CARD_W * CARD_SCALE, height: CARD_H * CARD_SCALE }}>
           <View style={s.cardScaler}>
@@ -185,7 +184,6 @@ export default function PassHub() {
             subtitle={photoHint}
             tint={profile?.profile_image_url ? undefined : colors.goldText}
             onPress={changePhoto}
-            right={cardPhotoUrl ? <Image source={{ uri: cardPhotoUrl }} style={s.thumb} /> : undefined}
           />
         </SettingsGroup>
       )}
@@ -268,13 +266,22 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderRadius: 24, borderWidth: 1, borderColor: c.borderStrong,
   },
   heroActive: { borderColor: c.goldBorder },
-  cardScaler: { width: CARD_W, height: CARD_H, transformOrigin: "top left", transform: [{ scale: CARD_SCALE }] },
+  // Skalas runt mitten och flyttas sedan så att övre vänstra hörnet hamnar i sin ruta
+  cardScaler: {
+    width: CARD_W, height: CARD_H, transformOrigin: "center",
+    transform: [
+      { translateX: -(CARD_W * (1 - CARD_SCALE)) / 2 },
+      { translateY: -(CARD_H * (1 - CARD_SCALE)) / 2 },
+      { scale: CARD_SCALE },
+    ],
+  },
   heroInfo: { flex: 1, alignSelf: "stretch", justifyContent: "space-between" },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.faint },
   statusLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.4, color: c.muted },
-  period: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 19, color: c.text },
-  daysLeft: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.goldText },
+  // Samma stil som sidans rubrik
+  period: { fontFamily: "Montserrat_700Bold", fontSize: 14, letterSpacing: 1.2, textTransform: "uppercase", color: c.text },
+  countdown: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.goldText },
   bonus: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.muted, textAlign: "center" },
   from: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, textAlign: "center" },
 
@@ -290,8 +297,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 5, alignItems: "center", justifyContent: "center", backgroundColor: c.gold,
   },
   badgeText: { fontFamily: "Inter_700Bold", fontSize: 11, color: c.onGold },
-
-  thumb: { width: 40, height: 40, borderRadius: 20 },
 
   codePill: {
     flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 8,
