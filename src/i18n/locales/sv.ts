@@ -214,4 +214,20 @@ export const sv = {
       soon: "Betalningen öppnar vid lansering. Vi meddelar dig när det är klart!",
     },
   },
+  notifications: {
+    title: "Notiser",
+    topics: "Vad vill du få notiser om?",
+    events: { title: "Nya event", hint: "När ett nytt evenemang läggs upp." },
+    offers: { title: "Erbjudanden", hint: "Nya rabatter från Österlenpasset." },
+    news: { title: "Nyheter från Österlen", hint: "Uppdateringar och viktiga meddelanden." },
+    pass: { title: "Mitt pass", hint: "Påminnelser när passet går ut och när någon löser in din present." },
+    area: {
+      title: "Område",
+      all: "Hela Österlen",
+      towns: "Mitt område",
+      pick: "Välj de orter du vill ha notiser från.",
+      hint: "Gäller nya event och erbjudanden. Väljer du hela Österlen får du allt, och väljer du orter får du bara det som är nära.",
+    },
+    note: "Du behöver också tillåta notiser för Österlenguiden i telefonens inställningar.",
+  },
 };

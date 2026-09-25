@@ -211,4 +211,20 @@ export const en: typeof sv = {
       soon: "Payments open at launch. We'll let you know when it's ready!",
     },
   },
+  notifications: {
+    title: "Notifications",
+    topics: "What do you want to be notified about?",
+    events: { title: "New events", hint: "When a new event is added." },
+    offers: { title: "Offers", hint: "New discounts from the Österlen Pass." },
+    news: { title: "News from Österlen", hint: "Updates and important messages." },
+    pass: { title: "My pass", hint: "Reminders when your pass is about to end and when someone redeems your gift." },
+    area: {
+      title: "Area",
+      all: "All of Österlen",
+      towns: "My area",
+      pick: "Choose the towns you want notifications from.",
+      hint: "Applies to new events and offers. Choose all of Österlen to get everything, or pick towns to only hear about what's close.",
+    },
+    note: "You also need to allow notifications for Österlenguiden in your phone's settings.",
+  },
 };

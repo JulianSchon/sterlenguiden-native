@@ -1,95 +1,127 @@
 /**
- * Inställningar › Notiser
+ * Inställningar › Notiser: vilka sorters notiser man vill ha och, för event och
+ * erbjudanden, om det ska gälla hela Österlen eller bara valda orter. Valen sparas
+ * i databasen (notification_preferences). Telefonens eget tillstånd och själva
+ * utskicket kopplas in med nästa bygge (kräver expo-notifications).
  */
-import { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { ChevronLeft, Bell, CalendarDays, Tag } from "lucide-react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
+import { CalendarDays, Crown, Newspaper, Tag, type LucideIcon } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+import { useNotificationPrefs, useUpdateNotificationPrefs, usePlaceTowns, type NotificationPrefs } from "@/hooks/useNotificationPrefs";
+import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
+import { IconSwitch } from "@/components/IconSwitch";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG    = "#121212";
-const CARD  = "#1C1C1C";
-const FG    = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD  = "#C5A059";
-const BORDER= "rgba(255,255,255,0.06)";
+type Topic = "events" | "offers" | "news" | "pass";
 
-const NOTIF_ITEMS = [
-  { id: "events",   Icon: CalendarDays, title: "Nya event",     sub: "Få notis när ett nytt evenemang publiceras i din region." },
-  { id: "offers",   Icon: Tag,          title: "Erbjudanden",   sub: "Exklusiva deals och rabatter från Österlenpasset-partners." },
-  { id: "system",   Icon: Bell,         title: "Systemnyheter", sub: "Uppdateringar och viktiga meddelanden från oss." },
-] as const;
+const TOPICS: { key: Topic; icon: LucideIcon }[] = [
+  { key: "events", icon: CalendarDays },
+  { key: "offers", icon: Tag },
+  { key: "news", icon: Newspaper },
+  { key: "pass", icon: Crown },
+];
 
 export default function NotificationsSettings() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const { data: prefs } = useNotificationPrefs();
+  const { data: towns = [] } = usePlaceTowns();
+  const update = useUpdateNotificationPrefs();
 
-  const [prefs, setPrefs] = useState({ events: true, offers: true, system: true });
+  // Tills raden hämtats visas ingenting som kan tryckas fel
+  if (!prefs) return <SettingsScreen title={t("notifications.title")}>{null}</SettingsScreen>;
 
-  const safeTop = Math.max(insets.top, 44);
+  const change = (changes: Partial<NotificationPrefs>) => update.mutate(changes);
+  const toggleTown = (town: string) => {
+    Haptics.selectionAsync().catch(() => {});
+    change({ towns: prefs.towns.includes(town) ? prefs.towns.filter((x) => x !== town) : [...prefs.towns, town] });
+  };
+  const chooseScope = (scope: NotificationPrefs["scope"]) => {
+    Haptics.selectionAsync().catch(() => {});
+    change({ scope });
+  };
+
+  const topicText = {
+    events: { title: t("notifications.events.title"), hint: t("notifications.events.hint") },
+    offers: { title: t("notifications.offers.title"), hint: t("notifications.offers.hint") },
+    news: { title: t("notifications.news.title"), hint: t("notifications.news.hint") },
+    pass: { title: t("notifications.pass.title"), hint: t("notifications.pass.hint") },
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={[n.header, { paddingTop: safeTop }]}>
-        <TouchableOpacity style={n.backBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={n.headerTitle}>Notiser</Text>
-      </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={n.body}>
-        <View style={n.card}>
-          {NOTIF_ITEMS.map(({ id, Icon, title, sub }, i) => (
-            <View
-              key={id}
-              style={[n.row, i > 0 && { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)" }]}
-            >
-              <View style={n.iconTile}>
-                <Icon size={17} color={GOLD} strokeWidth={1.6} />
+    <SettingsScreen title={t("notifications.title")}>
+      <SettingsGroup label={t("notifications.topics")}>
+        {TOPICS.map(({ key, icon }) => (
+          <SettingsRow
+            key={key}
+            icon={icon}
+            label={topicText[key].title}
+            subtitle={topicText[key].hint}
+            right={<IconSwitch value={prefs[key]} onChange={(value) => change({ [key]: value })} />}
+          />
+        ))}
+      </SettingsGroup>
+
+      {(prefs.events || prefs.offers) && (
+        <View style={{ gap: 12 }}>
+          <Text style={s.label}>{t("notifications.area.title")}</Text>
+          <View style={s.segment}>
+            {(["all", "towns"] as const).map((scope) => {
+              const active = prefs.scope === scope;
+              return (
+                <TouchableOpacity key={scope} style={[s.segmentItem, active && s.segmentItemActive]} activeOpacity={0.8} onPress={() => chooseScope(scope)}>
+                  <Text style={[s.segmentText, active && { color: colors.text }]}>{t(`notifications.area.${scope}`)}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {prefs.scope === "towns" && (
+            <View style={{ gap: 10 }}>
+              <Text style={s.hint}>{t("notifications.area.pick")}</Text>
+              <View style={s.chips}>
+                {towns.map((town) => {
+                  const active = prefs.towns.includes(town);
+                  return (
+                    <TouchableOpacity key={town} style={[s.chip, active && s.chipActive]} activeOpacity={0.8} onPress={() => toggleTown(town)}>
+                      <Text style={[s.chipText, active && { color: colors.goldText }]}>{town}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text style={n.rowTitle}>{title}</Text>
-                <Text style={n.rowSub} numberOfLines={2}>{sub}</Text>
-              </View>
-              <Switch
-                value={prefs[id]}
-                onValueChange={(v) => setPrefs((p) => ({ ...p, [id]: v }))}
-                trackColor={{ false: "rgba(255,255,255,0.12)", true: "rgba(197,160,89,0.55)" }}
-                thumbColor={prefs[id] ? GOLD : "rgba(255,255,255,0.5)"}
-              />
             </View>
-          ))}
+          )}
+          <Text style={s.hint}>{t("notifications.area.hint")}</Text>
         </View>
-        <Text style={n.footNote}>
-          Notiser kräver att du godkänt dem i enhetens systeminställningar. Hantera tillstånd under Inställningar → Österlenguiden.
-        </Text>
-      </ScrollView>
-    </View>
+      )}
+
+      <Text style={s.note}>{t("notifications.note")}</Text>
+    </SettingsScreen>
   );
 }
 
-const n = StyleSheet.create({
-  header: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)",
-    backgroundColor: BG,
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  label: {
+    fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, color: c.muted,
+    paddingLeft: 6, textTransform: "uppercase",
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    alignItems: "center", justifyContent: "center", marginRight: 12,
+  segment: { flexDirection: "row", padding: 4, gap: 4, borderRadius: 16, backgroundColor: c.fill },
+  segmentItem: { flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: "transparent" },
+  segmentItemActive: { backgroundColor: c.card, borderColor: c.goldBorder },
+  segmentText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.muted },
+
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    borderWidth: 1, borderColor: c.borderStrong, backgroundColor: "transparent",
   },
-  headerTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, flex: 1 },
-  body: { padding: 20, gap: 16, paddingBottom: 60 },
-  card: { backgroundColor: CARD, borderRadius: 22, overflow: "hidden", borderWidth: 1, borderColor: BORDER },
-  row: { flexDirection: "row", alignItems: "center", paddingVertical: 16, paddingHorizontal: 20, gap: 14 },
-  iconTile: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "rgba(197,160,89,0.10)",
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.20)",
-    alignItems: "center", justifyContent: "center", flexShrink: 0,
-  },
-  rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG },
-  rowSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, lineHeight: 17 },
-  footNote: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, lineHeight: 18, paddingHorizontal: 4 },
+  chipActive: { borderColor: c.goldBorder, backgroundColor: c.goldSoft },
+  chipText: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.muted },
+
+  hint: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.faint, paddingHorizontal: 6 },
+  note: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18, color: c.faint, paddingHorizontal: 6, textAlign: "center" },
 });

@@ -211,4 +211,20 @@ export const de: typeof sv = {
       soon: "Die Zahlung startet zum Launch. Wir melden uns, sobald es soweit ist!",
     },
   },
+  notifications: {
+    title: "Benachrichtigungen",
+    topics: "Worüber möchtest du benachrichtigt werden?",
+    events: { title: "Neue Events", hint: "Wenn ein neues Event hinzugefügt wird." },
+    offers: { title: "Angebote", hint: "Neue Rabatte vom Österlen-Pass." },
+    news: { title: "Neuigkeiten aus Österlen", hint: "Updates und wichtige Mitteilungen." },
+    pass: { title: "Mein Pass", hint: "Erinnerungen, wenn dein Pass abläuft und wenn jemand dein Geschenk einlöst." },
+    area: {
+      title: "Region",
+      all: "Ganz Österlen",
+      towns: "Meine Region",
+      pick: "Wähle die Orte, von denen du Benachrichtigungen möchtest.",
+      hint: "Gilt für neue Events und Angebote. Mit ganz Österlen bekommst du alles, mit Orten nur das, was in der Nähe ist.",
+    },
+    note: "Du musst Benachrichtigungen für Österlenguiden außerdem in den Einstellungen deines Telefons erlauben.",
+  },
 };
