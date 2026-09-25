@@ -286,7 +286,7 @@ export default function AppearanceSettings() {
       </View>
 
       <View>
-        <Animated.Text style={[st.label, mMuted]}>{t("appearance.theme")}</Animated.Text>
+        <Animated.Text style={[st.label, st.themeLabel, mMuted]}>{t("appearance.theme")}</Animated.Text>
         <ThemeSwitch progress={progress} />
       </View>
     </SettingsScreen>
@@ -299,6 +299,9 @@ const st = StyleSheet.create({
     fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6,
     paddingLeft: 6, marginBottom: 10, textTransform: "uppercase",
   },
+
+  // Svepknappen behöver mer luft upptill än de andra rubrikernas innehåll
+  themeLabel: { marginBottom: 20 },
 
   cardShadow: {
     borderRadius: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
