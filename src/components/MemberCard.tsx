@@ -5,10 +5,13 @@
  * variant-design, baksidan är personalens verifiering (roterande guld som inte
  * går att skärmdumpa trovärdigt, live-klocka och verifikationsfoto).
  *
+ * Kortet ritas i den bredd man ber om (width) och alla mått följer med, så ett
+ * mindre kort ritas skarpt i stället för att förminskas i efterhand.
+ *
  * Låg i app/(tabs)/profile.tsx tidigare — utflyttad hit för att aktiva
  * erbjudande-vyn ska kunna visa samma baksida.
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet,
   Dimensions, Animated, Platform, Easing,
@@ -18,7 +21,6 @@ import Svg, {
   LinearGradient as SvgGrad,
   RadialGradient as SvgRadial,
   Stop,
-  Path,
   Rect as SvgRect,
 } from "react-native-svg";
 import { Crown, Radio, Camera } from "lucide-react-native";
@@ -29,16 +31,9 @@ import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
 const { width: SW } = Dimensions.get("window");
+/** Kortets standardstorlek (hela skärmbredden minus sidomarginaler) */
 export const CARD_W = SW - 32;
 export const CARD_H = 200;
-
-const GOLD    = "#C5A059";
-const GOLD_LT = "#D4AF55";
-const FG      = "#F5F1E8";
-const MUTED   = "rgba(245,241,232,0.55)";
-const MARK_SIZE = Math.round(CARD_H * 0.74);
-// Diagonal storlek för roterande gradient-lager (täcker hörnen vid rotation)
-const GRAD_SIZE = Math.ceil(Math.sqrt(CARD_W * CARD_W + CARD_H * CARD_H)) + 4;
 
 // Fallback-färger för icke-members
 const NON_MEMBER_COLORS = {
@@ -51,20 +46,6 @@ const NON_MEMBER_COLORS = {
   border:         "rgba(200,185,160,0.08)",
   sweep:          "rgba(255,255,255,0.02)",
 };
-// ─── NFC contactless icon ─────────────────────────────────────────────────────
-function NfcIcon({ color = GOLD_LT }: { color?: string }) {
-  return (
-    <Svg width={18} height={22} viewBox="0 0 18 22">
-      <Path d="M 2 20 A 5 5 0 0 1 7 15"
-        stroke={color} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeOpacity={0.45} />
-      <Path d="M 2 20 A 10 10 0 0 1 12 10"
-        stroke={color} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeOpacity={0.70} />
-      <Path d="M 2 20 A 16 16 0 0 1 18 4"
-        stroke={color} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeOpacity={0.95} />
-    </Svg>
-  );
-}
-
 
 // ─── MemberCard ───────────────────────────────────────────────────────────────
 export function MemberCard({
@@ -80,6 +61,7 @@ export function MemberCard({
   startOnBack = false,
   disableFlip = false,
   onCardPress,
+  width = CARD_W,
 }: {
   displayName: string;
   isMember: boolean;
@@ -102,7 +84,16 @@ export function MemberCard({
   disableFlip?: boolean;
   /** Tryck när disableFlip är på och man ÄR medlem — t.ex. navigera till profilen. */
   onCardPress?: () => void;
+  /** Kortets bredd; höjden och alla mått följer med. */
+  width?: number;
 }) {
+  const k = width / CARD_W;
+  const cardW = width;
+  const cardH = CARD_H * k;
+  const mc = useMemo(() => createStyles(k, cardW, cardH), [k, cardW, cardH]);
+  // Diagonal storlek för roterande gradient-lager (täcker hörnen vid rotation)
+  const gradSize = Math.ceil(Math.sqrt(cardW * cardW + cardH * cardH)) + 4;
+
   // flipAnim 1 = baksidan vänd mot betraktaren (backRotate landar på 360°)
   const flipAnim  = useRef(new Animated.Value(showBackOnly || (startOnBack && isMember) ? 1 : 0)).current;
   const sweepAnim = useRef(new Animated.Value(0)).current;
@@ -139,7 +130,7 @@ export function MemberCard({
 
   const sweepX = sweepAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [-CARD_W, CARD_W * 1.5],
+    outputRange: [-cardW, cardW * 1.5],
   });
 
   // 3D flip
@@ -202,14 +193,14 @@ export function MemberCard({
         <ImageBackground
           source={variant.bgImage}
           style={StyleSheet.absoluteFill}
-          imageStyle={{ borderRadius: 16 }}
+          imageStyle={{ borderRadius: 16 * k }}
           resizeMode="cover"
         />
       )}
 
       {/* SVG-gradient – alla andra varianter */}
       {isMember && !hasPng && variant && (
-        <Svg style={StyleSheet.absoluteFill} width={CARD_W} height={CARD_H}>
+        <Svg style={StyleSheet.absoluteFill} width={cardW} height={cardH}>
           <Defs>
             <SvgGrad id="fg" x1="0" y1="0" x2="1" y2="1">
               <Stop offset="0%" stopColor={variant.bg} />
@@ -222,9 +213,9 @@ export function MemberCard({
               </SvgRadial>
             ) : null}
           </Defs>
-          <SvgRect x={0} y={0} width={CARD_W} height={CARD_H} fill="url(#fg)" />
+          <SvgRect x={0} y={0} width={cardW} height={cardH} fill="url(#fg)" />
           {variant.glow ? (
-            <SvgRect x={0} y={0} width={CARD_W} height={CARD_H} fill="url(#fr)" />
+            <SvgRect x={0} y={0} width={cardW} height={cardH} fill="url(#fr)" />
           ) : null}
         </Svg>
       )}
@@ -235,7 +226,7 @@ export function MemberCard({
           style={[mc.sweep, { transform: [{ translateX: sweepX }, { skewX: "-20deg" }] }]}
           pointerEvents="none"
         >
-          <Svg width={160} height={CARD_H} style={StyleSheet.absoluteFill}>
+          <Svg width={160 * k} height={cardH} style={StyleSheet.absoluteFill}>
             <Defs>
               <SvgGrad id="shimmer" x1="0" y1="0" x2="1" y2="0">
                 <Stop offset="0%"   stopColor="#fff" stopOpacity={0}    />
@@ -245,7 +236,7 @@ export function MemberCard({
                 <Stop offset="100%" stopColor="#fff" stopOpacity={0}    />
               </SvgGrad>
             </Defs>
-            <SvgRect x={0} y={0} width={160} height={CARD_H} fill="url(#shimmer)" />
+            <SvgRect x={0} y={0} width={160 * k} height={cardH} fill="url(#shimmer)" />
           </Svg>
         </Animated.View>
       )}
@@ -267,11 +258,11 @@ export function MemberCard({
               )}
             </View>
           </View>
-          <Radio size={20} color={colors.accent} strokeWidth={1.5} style={{ marginTop: 4 }} />
+          <Radio size={20 * k} color={colors.accent} strokeWidth={1.5} style={{ marginTop: 4 * k }} />
         </View>
 
         {/* Nedre rad: namn, datum, pass-etikett */}
-        <View style={{ gap: 4 }}>
+        <View style={{ gap: 4 * k }}>
           {/* Namn — ShareTechMono, text-shadow anpassad till kortets ljusnivå */}
           <Text style={[
             mc.name,
@@ -287,7 +278,7 @@ export function MemberCard({
           ) : null}
           {isMember ? (
             <View style={mc.passRow}>
-              <Crown size={12} color={colors.accent} strokeWidth={2} />
+              <Crown size={12 * k} color={colors.accent} strokeWidth={2} />
               <Text style={[mc.passLabel, { color: colors.accent }]}>ÖSTERLENPASSET</Text>
             </View>
           ) : (
@@ -314,15 +305,15 @@ export function MemberCard({
       <Animated.View
         style={{
           position: "absolute",
-          width: GRAD_SIZE,
-          height: GRAD_SIZE,
-          top: (CARD_H - GRAD_SIZE) / 2,
-          left: (CARD_W - GRAD_SIZE) / 2,
+          width: gradSize,
+          height: gradSize,
+          top: (cardH - gradSize) / 2,
+          left: (cardW - gradSize) / 2,
           transform: [{ rotate: gradRotate }],
         }}
         pointerEvents="none"
       >
-        <Svg width={GRAD_SIZE} height={GRAD_SIZE}>
+        <Svg width={gradSize} height={gradSize}>
           <Defs>
             <SvgGrad id="gold_bg" x1="0" y1="0.5" x2="1" y2="0.5">
               <Stop offset="0%"   stopColor="#D4AF37" />
@@ -331,7 +322,7 @@ export function MemberCard({
               <Stop offset="100%" stopColor="#D4AF37" />
             </SvgGrad>
           </Defs>
-          <SvgRect x={0} y={0} width={GRAD_SIZE} height={GRAD_SIZE} fill="url(#gold_bg)" />
+          <SvgRect x={0} y={0} width={gradSize} height={gradSize} fill="url(#gold_bg)" />
         </Svg>
       </Animated.View>
 
@@ -353,7 +344,7 @@ export function MemberCard({
             <Image source={{ uri: profileImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           ) : (
             <View style={mc.backCirclePlaceholder}>
-              <Camera size={24} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />
+              <Camera size={24 * k} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />
               <Text style={mc.uploadText}>Foto saknas</Text>
             </View>
           )}
@@ -371,12 +362,12 @@ export function MemberCard({
   );
 
   return (
-    <View style={{ height: CARD_H }}>
+    <View style={{ height: cardH }}>
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={1}
         disabled={showBackOnly}
-        style={{ height: CARD_H }}
+        style={{ height: cardH }}
       >
         {!showBackOnly && Front}
         {isMember && Back}
@@ -385,17 +376,18 @@ export function MemberCard({
   );
 }
 
-const mc = StyleSheet.create({
+/** Alla mått är ritade för standardbredden (k = 1) och skalas med k. */
+const createStyles = (k: number, cardW: number, cardH: number) => StyleSheet.create({
   card: {
     position: "absolute",
-    width: CARD_W, height: CARD_H,
-    borderRadius: 16,
+    width: cardW, height: cardH,
+    borderRadius: 16 * k,
     overflow: "hidden",
     backfaceVisibility: "hidden",
   },
 
   sweep: {
-    position: "absolute", top: 0, bottom: 0, width: 160,
+    position: "absolute", top: 0, bottom: 0, width: 160 * k,
     // Ingen backgroundColor — SVG-gradienten inuti sköter färgen
   },
 
@@ -403,7 +395,7 @@ const mc = StyleSheet.create({
   content: {
     position: "absolute",
     top: 0, left: 0, right: 0, bottom: 0,
-    padding: 24,
+    padding: 24 * k,
     justifyContent: "space-between",
   },
   topRow: {
@@ -414,25 +406,25 @@ const mc = StyleSheet.create({
 
   // Avatar
   avatarShadow: {
-    borderRadius: 32,
-    shadowOffset: { width: 0, height: 6 },
+    borderRadius: 32 * k,
+    shadowOffset: { width: 0, height: 6 * k },
     shadowOpacity: 0.70,
-    shadowRadius: 18,
+    shadowRadius: 18 * k,
     elevation: 10,
   },
   avatarRing: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 64 * k, height: 64 * k, borderRadius: 32 * k,
     overflow: "hidden",
   },
-  avatarImg: { width: 64, height: 64 },
+  avatarImg: { width: 64 * k, height: 64 * k },
   avatarInner: {
-    width: 64, height: 64,
+    width: 64 * k, height: 64 * k,
     alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.10)",
   },
   avatarInitials: {
     fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
+    fontSize: 20 * k,
     color: "#F5F1E8",
     textShadowColor: "rgba(0,0,0,0.35)",
     textShadowOffset: { width: 0, height: 1 },
@@ -442,109 +434,85 @@ const mc = StyleSheet.create({
   // Text — kortfonter
   name: {
     fontFamily: "ShareTechMono_400Regular",
-    fontSize: 18,
+    fontSize: 18 * k,
     color: "rgba(255,255,255,0.95)",
-    letterSpacing: 2.5,
+    letterSpacing: 2.5 * k,
     textShadowColor: "rgba(0,0,0,0.40)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   since: {
     fontFamily: "ShareTechMono_400Regular",
-    fontSize: 11,
+    fontSize: 11 * k,
     color: "rgba(255,255,255,0.40)",
-    letterSpacing: 0.8,
+    letterSpacing: 0.8 * k,
     textShadowColor: "rgba(0,0,0,0.30)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
   },
-  passRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  passRow: { flexDirection: "row", alignItems: "center", gap: 5 * k },
   passLabel: {
     fontFamily: "ShareTechMono_400Regular",
-    fontSize: 11,
+    fontSize: 11 * k,
     color: "#E8C547",
-    letterSpacing: 1.2,
+    letterSpacing: 1.2 * k,
     textShadowColor: "rgba(0,0,0,0.30)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   ctaHint: {
     fontFamily: "ShareTechMono_400Regular",
-    fontSize: 11,
+    fontSize: 11 * k,
     color: "rgba(255,255,255,0.45)",
-    letterSpacing: 0.5,
-  },
-
-  innerBorder: {
-    position: "absolute",
-    top: 8, left: 8, right: 8, bottom: 8,
-    borderRadius: 10,
-    borderWidth: 0.75,
-  },
-
-  // Back – Ö watermark position
-  markWrap: {
-    position: "absolute",
-    right: -MARK_SIZE * 0.07,
-    top: (CARD_H - MARK_SIZE) / 2,
+    letterSpacing: 0.5 * k,
   },
 
   // ── Back – centrerad kolumn ──────────────────────────────────────────────
   backCol: {
     flex: 1, alignItems: "center", justifyContent: "center",
-    gap: 8, paddingHorizontal: 24, paddingVertical: 10,
+    gap: 8 * k, paddingHorizontal: 24 * k, paddingVertical: 10 * k,
   },
   liveLabel: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
+    fontSize: 12 * k,
     color: "rgba(0,0,0,0.70)",
-    letterSpacing: 2.4,
+    letterSpacing: 2.4 * k,
     textTransform: "uppercase",
   },
   backCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    borderWidth: 2, borderColor: "rgba(255,255,255,0.50)",
+    width: 80 * k, height: 80 * k, borderRadius: 40 * k,
+    borderWidth: 2 * k, borderColor: "rgba(255,255,255,0.50)",
     overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.80)",
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    shadowColor: "#000", shadowOpacity: 0.22, shadowRadius: 8 * k, shadowOffset: { width: 0, height: 4 * k },
   },
   backCirclePlaceholder: {
-    alignItems: "center", gap: 4,
+    alignItems: "center", gap: 4 * k,
   },
   uploadText: {
     fontFamily: "Inter_500Medium",
-    fontSize: 8,
+    fontSize: 8 * k,
     color: "rgba(0,0,0,0.50)",
   },
   backMemberName: {
     fontFamily: "Inter_500Medium",
-    fontSize: 11,
+    fontSize: 11 * k,
     color: "rgba(0,0,0,0.60)",
-    letterSpacing: 0.5,
-    marginTop: -4,
+    letterSpacing: 0.5 * k,
+    marginTop: -4 * k,
   },
   liveClock: {
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-    fontSize: 24,
+    fontSize: 24 * k,
     fontWeight: "700",
     color: "rgba(0,0,0,0.90)",
   },
   liveInstruction: {
     fontFamily: "Inter_400Regular",
-    fontSize: 10,
+    fontSize: 10 * k,
     color: "rgba(0,0,0,0.55)",
     textAlign: "center",
-    letterSpacing: 0.2,
+    letterSpacing: 0.2 * k,
   },
-
-  // ── Upload modal ──────────────────────────────────────────────────────────
-
-  // Gamla back-stilar (används ej längre men behåller för ev. backward-compat)
-  backContent: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
-  verifyLabel: { fontFamily: "Inter_600SemiBold", fontSize: 9, color: "rgba(215,178,78,0.60)", letterSpacing: 3.5 },
-  clockText:   { fontFamily: "Inter_600SemiBold", fontSize: 22, color: "rgba(215,178,78,0.92)", letterSpacing: 1.5 },
-  backName:    { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(215,178,78,0.80)", letterSpacing: 1.5 },
-  backSep:     { width: 44, height: 0.75, backgroundColor: "rgba(215,178,78,0.22)", marginVertical: 4 },
-  showText:    { fontFamily: "Inter_400Regular", fontSize: 10, color: "rgba(215,178,78,0.40)", letterSpacing: 0.5 },
 });

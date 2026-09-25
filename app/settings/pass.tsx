@@ -25,7 +25,7 @@ import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { GradientCard } from "@/components/GradientCard";
-import { MemberCard, CARD_W, CARD_H } from "@/components/MemberCard";
+import { MemberCard, CARD_W } from "@/components/MemberCard";
 import { ActivityRow, AmountColumn, CardLine } from "@/components/pass/ActivityRow";
 import { PrimaryButton } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -33,8 +33,8 @@ import type { ThemeColors } from "@/theme/colors";
 
 const longDate = (d: Date | string) => formatDate(d, "d MMMM yyyy");
 
-/** Kortet visas något mindre än sin fulla bredd så att det ryms i statusrutan */
-const CARD_SCALE = 0.84;
+/** Kortet ritas något smalare än full bredd så att det ryms i statusrutan */
+const HERO_CARD_WIDTH = Math.round(CARD_W * 0.78);
 
 /** Rund snabbknapp med etikett under, som i bankappar. */
 function QuickAction({ icon: Icon, label, badge, onPress }: { icon: LucideIcon; label: string; badge?: number; onPress: () => void }) {
@@ -127,31 +127,28 @@ export default function PassHub() {
           i mitten och nedräkning med tidslinje under. Genomskinlig; guldkant för medlemmar. */}
       <View style={[s.hero, membership.isMember && s.heroActive]}>
         <View style={s.heroTop}>
+          {membership.isMember && <Text style={s.period}>{periodLabel(membership.period)}</Text>}
           <View style={s.statusRow}>
             <View style={[s.dot, membership.isMember && { backgroundColor: colors.success }]} />
             <Text style={[s.statusLabel, membership.isMember && { color: colors.success }]}>
               {membership.isMember ? t("pass.status.active") : t("pass.status.none")}
             </Text>
           </View>
-          {membership.isMember && <Text style={s.period}>{periodLabel(membership.period)}</Text>}
         </View>
 
         <View style={s.cardShadow}>
-          <View style={{ width: CARD_W * CARD_SCALE, height: CARD_H * CARD_SCALE }}>
-            <View style={s.cardScaler}>
-              <MemberCard
-                displayName={profile?.display_name ?? ""}
-                isMember={membership.isMember}
-                memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
-                cardColor={profile?.card_color}
-                avatarUrl={avatarUrl}
-                circleColor={profile?.circle_color}
-                profileImageUrl={cardPhotoUrl}
-                onBuyPress={() => router.push("/settings/pass-buy" as any)}
-                startOnBack
-              />
-            </View>
-          </View>
+          <MemberCard
+            width={HERO_CARD_WIDTH}
+            displayName={profile?.display_name ?? ""}
+            isMember={membership.isMember}
+            memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
+            cardColor={profile?.card_color}
+            avatarUrl={avatarUrl}
+            circleColor={profile?.circle_color}
+            profileImageUrl={cardPhotoUrl}
+            onBuyPress={() => router.push("/settings/pass-buy" as any)}
+            startOnBack
+          />
         </View>
 
         {membership.isMember ? (
@@ -240,11 +237,19 @@ export default function PassHub() {
                 icon={Gift}
                 tone="gold"
                 title={g.recipientName || t("pass.given.fallbackName")}
-                subtitle={[
-                  periodLabel(g.period),
-                  g.claimed ? t("pass.given.claimed") : t("pass.given.unclaimed"),
-                  g.deliveryMethod === "print" ? t("pass.given.byPrint") : g.deliveryMethod === "email" ? t("pass.given.byEmail") : null,
-                ].filter(Boolean).join(" · ")}
+                subtitle={(
+                  <View style={{ gap: 4 }}>
+                    <Text style={s.giftLine} numberOfLines={1}>
+                      {[
+                        periodLabel(g.period),
+                        g.deliveryMethod === "print" ? t("pass.given.byPrint") : g.deliveryMethod === "email" ? t("pass.given.byEmail") : null,
+                      ].filter(Boolean).join(" · ")}
+                    </Text>
+                    <Text style={[s.giftLine, { color: g.claimed ? colors.success : colors.goldText }]} numberOfLines={1}>
+                      {g.claimed ? t("pass.given.claimed") : t("pass.given.unclaimed")}
+                    </Text>
+                  </View>
+                )}
                 right={!g.claimed ? (
                   <TouchableOpacity
                     style={s.codePill}
@@ -287,12 +292,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     alignSelf: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3, shadowRadius: 14, elevation: 6,
   },
-  // Kortet skalas runt sin mitt och läggs så att det övre vänstra hörnet hamnar i sin ruta
-  cardScaler: {
-    position: "absolute", width: CARD_W, height: CARD_H,
-    left: -(CARD_W * (1 - CARD_SCALE)) / 2, top: -(CARD_H * (1 - CARD_SCALE)) / 2,
-    transform: [{ scale: CARD_SCALE }],
-  },
   track: { height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: "hidden" },
   trackFill: { height: 4, borderRadius: 2, backgroundColor: c.gold },
   countdownRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -313,6 +312,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   badgeText: { fontFamily: "Inter_700Bold", fontSize: 11, color: c.onGold },
 
+  giftLine: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted },
   codePill: {
     flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 8,
     borderRadius: 10, backgroundColor: c.goldSoft,
