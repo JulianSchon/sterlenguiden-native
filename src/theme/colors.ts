@@ -39,7 +39,7 @@ export interface ThemeColors {
   goldBorder: string;
   /** Samlarobjekt */
   purple: string;
-  /** Dämpad varm ton för mindre viktig text (som "Varje plats. Varje minne." på Profil) */
+  /** Dämpad varm ton för mindre viktig text (som undertiteln på Profil) */
   warm: string;
   danger: string;
   /** Pengar in, aktiv status */

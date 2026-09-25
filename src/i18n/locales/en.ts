@@ -230,7 +230,7 @@ export const en: typeof sv = {
   about: {
     title: "About",
     appName: "Österlenappen",
-    tagline: "Every place. Every memory.",
+    tagline: "The digital platform for Österlen",
     description: "Your guide to Österlen: places, events, offers and your own memories.",
     legal: {
       title: "Legal",

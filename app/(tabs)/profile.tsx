@@ -365,7 +365,7 @@ export default function ProfileScreen() {
       <View style={s.titleRow}>
         <View>
           <Text style={s.title}>Min Profil</Text>
-          <Text style={s.titleSub}>Varje plats. Varje minne.</Text>
+          <Text style={s.titleSub}>Österlens digitala plattform</Text>
         </View>
         <TouchableOpacity
           style={s.gearBtn}

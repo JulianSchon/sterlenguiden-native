@@ -233,7 +233,7 @@ export const sv = {
   about: {
     title: "Om",
     appName: "Österlenappen",
-    tagline: "Varje plats. Varje minne.",
+    tagline: "Österlens digitala plattform",
     description: "Din guide till Österlen: platser, event, erbjudanden och dina egna minnen.",
     legal: {
       title: "Juridik",
