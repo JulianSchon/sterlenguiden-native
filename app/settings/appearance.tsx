@@ -32,11 +32,10 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { useMorphStyle } from "@/theme/morph";
 
 const { width: SW } = Dimensions.get("window");
-const ITEM_W = Math.round(CARD_W * 0.86);
-// Kortens mittpunkter ligger närmare varandra än deras bredd, så grannarna
-// ligger delvis bakom det valda kortet och tittar fram på var sida
-const GAP = -Math.round(ITEM_W * 0.1);
-const STEP = ITEM_W + GAP;
+// Kortet är smalt nog att grannarna, som är mindre, får plats med luft mellan sig
+// och tittar fram en bit på var sida
+const ITEM_W = Math.round(CARD_W * 0.82);
+const STEP = ITEM_W;
 /** Sidopadding så att mittenkortet ligger mitt på skärmen; grannarna syns i resten av bredden */
 const SIDE = (SW - ITEM_W) / 2;
 /** SettingsScreen har 16 px marginal; raden ska gå kant i kant */
@@ -49,9 +48,8 @@ const RING_AVATAR = 72;
 const RING_TILE = 104;
 
 /** Ett kort i raden. Storlek och mörkning följer avståndet till mitten. */
-function DesignCard({ index, isLast, scrollX, onPress, children }: {
+function DesignCard({ index, scrollX, onPress, children }: {
   index: number;
-  isLast: boolean;
   scrollX: SharedValue<number>;
   onPress: () => void;
   children: (props: { onCardPress: () => void }) => React.ReactNode;
@@ -68,7 +66,7 @@ function DesignCard({ index, isLast, scrollX, onPress, children }: {
     return { opacity: interpolate(distance, [0, 1], [0, SIDE_DIM], Extrapolation.CLAMP) };
   });
   return (
-    <Animated.View style={[st.cardShadow, { marginRight: isLast ? 0 : GAP }, cardStyle]}>
+    <Animated.View style={[st.cardShadow, cardStyle]}>
       {children({ onCardPress: onPress })}
       <Animated.View style={[st.dim, dimStyle]} pointerEvents="none" />
     </Animated.View>
@@ -179,7 +177,6 @@ export default function AppearanceSettings() {
             <DesignCard
               key={v.id}
               index={i}
-              isLast={i === CARD_VARIANTS.length - 1}
               scrollX={scrollX}
               onPress={() => scroller.current?.scrollTo({ x: i * STEP, animated: true })}
             >
