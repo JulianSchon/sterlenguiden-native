@@ -107,6 +107,7 @@ export function MemberCard({
   const [isFlipped, setIsFlipped]           = useState(showBackOnly || (startOnBack && isMember));
   const [time, setTime]                     = useState(new Date());
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
+  const bgFade                              = useRef(new Animated.Value(0)).current;
 
   // Baksidan ritas bara när den kan bli synlig; kort som är låsta till framsidan slipper dess animationer
   const backVisible = isMember && (showBackOnly || startOnBack || !disableFlip);
@@ -116,6 +117,9 @@ export function MemberCard({
   const hasPng  = !!(variant?.bgImage);          // alla varianter med bgImage får PNG
   const colors  = variant ? cardColors(variant) : NON_MEMBER_COLORS;
   const baseBg  = isMember ? (variant?.bg ?? "#0A0A0A") : "#110D07";
+
+  // Byter kortet design ska den nya bilden tonas in på nytt
+  useEffect(() => { bgFade.setValue(0); }, [variant?.id]);
 
   // Medlemskapet laddas efter första bilden; då ska kortet ändå landa på baksidan
   useEffect(() => {
@@ -201,12 +205,15 @@ export function MemberCard({
 
       {/* PNG-bakgrund – varianter med bgImage */}
       {isMember && hasPng && variant?.bgImage && (
-        <ImageBackground
-          source={variant.bgImage}
-          style={StyleSheet.absoluteFill}
-          imageStyle={{ borderRadius: 16 * k }}
-          resizeMode="cover"
-        />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: bgFade }]}>
+          <ImageBackground
+            source={variant.bgImage}
+            style={StyleSheet.absoluteFill}
+            imageStyle={{ borderRadius: 16 * k }}
+            resizeMode="cover"
+            onLoad={() => Animated.timing(bgFade, { toValue: 1, duration: 200, useNativeDriver: true }).start()}
+          />
+        </Animated.View>
       )}
 
       {/* SVG-gradient – alla andra varianter */}
@@ -287,12 +294,12 @@ export function MemberCard({
             {displayName.toUpperCase()}
           </Text>
           {isMember && memberSince ? (
-            <Text style={[mc.since, { color: colors.muted }]}>Sedan {memberSince}</Text>
+            <Text style={[mc.since, { color: colors.muted }, variant?.light && mc.onLight]}>Sedan {memberSince}</Text>
           ) : null}
           {isMember ? (
             <View style={mc.passRow}>
               <Crown size={12 * k} color={colors.accent} strokeWidth={2} />
-              <Text style={[mc.passLabel, { color: colors.accent }]}>ÖSTERLENPASSET</Text>
+              <Text style={[mc.passLabel, { color: colors.accent }, variant?.light && mc.onLight]}>ÖSTERLENPASSET</Text>
             </View>
           ) : (
             <Text style={mc.ctaHint}>Tryck för att aktivera →</Text>
@@ -462,6 +469,10 @@ const createStyles = (k: number, cardW: number, cardH: number) => StyleSheet.cre
     textShadowColor: "rgba(0,0,0,0.30)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
+  },
+  // Liten text på ljusa kort: ljus glans i stället för mörk skugga
+  onLight: {
+    textShadowColor: "rgba(255,244,205,0.85)", textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 4 * k,
   },
   passRow: { flexDirection: "row", alignItems: "center", gap: 5 * k },
   passLabel: {

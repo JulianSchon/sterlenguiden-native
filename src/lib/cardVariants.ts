@@ -38,9 +38,9 @@ export type CardColors = {
 export function cardColors(variant: CardVariant): CardColors {
   if (variant.light) {
     return {
-      text:           "rgba(15,10,0,0.90)",
-      muted:          "rgba(15,10,0,0.55)",   // mörkare → datum läsbart
-      accent:         "#6B4C0A",              // mörk guld — synlig på ljus bakgrund
+      text:           "#140E00",
+      muted:          "rgba(20,14,0,0.88)",   // bakgrundsbilderna är mellanljusa, så även dämpad text ska vara nästan svart
+      accent:         "#241800",              // mörk guld — synlig på ljus bakgrund
       avatarBorder:   "#8B6914",
       avatarBg:       "rgba(0,0,0,0.08)",
       avatarInitials: "#5A4210",

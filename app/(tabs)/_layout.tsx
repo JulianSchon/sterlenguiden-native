@@ -3,11 +3,14 @@ import { Tabs } from "expo-router";
 import FloatingNav from "@/components/navigation/FloatingNav";
 import { useRecordAppDay } from "@/hooks/useAppDays";
 import { usePrefetchPass } from "@/hooks/usePassHistory";
+import { prefetchCardImages } from "@/lib/cardImages";
+import { useEffect } from "react";
 
 export default function TabLayout() {
   // Sparar dagen för streaken när appen öppnas (tab-gruppen visas bara inloggad)
   useRecordAppDay();
   usePrefetchPass();
+  useEffect(prefetchCardImages, []);
   return (
     <View style={{ flex: 1 }}>
       {/*
