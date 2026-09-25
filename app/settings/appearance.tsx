@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View, TouchableOpacity, Alert, Dimensions, StyleSheet } from "react-native";
 import Animated, {
   Extrapolation, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
-  useAnimatedStyle, useSharedValue, withSpring, type SharedValue,
+  interpolateColor, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, type SharedValue,
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { Check, Lock } from "lucide-react-native";
@@ -28,6 +28,7 @@ import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { MemberCard, CARD_W } from "@/components/MemberCard";
 import { Avatar } from "@/components/profile/Avatar";
 import { useTheme } from "@/theme/ThemeProvider";
+import { darkColors, lightColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
 
 const { width: SW } = Dimensions.get("window");
@@ -77,10 +78,12 @@ function DesignCard({ index, scrollX, onPress, children }: {
  * de andra är lite dämpade: bocken ger ett tydligt svar på vad som är valt, och
  * rörelsen visar att det just ändrades.
  */
-function RingOption({ def, name, selected, avatarUrl, displayName, circleColor, progress, onPress }: {
+function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, circleColor, progress, onPress }: {
   def: AvatarRingDef;
   name: string;
-  selected: boolean;
+  index: number;
+  /** Vald ring (index). Sätts direkt vid tryck så rörelsen inte väntar på att sidan ritas om. */
+  selectedIdx: SharedValue<number>;
   avatarUrl: string | null;
   displayName: string;
   circleColor: string;
@@ -89,16 +92,23 @@ function RingOption({ def, name, selected, avatarUrl, displayName, circleColor, 
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const mText = useMorphStyle(progress, "color", "text");
-  const mMuted = useMorphStyle(progress, "color", "muted");
   const mFaint = useMorphStyle(progress, "color", "faint");
   const mBadgeBg = useMorphStyle(progress, "backgroundColor", "bg");
   const mBadgeBorder = useMorphStyle(progress, "borderColor", "borderStrong");
 
-  const on = useSharedValue(selected ? 1 : 0);
-  useEffect(() => {
-    on.value = withSpring(selected ? 1 : 0, { damping: 12, stiffness: 190, mass: 0.7 });
-  }, [selected, on]);
+  // 1 när ringen är vald, 0 annars; fjädrar mellan värdena på UI-tråden
+  const on = useDerivedValue(() => withSpring(selectedIdx.value === index ? 1 : 0, { damping: 14, stiffness: 200, mass: 0.7 }));
+  // Namnet är dämpat tills ringen väljs, och följer samtidigt temaövergången
+  const nameStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(
+      on.value,
+      [0, 1],
+      [
+        interpolateColor(progress.value, [0, 1], [darkColors.muted, lightColors.muted]),
+        interpolateColor(progress.value, [0, 1], [darkColors.text, lightColors.text]),
+      ],
+    ),
+  }));
 
   const avatarStyle = useAnimatedStyle(() => ({
     opacity: def.unlocked ? interpolate(on.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) : 0.35,
@@ -124,7 +134,7 @@ function RingOption({ def, name, selected, avatarUrl, displayName, circleColor, 
           </Animated.View>
         )}
       </View>
-      <Animated.Text style={[st.ringName, selected ? mText : mMuted]} numberOfLines={1}>{name}</Animated.Text>
+      <Animated.Text style={[st.ringName, nameStyle]} numberOfLines={1}>{name}</Animated.Text>
       <Animated.Text style={[st.ringState, mFaint]} numberOfLines={1}>{def.unlocked ? " " : t("appearance.ring.lockedTitle")}</Animated.Text>
     </TouchableOpacity>
   );
@@ -146,6 +156,11 @@ export default function AppearanceSettings() {
 
   const savedIndex = Math.max(0, CARD_VARIANTS.findIndex((v) => v.id === (profile?.card_color ?? CARD_VARIANTS[0].id)));
   const ring = profile?.avatar_ring ?? "none";
+  const ringIndex = Math.max(0, AVATAR_RINGS.findIndex((r) => r.id === ring));
+  const selectedRing = useSharedValue(ringIndex);
+  useEffect(() => {
+    selectedRing.value = ringIndex;
+  }, [ringIndex, selectedRing]);
   const displayName = profile?.display_name ?? "";
   const circleColor = profile?.circle_color ?? "#2A2A2A";
 
@@ -264,20 +279,23 @@ export default function AppearanceSettings() {
       <View>
         <Animated.Text style={[st.label, mMuted]}>{t("appearance.ring.title")}</Animated.Text>
         <View style={st.ringRow}>
-          {AVATAR_RINGS.map((r) => (
+          {AVATAR_RINGS.map((r, i) => (
             <RingOption
               key={r.id}
               def={r}
               name={ringNames[r.id]}
-              selected={ring === r.id}
+              index={i}
+              selectedIdx={selectedRing}
               avatarUrl={avatarUrl}
               displayName={displayName}
               circleColor={circleColor}
               progress={progress}
               onPress={() => {
                 Haptics.selectionAsync().catch(() => {});
-                if (r.unlocked) updateProfile.mutate({ avatar_ring: r.id });
-                else Alert.alert(t("appearance.ring.lockedTitle"), t("appearance.ring.lockedBody"));
+                if (!r.unlocked) return Alert.alert(t("appearance.ring.lockedTitle"), t("appearance.ring.lockedBody"));
+                // Rörelsen startar direkt; sparandet (som ritar om korten ovanför) väntar tills den är klar
+                selectedRing.value = i;
+                setTimeout(() => updateProfile.mutate({ avatar_ring: r.id }), 300);
               }}
             />
           ))}
