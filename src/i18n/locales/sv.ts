@@ -36,7 +36,6 @@ export const sv = {
     theme: "Tema",
     themeLight: "Ljust",
     themeDark: "Mörkt",
-    themeRecommended: "Rekommenderas",
     cardDesign: "Kortdesign",
     designs: { forest: "Skog", rapeseed: "Rapsfält", ocean: "Hav", grapes: "Druvor", obsidian: "Obsidian", copper: "Koppar", sand: "Sand" },
     ring: {
@@ -47,7 +46,6 @@ export const sv = {
       lockedTitle: "Låst",
       lockedBody: "Den här ringen låses upp längre fram.",
       hint: "Nya ringar låses upp när du samlar klistermärken och troféer.",
-      selected: "Vald",
     },
   },
   account: {

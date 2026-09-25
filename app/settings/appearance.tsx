@@ -12,17 +12,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View, TouchableOpacity, Alert, Dimensions, StyleSheet } from "react-native";
 import Animated, {
   Extrapolation, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
-  useAnimatedStyle, useSharedValue, type SharedValue,
+  useAnimatedStyle, useSharedValue, withSpring, type SharedValue,
 } from "react-native-reanimated";
-import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useTranslation } from "react-i18next";
-import { Lock } from "lucide-react-native";
+import { Check, Lock } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpdateProfile } from "@/hooks/useAccount";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { CARD_VARIANTS } from "@/lib/cardVariants";
-import { AVATAR_RINGS } from "@/lib/avatarRings";
+import { AVATAR_RINGS, type AvatarRingDef } from "@/lib/avatarRings";
 import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
@@ -73,9 +72,67 @@ function DesignCard({ index, scrollX, onPress, children }: {
   );
 }
 
+/**
+ * En ring att välja. Den valda växer med en fjädrande rörelse och får en guldbock,
+ * de andra är lite dämpade: bocken ger ett tydligt svar på vad som är valt, och
+ * rörelsen visar att det just ändrades.
+ */
+function RingOption({ def, name, selected, avatarUrl, displayName, circleColor, progress, onPress }: {
+  def: AvatarRingDef;
+  name: string;
+  selected: boolean;
+  avatarUrl: string | null;
+  displayName: string;
+  circleColor: string;
+  progress: SharedValue<number>;
+  onPress: () => void;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const mText = useMorphStyle(progress, "color", "text");
+  const mMuted = useMorphStyle(progress, "color", "muted");
+  const mFaint = useMorphStyle(progress, "color", "faint");
+  const mBadgeBg = useMorphStyle(progress, "backgroundColor", "bg");
+  const mBadgeBorder = useMorphStyle(progress, "borderColor", "borderStrong");
+
+  const on = useSharedValue(selected ? 1 : 0);
+  useEffect(() => {
+    on.value = withSpring(selected ? 1 : 0, { damping: 12, stiffness: 190, mass: 0.7 });
+  }, [selected, on]);
+
+  const avatarStyle = useAnimatedStyle(() => ({
+    opacity: def.unlocked ? interpolate(on.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) : 0.35,
+    transform: [{ scale: 1 + 0.14 * on.value }],
+  }));
+  const checkStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, on.value),
+    transform: [{ scale: Math.max(0, on.value) }],
+  }));
+
+  return (
+    <TouchableOpacity style={st.ringItem} activeOpacity={0.8} onPress={onPress}>
+      <View style={st.ringStage}>
+        <Animated.View style={[st.ringAvatar, avatarStyle]}>
+          <Avatar size={RING_AVATAR} uri={avatarUrl} name={displayName} color={circleColor} ring={def.id} />
+        </Animated.View>
+        <Animated.View style={[st.checkBadge, checkStyle]}>
+          <Check size={14} color="#121212" strokeWidth={3} />
+        </Animated.View>
+        {!def.unlocked && (
+          <Animated.View style={[st.lockBadge, mBadgeBg, mBadgeBorder]}>
+            <Lock size={13} color={colors.text} strokeWidth={2.2} />
+          </Animated.View>
+        )}
+      </View>
+      <Animated.Text style={[st.ringName, selected ? mText : mMuted]} numberOfLines={1}>{name}</Animated.Text>
+      <Animated.Text style={[st.ringState, mFaint]} numberOfLines={1}>{def.unlocked ? " " : t("appearance.ring.lockedTitle")}</Animated.Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function AppearanceSettings() {
   const { t } = useTranslation();
-  const { colors, mode } = useTheme();
+  const { mode } = useTheme();
   const { data: profile } = useProfile();
   const avatarUrl = useAvatarUrl();
   const updateProfile = useUpdateProfile();
@@ -84,11 +141,8 @@ export default function AppearanceSettings() {
   const progress = useSharedValue(mode === "light" ? 1 : 0);
   const mMuted = useMorphStyle(progress, "color", "muted");
   const mFaint = useMorphStyle(progress, "color", "faint");
-  const mText = useMorphStyle(progress, "color", "text");
   const mGold = useMorphStyle(progress, "color", "goldText");
   const mRule = useMorphStyle(progress, "backgroundColor", "goldBorder");
-  const mBadgeBg = useMorphStyle(progress, "backgroundColor", "bg");
-  const mBadgeBorder = useMorphStyle(progress, "borderColor", "borderStrong");
 
   const savedIndex = Math.max(0, CARD_VARIANTS.findIndex((v) => v.id === (profile?.card_color ?? CARD_VARIANTS[0].id)));
   const ring = profile?.avatar_ring ?? "none";
@@ -210,48 +264,23 @@ export default function AppearanceSettings() {
       <View>
         <Animated.Text style={[st.label, mMuted]}>{t("appearance.ring.title")}</Animated.Text>
         <View style={st.ringRow}>
-          {AVATAR_RINGS.map((r) => {
-            const selected = ring === r.id;
-            return (
-              <TouchableOpacity
-                key={r.id}
-                style={st.ringItem}
-                activeOpacity={0.8}
-                onPress={() => {
-                  Haptics.selectionAsync().catch(() => {});
-                  if (r.unlocked) updateProfile.mutate({ avatar_ring: r.id });
-                  else Alert.alert(t("appearance.ring.lockedTitle"), t("appearance.ring.lockedBody"));
-                }}
-              >
-                <View style={st.ringStage}>
-                  {/* Mjukt guldsken bakom den valda ringen */}
-                  {selected && (
-                    <Svg width={RING_TILE + 40} height={RING_TILE + 40} style={st.glow} pointerEvents="none">
-                      <Defs>
-                        <RadialGradient id="ringGlow" cx="50%" cy="50%" rx="50%" ry="50%">
-                          <Stop offset="0" stopColor="#C5A059" stopOpacity="0.32" />
-                          <Stop offset="1" stopColor="#C5A059" stopOpacity="0" />
-                        </RadialGradient>
-                      </Defs>
-                      <Rect x={0} y={0} width={RING_TILE + 40} height={RING_TILE + 40} fill="url(#ringGlow)" />
-                    </Svg>
-                  )}
-                  <View style={[st.ringAvatar, !r.unlocked && { opacity: 0.35 }]}>
-                    <Avatar size={RING_AVATAR} uri={avatarUrl} name={displayName} color={circleColor} ring={r.id} />
-                  </View>
-                  {!r.unlocked && (
-                    <Animated.View style={[st.lockBadge, mBadgeBg, mBadgeBorder]}>
-                      <Lock size={13} color={colors.text} strokeWidth={2.2} />
-                    </Animated.View>
-                  )}
-                </View>
-                <Animated.Text style={[st.ringName, selected ? mText : mMuted]} numberOfLines={1}>{ringNames[r.id]}</Animated.Text>
-                <Animated.Text style={[st.ringState, selected ? mGold : mFaint]} numberOfLines={1}>
-                  {selected ? t("appearance.ring.selected") : !r.unlocked ? t("appearance.ring.lockedTitle") : " "}
-                </Animated.Text>
-              </TouchableOpacity>
-            );
-          })}
+          {AVATAR_RINGS.map((r) => (
+            <RingOption
+              key={r.id}
+              def={r}
+              name={ringNames[r.id]}
+              selected={ring === r.id}
+              avatarUrl={avatarUrl}
+              displayName={displayName}
+              circleColor={circleColor}
+              progress={progress}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                if (r.unlocked) updateProfile.mutate({ avatar_ring: r.id });
+                else Alert.alert(t("appearance.ring.lockedTitle"), t("appearance.ring.lockedBody"));
+              }}
+            />
+          ))}
         </View>
         <Animated.Text style={[st.ringHint, mFaint]}>{t("appearance.ring.hint")}</Animated.Text>
       </View>
@@ -284,8 +313,11 @@ const st = StyleSheet.create({
   ringRow: { flexDirection: "row", justifyContent: "space-evenly", paddingTop: 4 },
   ringItem: { alignItems: "center", gap: 4, width: RING_TILE },
   ringStage: { width: RING_TILE, height: RING_TILE, alignItems: "center", justifyContent: "center" },
-  glow: { position: "absolute", left: -20, top: -20 },
   ringAvatar: { width: RING_AVATAR, height: RING_AVATAR },
+  checkBadge: {
+    position: "absolute", right: 12, bottom: 10, width: 26, height: 26, borderRadius: 13,
+    alignItems: "center", justifyContent: "center", backgroundColor: "#E8C674",
+  },
   lockBadge: {
     position: "absolute", right: 14, bottom: 12, width: 24, height: 24, borderRadius: 12,
     alignItems: "center", justifyContent: "center", borderWidth: 1,

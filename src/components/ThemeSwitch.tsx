@@ -18,7 +18,6 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/ThemeProvider";
-import { useMorphStyle } from "@/theme/morph";
 
 const HANDLE = 56;
 const PAD = 6;
@@ -122,7 +121,6 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
       if (report) report.value = value;
     }
   );
-  const recommendedMorph = useMorphStyle(progress, "color", "goldText");
 
   // Ljusets högra kant: noll när knappen står till vänster (inget ljus alls),
   // knappens mitt på halva vägen och hela bandet när knappen är framme
@@ -157,7 +155,7 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
   }));
 
   return (
-    <View style={{ gap: 10 }}>
+    <>
       <GestureDetector gesture={gesture}>
         <Animated.View
           style={[s.track, trackStyle]}
@@ -224,9 +222,7 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
           </Animated.View>
         </Animated.View>
       </GestureDetector>
-
-      {mode === "dark" && <Animated.Text style={[s.recommended, recommendedMorph]}>{t("appearance.themeRecommended")}</Animated.Text>}
-    </View>
+    </>
   );
 }
 
@@ -242,5 +238,4 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, bottom: 0, textAlignVertical: "center", lineHeight: HEIGHT,
     fontFamily: "Montserrat_600SemiBold", fontSize: 14, letterSpacing: 0.3,
   },
-  recommended: { fontFamily: "Inter_500Medium", fontSize: 12, textAlign: "center" },
 });

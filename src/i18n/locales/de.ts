@@ -33,7 +33,6 @@ export const de: typeof sv = {
     theme: "Design",
     themeLight: "Hell",
     themeDark: "Dunkel",
-    themeRecommended: "Empfohlen",
     cardDesign: "Kartendesign",
     designs: { forest: "Wald", rapeseed: "Rapsfeld", ocean: "Meer", grapes: "Trauben", obsidian: "Obsidian", copper: "Kupfer", sand: "Sand" },
     ring: {
@@ -44,7 +43,6 @@ export const de: typeof sv = {
       lockedTitle: "Gesperrt",
       lockedBody: "Dieser Ring wird später freigeschaltet.",
       hint: "Neue Ringe werden freigeschaltet, wenn du Sticker und Trophäen sammelst.",
-      selected: "Ausgewählt",
     },
   },
   account: {
