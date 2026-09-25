@@ -2,10 +2,12 @@ import { View } from "react-native";
 import { Tabs } from "expo-router";
 import FloatingNav from "@/components/navigation/FloatingNav";
 import { useRecordAppDay } from "@/hooks/useAppDays";
+import { usePrefetchPass } from "@/hooks/usePassHistory";
 
 export default function TabLayout() {
   // Sparar dagen för streaken när appen öppnas (tab-gruppen visas bara inloggad)
   useRecordAppDay();
+  usePrefetchPass();
   return (
     <View style={{ flex: 1 }}>
       {/*
