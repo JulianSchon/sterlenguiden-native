@@ -7,17 +7,18 @@
  * när den kommit fram. Ett enkelt tryck byter också.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
 import { Moon, Sun } from "lucide-react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  Extrapolation, interpolate, interpolateColor, runOnJS, useAnimatedStyle,
-  useDerivedValue, useSharedValue, withSpring, withTiming,
+  Extrapolation, interpolate, interpolateColor, runOnJS, useAnimatedReaction, useAnimatedStyle,
+  useDerivedValue, useSharedValue, withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useMorphStyle } from "@/theme/morph";
 
 const HANDLE = 56;
 const PAD = 6;
@@ -30,9 +31,10 @@ const BLACK = ["#0A0A0A", "#121212", "#1A1A1A"];
 const LINEN = ["#F6F1E4", "#EBDDB7", "#D8B872"];
 const GOLD = "#E8C674";
 
-export function ThemeSwitch() {
+/** `progress` (valfri) får löpande värdet 0–1 så att sidan kan färga om sig i takt med knappen. */
+export function ThemeSwitch({ progress: report }: { progress?: SharedValue<number> } = {}) {
   const { t } = useTranslation();
-  const { mode, setMode, colors } = useTheme();
+  const { mode, setMode } = useTheme();
   const [width, setWidth] = useState(0);
 
   const trackW = useSharedValue(0);
@@ -114,6 +116,14 @@ export function ThemeSwitch() {
     const range = travel();
     return range > 0 ? x.value / range : 0;
   });
+  useAnimatedReaction(
+    () => progress.value,
+    (value) => {
+      if (report) report.value = value;
+    }
+  );
+  const recommendedMorph = useMorphStyle(progress, "color", "goldText");
+
   // Ljusets högra kant: noll när knappen står till vänster (inget ljus alls),
   // knappens mitt på halva vägen och hela bandet när knappen är framme
   const edge = useDerivedValue(() => {
@@ -123,7 +133,7 @@ export function ThemeSwitch() {
   });
 
   const trackStyle = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(progress.value, [0, 1], ["rgba(197,160,89,0.30)", "rgba(138,106,31,0.45)"]),
+    borderColor: interpolateColor(progress.value, [0, 1], ["rgba(197,160,89,0.35)", "#1D1B16"]),
   }));
   const revealStyle = useAnimatedStyle(() => ({ width: edge.value }));
   const handleStyle = useAnimatedStyle(() => ({
@@ -215,13 +225,13 @@ export function ThemeSwitch() {
         </Animated.View>
       </GestureDetector>
 
-      {mode === "dark" && <Text style={[s.recommended, { color: colors.goldText }]}>{t("appearance.themeRecommended")}</Text>}
+      {mode === "dark" && <Animated.Text style={[s.recommended, recommendedMorph]}>{t("appearance.themeRecommended")}</Animated.Text>}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  track: { height: HEIGHT, borderRadius: HEIGHT / 2, borderWidth: 1, overflow: "hidden", justifyContent: "center" },
+  track: { height: HEIGHT, borderRadius: HEIGHT / 2, borderWidth: 1.5, overflow: "hidden", justifyContent: "center" },
   reveal: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: HEIGHT / 2, overflow: "hidden" },
   handle: {
     position: "absolute", left: PAD, top: PAD, width: HANDLE, height: HANDLE, borderRadius: HANDLE / 2,
