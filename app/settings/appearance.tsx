@@ -8,7 +8,7 @@
  * så bakgrund och text går över i samma takt som knappen. Övergången finns bara här,
  * eftersom det är den enda sida där man ser knappen röra sig.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { View, TouchableOpacity, Alert, Dimensions, StyleSheet } from "react-native";
 import Animated, {
   Extrapolation, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
@@ -27,6 +27,7 @@ import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { MemberCard, CARD_W } from "@/components/MemberCard";
 import { Avatar } from "@/components/profile/Avatar";
+import { SwitchableAvatarRing } from "@/components/profile/AvatarRing";
 import { useTheme } from "@/theme/ThemeProvider";
 import { darkColors, lightColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
@@ -161,6 +162,13 @@ export default function AppearanceSettings() {
   useEffect(() => {
     selectedRing.value = ringIndex;
   }, [ringIndex, selectedRing]);
+  // Korten byter ring direkt när man trycker, via samma värde som ringvalet
+  const CardRing = useMemo(
+    () => function CardRing({ size, children }: { ring?: string | null; size: number; children: ReactNode }) {
+      return <SwitchableAvatarRing selectedIdx={selectedRing} size={size}>{children}</SwitchableAvatarRing>;
+    },
+    [selectedRing],
+  );
   const displayName = profile?.display_name ?? "";
   const circleColor = profile?.circle_color ?? "#2A2A2A";
 
@@ -259,7 +267,7 @@ export default function AppearanceSettings() {
                   cardColor={v.id}
                   avatarUrl={avatarUrl}
                   circleColor={circleColor}
-                  avatarRing={ring}
+                  ringComponent={CardRing}
                   onBuyPress={() => {}}
                   onCardPress={onCardPress}
                 />

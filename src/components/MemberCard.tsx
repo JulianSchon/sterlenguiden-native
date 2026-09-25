@@ -11,7 +11,7 @@
  * Låg i app/(tabs)/profile.tsx tidigare — utflyttad hit för att aktiva
  * erbjudande-vyn ska kunna visa samma baksida.
  */
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import {
   View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet,
   Dimensions, Animated, Platform, Easing,
@@ -57,6 +57,7 @@ export function MemberCard({
   avatarUrl,
   circleColor,
   avatarRing,
+  ringComponent: Ring = AvatarRing,
   profileImageUrl,
   onBuyPress,
   showBackOnly = false,
@@ -74,6 +75,8 @@ export function MemberCard({
   circleColor?: string | null;
   /** Profilringen runt profilbilden (se src/lib/avatarRings.ts) */
   avatarRing?: string | null;
+  /** Eget ringlager i stället för AvatarRing, för sidor där ringen ska kunna bytas utan omritning */
+  ringComponent?: ComponentType<{ ring?: string | null; size: number; children: ReactNode }>;
   profileImageUrl?: string | null;
   onBuyPress: () => void;
   /** Låser kortet till baksidan utan flip — används av aktiva erbjudande-vyn,
@@ -250,7 +253,7 @@ export function MemberCard({
         {/* Övre rad: avatar + Radio-ikon */}
         <View style={mc.topRow}>
           <View style={[mc.avatarShadow, { shadowColor: "#000" }]}>
-            <AvatarRing ring={avatarRing} size={64 * k}>
+            <Ring ring={avatarRing} size={64 * k}>
               <View style={mc.avatarRing}>
                 {avatarUrl ? (
                   <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
@@ -262,7 +265,7 @@ export function MemberCard({
                   </View>
                 )}
               </View>
-            </AvatarRing>
+            </Ring>
           </View>
           <Radio size={20 * k} color={colors.accent} strokeWidth={1.5} style={{ marginTop: 4 * k }} />
         </View>
