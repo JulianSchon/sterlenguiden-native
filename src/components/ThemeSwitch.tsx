@@ -40,26 +40,24 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
   const x = useSharedValue(0);
   const startX = useSharedValue(0);
   const pressed = useSharedValue(0);
-  const crossed = useSharedValue(false);
+  // Vilken sida knappen står på (0 = mörkt, 1 = ljust); ändras när den tar sig an ett nytt läge
+  const side = useSharedValue(mode === "light" ? 1 : 0);
   const placed = useRef(false);
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
-  // Vibrationen kommer när man släpper och knappen tar sig an sitt läge, i takt med rörelsen,
-  // inte först när fjädern stannat
-  const announce = useCallback((toLight: boolean) => {
-    if (modeRef.current === (toLight ? "light" : "dark")) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-  }, []);
+  // En vibration per temabyte, i samma stund som knappen tar sig an sitt nya läge (när man släpper eller
+  // trycker). Ingen vibration medan man drar, och ingen om knappen hoppar tillbaka.
+  const buzz = useCallback(() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }, []);
   // Själva temabytet för resten av appen sker när knappen är framme
   const commit = useCallback((toLight: boolean) => {
     setMode(toLight ? "light" : "dark");
   }, [setMode]);
-  const tick = useCallback(() => { Haptics.selectionAsync().catch(() => {}); }, []);
 
   // Knappen står där temat är (och följer med om temat ändras på annat håll)
   useEffect(() => {
     if (width <= 0) return;
+    side.value = mode === "light" ? 1 : 0;
     const target = mode === "light" ? width - HANDLE - PAD * 2 : 0;
     if (!placed.current) {
       placed.current = true;
@@ -67,7 +65,7 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
     } else {
       x.value = withSpring(target, SPRING);
     }
-  }, [mode, width, x]);
+  }, [mode, width, x, side]);
 
   const travel = () => {
     "worklet";
@@ -75,7 +73,11 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
   };
   const finish = (toLight: boolean) => {
     "worklet";
-    runOnJS(announce)(toLight);
+    const next = toLight ? 1 : 0;
+    if (next !== side.value) {
+      side.value = next;
+      runOnJS(buzz)();
+    }
     x.value = withSpring(toLight ? travel() : 0, SPRING, (done) => {
       if (done) runOnJS(commit)(toLight);
     });
@@ -87,17 +89,11 @@ export function ThemeSwitch({ progress: report }: { progress?: SharedValue<numbe
     .onBegin(() => {
       startX.value = x.value;
       pressed.value = withTiming(1, { duration: 120 });
-      crossed.value = x.value > travel() / 2;
     })
     .onUpdate((e) => {
       const range = travel();
       const next = Math.min(range, Math.max(0, startX.value + e.translationX));
       x.value = next;
-      const past = next > range / 2;
-      if (past !== crossed.value) {
-        crossed.value = past;
-        runOnJS(tick)();
-      }
     })
     .onEnd((e) => {
       const flick = Math.abs(e.velocityX) > 700;
