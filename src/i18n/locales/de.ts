@@ -43,6 +43,8 @@ export const de: typeof sv = {
       lightning: "Blitz",
       lockedTitle: "Gesperrt",
       lockedBody: "Dieser Ring wird später freigeschaltet.",
+      hint: "Neue Ringe werden freigeschaltet, wenn du Sticker und Trophäen sammelst.",
+      selected: "Ausgewählt",
     },
   },
   account: {

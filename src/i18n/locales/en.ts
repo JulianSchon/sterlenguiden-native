@@ -43,6 +43,8 @@ export const en: typeof sv = {
       lightning: "Lightning",
       lockedTitle: "Locked",
       lockedBody: "This ring will be unlocked later.",
+      hint: "New rings unlock as you collect stickers and trophies.",
+      selected: "Selected",
     },
   },
   account: {

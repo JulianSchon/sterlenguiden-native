@@ -46,6 +46,8 @@ export const sv = {
       lightning: "Blixt",
       lockedTitle: "Låst",
       lockedBody: "Den här ringen låses upp längre fram.",
+      hint: "Nya ringar låses upp när du samlar klistermärken och troféer.",
+      selected: "Vald",
     },
   },
   account: {
