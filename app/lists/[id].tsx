@@ -78,7 +78,7 @@ export default function ListDetailScreen() {
               style={s.shareBtn}
               onPress={() =>
                 Share.share({
-                  message: `Gå med i min lista "${list.name}" i Österlenguiden. Öppna Mitt Österlen, tryck "Gå med" och skriv in koden ${list.inviteCode}`,
+                  message: `Gå med i min lista "${list.name}" i Österlenappen. Öppna Mitt Österlen, tryck "Gå med" och skriv in koden ${list.inviteCode}`,
                 })
               }
             >

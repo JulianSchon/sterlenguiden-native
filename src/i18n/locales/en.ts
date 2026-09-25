@@ -237,8 +237,6 @@ export const en: typeof sv = {
       privacy: "Privacy policy",
       terms: "Terms of use",
       passTerms: "Österlen Pass terms",
-      notPublished: "This text has not been published yet.",
-      updated: "Last updated {{date}}",
     },
     contact: "Contact us",
     version: "Version {{version}}",

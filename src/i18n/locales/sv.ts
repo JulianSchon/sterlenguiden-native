@@ -240,8 +240,6 @@ export const sv = {
       privacy: "Integritetspolicy",
       terms: "Användarvillkor",
       passTerms: "Villkor för Österlenpasset",
-      notPublished: "Den här texten är inte publicerad än.",
-      updated: "Senast uppdaterad {{date}}",
     },
     contact: "Kontakta oss",
     version: "Version {{version}}",

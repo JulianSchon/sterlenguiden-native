@@ -237,8 +237,6 @@ export const de: typeof sv = {
       privacy: "Datenschutzerklärung",
       terms: "Nutzungsbedingungen",
       passTerms: "Bedingungen für den Österlen-Pass",
-      notPublished: "Dieser Text ist noch nicht veröffentlicht.",
-      updated: "Zuletzt aktualisiert am {{date}}",
     },
     contact: "Kontakt",
     version: "Version {{version}}",

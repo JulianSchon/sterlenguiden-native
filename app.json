@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Österlenguiden",
+    "name": "Österlenappen",
     "slug": "sterlenguiden-native",
     "owner": "hulle",
     "version": "1.0.0",
@@ -51,8 +51,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Österlenguiden behöver din plats för att visa kartan och föreslå din hemort vid registrering.",
-          "locationAlwaysAndWhenInUsePermission": "Österlenguiden använder din plats, även i bakgrunden, för att du automatiskt ska samla platsmärken (stickers) när du besöker platser på Österlen.",
+          "locationWhenInUsePermission": "Österlenappen behöver din plats för att visa kartan och föreslå din hemort vid registrering.",
+          "locationAlwaysAndWhenInUsePermission": "Österlenappen använder din plats, även i bakgrunden, för att du automatiskt ska samla platsmärken (stickers) när du besöker platser på Österlen.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
         }
@@ -62,8 +62,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Österlenguiden behöver tillgång till dina bilder för att du ska kunna ladda upp en profilbild eller ett verifieringsfoto till ditt medlemskort.",
-          "cameraPermission": "Österlenguiden behöver tillgång till kameran för att du ska kunna ta en profilbild eller ett verifieringsfoto till ditt medlemskort."
+          "photosPermission": "Österlenappen behöver tillgång till dina bilder för att du ska kunna ladda upp en profilbild eller ett verifieringsfoto till ditt medlemskort.",
+          "cameraPermission": "Österlenappen behöver tillgång till kameran för att du ska kunna ta en profilbild eller ett verifieringsfoto till ditt medlemskort."
         }
       ]
     ],

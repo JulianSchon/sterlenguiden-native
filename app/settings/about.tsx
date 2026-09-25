@@ -1,13 +1,13 @@
 /**
  * Inställningar › Om: loggan, appens namn och version, de juridiska texterna
  * (integritetspolicy, användarvillkor, villkor för Österlenpasset) och, när en
- * adress finns, hur man kontaktar oss. Texterna ligger i databasen (legal_documents).
+ * adress finns, hur man kontaktar oss. De juridiska texterna ligger på webbplatsen;
+ * en rad visas när dess adress är satt i src/lib/appInfo.ts.
  */
 import { View, Text, Image, Linking, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Crown, FileText, Mail, Shield } from "lucide-react-native";
-import { APP_VERSION, SUPPORT_EMAIL } from "@/lib/appInfo";
+import { APP_VERSION, LEGAL_URLS, SUPPORT_EMAIL } from "@/lib/appInfo";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { useThemedStyles } from "@/theme/ThemeProvider";
@@ -15,8 +15,13 @@ import type { ThemeColors } from "@/theme/colors";
 
 export default function AboutSettings() {
   const { t } = useTranslation();
-  const router = useRouter();
   const s = useThemedStyles(createStyles);
+
+  const legalRows = [
+    { key: "privacy", icon: Shield, label: t("about.legal.privacy"), url: LEGAL_URLS.privacy },
+    { key: "terms", icon: FileText, label: t("about.legal.terms"), url: LEGAL_URLS.terms },
+    { key: "passTerms", icon: Crown, label: t("about.legal.passTerms"), url: LEGAL_URLS.passTerms },
+  ].flatMap((row) => (row.url ? [{ ...row, url: row.url }] : []));
 
   return (
     <SettingsScreen title={t("about.title")}>
@@ -27,11 +32,13 @@ export default function AboutSettings() {
         <Text style={s.description}>{t("about.description")}</Text>
       </View>
 
-      <SettingsGroup label={t("about.legal.title")}>
-        <SettingsRow icon={Shield} label={t("about.legal.privacy")} onPress={() => router.push("/settings/legal/privacy" as any)} />
-        <SettingsRow icon={FileText} label={t("about.legal.terms")} onPress={() => router.push("/settings/legal/terms" as any)} />
-        <SettingsRow icon={Crown} label={t("about.legal.passTerms")} onPress={() => router.push("/settings/legal/pass-terms" as any)} />
-      </SettingsGroup>
+      {legalRows.length > 0 && (
+        <SettingsGroup label={t("about.legal.title")}>
+          {legalRows.map(({ key, icon, label, url }) => (
+            <SettingsRow key={key} icon={icon} label={label} onPress={() => Linking.openURL(url)} />
+          ))}
+        </SettingsGroup>
+      )}
 
       {SUPPORT_EMAIL && (
         <SettingsGroup>
