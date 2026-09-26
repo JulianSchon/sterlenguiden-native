@@ -40,15 +40,21 @@ export function tornBandPath(w: number, h: number, amp: number, inset: number, p
 
 /**
  * Papperskanten som blir kvar på biljettens vänstra sida när bandet rivits bort: en tunn, böljande
- * linje (ritas som streck, inte som fylld yta, annars blir det en vit klump).
+ * linje (ritas som streck, inte som fylld yta, annars blir det en vit klump). `amt` (0–1) är hur
+ * mycket rivkant som syns och `progress` hur långt rivningen kommit; båda styrs av bandets
+ * animation (OfferDrawer), så kanten på biljetten och på bandet alltid följer varandra, även när
+ * bandet sätts tillbaka och kanten rätas ut.
  */
-export function tornEdgePath(h: number): SkPath {
+export function tornEdgeLine(h: number, amt: number, progress: number): SkPath {
+  "worklet";
   const path = Skia.Path.Make();
-  path.moveTo(EDGE_STROKE, 0);
-  let prevX = EDGE_STROKE;
+  const base = EDGE_STROKE * amt;
+  path.moveTo(base, 0);
+  let prevX = base;
   for (let i = 1; i <= TEAR_TEETH; i++) {
     const y = (h * i) / TEAR_TEETH;
-    const x = EDGE_STROKE + (i % 2 === 1 ? TEAR_DEPTH * JAGS[i % JAGS.length] : 0);
+    const torn = Math.min(1, Math.max(0, progress * TEAR_TEETH - (TEAR_TEETH - i) + 1));
+    const x = base + (i % 2 === 1 ? TEAR_DEPTH * amt * JAGS[i % JAGS.length] * torn : 0);
     path.quadTo(prevX, y - h / TEAR_TEETH / 2, x, y);
     prevX = x;
   }
@@ -56,8 +62,9 @@ export function tornEdgePath(h: number): SkPath {
 }
 
 /** Ytan till vänster om rivkanten: den del av bilden som satt på "fel" sida och ska bort (fylls med sidans bakgrund) */
-export function tornCutPath(h: number): SkPath {
-  const path = tornEdgePath(h);
+export function tornCutRegion(h: number, amt: number, progress: number): SkPath {
+  "worklet";
+  const path = tornEdgeLine(h, amt, progress);
   path.lineTo(0, h);
   path.lineTo(0, 0);
   path.close();

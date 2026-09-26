@@ -15,7 +15,7 @@ import { useMemo, useRef, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, cancelAnimation, runOnJS, FadeIn,
+  useSharedValue, useAnimatedStyle, useDerivedValue, withTiming, cancelAnimation, runOnJS,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -29,8 +29,8 @@ import { useAvailableOffers } from "@/hooks/useAvailableOffers";
 import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
 } from "@/lib/offers";
-import { OfferDrawer, type OriginRect } from "@/components/offers/OfferDrawer";
-import { tornEdgePath, tornCutPath, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
+import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
+import { tornEdgeLine, tornCutRegion, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { findCategory, ticketColors, type CategoryId } from "@/theme/categories";
 import { formatDate } from "@/i18n/dates";
@@ -59,9 +59,6 @@ const TICKET_H = 190;
 const STUB_W = 58;
 const NOTCH = 28;
 const BLEED = 6;
-// Kanten som blir kvar när bandet rivits bort, och biten av bilden utanför den som försvinner med bandet
-const TORN_EDGE = tornEdgePath(TICKET_H);
-const TORN_CUT = tornCutPath(TICKET_H);
 
 /**
  * Delar företagets rabatt-text i det som ska synas stort ("20 %", "450 kr") och resten.
@@ -112,6 +109,8 @@ export default function OffersScreen() {
   const { data: redemptions = [] } = useOfferRedemptions();
 
   // Vilken biljett som är öppen och var dess sidoband satt (bandet flyger därifrån och tillbaka)
+  // Rivkantens läge, delas mellan panelen (skriver) och biljetterna (läser)
+  const edge: TearEdge = { amt: useSharedValue(0), prog: useSharedValue(0) };
   const [open, setOpen] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
 
   // Svep mellan kategorier. Alla sidor ligger i en rad och raden förskjuts i sidled; att byta
@@ -217,6 +216,7 @@ export default function OffersScreen() {
           placeId={open?.offer.place_id ?? 0}
           focusOffer={open?.offer}
           origin={open?.origin}
+          edge={edge}
           onClose={() => setOpen(null)}
         />
       }
@@ -294,7 +294,7 @@ export default function OffersScreen() {
                         setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
                       }}
                     >
-                      <OfferPage data={page} hiddenOfferId={open?.origin ? open.offer.id : null} onOpen={(offer, origin) => setOpen({ offer, origin })} />
+                      <OfferPage data={page} hiddenOfferId={open?.origin ? open.offer.id : null} edge={edge} onOpen={(offer, origin) => setOpen({ offer, origin })} />
                     </View>
                   </View>
                 )
@@ -311,8 +311,8 @@ export default function OffersScreen() {
 
 /** En kategorisida: listorna "Att använda" och "Inlösta" (eller ett tomt-meddelande) */
 function OfferPage({
-  data, hiddenOfferId, onOpen,
-}: { data: PageData; hiddenOfferId: string | null; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
+  data, hiddenOfferId, edge, onOpen,
+}: { data: PageData; hiddenOfferId: string | null; edge: TearEdge; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
   const s = useThemedStyles(createStyles);
   const empty = data.available.length === 0 && data.redeemed.length === 0;
@@ -322,14 +322,14 @@ function OfferPage({
       {data.available.length > 0 && (
         <Section title={t("offers.sections.available")}>
           {data.available.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} onOpen={onOpen} />
+            <OfferListCard key={offer.id} offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} edge={edge} onOpen={onOpen} />
           ))}
         </Section>
       )}
       {data.redeemed.length > 0 && (
         <Section title={t("offers.sections.redeemed")}>
           {data.redeemed.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used stubHidden={offer.id === hiddenOfferId} onOpen={onOpen} />
+            <OfferListCard key={offer.id} offer={offer} used stubHidden={offer.id === hiddenOfferId} edge={edge} onOpen={onOpen} />
           ))}
         </Section>
       )}
@@ -436,8 +436,8 @@ function Perforation() {
 }
 
 function OfferListCard({
-  offer, used, stubHidden, onOpen,
-}: { offer: Offer; used: boolean; stubHidden: boolean; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
+  offer, used, stubHidden, edge, onOpen,
+}: { offer: Offer; used: boolean; stubHidden: boolean; edge: TearEdge; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
@@ -449,6 +449,9 @@ function OfferListCard({
   const CategoryIcon = category?.icon ?? Crown;
   const [from, to] = ticketColors(offer.category);
   const stubRef = useRef<View>(null);
+  // Biljettens rivkant följer panelens (samma tal som bandet ritas med)
+  const edgePath = useDerivedValue(() => tornEdgeLine(TICKET_H, edge.amt.value, edge.prog.value));
+  const cutPath = useDerivedValue(() => tornCutRegion(TICKET_H, edge.amt.value, edge.prog.value));
 
   // Mät sidobandets plats på skärmen så panelen kan riva loss det därifrån
   const handlePress = () => {
@@ -520,16 +523,15 @@ function OfferListCard({
 
         {/* Kanten som blir kvar när bandet rivits bort: vit, hackig papperskant */}
         {stubHidden && (
-          <Animated.View
-            entering={FadeIn.delay(220).duration(260)}
+          <View
             style={{ position: "absolute", left: STUB_W, top: 0, width: TEAR_DEPTH + EDGE_STROKE * 2 + 1, height: TICKET_H }}
             pointerEvents="none"
           >
             <Canvas style={StyleSheet.absoluteFill}>
-              <Path path={TORN_CUT} color={colors.bg} />
-              <Path path={TORN_EDGE} color="rgba(244,240,230,0.9)" style="stroke" strokeWidth={EDGE_STROKE} />
+              <Path path={cutPath} color={colors.bg} />
+              <Path path={edgePath} color="rgba(244,240,230,0.9)" style="stroke" strokeWidth={EDGE_STROKE} />
             </Canvas>
-          </Animated.View>
+          </View>
         )}
 
         {/* Hack ur biljetten: halvcirklar i sidans färg mitt på varje kortsida */}

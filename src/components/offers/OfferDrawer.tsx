@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Image, ScrollView, Pressable, StyleSheet, useWindowDimensions } from "react-native";
 import Animated, {
-  Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
+  Easing, cancelAnimation, useAnimatedReaction, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
   withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -47,6 +47,9 @@ import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE, EDGE_STROKE } from "./tear";
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
 export interface OriginRect { x: number; y: number; w: number; h: number }
 
+/** Rivkantens läge, skrivs av panelen och läses av biljetten i listan */
+export interface TearEdge { amt: SharedValue<number>; prog: SharedValue<number> }
+
 // Måtten på sidobandet i biljetten (måste stämma med OfferListCard i app/offers.tsx)
 const STUB_ICON_Y = 35;   // ikonens mitt, från bandets överkant
 const STUB_TEXT_Y = 113;  // textens mitt, från bandets överkant
@@ -70,6 +73,7 @@ export function OfferDrawer({
   placeId,
   focusOffer,
   origin,
+  edge,
   onClose,
 }: {
   visible: boolean;
@@ -78,6 +82,8 @@ export function OfferDrawer({
   focusOffer?: Offer | null;
   /** Var biljettens sidoband satt. Utan den öppnas panelen med en vanlig glidning underifrån. */
   origin?: OriginRect | null;
+  /** Delas med biljetterna i listan: hur mycket rivkant som syns, så biljettens kant följer bandets */
+  edge: TearEdge;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -195,9 +201,16 @@ export function OfferDrawer({
   // Hur långt rivningen kommit, underifrån och upp
   // Vid stängning ligger kanten kvar hela vägen, så bandet passar i biljettens rivna kant när det sätts tillbaka
   const tearProgress = useDerivedValue(() => (closing.value ? 1 : interpolate(p.value, [0, 0.13], [0, 1], "clamp")));
-  const edgeGrow = useDerivedValue(() => (closing.value ? 1 : interpolate(p.value, [0, 0.06], [0, 1], "clamp")));
-  const fringe = useDerivedValue(() => TEAR_FRINGE * tear.value * edgeGrow.value);
-  const edgeOut = useDerivedValue(() => EDGE_STROKE * tear.value * edgeGrow.value);
+  const edgeGrow = useDerivedValue(() => interpolate(p.value, [0, 0.06], [0, 1], "clamp"));
+  // Hur mycket rivkant som syns just nu. Biljettens kant i listan läser samma tal (edgeAmt/edgeProg),
+  // så bandet och biljetten passar ihop hela vägen och kanten rätas ut i samma takt när bandet landar.
+  const edgeAmt = useDerivedValue(() => tear.value * edgeGrow.value);
+  useAnimatedReaction(
+    () => ({ amt: edgeAmt.value, prog: tearProgress.value }),
+    (v) => { edge.amt.value = v.amt; edge.prog.value = v.prog; },
+  );
+  const fringe = useDerivedValue(() => TEAR_FRINGE * edgeAmt.value);
+  const edgeOut = useDerivedValue(() => EDGE_STROKE * edgeAmt.value);
   // Rivningen: bandet svänger ut kring sin övre kant, med ett darr som tar slut när det kommit loss
   const tilt = useDerivedValue(() => {
     const swing = interpolate(p.value, [0, 0.12, 0.22, RIP_END + 0.04], [0, 11, 8, 0], "clamp");
@@ -210,8 +223,8 @@ export function OfferDrawer({
   const bandH = useDerivedValue(() => oh.value + (BAND_H - oh.value) * m.value);
   const gradEnd = useDerivedValue(() => vec(0, bandH.value));
   // Bandets form: hackig högerkant medan det rivs, med en vit papperskant utanför färgen
-  const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, 0, tearProgress.value, edgeOut.value));
-  const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, fringe.value, tearProgress.value, edgeOut.value));
+  const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * edgeAmt.value, 0, tearProgress.value, edgeOut.value));
+  const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * edgeAmt.value, fringe.value, tearProgress.value, edgeOut.value));
   // Ett glansstråk som svepar över bandet när det landar (och tillbaka när det lyfts iväg)
   const glintX = useDerivedValue(() => interpolate(p.value, [0.84, 1], [-GLINT_W, bandW.value + GLINT_W * 0.3], "clamp"));
   const glintStart = useDerivedValue(() => vec(glintX.value, 0));
@@ -224,7 +237,7 @@ export function OfferDrawer({
     left: ox.value + (0 - ox.value) * m.value + pullX.value,
     top: oy.value + (bandTop - oy.value) * m.value + pullY.value,
     // Extra bredd åt höger så tänderna som sticker ut ur bandet inte klipps
-    width: bandW.value + (TEAR_DEPTH + EDGE_STROKE + 1) * tear.value,
+    width: bandW.value + (TEAR_DEPTH + EDGE_STROKE + 1) * edgeAmt.value,
     height: bandH.value,
     borderTopLeftRadius: STUB_RADIUS + (BAND_RADIUS - STUB_RADIUS) * m.value,
     borderBottomLeftRadius: STUB_RADIUS * (1 - m.value),
