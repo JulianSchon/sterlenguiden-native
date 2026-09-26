@@ -55,7 +55,7 @@ export function CategoryChips({
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  scroll: { flexGrow: 0, height: 46 },
+  scroll: { flexGrow: 0, height: 44 },
   content: { gap: 8, flexDirection: "row" },
   chip: {
     flexShrink: 0,
@@ -63,8 +63,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 16,
     // Asymmetrisk padding — Inter har mer "luft" under baslinjen än över,
     // så symmetrisk paddingVertical gör att texten ser urcentrerad ut.
-    paddingTop: 11,
-    paddingBottom: 9,
+    paddingTop: 8,
+    paddingBottom: 7,
     borderRadius: 9999,
   },
   chipActive: {
@@ -80,7 +80,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: c.borderStrong,
   },
-  text: { fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 16 },
+  text: { fontFamily: "Inter_500Medium", fontSize: 14, lineHeight: 18 },
   textActive: { color: c.onGold },
   textIdle: { color: c.muted },
 });
