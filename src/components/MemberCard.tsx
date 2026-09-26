@@ -29,7 +29,7 @@ import { initialsOf, toneOnTone } from "@/lib/color";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import * as Haptics from "expo-haptics";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
+import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
@@ -103,8 +103,9 @@ export function MemberCard({
   // Diagonal storlek för roterande gradient-lager (täcker hörnen vid rotation)
   const gradSize = Math.ceil(Math.sqrt(cardW * cardW + cardH * cardH)) + 4;
 
-  // flipAnim 1 = baksidan vänd mot betraktaren (backRotate landar på 360°)
-  const flipAnim  = useRef(new Animated.Value(showBackOnly || (startOnBack && isMember) ? 1 : 0)).current;
+  // 0 = framsidan, 1 = baksidan vänd mot betraktaren. Mellanlägena är kortet mitt i en vändning, och
+  // värdet följer fingret medan man sveper.
+  const flipProgress = useSharedValue(showBackOnly || (startOnBack && isMember) ? 1 : 0);
   const sweepAnim = useRef(new Animated.Value(0)).current;
   const [isFlipped, setIsFlipped]           = useState(showBackOnly || (startOnBack && isMember));
   // Vilken sida som är på väg att visas; uppdateras direkt (isFlipped släpar 350 ms för klockan)
@@ -128,7 +129,7 @@ export function MemberCard({
   // Medlemskapet laddas efter första bilden; då ska kortet ändå landa på baksidan
   useEffect(() => {
     if (!startOnBack || !isMember) return;
-    flipAnim.setValue(1);
+    flipProgress.value = 1;
     flippedRef.current = true;
     setIsFlipped(true);
   }, [startOnBack, isMember]);
@@ -152,15 +153,27 @@ export function MemberCard({
     outputRange: [-cardW, cardW * 1.5],
   });
 
-  // 3D flip
-  const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
-  const backRotate  = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ["180deg", "360deg"] });
+  // 3D flip: framsidan roterar 0→180°, baksidan 180→360°
+  const frontStyle = useAnimatedStyle(() => ({
+    transform: [{ perspective: 1200 }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [0, 180])}deg` }],
+  }));
+  const backStyle = useAnimatedStyle(() => ({
+    transform: [{ perspective: 1200 }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [180, 360])}deg` }],
+  }));
+
+  const FLIP_SPRING = { damping: 14, stiffness: 110, mass: 0.9 };
+
+  /** Kortet landar på en sida (efter tryck eller när ett svep släpps). */
+  const landOn = (side: boolean) => {
+    if (side !== flippedRef.current) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    flippedRef.current = side;
+    setTimeout(() => setIsFlipped(side), 350);
+  };
 
   const flip = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    flippedRef.current = !flippedRef.current;
-    Animated.spring(flipAnim, { toValue: flippedRef.current ? 1 : 0, friction: 8, tension: 10, useNativeDriver: true }).start();
-    setTimeout(() => setIsFlipped(flippedRef.current), 350);
+    const side = !flippedRef.current;
+    flipProgress.value = withSpring(side ? 1 : 0, FLIP_SPRING);
+    landOn(side);
   };
 
   // Ett svep räknas inte också som ett tryck: annars vänder trycket vid släpp tillbaka kortet igen
@@ -183,22 +196,27 @@ export function MemberCard({
     flip();
   };
 
-  // Svep vänder kortet åt samma håll som en sida i en bok: framsidan sveps åt höger, baksidan åt vänster.
-  // Ett tryck vänder fortfarande, och lodräta drag lämnas åt sidan som scrollar.
-  const handleSwipe = (dx: number, vx: number) => {
-    const rightward = dx > 0;
-    const enough = Math.abs(dx) > 40 || Math.abs(vx) > 500;
-    if (enough && rightward !== flippedRef.current) flip();
-  };
+  // Kortet följer fingret medan man sveper. Bara ett håll ger utslag: framsidan sveps åt höger och
+  // baksidan åt vänster, som en sida i en bok. Värdet hålls mellan 0 och 1, så kortet kan aldrig snurra
+  // mer än ett halvt varv hur hårt man än sveper. Vid släpp avgör läget och farten vilken sida det landar
+  // på. Ett tryck vänder fortfarande, och lodräta drag lämnas åt sidan som scrollar.
+  const swipeRange = cardW * 0.7;
+  const startProgress = useSharedValue(0);
   const swipe = Gesture.Pan()
     .enabled(isMember && !disableFlip && !showBackOnly)
     .activeOffsetX([-16, 16])
     .failOffsetY([-24, 24])
     .onStart(() => {
+      startProgress.value = flipProgress.value;
       runOnJS(startSwipe)();
     })
+    .onUpdate((e) => {
+      flipProgress.value = Math.min(1, Math.max(0, startProgress.value + e.translationX / swipeRange));
+    })
     .onEnd((e) => {
-      runOnJS(handleSwipe)(e.translationX, e.velocityX);
+      const side = flipProgress.value + e.velocityX / (swipeRange * 5) > 0.5;
+      flipProgress.value = withSpring(side ? 1 : 0, FLIP_SPRING);
+      runOnJS(landOn)(side);
     })
     .onFinalize(() => {
       runOnJS(endSwipe)();
@@ -237,12 +255,7 @@ export function MemberCard({
 
   // ── Front ─────────────────────────────────────────────────────────────────
   const Front = (
-    <Animated.View
-      style={[
-        mc.card,
-        { transform: [{ perspective: 1200 }, { rotateY: frontRotate }] },
-      ]}
-    >
+    <Reanimated.View style={[mc.card, frontStyle]}>
       {/* ── Bakgrund ─────────────────────────────────────── */}
       {/* Solid base (alltid) */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: baseBg }]} />
@@ -351,19 +364,14 @@ export function MemberCard({
         </View>
       </View>
 
-    </Animated.View>
+    </Reanimated.View>
   );
 
   // ── Back ──────────────────────────────────────────────────────────────────
   const clockStr = format(time, "HH:mm:ss", { locale: sv });
 
   const Back = (
-    <Animated.View
-      style={[
-        mc.card,
-        { transform: [{ perspective: 1200 }, { rotateY: backRotate }] },
-      ]}
-    >
+    <Reanimated.View style={[mc.card, backStyle]}>
       {/* ── Roterande guldgradient — GPU-driven, native driver ── */}
       {/* Kvadratisk yta (diagonalen) roterar bakom kortet */}
       <Animated.View
@@ -422,7 +430,7 @@ export function MemberCard({
 
       </View>
 
-    </Animated.View>
+    </Reanimated.View>
   );
 
   return (
