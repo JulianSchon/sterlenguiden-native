@@ -109,8 +109,9 @@ export function MemberCard({
   // värdet följer fingret medan man sveper.
   const flipProgress = useSharedValue(showBackOnly || (startOnBack && isMember) ? 1 : 0);
   const sweepAnim = useRef(new Animated.Value(0)).current;
-  const [isFlipped, setIsFlipped]           = useState(showBackOnly || (startOnBack && isMember));
-  // Vilken sida som är på väg att visas; uppdateras direkt (isFlipped släpar 350 ms för klockan)
+  // Klockan på baksidan går så länge baksidan är eller kan bli synlig: från att en vändning börjar till en bit efter att kortet landat på framsidan
+  const [clockOn, setClockOn]                = useState(showBackOnly || (startOnBack && isMember));
+  // Vilken sida kortet är på väg mot; uppdateras direkt
   const flippedRef                          = useRef(showBackOnly || (startOnBack && isMember));
   const [time, setTime]                     = useState(new Date());
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
@@ -133,7 +134,7 @@ export function MemberCard({
     if (!startOnBack || !isMember) return;
     flipProgress.value = 1;
     flippedRef.current = true;
-    setIsFlipped(true);
+    setClockOn(true);
   }, [startOnBack, isMember]);
 
   // Light sweep (member only)
@@ -216,10 +217,18 @@ export function MemberCard({
   const landOn = (side: boolean) => {
     if (side !== flippedRef.current) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     flippedRef.current = side;
-    setTimeout(() => setIsFlipped(side), 350);
+    // Landar kortet på framsidan får klockan gå en stund till, så den inte stannar medan baksidan ännu syns
+    setTimeout(() => setClockOn(side), 350);
+  };
+
+  /** Klockan börjar gå och visar rätt tid direkt, så den inte står still medan kortet vänds mot baksidan. */
+  const startClock = () => {
+    setTime(new Date());
+    setClockOn(true);
   };
 
   const flip = () => {
+    startClock();
     const side = !flippedRef.current;
     flipProgress.value = withSpring(side ? 1 : 0, FLIP_SPRING);
     landOn(side);
@@ -230,6 +239,7 @@ export function MemberCard({
   const swiping = useRef(false);
   const swipeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startSwipe = () => {
+    startClock();
     if (swipeTimer.current) clearTimeout(swipeTimer.current);
     swiping.current = true;
   };
@@ -297,10 +307,10 @@ export function MemberCard({
 
   // Live clock — only when back is showing
   useEffect(() => {
-    if (!isFlipped) return;
+    if (!clockOn) return;
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
-  }, [isFlipped]);
+  }, [clockOn]);
 
   // ── Front ─────────────────────────────────────────────────────────────────
   const Front = (
