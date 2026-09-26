@@ -7,7 +7,7 @@
  * Färger och text följer tema och språk.
  */
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, Animated, Dimensions } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Animated, Easing, Dimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Canvas, RoundedRect, LinearGradient, RadialGradient, vec } from "@shopify/react-native-skia";
 import { ACTIVE_SECS } from "@/lib/offers";
@@ -33,9 +33,14 @@ export function OfferConfirmDialog({
   const d = useThemedStyles(createStyles);
   const anim = useRef(new Animated.Value(0)).current;
   const [box, setBox] = useState({ w: 0, h: 0 });
+  // Ligger kvar tills utgångsanimationen är klar, med den senaste texten (dealText töms när rutan stängs)
+  const [mounted, setMounted] = useState(visible);
+  const lastDeal = useRef(dealText);
+  if (visible) lastDeal.current = dealText;
 
   useEffect(() => {
     if (visible) {
+      setMounted(true);
       anim.setValue(0);
       Animated.spring(anim, {
         toValue: 1,
@@ -44,6 +49,9 @@ export function OfferConfirmDialog({
         damping: 26,
         mass: 0.9,
       }).start();
+    } else {
+      Animated.timing(anim, { toValue: 0, duration: 170, easing: Easing.in(Easing.quad), useNativeDriver: true })
+        .start(({ finished }) => { if (finished) setMounted(false); });
     }
   }, [visible]);
 
@@ -55,10 +63,11 @@ export function OfferConfirmDialog({
     ],
   };
 
-  if (!visible) return null;
+  if (!mounted) return null;
 
   return (
-    <View style={d.overlay}>
+    // Under utgångsanimationen tar rutan inte emot fler tryck
+    <Animated.View style={[d.overlay, { opacity: anim }]} pointerEvents={visible ? "auto" : "none"}>
       <Animated.View
         style={[d.card, cardStyle]}
         onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
@@ -83,7 +92,7 @@ export function OfferConfirmDialog({
         </View>
 
         <Text style={d.title}>{t("offers.confirm.title")}</Text>
-        <Text style={d.body}>{t("offers.confirm.body", { deal: dealText, secs: ACTIVE_SECS })}</Text>
+        <Text style={d.body}>{t("offers.confirm.body", { deal: lastDeal.current, secs: ACTIVE_SECS })}</Text>
 
         <View style={d.buttonRow}>
           <Pressable style={d.cancelBtn} onPress={onCancel}>
@@ -95,7 +104,7 @@ export function OfferConfirmDialog({
           </Pressable>
         </View>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 
