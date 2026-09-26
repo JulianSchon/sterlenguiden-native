@@ -143,11 +143,11 @@ function PrimaryTile({ icon, logo, tint, badge, title, subtitle, onPress }: {
 }) {
   const s = useThemedStyles(createStyles);
 
-  // Märket puffar till försiktigt med några sekunders mellanrum för att dra blicken till det som går att använda
+  // Märket växer lugnt och sätter sig igen med några sekunders mellanrum, för att dra blicken till det som går att använda
   const pulse = useSharedValue(1);
   useEffect(() => {
     if (!badge) return;
-    pulse.value = withRepeat(withSequence(withDelay(2800, withTiming(1.18, { duration: 450 })), withTiming(1, { duration: 550 })), -1);
+    pulse.value = withRepeat(withSequence(withDelay(5000, withTiming(1.08, { duration: 700 })), withTiming(1, { duration: 900 })), -1);
     return () => cancelAnimation(pulse);
   }, [badge, pulse]);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
@@ -390,13 +390,13 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   primaryTitle: { fontFamily: "Montserrat_500Medium", fontSize: 14.5, letterSpacing: -0.3, color: c.text, marginTop: 2 },
   primarySub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted },
   // Märket är större och har en ring i bakgrundsfärgen och ett guldsken, så det syns tydligt mot ikonen
-  badgeWrap: { position: "absolute", top: -10, right: -12 },
+  badgeWrap: { position: "absolute", top: -8, right: -10 },
   badge: {
-    minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: 7, borderWidth: 2, borderColor: c.bg,
+    minWidth: 25, height: 25, borderRadius: 12.5, paddingHorizontal: 6, borderWidth: 2, borderColor: c.bg,
     alignItems: "center", justifyContent: "center", backgroundColor: c.gold,
-    shadowColor: c.gold, shadowOpacity: 0.85, shadowRadius: 9, shadowOffset: { width: 0, height: 0 },
+    shadowColor: c.gold, shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
   },
-  badgeText: { fontFamily: "Inter_700Bold", fontSize: 14, color: c.onGold },
+  badgeText: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: c.onGold },
 
   box: {
     width: BOX, height: BOX, borderRadius: BOX_RADIUS, overflow: "hidden", alignItems: "center", justifyContent: "center",
