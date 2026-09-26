@@ -15,6 +15,8 @@ import { Canvas, Fill, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
+import { useProfile } from "@/hooks/useProfile";
+import { useAvailableOffers } from "@/hooks/useAvailableOffers";
 import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
 } from "@/lib/offers";
@@ -73,6 +75,8 @@ export default function OffersScreen() {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const { isMember } = useMembership();
+  const { data: profile } = useProfile();
+  const { available: usable } = useAvailableOffers();
   const { data: offers = [], isLoading } = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
 
@@ -100,15 +104,9 @@ export default function OffersScreen() {
     };
   }, [offers, redemptions, activeFilter]);
 
-  const businessCount = useMemo(() => new Set(offers.map((o) => o.place_id)).size, [offers]);
-
-  // Summan av det som går att lösa in just nu, oberoende av valt filter
-  const totalValue = useMemo(
-    () => offers
-      .filter((o) => offerEligibility(o, redemptions).canUse)
-      .reduce((sum, o) => sum + estimateOfferValue(o), 0),
-    [offers, redemptions],
-  );
+  // Det som går att lösa in just nu, oberoende av valt filter
+  const totalValue = usable.reduce((sum, o) => sum + estimateOfferValue(o), 0);
+  const firstName = profile?.display_name?.trim().split(/\s+/)[0];
 
   return (
     <SettingsScreen title={t("offers.title")}>
@@ -132,8 +130,17 @@ export default function OffersScreen() {
         <>
           <View style={s.hero}>
             <View style={{ flex: 1 }}>
-              <Text style={s.heroLabel}>{t("offers.saveUpTo")}</Text>
-              <Text style={s.heroValue}>{formatKr(totalValue)}</Text>
+              <Text style={s.greeting}>{firstName ? t("offers.greeting", { name: firstName }) : t("offers.greetingNoName")}</Text>
+              <Text style={s.greetingLine}>
+                {isMember
+                  ? usable.length === 0
+                    ? t("offers.haveNone")
+                    : usable.length === 1 ? t("offers.haveOne") : t("offers.have", { count: usable.length })
+                  : usable.length === 1 ? t("offers.waitingOne") : t("offers.waiting", { count: usable.length })}
+              </Text>
+              <Text style={s.saveLine}>
+                {t(isMember ? "offers.saveUpTo" : "offers.saveUpToWithPass", { amount: formatKr(totalValue) })}
+              </Text>
             </View>
             <Pressable
               disabled={isMember}
@@ -146,12 +153,6 @@ export default function OffersScreen() {
               </Text>
             </Pressable>
           </View>
-
-          <Text style={s.summary}>
-            {offers.length === 1 ? t("offers.summaryOne") : t("offers.summary", { count: offers.length })}
-            {"  ·  "}
-            {businessCount === 1 ? t("offers.placesOne") : t("offers.places", { count: businessCount })}
-          </Text>
 
           {/* Förklaringen visas bara tills man löst in något första gången */}
           {redemptions.length === 0 && <HowItWorks />}
@@ -310,8 +311,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   emptyBody: { textAlign: "center", lineHeight: 19 },
   noneInFilter: { textAlign: "center", paddingVertical: 32 },
 
-  summary: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: -8 },
-
   how: {
     flexDirection: "row",
     backgroundColor: c.tile, borderWidth: 1, borderColor: c.tileBorder,
@@ -333,15 +332,13 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   list: { gap: 14 },
 
-  hero: { flexDirection: "row", alignItems: "center", gap: 12 },
-  heroLabel: {
-    fontFamily: "Montserrat_700Bold", fontSize: 11, letterSpacing: 1.5,
-    textTransform: "uppercase", color: c.muted,
-  },
-  heroValue: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 40, color: c.goldText, marginTop: 2 },
+  hero: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.5, color: c.text },
+  greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.5, color: c.goldText },
+  saveLine: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 10 },
   status: {
     flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+    marginTop: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
     backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
   },
   statusActive: { borderColor: c.success },
