@@ -370,7 +370,7 @@ export default function ProfileScreen() {
           style={s.gearBtn}
           onPress={() => router.push("/settings" as any)}
         >
-          <Settings size={20} color={FG} strokeWidth={2} />
+          <Settings size={20} color={MUTED} strokeWidth={1.75} />
         </TouchableOpacity>
       </View>
 
