@@ -598,10 +598,11 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   badgeText: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#E8C674", letterSpacing: 0.6, textTransform: "uppercase" },
   logoWrap: {
     position: "absolute", top: 10, right: 12,
-    width: 30, height: 30, borderRadius: 15, overflow: "hidden",
+    width: 34, height: 34, borderRadius: 17, overflow: "hidden",
     borderWidth: 1.5, borderColor: "rgba(230,199,122,0.55)", backgroundColor: c.tile,
   },
-  logo: { width: "100%", height: "100%" },
+  // Lite förstorad så att den fyller hela cirkeln även när loggan är en kvadrat med luft i hörnen
+  logo: { width: "100%", height: "100%", transform: [{ scale: 1.2 }] },
   bottom: { position: "absolute", left: 16, right: 14, bottom: 12, gap: 1 },
   placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: "#FFFFFF" },
   dealText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
