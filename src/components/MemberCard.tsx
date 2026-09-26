@@ -167,13 +167,15 @@ export function MemberCard({
   // på framsidan, höger på baksidan). Bredd och höjd följer perspektivet, och listen är som störst när
   // kortet står på högkant, vilket ger ett kort med verklig tjocklek i stället för ett papper.
   const edgeThickness = 3.5 * k;
+  // Listan slutar där kortets rundade hörn tar vid, så den följer kortets form i stället för att vara en rak stapel
+  const cornerInset = 16 * k * 0.85;
   const edgeStyle = useAnimatedStyle(() => {
     const angle = flipProgress.value * Math.PI;
     const sin = Math.abs(Math.sin(angle));
     const cos = Math.cos(angle);
     const scale = PERSPECTIVE / (PERSPECTIVE - (cardW / 2) * sin);
     const width = edgeThickness * sin * scale;
-    const height = cardH * scale;
+    const height = (cardH - 2 * cornerInset) * scale;
     const halfFace = (cardW / 2) * Math.abs(cos) * scale;
     return {
       width,
