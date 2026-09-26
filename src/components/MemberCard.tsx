@@ -109,7 +109,8 @@ export function MemberCard({
   // värdet följer fingret medan man sveper.
   const flipProgress = useSharedValue(showBackOnly || (startOnBack && isMember) ? 1 : 0);
   const sweepAnim = useRef(new Animated.Value(0)).current;
-  // Klockan på baksidan går så länge baksidan är eller kan bli synlig: från att en vändning börjar till en bit efter att kortet landat på framsidan
+  // Baksidans klocka och det roterande guldet går så länge baksidan är eller kan bli synlig: från att en vändning börjar
+  // till en bit efter att kortet landat på framsidan. Medan framsidan visas står de still, vilket sparar batteri.
   const [clockOn, setClockOn]                = useState(showBackOnly || (startOnBack && isMember));
   // Vilken sida kortet är på väg mot; uppdateras direkt
   const flippedRef                          = useRef(showBackOnly || (startOnBack && isMember));
@@ -281,10 +282,10 @@ export function MemberCard({
       runOnJS(endSwipe)();
     });
 
-  // Roterande guldgradient — körs alltid (oavsett flip) så att baksidan
-  // aldrig ser gradienten "hoppa" till 0° när kortet vänds
+  // Roterande guldgradient — körs så länge baksidan är eller kan bli synlig (se clockOn). Den startar redan när en
+  // vändning börjar, innan baksidan syns, så inget hopp märks
   useEffect(() => {
-    if (!backVisible) return;
+    if (!backVisible || !clockOn) return;
     const spin = () => {
       gradRotAnim.setValue(0);
       Animated.timing(gradRotAnim, {
@@ -298,7 +299,7 @@ export function MemberCard({
     };
     spin();
     return () => gradRotAnim.stopAnimation();
-  }, [backVisible]);
+  }, [backVisible, clockOn]);
 
   const gradRotate = gradRotAnim.interpolate({
     inputRange: [0, 1],
