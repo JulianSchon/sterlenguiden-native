@@ -468,7 +468,8 @@ function OfferListCard({
     <Pressable
       onPressIn={() => onArm(imageUrl)}
       onPress={handlePress}
-      style={({ pressed }) => [s.ticket, used && s.ticketUsed, stubHidden && s.ticketTorn, pressed && { transform: [{ scale: 0.98 }] }]}
+      // Ingen tryck-skala här: bandets mått mäts vid tryck, och en förminskad biljett gav ett band som var för litet
+      style={[s.ticket, used && s.ticketUsed, stubHidden && s.ticketTorn]}
     >
       <View style={[s.ticketClip, stubHidden && { borderColor: "transparent" }]}>
         {/* Sidoband i kategorins färg: ikon överst, kategorin på högkant under */}

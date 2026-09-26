@@ -71,6 +71,7 @@ const CLOSE_MS = 1200;
 const RIP_END = 0.3;       // så stor del av öppningen som är själva rivningen
 const RIP_TICKS = 9;       // små vibrationer under rivningen
 const DRAG_RANGE = 420;    // hur långt man drar för att backa hela animationen
+const COMMIT_P = 0.6;      // dras panelen så här långt ner tar den över och stänger sig själv, fingret behövs inte mer
 const ease = Easing.bezier(0.3, 0, 0.2, 1);
 const easeOut = Easing.out(Easing.cubic);
 
@@ -128,6 +129,7 @@ export function OfferDrawer({
   // ── Animationen ──
   const p = useSharedValue(0);
   const startP = useSharedValue(0);
+  const committed = useSharedValue(false);
   const ready = useSharedValue(0);
   const vert = useSharedValue(0);
   const ox = useSharedValue(0);
@@ -186,12 +188,22 @@ export function OfferDrawer({
   const makePan = () => Gesture.Pan()
     .activeOffsetY([-8, 8])
     .failOffsetX([-30, 30])
-    .onStart(() => { cancelAnimation(p); startP.value = p.value; closing.value = true; })
+    .onStart(() => { cancelAnimation(p); startP.value = p.value; committed.value = false; closing.value = true; })
     .onUpdate((e) => {
-      if (lockedSV.value) return;
-      p.value = Math.min(1, Math.max(0, startP.value - e.translationY / DRAG_RANGE));
+      if (lockedSV.value || committed.value) return;
+      const next = Math.min(1, Math.max(0, startP.value - e.translationY / DRAG_RANGE));
+      if (next < COMMIT_P) {
+        // Långt nog: panelen stänger sig själv, så man inte kan dra runt hela animationen långsamt med fingret
+        committed.value = true;
+        p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * next), easing: ease }, (done) => {
+          if (done) runOnJS(finishClose)();
+        });
+        return;
+      }
+      p.value = next;
     })
     .onEnd((e) => {
+      if (committed.value) return;
       if (lockedSV.value || (p.value >= 0.72 && e.velocityY <= 900)) {
         p.value = withSpring(1, { damping: 18, stiffness: 180 });
         return;
