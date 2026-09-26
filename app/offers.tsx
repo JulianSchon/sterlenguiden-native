@@ -30,7 +30,7 @@ import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
 } from "@/lib/offers";
 import { OfferDrawer, type OriginRect } from "@/components/offers/OfferDrawer";
-import { tornEdgePath, TEAR_DEPTH, TEAR_FRINGE } from "@/components/offers/tear";
+import { tornEdgePath, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { findCategory, ticketColors, type CategoryId } from "@/theme/categories";
 import { formatDate } from "@/i18n/dates";
@@ -520,11 +520,11 @@ function OfferListCard({
         {stubHidden && (
           <Animated.View
             entering={FadeIn.delay(220).duration(260)}
-            style={{ position: "absolute", left: STUB_W, top: 0, width: TEAR_DEPTH + TEAR_FRINGE + 1, height: TICKET_H }}
+            style={{ position: "absolute", left: STUB_W, top: 0, width: TEAR_DEPTH + EDGE_STROKE * 2 + 1, height: TICKET_H }}
             pointerEvents="none"
           >
             <Canvas style={StyleSheet.absoluteFill}>
-              <Path path={TORN_EDGE} color="#F4F0E6" />
+              <Path path={TORN_EDGE} color="rgba(244,240,230,0.9)" style="stroke" strokeWidth={EDGE_STROKE} />
             </Canvas>
           </Animated.View>
         )}

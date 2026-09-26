@@ -6,7 +6,8 @@ import { Skia, type SkPath } from "@shopify/react-native-skia";
 
 export const TEAR_TEETH = 16;
 export const TEAR_DEPTH = 5;      // hur djupa tänderna är
-export const TEAR_FRINGE = 1.5;   // bredden på den vita papperskanten
+export const TEAR_FRINGE = 0.9;   // bredden på den vita papperskanten på bandet
+export const EDGE_STROKE = 1;     // linjetjockleken på kanten som blir kvar på biljetten
 
 // Olika djup på tänderna så det ser riktigt riv ut och inte som en sågkant
 const JAGS = [0.9, 0.4, 1, 0.55, 0.8, 0.3, 1, 0.65];
@@ -35,19 +36,19 @@ export function tornBandPath(w: number, h: number, amp: number, inset: number, p
   return path;
 }
 
-/** Den vita, hackiga papperskanten som blir kvar på biljettens vänstra sida när bandet rivits bort */
+/**
+ * Papperskanten som blir kvar på biljettens vänstra sida när bandet rivits bort: en tunn, böljande
+ * linje (ritas som streck, inte som fylld yta, annars blir det en vit klump).
+ */
 export function tornEdgePath(h: number): SkPath {
   const path = Skia.Path.Make();
-  path.moveTo(0, 0);
-  path.lineTo(TEAR_FRINGE, 0);
-  let prevX = TEAR_FRINGE;
+  path.moveTo(EDGE_STROKE, 0);
+  let prevX = EDGE_STROKE;
   for (let i = 1; i <= TEAR_TEETH; i++) {
     const y = (h * i) / TEAR_TEETH;
-    const x = TEAR_FRINGE + (i % 2 === 1 ? TEAR_DEPTH * JAGS[i % JAGS.length] : 0);
+    const x = EDGE_STROKE + (i % 2 === 1 ? TEAR_DEPTH * JAGS[i % JAGS.length] : 0);
     path.quadTo(prevX, y - h / TEAR_TEETH / 2, x, y);
     prevX = x;
   }
-  path.lineTo(0, h);
-  path.close();
   return path;
 }
