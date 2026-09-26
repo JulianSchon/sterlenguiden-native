@@ -128,30 +128,32 @@ export default function OffersScreen() {
 
       {!isLoading && offers.length > 0 && (
         <>
-          <View style={s.hero}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.greeting}>{firstName ? t("offers.greeting", { name: firstName }) : t("offers.greetingNoName")}</Text>
-              <Text style={s.greetingLine}>
-                {isMember
-                  ? usable.length === 0
-                    ? t("offers.haveNone")
-                    : usable.length === 1 ? t("offers.haveOne") : t("offers.have", { count: usable.length })
-                  : usable.length === 1 ? t("offers.waitingOne") : t("offers.waiting", { count: usable.length })}
+          <View>
+            <View style={s.heroTop}>
+              <Text style={s.greeting} numberOfLines={1}>
+                {firstName ? t("offers.greeting", { name: firstName }) : t("offers.greetingNoName")}
               </Text>
-              <Text style={s.saveLine}>
-                {t(isMember ? "offers.saveUpTo" : "offers.saveUpToWithPass", { amount: formatKr(totalValue) })}
-              </Text>
+              <Pressable
+                disabled={isMember}
+                onPress={() => router.push("/settings/pass-buy")}
+                style={[s.status, isMember && s.statusActive]}
+              >
+                <View style={[s.statusDot, { backgroundColor: isMember ? colors.success : colors.faint }]} />
+                <Text style={[s.statusText, isMember && { color: colors.success }]}>
+                  {isMember ? t("offers.member") : t("offers.notMember")}
+                </Text>
+              </Pressable>
             </View>
-            <Pressable
-              disabled={isMember}
-              onPress={() => router.push("/settings/pass-buy")}
-              style={[s.status, isMember && s.statusActive]}
-            >
-              <View style={[s.statusDot, { backgroundColor: isMember ? colors.success : colors.faint }]} />
-              <Text style={[s.statusText, isMember && { color: colors.success }]}>
-                {isMember ? t("offers.member") : t("offers.notMember")}
-              </Text>
-            </Pressable>
+            <Text style={s.greetingLine} numberOfLines={1} adjustsFontSizeToFit>
+              {isMember
+                ? usable.length === 0
+                  ? t("offers.haveNone")
+                  : usable.length === 1 ? t("offers.haveOne") : t("offers.have", { count: usable.length })
+                : usable.length === 1 ? t("offers.waitingOne") : t("offers.waiting", { count: usable.length })}
+            </Text>
+            <Text style={s.saveLine}>
+              {t(isMember ? "offers.saveUpTo" : "offers.saveUpToWithPass", { amount: formatKr(totalValue) })}
+            </Text>
           </View>
 
           {/* Förklaringen visas bara tills man löst in något första gången */}
@@ -332,13 +334,13 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   list: { gap: 14 },
 
-  hero: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.5, color: c.text },
-  greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.5, color: c.goldText },
-  saveLine: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 10 },
+  heroTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  greeting: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: c.text },
+  greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: c.goldText },
+  saveLine: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 8 },
   status: {
     flexDirection: "row", alignItems: "center", gap: 7,
-    marginTop: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
     backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
   },
   statusActive: { borderColor: c.success },
