@@ -163,6 +163,36 @@ export function MemberCard({
     transform: [{ perspective: PERSPECTIVE }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [180, 360])}deg` }],
   }));
 
+  // Materialkänsla medan kortet vänds: en glans som glider över kortet, och en mjuk skugga under det som
+  // smalnar av när kortet står på högkant. Båda är osynliga när kortet ligger plant.
+  const glareStyle = useAnimatedStyle(() => ({
+    opacity: Math.abs(Math.sin(flipProgress.value * Math.PI)),
+    transform: [{ translateX: interpolate(flipProgress.value, [0, 1], [-cardW * 0.6, cardW * 1.1]) }, { skewX: "-20deg" }],
+  }));
+  const groundShadowStyle = useAnimatedStyle(() => ({
+    opacity: 0.6 * Math.abs(Math.sin(flipProgress.value * Math.PI)),
+    transform: [{ scaleX: 0.55 + 0.45 * Math.abs(Math.cos(flipProgress.value * Math.PI)) }],
+  }));
+
+  /** Kortets fasade kant (som på ett riktigt kort) och glansen som följer vändningen. */
+  const finish = (glareId: string, bevelColor: string) => (
+    <>
+      <View pointerEvents="none" style={[mc.bevel, { borderColor: bevelColor }]} />
+      <Reanimated.View pointerEvents="none" style={[mc.glare, glareStyle]}>
+        <Svg width={120 * k} height={cardH} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <SvgGrad id={glareId} x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0%" stopColor="#fff" stopOpacity={0} />
+              <Stop offset="50%" stopColor="#fff" stopOpacity={0.22} />
+              <Stop offset="100%" stopColor="#fff" stopOpacity={0} />
+            </SvgGrad>
+          </Defs>
+          <SvgRect x={0} y={0} width={120 * k} height={cardH} fill={`url(#${glareId})`} />
+        </Svg>
+      </Reanimated.View>
+    </>
+  );
+
   const FLIP_SPRING = { damping: 14, stiffness: 110, mass: 0.9 };
 
   /** Kortet landar på en sida (efter tryck eller när ett svep släpps). */
@@ -366,6 +396,7 @@ export function MemberCard({
         </View>
       </View>
 
+      {finish("glareFront", colors.border)}
     </Reanimated.View>
   );
 
@@ -432,6 +463,7 @@ export function MemberCard({
 
       </View>
 
+      {finish("glareBack", "rgba(255,255,255,0.4)")}
     </Reanimated.View>
   );
 
@@ -444,6 +476,19 @@ export function MemberCard({
           disabled={showBackOnly}
           style={{ width: cardW, height: cardH }}
         >
+          {backVisible && !showBackOnly && (
+            <Reanimated.View pointerEvents="none" style={[mc.groundShadow, groundShadowStyle]}>
+              <Svg width="100%" height="100%">
+                <Defs>
+                  <SvgRadial id="groundShadow" cx="50%" cy="50%" rx="50%" ry="50%">
+                    <Stop offset="0%" stopColor="#000" stopOpacity={0.55} />
+                    <Stop offset="100%" stopColor="#000" stopOpacity={0} />
+                  </SvgRadial>
+                </Defs>
+                <SvgRect x={0} y={0} width="100%" height="100%" fill="url(#groundShadow)" />
+              </Svg>
+            </Reanimated.View>
+          )}
           {!showBackOnly && Front}
           {backVisible && Back}
         </TouchableOpacity>
@@ -461,6 +506,14 @@ const createStyles = (k: number, cardW: number, cardH: number) => StyleSheet.cre
     overflow: "hidden",
     backfaceVisibility: "hidden",
   },
+
+  bevel: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16 * k,
+    borderWidth: Math.max(StyleSheet.hairlineWidth, 0.75 * k),
+  },
+  glare: { position: "absolute", top: 0, bottom: 0, left: 0, width: 120 * k },
+  groundShadow: { position: "absolute", left: cardW * 0.1, width: cardW * 0.8, bottom: -16 * k, height: 32 * k },
 
   sweep: {
     position: "absolute", top: 0, bottom: 0, width: 160 * k,
