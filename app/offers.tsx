@@ -66,6 +66,7 @@ function stubColors(category: string | null): [string, string] {
 const EDGE_ZONE = 24;     // px från kanten där svepet inte tar över
 const SWIPE_DISTANCE = 70; // hur långt man måste dra för att byta
 const SWIPE_SPEED = 600;   // eller hur snabbt (px/s)
+const AREA_SLACK = 100;    // skärmhöjd minus rubrikfältet, ungefär
 const PAGE_GAP = 16;       // mellanrum mellan sidorna medan man drar
 const SIDE_MARGIN = 16;    // sidans egen sidomarginal (SettingsScreen)
 
@@ -100,13 +101,16 @@ export default function OffersScreen() {
 
   // Svep mellan kategorier. Alla sidor ligger i en rad och raden förskjuts i sidled; att byta
   // sida är bara att glida till nästa plats, inget innehåll byts ut (annars blinkar det).
-  const { width: screenW } = useWindowDimensions();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const pageW = screenW - SIDE_MARGIN * 2;
   const step = pageW + PAGE_GAP;
   const [active, setActive] = useState(0);
   const offsetX = useSharedValue(0);
   const busy = useSharedValue(false);
   const [heights, setHeights] = useState<number[]>([]);
+  // Sidan är minst så hög som skärmen: hela ytan går att svepa även med ett enda erbjudande,
+  // och det finns alltid något att scrolla upp till rubriken på, så en kort sida inte får vyn att hoppa
+  const areaH = Math.max(heights[active] ?? 0, screenH - AREA_SLACK);
   const scrollRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
   const headerY = useRef(0);
@@ -244,14 +248,14 @@ export default function OffersScreen() {
 
           <GestureDetector gesture={swipe}>
             {/* Höjden följer aktuella sidan; alla sidor ligger bredvid varandra, klippta till samma höjd */}
-            <Animated.View style={[{ height: heights[active] }, slideStyle]}>
+            <Animated.View style={[{ height: areaH }, slideStyle]}>
               {pages.map((page, i) => (
                 // Bara aktuella sidan och grannarna byggs, resten skulle bara kosta minne
                 Math.abs(i - active) <= 1 && (
                   <View
                     key={FILTER_IDS[i]}
                     pointerEvents={i === active ? "auto" : "none"}
-                    style={[s.page, { left: i * step, width: pageW, height: heights[active] }]}
+                    style={[s.page, { left: i * step, width: pageW, height: areaH }]}
                   >
                     <View
                       onLayout={(e) => {
@@ -484,7 +488,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   dotActive: { width: 18, backgroundColor: c.gold },
 
   page: { position: "absolute", top: 0, overflow: "hidden" },
-  pageContent: { gap: 22, minHeight: 360 },
+  pageContent: { gap: 22 },
   section: { gap: 12 },
   sectionTitle: {
     fontFamily: "Montserrat_700Bold", fontSize: 11, letterSpacing: 1.5,
