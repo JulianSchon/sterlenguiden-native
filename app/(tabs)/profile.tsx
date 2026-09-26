@@ -6,14 +6,14 @@
  * Historik (senaste besöken), Statistik (mest besökta kategorier, med en kant som fylls efter
  * hur mycket man besökt) och Utmaningar (senast klarade, med kant i brons, silver eller guld).
  */
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Settings, Crown, ChevronRight, ClipboardList, BarChart3, Medal, Heart, type LucideIcon } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
-import Reanimated, { cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
+import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { MemberCard } from "@/components/MemberCard";
 import { FadeImage } from "@/components/FadeImage";
@@ -143,15 +143,6 @@ function PrimaryTile({ icon, logo, tint, badge, title, subtitle, onPress }: {
 }) {
   const s = useThemedStyles(createStyles);
 
-  // Märket växer lugnt och sätter sig igen med några sekunders mellanrum, för att dra blicken till det som går att använda
-  const pulse = useSharedValue(1);
-  useEffect(() => {
-    if (!badge) return;
-    pulse.value = withRepeat(withSequence(withDelay(5000, withTiming(1.08, { duration: 700 })), withTiming(1, { duration: 900 })), -1);
-    return () => cancelAnimation(pulse);
-  }, [badge, pulse]);
-  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
-
   // Hela ytan går att trycka på (stor träffyta), men det som rör sig vid tryck är själva knappen: ikon och text
   // trycks ihop lite med en fjäder, i stället för att en ruta färgas bakom
   const press = useSharedValue(1);
@@ -171,11 +162,11 @@ function PrimaryTile({ icon, logo, tint, badge, title, subtitle, onPress }: {
       <View>
         <IconTile icon={icon} logo={logo} tint={tint} size={58} />
         {badge ? (
-          <Reanimated.View style={[s.badgeWrap, pulseStyle]}>
+          <View style={s.badgeWrap}>
             <FadeOnChange style={s.badge} value={badge}>
               <Text style={s.badgeText}>{badge > 99 ? "99+" : badge}</Text>
             </FadeOnChange>
-          </Reanimated.View>
+          </View>
         ) : null}
       </View>
       <Text style={s.primaryTitle} numberOfLines={1}>{title}</Text>

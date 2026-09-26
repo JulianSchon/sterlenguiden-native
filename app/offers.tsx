@@ -57,6 +57,21 @@ function matchesFilter(category: string | null, filter: Exclude<FilterId, "all">
 const TICKET_H = 190;
 const STUB_W = 58;
 const NOTCH = 28;
+const BLEED = 6;
+
+/**
+ * Delar företagets rabatt-text i det som ska synas stort ("20 %", "450 kr") och resten.
+ * "Spara 450 kr" → före "Spara", stort "450 kr". "2 för 1" och annat utan enhet visas som helhet.
+ */
+function splitSavings(label: string): { before: string; big: string; after: string } {
+  const m = label.match(/\d[\d\s.,]*\s?(%|kr|:-|sek)/i);
+  if (!m || m.index === undefined) return { before: "", big: label, after: "" };
+  return {
+    before: label.slice(0, m.index).trim(),
+    big: m[0].trim(),
+    after: label.slice(m.index + m[0].length).trim(),
+  };
+}
 
 /** Sidobandets toning: kategorins färg mot en mörkare ton, guld för okänd kategori */
 function stubColors(category: string | null): [string, string] {
@@ -395,9 +410,10 @@ function HowItWorks() {
 /** Lodrät toning över hela biljettens höjd (den är fast, så Skia behöver inte mäta något) */
 function VerticalGradient({ colors }: { colors: string[] }) {
   return (
-    <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+    // Ritytan sticker ut förbi kanten (klipps av biljettens form) så ingen remsa blir kvar längst ner
+    <Canvas style={{ position: "absolute", left: 0, right: 0, top: -BLEED, bottom: -BLEED }} pointerEvents="none">
       <Fill>
-        <LinearGradient start={vec(0, 0)} end={vec(0, TICKET_H)} colors={colors} />
+        <LinearGradient start={vec(0, BLEED)} end={vec(0, BLEED + TICKET_H)} colors={colors} />
       </Fill>
     </Canvas>
   );
@@ -421,6 +437,7 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
   const imageUrl = offer.image_url ?? offer.place?.logo_url ?? null;
   const badge = offerBadge(offer, used);
   const savings = offerSavingsLabel(offer);
+  const parts = savings ? splitSavings(savings) : null;
   const category = findCategory(offer.category);
   const CategoryIcon = category?.icon ?? Crown;
   const [from, to] = stubColors(offer.category);
@@ -449,7 +466,7 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
           {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
 
           {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
-          <VerticalGradient colors={["rgba(6,6,10,0.15)", "rgba(6,6,10,0.3)", "rgba(6,6,10,0.88)"]} />
+          <VerticalGradient colors={["rgba(6,6,10,0.1)", "rgba(6,6,10,0.35)", "rgba(6,6,10,0.92)"]} />
 
           {badge && (
             <View style={s.badge}>
@@ -466,14 +483,18 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
           )}
 
           <View style={s.bottom}>
-            <Text style={s.placeName} numberOfLines={1}>{offer.place?.name ?? "Österlen"}</Text>
-            <Text style={s.dealText} numberOfLines={1}>{offer.title}</Text>
-            <View style={s.bottomRow}>
-              {savings ? (
-                <View style={s.savingsPill}>
-                  <Text style={s.savingsText}>{savings}</Text>
+            {parts && (
+              <View style={s.savings}>
+                {!!parts.before && <Text style={s.savingsSmall}>{parts.before}</Text>}
+                <View style={s.savingsRow}>
+                  <Text style={s.savingsBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{parts.big}</Text>
+                  {!!parts.after && <Text style={s.savingsAfter} numberOfLines={1}>{parts.after}</Text>}
                 </View>
-              ) : <View />}
+              </View>
+            )}
+            <Text style={s.placeName} numberOfLines={1}>{offer.place?.name ?? "Österlen"}</Text>
+            <View style={s.dealRow}>
+              <Text style={s.dealText} numberOfLines={1}>{offer.title}</Text>
               {offer.expires_at && (
                 <Text style={s.until}>{t("offers.until", { date: formatDate(offer.expires_at, "d MMM") })}</Text>
               )}
@@ -582,14 +603,23 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   logo: { width: "100%", height: "100%" },
   bottom: { position: "absolute", left: 16, right: 14, bottom: 12, gap: 1 },
-  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: "#FFFFFF" },
-  dealText: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
-  bottomRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 6 },
-  until: { fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.7)" },
-  savingsPill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
-    backgroundColor: "#E8C674",
+  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: "#FFFFFF" },
+  dealText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
+  // Rabatten är det viktiga: stor guldsiffra direkt på bilden, ingen ruta runt
+  savings: { marginBottom: 6 },
+  savingsSmall: {
+    fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.4, textTransform: "uppercase",
+    color: "rgba(255,255,255,0.8)", marginBottom: 1,
   },
-  savingsText: { fontFamily: "Inter_700Bold", fontSize: 11.5, color: "#0B0B0D" },
+  savingsRow: { flexDirection: "row", alignItems: "baseline", gap: 8 },
+  savingsBig: {
+    flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 38, lineHeight: 44, color: "#E8C674",
+    textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8,
+  },
+  savingsAfter: {
+    flexShrink: 1, fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
+  dealRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
+  until: { fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.7)" },
 });
