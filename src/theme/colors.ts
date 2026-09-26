@@ -39,7 +39,7 @@ export interface ThemeColors {
   goldBorder: string;
   /** Samlarobjekt */
   purple: string;
-  /** Dämpad varm ton för mindre viktig text (som undertiteln på Profil) */
+  /** Dämpad varm ton för mindre viktig text (som tipsraden på Inställningar) */
   warm: string;
   danger: string;
   /** Pengar in, aktiv status */

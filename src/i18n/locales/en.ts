@@ -270,4 +270,7 @@ export const en: typeof sv = {
     limit: "You've sent a lot of suggestions today. Please try again tomorrow.",
     failed: "The suggestion couldn't be sent. Please try again.",
   },
+  profile: {
+    title: "Profile",
+  },
 };

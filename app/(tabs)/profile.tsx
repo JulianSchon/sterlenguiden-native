@@ -13,6 +13,7 @@ import {
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import Svg, {
   Defs,
   LinearGradient as SvgGrad,
@@ -305,6 +306,7 @@ const sb = StyleSheet.create({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const { user, signOut } = useAuth();
@@ -363,10 +365,7 @@ export default function ProfileScreen() {
 
       {/* ── Title row ─────────────────────────────────────── */}
       <View style={s.titleRow}>
-        <View>
-          <Text style={s.title}>Min Profil</Text>
-          <Text style={s.titleSub}>Österlens digitala plattform</Text>
-        </View>
+        <Text style={s.title}>{t("profile.title")}</Text>
         <TouchableOpacity
           style={s.gearBtn}
           onPress={() => router.push("/settings" as any)}
@@ -479,12 +478,12 @@ const s = StyleSheet.create({
   },
   titleRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  title:    { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: FG },
-  titleSub: { fontFamily: "Inter_400Regular", fontSize: 14, color: "#A09880", marginTop: 2 },
+  // Samma rubrikstil som Inställningar och Mitt Österlen: versal Montserrat med luft mellan bokstäverna
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, textTransform: "uppercase", color: FG },
   gearBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.05)",

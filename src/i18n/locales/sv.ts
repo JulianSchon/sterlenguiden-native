@@ -273,4 +273,7 @@ export const sv = {
     limit: "Du har skickat många tips idag. Försök igen i morgon.",
     failed: "Det gick inte att skicka tipset. Försök igen.",
   },
+  profile: {
+    title: "Profil",
+  },
 };
