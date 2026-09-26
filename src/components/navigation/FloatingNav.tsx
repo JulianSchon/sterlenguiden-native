@@ -37,6 +37,13 @@ import {
 // ─── Konstanter ───────────────────────────────────────────────────────────────
 export const FLOATING_NAV_HEIGHT = 56; // höjd på knappraden
 const FADE_AREA   = 84;   // utrymme ovan knappraden för gradienten
+const EXTRA_BOTTOM = 8;   // extra utrymme ovanpå safe area, så ikonerna hamnar klart ovanför hemknapp-zonen
+
+/**
+ * Höjden på navigeringens helfärgade fält (på sidor som inte scrollar, t.ex. Profil).
+ * Sidans innehåll ska sluta strax ovanför detta.
+ */
+export const floatingNavSolidHeight = (bottomInset: number) => FLOATING_NAV_HEIGHT + bottomInset + EXTRA_BOTTOM;
 const GOLD        = "#C5A059";
 const BG          = "#121212";
 
@@ -211,17 +218,22 @@ export default function FloatingNav() {
   }
 
   // ─── VANLIGA SIDOR: helfull med fade-gradient ─────────────────────────────
-  // Extra 8px ovanpå safe area → ikoner hamnar klart ovanför hemknapp-zonen
-  const extraBottom = 8;
-  const rowBottom   = insets.bottom + extraBottom;
-  const totalHeight = FADE_AREA + FLOATING_NAV_HEIGHT + rowBottom;
+  // Extra utrymme ovanpå safe area → ikoner hamnar klart ovanför hemknapp-zonen
+  const rowBottom   = insets.bottom + EXTRA_BOTTOM;
+  // Profil scrollar inte och har inget innehåll bakom navigeringen, så där behövs ingen
+  // fade: navigeringen är ett helfärgat fält och sidan slutar precis ovanför det
+  const solid       = active === "profile";
+  const totalHeight = solid ? floatingNavSolidHeight(insets.bottom) : FADE_AREA + FLOATING_NAV_HEIGHT + rowBottom;
 
   return (
     <View
       style={[s.container, { height: totalHeight }]}
       pointerEvents="box-none"
     >
-      {/* Fade-gradient (icke-interaktiv) */}
+      {/* Fade-gradient (icke-interaktiv), eller ett helfärgat fält på Profil */}
+      {solid ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: BG }]} pointerEvents="none" />
+      ) : (
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <Svg
           width="100%"
@@ -240,6 +252,7 @@ export default function FloatingNav() {
           <SvgRect width="100%" height="100%" fill="url(#navfade)" />
         </Svg>
       </View>
+      )}
 
       {/* Knappraden – 8px extra clearance ovanför hemknapp-zonen */}
       <View

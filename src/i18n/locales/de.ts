@@ -272,5 +272,20 @@ export const de: typeof sv = {
   },
   profile: {
     title: "Profil",
+    favorites: {
+      title: "Favoriten",
+      count: "{{count}} gespeicherte Orte",
+      one: "1 gespeicherter Ort",
+      empty: "Füge deine ersten Favoriten hinzu",
+    },
+    offers: {
+      title: "Vorteile",
+      tile: "Spare {{amount}}",
+      tileEmpty: "Bald mehr",
+    },
+    history: { title: "Verlauf", count: "{{count}} Besuche", one: "1 Besuch" },
+    stats: { title: "Statistik", sub: "Sieh deine Aktivität" },
+    challenges: { title: "Herausforderungen", sub: "{{done}} von {{total}} geschafft" },
+    myOsterlen: { title: "Mein Österlen", tile: "Dein Österlen an einem Ort" },
   },
 };

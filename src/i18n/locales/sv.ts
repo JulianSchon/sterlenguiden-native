@@ -275,5 +275,20 @@ export const sv = {
   },
   profile: {
     title: "Profil",
+    favorites: {
+      title: "Favoriter",
+      count: "{{count}} sparade platser",
+      one: "1 sparad plats",
+      empty: "Lägg till dina första favoriter",
+    },
+    offers: {
+      title: "Förmåner",
+      tile: "Spara {{amount}}",
+      tileEmpty: "Snart fler",
+    },
+    history: { title: "Historik", count: "{{count}} besök", one: "1 besök" },
+    stats: { title: "Statistik", sub: "Se din aktivitet" },
+    challenges: { title: "Utmaningar", sub: "{{done}} av {{total}} klarade" },
+    myOsterlen: { title: "Mitt Österlen", tile: "Ditt Österlen samlat" },
   },
 };

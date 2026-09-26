@@ -14,7 +14,7 @@ import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
 import { useIsBusiness } from "@/hooks/useUserRole";
-import { useOffers } from "@/hooks/useOffers";
+import { useAvailableOffers } from "@/hooks/useAvailableOffers";
 import { usePassProducts } from "@/hooks/usePassProducts";
 import { usePassPurchases, usePassGifts, useRedeemedGifts } from "@/hooks/usePassHistory";
 import { usePeriodLabel } from "@/hooks/usePeriodLabel";
@@ -66,7 +66,7 @@ export default function PassHub() {
   const { data: profile } = useProfile();
   const membership = useMembership();
   const { isBusiness } = useIsBusiness();
-  const { data: offers = [] } = useOffers();
+  const { available: offers } = useAvailableOffers();
   const { data: products = [] } = usePassProducts();
   const { data: purchases = [] } = usePassPurchases();
   const { data: gifts = [] } = usePassGifts();

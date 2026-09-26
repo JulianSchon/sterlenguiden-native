@@ -11,7 +11,7 @@ import { TIER_PALETTE, type Tier } from "@/lib/achievements";
 // Riktig trofékonst (ChatGPT-genererad, beskuren till transparent PNG per
 // grupp+nivå, se assets/badges/). Grupper utan bild här faller tillbaka på
 // den ritade Skia-medaljen längre ner.
-const BADGE_IMAGES: Partial<Record<string, any>> = {
+export const BADGE_IMAGES: Partial<Record<string, any>> = {
   "utforskaren-bronze": require("../../../assets/badges/utforskaren-bronze.png"),
   "utforskaren-silver": require("../../../assets/badges/utforskaren-silver.png"),
   "utforskaren-gold": require("../../../assets/badges/utforskaren-gold.png"),

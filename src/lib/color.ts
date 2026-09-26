@@ -37,6 +37,14 @@ export function toneOnTone(background: string): string {
   return l > 0.5 ? hslToHex(h, Math.max(s, 0.35), 0.2) : hslToHex(h, Math.max(s, 0.25), 0.85);
 }
 
+/** Samma nyans men ljusare och mindre mättad, för färger som ska synas på mörk bakgrund utan att lysa. */
+export function softenColor(color: string): string {
+  const hsl = hexToHsl(color);
+  if (!hsl) return color;
+  const [h, s, l] = hsl;
+  return hslToHex(h, s * 0.7, l + (1 - l) * 0.3);
+}
+
 /** "Viktor Hallin" → "VH", "Viktor" → "V". */
 export function initialsOf(name: string): string {
   return name
