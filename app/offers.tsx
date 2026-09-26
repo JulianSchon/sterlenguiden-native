@@ -5,9 +5,17 @@
  * när man öppnar ett erbjudande: medlemmen får håll-inne-knappen, den andra
  * får "Skaffa Österlenpasset" (se OfferDrawer). Att trycka på ett kort öppnar
  * samma panel som platssidan använder.
+ *
+ * Listan går att svepa åt sidan för att byta kategori, samma sak som att trycka
+ * på nästa/föregående piller. Svepet startar inte vid skärmens kant, den zonen
+ * är reserverad för iOS "tillbaka".
  */
-import { useMemo, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, Image, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, runOnJS,
+} from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Clock, Crown } from "lucide-react-native";
@@ -55,6 +63,10 @@ function stubColors(category: string | null): [string, string] {
   return [base, shade(base, 0.4)];
 }
 
+const EDGE_ZONE = 24;     // px från kanten där svepet inte tar över
+const SWIPE_DISTANCE = 70; // hur långt man måste dra för att byta
+const SWIPE_SPEED = 600;   // eller hur snabbt (px/s)
+
 const DAY_MS = 86_400_000;
 const SOON_MS = 3 * DAY_MS;
 
@@ -82,6 +94,51 @@ export default function OffersScreen() {
 
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [drawerPlaceId, setDrawerPlaceId] = useState<number | null>(null);
+
+  // Svep mellan kategorier: innehållet följer fingret, glider ut åt ena hållet och in från det andra
+  const { width: screenW } = useWindowDimensions();
+  const translateX = useSharedValue(0);
+  const pendingDir = useRef<1 | -1 | null>(null);
+  const filterIndex = FILTER_IDS.indexOf(activeFilter);
+
+  const commitSwipe = (dir: 1 | -1) => {
+    pendingDir.current = dir;
+    setActiveFilter(FILTER_IDS[filterIndex + dir]);
+  };
+
+  // Nya innehållet är på plats: starta utanför skärmen på motsatt sida och glid in
+  useEffect(() => {
+    const dir = pendingDir.current;
+    if (dir === null) return;
+    pendingDir.current = null;
+    translateX.value = dir * screenW;
+    translateX.value = withTiming(0, { duration: 200 });
+  }, [activeFilter]);
+
+  const swipe = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-14, 14])
+    .onUpdate((e) => {
+      if (e.absoluteX - e.translationX < EDGE_ZONE) return;
+      const dir = e.translationX < 0 ? 1 : -1;
+      const hasTarget = filterIndex + dir >= 0 && filterIndex + dir < FILTER_IDS.length;
+      // Motstånd i ändarna: det går att dra lite, men inget byts
+      translateX.value = hasTarget ? e.translationX : e.translationX * 0.2;
+    })
+    .onEnd((e) => {
+      const dir = e.translationX < 0 ? 1 : -1;
+      const hasTarget = filterIndex + dir >= 0 && filterIndex + dir < FILTER_IDS.length;
+      const fastEnough = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
+      if (hasTarget && fastEnough && e.absoluteX - e.translationX >= EDGE_ZONE) {
+        translateX.value = withTiming(-dir * screenW, { duration: 140 }, (done) => {
+          if (done) runOnJS(commitSwipe)(dir);
+        });
+      } else {
+        translateX.value = withTiming(0, { duration: 180 });
+      }
+    });
+
+  const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
 
   const chips = FILTER_IDS.map((id) => ({ id, label: t(`offers.filters.${id}`) }));
 
@@ -166,25 +223,29 @@ export default function OffersScreen() {
             <CategoryChips chips={chips} activeId={activeFilter} onChange={(id) => setActiveFilter(id as FilterId)} inset={16} />
           </View>
 
-          {available.length === 0 && redeemed.length === 0 && (
-            <Text style={[s.muted, s.noneInFilter]}>{t("offers.noneInFilter")}</Text>
-          )}
+          <GestureDetector gesture={swipe}>
+            <Animated.View style={[s.swipeArea, slideStyle]}>
+              {available.length === 0 && redeemed.length === 0 && (
+                <Text style={[s.muted, s.noneInFilter]}>{t("offers.noneInFilter")}</Text>
+              )}
 
-          {available.length > 0 && (
-            <Section title={t("offers.sections.available")}>
-              {available.map((offer) => (
-                <OfferListCard key={offer.id} offer={offer} used={false} onPress={() => setDrawerPlaceId(offer.place_id)} />
-              ))}
-            </Section>
-          )}
+              {available.length > 0 && (
+                <Section title={t("offers.sections.available")}>
+                  {available.map((offer) => (
+                    <OfferListCard key={offer.id} offer={offer} used={false} onPress={() => setDrawerPlaceId(offer.place_id)} />
+                  ))}
+                </Section>
+              )}
 
-          {redeemed.length > 0 && (
-            <Section title={t("offers.sections.redeemed")}>
-              {redeemed.map((offer) => (
-                <OfferListCard key={offer.id} offer={offer} used onPress={() => setDrawerPlaceId(offer.place_id)} />
-              ))}
-            </Section>
-          )}
+              {redeemed.length > 0 && (
+                <Section title={t("offers.sections.redeemed")}>
+                  {redeemed.map((offer) => (
+                    <OfferListCard key={offer.id} offer={offer} used onPress={() => setDrawerPlaceId(offer.place_id)} />
+                  ))}
+                </Section>
+              )}
+            </Animated.View>
+          </GestureDetector>
         </>
       )}
 
@@ -313,6 +374,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   emptyTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text, textAlign: "center" },
   emptyBody: { textAlign: "center", lineHeight: 19 },
+  // Minst så hög att man kan svepa även när en kategori är nästan tom
+  swipeArea: { gap: 22, minHeight: 360 },
   noneInFilter: { textAlign: "center", paddingVertical: 32 },
 
   how: {
