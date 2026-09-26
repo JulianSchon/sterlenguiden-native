@@ -28,6 +28,8 @@ import { cardColors, getVariant } from "@/lib/cardVariants";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import * as Haptics from "expo-haptics";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
@@ -105,6 +107,8 @@ export function MemberCard({
   const flipAnim  = useRef(new Animated.Value(showBackOnly || (startOnBack && isMember) ? 1 : 0)).current;
   const sweepAnim = useRef(new Animated.Value(0)).current;
   const [isFlipped, setIsFlipped]           = useState(showBackOnly || (startOnBack && isMember));
+  // Vilken sida som är på väg att visas; uppdateras direkt (isFlipped släpar 350 ms för klockan)
+  const flippedRef                          = useRef(showBackOnly || (startOnBack && isMember));
   const [time, setTime]                     = useState(new Date());
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
   const bgFade                              = useRef(new Animated.Value(0)).current;
@@ -125,6 +129,7 @@ export function MemberCard({
   useEffect(() => {
     if (!startOnBack || !isMember) return;
     flipAnim.setValue(1);
+    flippedRef.current = true;
     setIsFlipped(true);
   }, [startOnBack, isMember]);
 
@@ -151,14 +156,33 @@ export function MemberCard({
   const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
   const backRotate  = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ["180deg", "360deg"] });
 
+  const flip = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    flippedRef.current = !flippedRef.current;
+    Animated.spring(flipAnim, { toValue: flippedRef.current ? 1 : 0, friction: 8, tension: 10, useNativeDriver: true }).start();
+    setTimeout(() => setIsFlipped(flippedRef.current), 350);
+  };
+
   const handlePress = () => {
     if (!isMember) { onBuyPress(); return; }
     if (disableFlip) { onCardPress?.(); return; }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    const toVal = isFlipped ? 0 : 1;
-    Animated.spring(flipAnim, { toValue: toVal, friction: 8, tension: 10, useNativeDriver: true }).start();
-    setTimeout(() => setIsFlipped((v) => !v), 350);
+    flip();
   };
+
+  // Svep vänder kortet åt samma håll som en sida i en bok: framsidan sveps åt höger, baksidan åt vänster.
+  // Ett tryck vänder fortfarande, och lodräta drag lämnas åt sidan som scrollar.
+  const handleSwipe = (dx: number, vx: number) => {
+    const rightward = dx > 0;
+    const enough = Math.abs(dx) > 40 || Math.abs(vx) > 500;
+    if (enough && rightward !== flippedRef.current) flip();
+  };
+  const swipe = Gesture.Pan()
+    .enabled(isMember && !disableFlip && !showBackOnly)
+    .activeOffsetX([-16, 16])
+    .failOffsetY([-24, 24])
+    .onEnd((e) => {
+      runOnJS(handleSwipe)(e.translationX, e.velocityX);
+    });
 
   // Roterande guldgradient — körs alltid (oavsett flip) så att baksidan
   // aldrig ser gradienten "hoppa" till 0° när kortet vänds
@@ -382,17 +406,19 @@ export function MemberCard({
   );
 
   return (
-    <View style={{ width: cardW, height: cardH }}>
-      <TouchableOpacity
-        onPress={handlePress}
-        activeOpacity={1}
-        disabled={showBackOnly}
-        style={{ width: cardW, height: cardH }}
-      >
-        {!showBackOnly && Front}
-        {backVisible && Back}
-      </TouchableOpacity>
-    </View>
+    <GestureDetector gesture={swipe}>
+      <View style={{ width: cardW, height: cardH }}>
+        <TouchableOpacity
+          onPress={handlePress}
+          activeOpacity={1}
+          disabled={showBackOnly}
+          style={{ width: cardW, height: cardH }}
+        >
+          {!showBackOnly && Front}
+          {backVisible && Back}
+        </TouchableOpacity>
+      </View>
+    </GestureDetector>
   );
 }
 
