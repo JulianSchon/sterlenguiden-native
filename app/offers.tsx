@@ -188,19 +188,14 @@ export default function OffersScreen() {
 
   // Innehållet till varje sida (sex små listor, billigt att räkna om)
   const pages = useMemo(() => {
-    // Det som snart går ut först, därefter det nyaste
-    const byUrgency = (a: Offer, b: Offer) => {
-      const ae = a.expires_at ? new Date(a.expires_at).getTime() : Infinity;
-      const be = b.expires_at ? new Date(b.expires_at).getTime() : Infinity;
-      if (ae !== be) return ae - be;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    };
+    // Senast tillagda först, oavsett kategori
+    const byNewest = (a: Offer, b: Offer) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     const usedIds = new Set(offers.filter((o) => !offerEligibility(o, redemptions).canUse).map((o) => o.id));
     return FILTER_IDS.map((id): PageData => {
       const filtered = id === "all" ? offers : offers.filter((o) => matchesFilter(o.category, id));
       return {
-        available: filtered.filter((o) => !usedIds.has(o.id)).sort(byUrgency),
-        redeemed: filtered.filter((o) => usedIds.has(o.id)).sort(byUrgency),
+        available: filtered.filter((o) => !usedIds.has(o.id)).sort(byNewest),
+        redeemed: filtered.filter((o) => usedIds.has(o.id)).sort(byNewest),
       };
     });
   }, [offers, redemptions]);

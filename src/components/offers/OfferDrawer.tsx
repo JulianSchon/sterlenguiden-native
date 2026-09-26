@@ -70,7 +70,6 @@ const OPEN_MS = 1700;
 const CLOSE_MS = 1200;
 const RIP_END = 0.3;       // så stor del av öppningen som är själva rivningen
 const RIP_TICKS = 9;       // små vibrationer under rivningen
-const DRAG_RANGE = 420;    // hur långt man drar för att backa hela animationen
 const COMMIT_P = 0.6;      // dras panelen så här långt ner tar den över och stänger sig själv, fingret behövs inte mer
 const ease = Easing.bezier(0.3, 0, 0.2, 1);
 const easeOut = Easing.out(Easing.cubic);
@@ -130,6 +129,9 @@ export function OfferDrawer({
   const p = useSharedValue(0);
   const startP = useSharedValue(0);
   const committed = useSharedValue(false);
+  // Panelen följer fingret 1:1: sträckan den glider (halva animationen, p 1 → 0,5) är lika lång som fingerns
+  const dragRange = useSharedValue(1);
+  useEffect(() => { dragRange.value = 2 * (screenH - sheetTop); }, [screenH, sheetTop]);
   const ready = useSharedValue(0);
   const vert = useSharedValue(0);
   const ox = useSharedValue(0);
@@ -191,11 +193,12 @@ export function OfferDrawer({
     .onStart(() => { cancelAnimation(p); startP.value = p.value; committed.value = false; closing.value = true; })
     .onUpdate((e) => {
       if (lockedSV.value || committed.value) return;
-      const next = Math.min(1, Math.max(0, startP.value - e.translationY / DRAG_RANGE));
+      const next = Math.min(1, Math.max(0, startP.value - e.translationY / dragRange.value));
       if (next < COMMIT_P) {
         // Långt nog: panelen stänger sig själv, så man inte kan dra runt hela animationen långsamt med fingret
         committed.value = true;
-        p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * next), easing: ease }, (done) => {
+        // Tar över med fart från början (inte långsam start), eftersom fingret redan rört sig
+        p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * next), easing: easeOut }, (done) => {
           if (done) runOnJS(finishClose)();
         });
         return;
@@ -302,7 +305,7 @@ export function OfferDrawer({
   const closeStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0.85, 1], [0, 1], "clamp") }));
 
   const sheetStyle = useAnimatedStyle(() => {
-    const sp = easeOut(interpolate(p.value, [0.5, 1], [0, 1], "clamp"));
+    const sp = interpolate(p.value, [0.5, 1], [0, 1], "clamp");
     return { transform: [{ translateY: (1 - sp) * (screenH - sheetTop) }] };
   });
 
