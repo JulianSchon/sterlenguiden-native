@@ -37,6 +37,8 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 const MAX_THUMBS = 4;
+/** Så mycket större än sin höjd blir kortets kant när det vänds (perspektivet), så mycket rum behöver det över sig */
+const CARD_HEADROOM = 14;
 
 /** Små kvadratiska bilder (platsernas loggor) som ligger delvis över varandra. */
 function Thumbs({ uris }: { uris: string[] }) {
@@ -280,6 +282,7 @@ export default function ProfileScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         alwaysBounceVertical={false}
+        style={s.scroll}
         contentContainerStyle={s.body}
       >
         <MemberCard
@@ -351,12 +354,16 @@ export default function ProfileScreen() {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 16 },
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  // zIndex så att kugghjulet fortfarande går att trycka på där listan nedanför sträcker sig upp bakom den
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10, zIndex: 2 },
   // Samma typsnitt och stil som Inställningar (versal Montserrat), men större eftersom det här är en huvudsida
   pageTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: c.text },
   // Samma storlek och fyllning som tillbaka-knappen på Inställningar-sidorna
   gearBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: c.fill, alignItems: "center", justifyContent: "center" },
-  body: { gap: 16 },
+  // Listan börjar en bit högre upp och innehållet är lika mycket nedskjutet, så det ser likadant ut men
+  // kortets övre kant inte klipps när kortet vänds
+  scroll: { marginTop: -CARD_HEADROOM },
+  body: { gap: 16, paddingTop: CARD_HEADROOM },
 
   // Ligger direkt mot bakgrunden; bara ett tryck ger en dämpad yta bakom
   pressed: { backgroundColor: c.fill },

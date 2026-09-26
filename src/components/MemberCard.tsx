@@ -37,6 +37,8 @@ const { width: SW } = Dimensions.get("window");
 /** Kortets standardstorlek (hela skärmbredden minus sidomarginaler) */
 export const CARD_W = SW - 32;
 export const CARD_H = 200;
+/** Perspektiv vid vändningen; högre värde ger en svagare förstoring av den sida som närmar sig */
+const PERSPECTIVE = 1600;
 
 // Fallback-färger för icke-members
 const NON_MEMBER_COLORS = {
@@ -155,11 +157,31 @@ export function MemberCard({
 
   // 3D flip: framsidan roterar 0→180°, baksidan 180→360°
   const frontStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1200 }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [0, 180])}deg` }],
+    transform: [{ perspective: PERSPECTIVE }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [0, 180])}deg` }],
   }));
   const backStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1200 }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [180, 360])}deg` }],
+    transform: [{ perspective: PERSPECTIVE }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [180, 360])}deg` }],
   }));
+
+  // Kortets tjocklek: när kortet vänds syns kanten som en smal list på den sida som närmar sig (vänster
+  // på framsidan, höger på baksidan). Bredd och höjd följer perspektivet, och listen är som störst när
+  // kortet står på högkant, vilket ger ett kort med verklig tjocklek i stället för ett papper.
+  const edgeThickness = 3.5 * k;
+  const edgeStyle = useAnimatedStyle(() => {
+    const angle = flipProgress.value * Math.PI;
+    const sin = Math.abs(Math.sin(angle));
+    const cos = Math.cos(angle);
+    const scale = PERSPECTIVE / (PERSPECTIVE - (cardW / 2) * sin);
+    const width = edgeThickness * sin * scale;
+    const height = cardH * scale;
+    const halfFace = (cardW / 2) * Math.abs(cos) * scale;
+    return {
+      width,
+      height,
+      top: (cardH - height) / 2,
+      left: cardW / 2 + (cos >= 0 ? -halfFace - width : halfFace),
+    };
+  });
 
   const FLIP_SPRING = { damping: 14, stiffness: 110, mass: 0.9 };
 
@@ -442,6 +464,12 @@ export function MemberCard({
           disabled={showBackOnly}
           style={{ width: cardW, height: cardH }}
         >
+          {backVisible && !showBackOnly && (
+            <Reanimated.View
+              pointerEvents="none"
+              style={[{ position: "absolute", borderRadius: edgeThickness / 2, backgroundColor: variant?.light ? "#A89C7C" : "#3A3A40" }, edgeStyle]}
+            />
+          )}
           {!showBackOnly && Front}
           {backVisible && Back}
         </TouchableOpacity>
