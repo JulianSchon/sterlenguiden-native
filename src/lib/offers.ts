@@ -99,6 +99,46 @@ export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibili
   return { used: usedCount > 0, canUse: true, usedCount, reason: null, ruleLabel };
 }
 
+// ─── Värdeberäkning ───────────────────────────────────────────────────────────
+
+
+const AMOUNT_RE  = /(\d[\d\s]*)\s*(kr|:-|sek)/;
+const PERCENT_RE = /(\d{1,2})\s*%/;
+const FREEBIE_RE = /2 för 1|två för en|gratis|fri entré|fri frakt/;
+
+/**
+ * Gissar vad ett erbjudande är värt i kronor. Används för "Spara upp till"-
+ * siffran på förmånssidan, så det behöver vara rimligt — inte exakt.
+ */
+export function estimateOfferValue(offer: Offer): number {
+  if (offer.savings_value && offer.savings_value > 0) return offer.savings_value;
+
+  const text = [offer.savings_label, offer.title, offer.description]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const amount = text.match(AMOUNT_RE);
+  if (amount) {
+    const kr = parseInt(amount[1].replace(/\s/g, ""), 10);
+    if (kr > 0) return Math.min(kr, 5000);
+  }
+
+  const percent = text.match(PERCENT_RE);
+  if (percent) {
+    const pct = parseInt(percent[1], 10);
+    if (pct > 0) return Math.round((500 * pct) / 100);
+  }
+
+  if (FREEBIE_RE.test(text)) return 150;
+
+  return 120;
+}
+
+export function formatKr(value: number): string {
+  return `${value.toLocaleString("sv-SE")} kr`;
+}
+
 /** Guldpillen på erbjudandekortet: företagets egen formulering (t.ex. "20 % rabatt"), eller inget alls. */
 export function offerSavingsLabel(offer: Offer): string | null {
   return offer.savings_label || null;

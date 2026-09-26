@@ -290,6 +290,9 @@ export const en: typeof sv = {
   },
   offers: {
     title: "Offers",
+    saveUpTo: "Save up to",
+    member: "Member",
+    notMember: "Not a member",
     summary: "{{count}} offers",
     summaryOne: "1 offer",
     places: "at {{count}} local businesses",

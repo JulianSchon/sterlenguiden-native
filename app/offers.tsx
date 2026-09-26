@@ -7,13 +7,17 @@
  * samma panel som platssidan använder.
  */
 import { useMemo, useState } from "react";
-import { View, Text, Image, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Clock, Crown } from "lucide-react-native";
 import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
-import { offerEligibility, offerSavingsLabel, type Offer } from "@/lib/offers";
+import { useMembership } from "@/hooks/useMembership";
+import {
+  offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
+} from "@/lib/offers";
 import { OfferDrawer } from "@/components/offers/OfferDrawer";
 import { CategoryChips } from "@/components/CategoryChips";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
@@ -40,6 +44,25 @@ function matchesCategory(category: string | null, dbValues: string[]): boolean {
   });
 }
 
+const TICKET_H = 132;
+const STUB_W = 58;
+const NOTCH = 18;
+
+/** Sidobandets färger på biljetten, en per kategorigrupp (guld för allt annat) */
+const GROUP_GRADIENTS: Record<FilterId | "other", [string, string]> = {
+  all:         ["#D4A84F", "#B8893A"],
+  other:       ["#D4A84F", "#B8893A"],
+  food:        ["#F59E5B", "#E5586B"],
+  stay:        ["#A98BE0", "#6F6AD8"],
+  experiences: ["#4CC9A0", "#2B8FA8"],
+  shopping:    ["#6BB0F2", "#4B6FD6"],
+};
+
+function offerGroup(category: string | null): FilterId | "other" {
+  const groups = Object.keys(FILTER_DB_VALUES) as Exclude<FilterId, "all">[];
+  return groups.find((g) => matchesCategory(category, FILTER_DB_VALUES[g])) ?? "other";
+}
+
 const DAY_MS = 86_400_000;
 const SOON_MS = 3 * DAY_MS;
 
@@ -56,8 +79,10 @@ function offerBadge(offer: Offer, used: boolean): "redeemed" | "endingSoon" | "n
 
 export default function OffersScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  const { isMember } = useMembership();
   const { data: offers = [], isLoading } = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
 
@@ -87,6 +112,14 @@ export default function OffersScreen() {
 
   const businessCount = useMemo(() => new Set(offers.map((o) => o.place_id)).size, [offers]);
 
+  // Summan av det som går att lösa in just nu, oberoende av valt filter
+  const totalValue = useMemo(
+    () => offers
+      .filter((o) => offerEligibility(o, redemptions).canUse)
+      .reduce((sum, o) => sum + estimateOfferValue(o), 0),
+    [offers, redemptions],
+  );
+
   return (
     <SettingsScreen title={t("offers.title")}>
       {isLoading && (
@@ -107,6 +140,23 @@ export default function OffersScreen() {
 
       {!isLoading && offers.length > 0 && (
         <>
+          <View style={s.hero}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.heroLabel}>{t("offers.saveUpTo")}</Text>
+              <Text style={s.heroValue}>{formatKr(totalValue)}</Text>
+            </View>
+            <Pressable
+              disabled={isMember}
+              onPress={() => router.push("/settings/pass-buy")}
+              style={[s.status, isMember && s.statusActive]}
+            >
+              <View style={[s.statusDot, { backgroundColor: isMember ? colors.success : colors.faint }]} />
+              <Text style={[s.statusText, isMember && { color: colors.success }]}>
+                {isMember ? t("offers.member") : t("offers.notMember")}
+              </Text>
+            </Pressable>
+          </View>
+
           <Text style={s.summary}>
             {offers.length === 1 ? t("offers.summaryOne") : t("offers.summary", { count: offers.length })}
             {"  ·  "}
@@ -196,50 +246,71 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
   const imageUrl = offer.image_url ?? offer.place?.logo_url ?? null;
   const badge = offerBadge(offer, used);
   const savings = offerSavingsLabel(offer);
+  const [from, to] = GROUP_GRADIENTS[offerGroup(offer.category)];
+  const gradId = `stub${offer.id}`;
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [s.card, used && s.cardUsed, pressed && { transform: [{ scale: 0.98 }] }]}
+      style={({ pressed }) => [s.ticket, used && s.ticketUsed, pressed && { transform: [{ scale: 0.98 }] }]}
     >
-      {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
+      {/* Sidoband i kategorins färg, kategorin skriven på högkant */}
+      <View style={s.stub}>
+        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+          <Defs>
+            <SvgGrad id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={from} />
+              <Stop offset="100%" stopColor={to} />
+            </SvgGrad>
+          </Defs>
+          <SvgRect width="100%" height="100%" fill={`url(#${gradId})`} />
+        </Svg>
+        <Text style={s.stubText} numberOfLines={1}>{offer.category ?? "Österlen"}</Text>
+      </View>
 
-      {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-        <Defs>
-          <SvgGrad id={`cardFade${offer.id}`} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%"   stopColor="#06060A" stopOpacity={0.12} />
-            <Stop offset="50%"  stopColor="#06060A" stopOpacity={0.2} />
-            <Stop offset="100%" stopColor="#06060A" stopOpacity={0.9} />
-          </SvgGrad>
-        </Defs>
-        <SvgRect width="100%" height="100%" fill={`url(#cardFade${offer.id})`} />
-      </Svg>
+      <View style={s.body}>
+        {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
 
-      {badge && (
-        <View style={s.badge}>
-          {badge === "redeemed" && <Check size={11} color={colors.goldText} strokeWidth={2.5} />}
-          {badge === "endingSoon" && <Clock size={11} color={colors.goldText} strokeWidth={2.5} />}
-          <Text style={s.badgeText}>{t(`offers.badge.${badge}`)}</Text>
-        </View>
-      )}
+        {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
+        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+          <Defs>
+            <SvgGrad id={`fade${offer.id}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor="#06060A" stopOpacity={0.15} />
+              <Stop offset="55%"  stopColor="#06060A" stopOpacity={0.3} />
+              <Stop offset="100%" stopColor="#06060A" stopOpacity={0.88} />
+            </SvgGrad>
+          </Defs>
+          <SvgRect width="100%" height="100%" fill={`url(#fade${offer.id})`} />
+        </Svg>
 
-      {offer.place?.logo_url && (
-        <View style={s.logoWrap}>
-          <Image source={{ uri: offer.place.logo_url }} style={s.logo} resizeMode="cover" />
-        </View>
-      )}
-
-      <View style={s.bottom}>
-        {!!offer.category && <Text style={s.category}>{offer.category}</Text>}
-        <Text style={s.placeName} numberOfLines={1}>{offer.place?.name ?? "Österlen"}</Text>
-        <Text style={s.dealText} numberOfLines={1}>{offer.title}</Text>
-        {savings && (
-          <View style={s.savingsPill}>
-            <Text style={s.savingsText}>{savings}</Text>
+        {badge && (
+          <View style={s.badge}>
+            {badge === "redeemed" && <Check size={10} color="#E8C674" strokeWidth={2.5} />}
+            {badge === "endingSoon" && <Clock size={10} color="#E8C674" strokeWidth={2.5} />}
+            <Text style={s.badgeText}>{t(`offers.badge.${badge}`)}</Text>
           </View>
         )}
+
+        {offer.place?.logo_url && (
+          <View style={s.logoWrap}>
+            <Image source={{ uri: offer.place.logo_url }} style={s.logo} resizeMode="cover" />
+          </View>
+        )}
+
+        <View style={s.bottom}>
+          <Text style={s.placeName} numberOfLines={1}>{offer.place?.name ?? "Österlen"}</Text>
+          <Text style={s.dealText} numberOfLines={1}>{offer.title}</Text>
+          {savings && (
+            <View style={s.savingsPill}>
+              <Text style={s.savingsText}>{savings}</Text>
+            </View>
+          )}
+        </View>
       </View>
+
+      {/* Hack ur biljetten: halvcirklar i sidans färg där bandet och bilden möts */}
+      <View style={[s.notch, s.notchTop, { backgroundColor: colors.bg }]} />
+      <View style={[s.notch, s.notchBottom, { backgroundColor: colors.bg }]} />
     </Pressable>
   );
 }
@@ -279,32 +350,57 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   list: { gap: 14 },
 
-  card: {
-    height: 210, borderRadius: 22, overflow: "hidden",
-    backgroundColor: c.tile,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: c.goldBorder,
+  hero: { flexDirection: "row", alignItems: "center", gap: 12 },
+  heroLabel: {
+    fontFamily: "Montserrat_700Bold", fontSize: 11, letterSpacing: 1.5,
+    textTransform: "uppercase", color: c.muted,
   },
-  cardUsed: { opacity: 0.55 },
+  heroValue: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 40, color: c.goldText, marginTop: 2 },
+  status: {
+    flexDirection: "row", alignItems: "center", gap: 7,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+    backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
+  },
+  statusActive: { borderColor: c.success },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  statusText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: c.muted },
+
+  ticket: {
+    flexDirection: "row", height: TICKET_H, borderRadius: 18, overflow: "hidden",
+    backgroundColor: c.tile,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: c.tileBorder,
+  },
+  ticketUsed: { opacity: 0.55 },
+  stub: { width: STUB_W, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  // Bredden är biljettens höjd så texten får plats efter rotationen
+  stubText: {
+    width: TICKET_H, textAlign: "center", transform: [{ rotate: "-90deg" }],
+    fontFamily: "Montserrat_700Bold", fontSize: 12, letterSpacing: 2.2,
+    textTransform: "uppercase", color: "#FFFFFF",
+  },
+  body: { flex: 1, backgroundColor: c.tile },
+  notch: { position: "absolute", left: STUB_W - NOTCH / 2, width: NOTCH, height: NOTCH, borderRadius: NOTCH / 2 },
+  notchTop: { top: -NOTCH / 2 },
+  notchBottom: { bottom: -NOTCH / 2 },
   badge: {
-    position: "absolute", top: 14, left: 14,
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+    position: "absolute", top: 10, left: 12,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.55)", borderWidth: 1, borderColor: "rgba(230,199,122,0.45)",
   },
   badgeText: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#E8C674", letterSpacing: 0.6, textTransform: "uppercase" },
   logoWrap: {
-    position: "absolute", top: 14, right: 14,
-    width: 36, height: 36, borderRadius: 18, overflow: "hidden",
+    position: "absolute", top: 10, right: 12,
+    width: 30, height: 30, borderRadius: 15, overflow: "hidden",
     borderWidth: 1.5, borderColor: "rgba(230,199,122,0.55)", backgroundColor: c.tile,
   },
   logo: { width: "100%", height: "100%" },
-  bottom: { position: "absolute", left: 16, right: 16, bottom: 14, gap: 2 },
-  category: { fontFamily: "Inter_600SemiBold", fontSize: 9.5, color: "#E8C674", letterSpacing: 1.4, textTransform: "uppercase" },
-  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 19, color: "#FFFFFF", marginTop: 2 },
+  bottom: { position: "absolute", left: 16, right: 14, bottom: 12, gap: 1 },
+  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: "#FFFFFF" },
   dealText: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
   savingsPill: {
-    alignSelf: "flex-start", marginTop: 8,
-    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999,
+    alignSelf: "flex-start", marginTop: 6,
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
     backgroundColor: "#E8C674",
   },
   savingsText: { fontFamily: "Inter_700Bold", fontSize: 11.5, color: "#0B0B0D" },

@@ -293,6 +293,9 @@ export const sv = {
   },
   offers: {
     title: "Förmåner",
+    saveUpTo: "Spara upp till",
+    member: "Medlem",
+    notMember: "Ej medlem",
     summary: "{{count}} erbjudanden",
     summaryOne: "1 erbjudande",
     places: "hos {{count}} lokala företag",

@@ -290,6 +290,9 @@ export const de: typeof sv = {
   },
   offers: {
     title: "Angebote",
+    saveUpTo: "Spare bis zu",
+    member: "Mitglied",
+    notMember: "Kein Mitglied",
     summary: "{{count}} Angebote",
     summaryOne: "1 Angebot",
     places: "bei {{count}} lokalen Unternehmen",
