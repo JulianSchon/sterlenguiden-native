@@ -180,7 +180,7 @@ export function MemberCard({
       height,
       top: (cardH - height) / 2,
       left: cardW / 2 + (cos >= 0 ? -halfFace - width : halfFace),
-      opacity: Math.min(1, Math.max(0, (0.4 - Math.abs(cos)) / 0.25)),
+      opacity: Math.min(1, Math.max(0, (0.2 - Math.abs(cos)) / 0.12)),
     };
   });
 
