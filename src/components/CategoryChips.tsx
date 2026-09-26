@@ -85,11 +85,11 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   chip: {
     flexShrink: 0,
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     // Asymmetrisk padding — Inter har mer "luft" under baslinjen än över,
     // så symmetrisk paddingVertical gör att texten ser urcentrerad ut.
-    paddingTop: 8,
-    paddingBottom: 7,
+    paddingTop: 10,
+    paddingBottom: 8,
     borderRadius: 9999,
   },
   chipActive: {
