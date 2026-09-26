@@ -119,6 +119,8 @@ export function OfferDrawer({
   const oy = useSharedValue(0);
   const ow = useSharedValue(0);
   const oh = useSharedValue(0);
+  // Pappersbitarna yr bara när biljetten rivs, aldrig när bandet är på väg tillbaka
+  const closing = useSharedValue(false);
   const lockedSV = useSharedValue(false);
   useEffect(() => { lockedSV.value = locked; }, [locked]);
   // Gester och animationer skapas en gång, så de läser onClose via en ref
@@ -135,6 +137,7 @@ export function OfferDrawer({
     ox.value = o.x; oy.value = o.y; ow.value = o.w; oh.value = o.h;
     vert.value = origin ? 1 : 0;
     p.value = 0;
+    closing.value = false;
     ready.value = 1;
     p.value = withTiming(1, { duration: OPEN_MS, easing: ease });
     // Många små ryck under rivningen, det sista hårdast, sedan en lätt känsla när bandet landar
@@ -158,6 +161,7 @@ export function OfferDrawer({
 
   const requestClose = () => {
     if (locked) return;
+    closing.value = true;
     p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * p.value), easing: ease }, (done) => {
       if (done) runOnJS(finishClose)();
     });
@@ -167,7 +171,7 @@ export function OfferDrawer({
   const makePan = () => Gesture.Pan()
     .activeOffsetY([-8, 8])
     .failOffsetX([-30, 30])
-    .onStart(() => { cancelAnimation(p); startP.value = p.value; })
+    .onStart(() => { cancelAnimation(p); startP.value = p.value; closing.value = true; })
     .onUpdate((e) => {
       if (lockedSV.value) return;
       p.value = Math.min(1, Math.max(0, startP.value - e.translationY / DRAG_RANGE));
@@ -331,7 +335,7 @@ export function OfferDrawer({
         style={[s.bandShadow, bandStyle, shadowStyle, { backgroundColor: gradFrom }]}
       />
 
-      <TearScraps p={p} vert={vert} ox={ox} oy={oy} ow={ow} oh={oh} />
+      <TearScraps p={p} vert={vert} closing={closing} ox={ox} oy={oy} ow={ow} oh={oh} />
 
       <GestureDetector gesture={bandPan}>
         <Animated.View style={[s.band, bandStyle]}>
@@ -404,7 +408,7 @@ const SCRAPS = [
 ];
 
 function TearScraps(props: {
-  p: SharedValue<number>; vert: SharedValue<number>;
+  p: SharedValue<number>; vert: SharedValue<number>; closing: SharedValue<boolean>;
   ox: SharedValue<number>; oy: SharedValue<number>; ow: SharedValue<number>; oh: SharedValue<number>;
 }) {
   return (
@@ -414,9 +418,9 @@ function TearScraps(props: {
   );
 }
 
-function Scrap({ sc, p, vert, ox, oy, ow, oh }: {
+function Scrap({ sc, p, vert, closing, ox, oy, ow, oh }: {
   sc: (typeof SCRAPS)[number];
-  p: SharedValue<number>; vert: SharedValue<number>;
+  p: SharedValue<number>; vert: SharedValue<number>; closing: SharedValue<boolean>;
   ox: SharedValue<number>; oy: SharedValue<number>; ow: SharedValue<number>; oh: SharedValue<number>;
 }) {
   const style = useAnimatedStyle(() => {
@@ -424,7 +428,7 @@ function Scrap({ sc, p, vert, ox, oy, ow, oh }: {
     const start = 0.01 + (1 - sc.y) * 0.1;
     const t = interpolate(p.value, [start, start + 0.3], [0, 1], "clamp");
     return {
-      opacity: vert.value && t > 0 && t < 1 ? 1 - t * t : 0,
+      opacity: vert.value && !closing.value && t > 0 && t < 1 ? 1 - t * t : 0,
       left: ox.value + ow.value - 3 + sc.dx * t,
       // Lite tyngdkraft: bitarna faller mer ju längre de flugit
       top: oy.value + oh.value * sc.y + sc.dy * t + 120 * t * t,

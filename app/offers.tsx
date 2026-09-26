@@ -458,9 +458,9 @@ function OfferListCard({
     // Yttre lagret bär skuggan, det inre klipper bilden till biljettens form (overflow: hidden tar bort skuggor)
     <Pressable
       onPress={handlePress}
-      style={({ pressed }) => [s.ticket, used && s.ticketUsed, pressed && { transform: [{ scale: 0.98 }] }]}
+      style={({ pressed }) => [s.ticket, used && s.ticketUsed, stubHidden && s.ticketTorn, pressed && { transform: [{ scale: 0.98 }] }]}
     >
-      <View style={s.ticketClip}>
+      <View style={[s.ticketClip, stubHidden && { borderColor: "transparent" }]}>
         {/* Sidoband i kategorins färg: ikon överst, kategorin på högkant under */}
         <View ref={stubRef} collapsable={false} style={[s.stub, stubHidden && { opacity: 0 }]}>
           <VerticalGradient colors={[from, to]} />
@@ -514,7 +514,7 @@ function OfferListCard({
           </View>
         </View>
 
-        <Perforation />
+        {!stubHidden && <Perforation />}
 
         {/* Kanten som blir kvar när bandet rivits bort: vit, hackig papperskant */}
         {stubHidden && (
@@ -601,6 +601,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: c.tileBorder,
   },
   ticketUsed: { opacity: 0.55 },
+  // Bandet är bortrivet: ingen tom "mall" kvar, bara den kvarvarande biten mot sidans bakgrund
+  ticketTorn: { backgroundColor: "transparent", shadowOpacity: 0, elevation: 0 },
   stub: { width: STUB_W, alignItems: "center", overflow: "hidden" },
   stubIcon: { height: 50, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 },
   stubTextZone: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", paddingBottom: 14 },

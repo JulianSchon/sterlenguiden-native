@@ -6,7 +6,7 @@ import { Skia, type SkPath } from "@shopify/react-native-skia";
 
 export const TEAR_TEETH = 16;
 export const TEAR_DEPTH = 5;      // hur djupa tänderna är
-export const TEAR_FRINGE = 3;     // bredden på den vita papperskanten
+export const TEAR_FRINGE = 1.5;   // bredden på den vita papperskanten
 
 // Olika djup på tänderna så det ser riktigt riv ut och inte som en sågkant
 const JAGS = [0.9, 0.4, 1, 0.55, 0.8, 0.3, 1, 0.65];
@@ -21,11 +21,14 @@ export function tornBandPath(w: number, h: number, amp: number, inset: number, p
   const path = Skia.Path.Make();
   path.moveTo(0, 0);
   path.lineTo(w - inset, 0);
+  let prevX = w - inset;
   for (let i = 1; i <= TEAR_TEETH; i++) {
     const y = (h * i) / TEAR_TEETH;
     const torn = Math.min(1, Math.max(0, progress * TEAR_TEETH - (TEAR_TEETH - i) + 1));
     const x = w - inset - (i % 2 === 1 ? amp * JAGS[i % JAGS.length] * torn : 0);
-    path.lineTo(x, y);
+    // Kurva i stället för rak linje: kanten blir böljande som rivet papper, inte en sågkant
+    path.quadTo(prevX, y - h / TEAR_TEETH / 2, x, y);
+    prevX = x;
   }
   path.lineTo(0, h);
   path.close();
@@ -37,10 +40,12 @@ export function tornEdgePath(h: number): SkPath {
   const path = Skia.Path.Make();
   path.moveTo(0, 0);
   path.lineTo(TEAR_FRINGE, 0);
+  let prevX = TEAR_FRINGE;
   for (let i = 1; i <= TEAR_TEETH; i++) {
     const y = (h * i) / TEAR_TEETH;
     const x = TEAR_FRINGE + (i % 2 === 1 ? TEAR_DEPTH * JAGS[i % JAGS.length] : 0);
-    path.lineTo(x, y);
+    path.quadTo(prevX, y - h / TEAR_TEETH / 2, x, y);
+    prevX = x;
   }
   path.lineTo(0, h);
   path.close();
