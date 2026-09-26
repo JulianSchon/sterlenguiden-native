@@ -328,7 +328,8 @@ export function OfferDrawer({
           {onOpenPlace && <ChevronRight size={22} color={colors.muted} strokeWidth={2} />}
         </Pressable>
 
-        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+        {/* Bara längre innehåll scrollar och studsar: med ett erbjudande står panelen still */}
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false} alwaysBounceVertical={false}>
           {offers.map((offer, i) => (
             <OfferCard
               key={offer.id}
@@ -620,7 +621,7 @@ const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
   },
   logo: { width: "100%", height: "100%", transform: [{ scale: 1.2 }] },
   logoFallback: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.goldText },
-  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text },
+  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.3, color: c.text },
   offerCount: {
     fontFamily: "Inter_600SemiBold", fontSize: 11, color: c.goldText,
     letterSpacing: 1.98, marginTop: 2, textTransform: "uppercase",
@@ -653,7 +654,7 @@ const createCardStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: "Inter_600SemiBold", fontSize: 9.5, color: c.goldText,
     letterSpacing: 1.62, textTransform: "uppercase",
   },
-  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 21, color: c.text, lineHeight: 27 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 19, letterSpacing: -0.4, color: c.text, lineHeight: 25 },
   description: {
     fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 20,
     color: c.muted, marginTop: 8,
