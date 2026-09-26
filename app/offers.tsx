@@ -6,19 +6,21 @@
  * får "Skaffa Österlenpasset" (se OfferDrawer). Att trycka på ett kort öppnar
  * samma panel som platssidan använder.
  *
- * Listan går att svepa åt sidan för att byta kategori, samma sak som att trycka
- * på nästa/föregående piller. Svepet startar inte vid skärmens kant, den zonen
- * är reserverad för iOS "tillbaka".
+ * Kategorierna är sidor bredvid varandra: man sveper åt sidan och ser nästa
+ * kategori glida in medan man drar. Rubriken visar var man är, pilarna och
+ * prickarna visar att det finns fler, och ett tryck på rubriken öppnar en lista
+ * för att hoppa direkt. Svepet startar inte vid skärmens kant, den zonen är
+ * reserverad för iOS "tillbaka".
  */
-import { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import { useMemo, useState } from "react";
+import { View, Text, Image, Pressable, Modal, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Fingerprint, Smartphone, Check, Clock, Crown } from "lucide-react-native";
+import { Fingerprint, Smartphone, Check, Clock, Crown, ChevronLeft, ChevronRight } from "lucide-react-native";
 import { Canvas, Fill, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
@@ -29,14 +31,13 @@ import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
 } from "@/lib/offers";
 import { OfferDrawer } from "@/components/offers/OfferDrawer";
-import { CategoryChips } from "@/components/CategoryChips";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { findCategory, shade, type CategoryId } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 // ─── Kategorifilter ──────────────────────────────────────────────────────────
-// Sex pillers över de åtta kategorierna. Erbjudanden utan känd kategori syns bara under "Alla".
+// Sex sidor över de åtta kategorierna. Erbjudanden utan känd kategori syns bara under "Alla".
 type FilterId = "all" | "food" | "stay" | "cafe" | "shopping" | "activities";
 
 const FILTER_CATEGORIES: Record<Exclude<FilterId, "all">, CategoryId[]> = {
@@ -66,6 +67,10 @@ function stubColors(category: string | null): [string, string] {
 const EDGE_ZONE = 24;     // px från kanten där svepet inte tar över
 const SWIPE_DISTANCE = 70; // hur långt man måste dra för att byta
 const SWIPE_SPEED = 600;   // eller hur snabbt (px/s)
+const PAGE_GAP = 16;       // mellanrum mellan sidorna medan man drar
+const SIDE_MARGIN = 16;    // sidans egen sidomarginal (SettingsScreen)
+
+interface PageData { available: Offer[]; redeemed: Offer[] }
 
 const DAY_MS = 86_400_000;
 const SOON_MS = 3 * DAY_MS;
@@ -95,25 +100,28 @@ export default function OffersScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [drawerPlaceId, setDrawerPlaceId] = useState<number | null>(null);
 
-  // Svep mellan kategorier: innehållet följer fingret, glider ut åt ena hållet och in från det andra
+  // Svep mellan kategorier: sidorna ligger bredvid varandra och följer fingret
   const { width: screenW } = useWindowDimensions();
+  const step = screenW - SIDE_MARGIN * 2 + PAGE_GAP;
   const translateX = useSharedValue(0);
-  const pendingDir = useRef<1 | -1 | null>(null);
+  const [pageH, setPageH] = useState(0);
+  const [jumpOpen, setJumpOpen] = useState(false);
   const filterIndex = FILTER_IDS.indexOf(activeFilter);
 
-  const commitSwipe = (dir: 1 | -1) => {
-    pendingDir.current = dir;
-    setActiveFilter(FILTER_IDS[filterIndex + dir]);
+  // Nya sidan är den aktuella i flödet, så förskjutningen nollas i samma veva
+  const goTo = (index: number) => {
+    setActiveFilter(FILTER_IDS[index]);
+    translateX.value = 0;
   };
 
-  // Nya innehållet är på plats: starta utanför skärmen på motsatt sida och glid in
-  useEffect(() => {
-    const dir = pendingDir.current;
-    if (dir === null) return;
-    pendingDir.current = null;
-    translateX.value = dir * screenW;
-    translateX.value = withTiming(0, { duration: 200 });
-  }, [activeFilter]);
+  // Glid till grannsidan och byt när den är framme (pilar och svep)
+  const slideTo = (dir: 1 | -1, duration: number) => {
+    const target = filterIndex + dir;
+    if (target < 0 || target >= FILTER_IDS.length) return;
+    translateX.value = withTiming(-dir * step, { duration }, (done) => {
+      if (done) runOnJS(goTo)(target);
+    });
+  };
 
   const swipe = Gesture.Pan()
     .activeOffsetX([-20, 20])
@@ -130,9 +138,7 @@ export default function OffersScreen() {
       const hasTarget = filterIndex + dir >= 0 && filterIndex + dir < FILTER_IDS.length;
       const fastEnough = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
       if (hasTarget && fastEnough && e.absoluteX - e.translationX >= EDGE_ZONE) {
-        translateX.value = withTiming(-dir * screenW, { duration: 140 }, (done) => {
-          if (done) runOnJS(commitSwipe)(dir);
-        });
+        runOnJS(slideTo)(dir, 160);
       } else {
         translateX.value = withTiming(0, { duration: 180 });
       }
@@ -140,14 +146,8 @@ export default function OffersScreen() {
 
   const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
 
-  const chips = FILTER_IDS.map((id) => ({ id, label: t(`offers.filters.${id}`) }));
-
-  const { available, redeemed } = useMemo(() => {
-    const filtered = activeFilter === "all"
-      ? offers
-      : offers.filter((o) => matchesFilter(o.category, activeFilter));
-
-    const withState = filtered.map((offer) => ({ offer, used: !offerEligibility(offer, redemptions).canUse }));
+  // Innehållet till varje sida (sex små listor, billigt att räkna om)
+  const pages = useMemo(() => {
     // Det som snart går ut först, därefter det nyaste
     const byUrgency = (a: Offer, b: Offer) => {
       const ae = a.expires_at ? new Date(a.expires_at).getTime() : Infinity;
@@ -155,11 +155,15 @@ export default function OffersScreen() {
       if (ae !== be) return ae - be;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     };
-    return {
-      available: withState.filter((x) => !x.used).map((x) => x.offer).sort(byUrgency),
-      redeemed: withState.filter((x) => x.used).map((x) => x.offer).sort(byUrgency),
-    };
-  }, [offers, redemptions, activeFilter]);
+    const usedIds = new Set(offers.filter((o) => !offerEligibility(o, redemptions).canUse).map((o) => o.id));
+    return FILTER_IDS.map((id): PageData => {
+      const filtered = id === "all" ? offers : offers.filter((o) => matchesFilter(o.category, id));
+      return {
+        available: filtered.filter((o) => !usedIds.has(o.id)).sort(byUrgency),
+        redeemed: filtered.filter((o) => usedIds.has(o.id)).sort(byUrgency),
+      };
+    });
+  }, [offers, redemptions]);
 
   // Det som går att lösa in just nu, oberoende av valt filter
   const totalValue = usable.reduce((sum, o) => sum + estimateOfferValue(o), 0);
@@ -218,34 +222,42 @@ export default function OffersScreen() {
           {/* Förklaringen visas bara tills man löst in något första gången */}
           {redemptions.length === 0 && <HowItWorks />}
 
-          {/* Chips går kant i kant: tar ut sidomarginalen och lägger tillbaka den som inset */}
-          <View style={s.chipsBleed}>
-            <CategoryChips chips={chips} activeId={activeFilter} onChange={(id) => setActiveFilter(id as FilterId)} inset={16} />
-          </View>
+          <CategoryHeader
+            index={filterIndex}
+            labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
+            onStep={(dir) => slideTo(dir, 220)}
+            onOpenList={() => setJumpOpen(true)}
+          />
 
           <GestureDetector gesture={swipe}>
-            <Animated.View style={[s.swipeArea, slideStyle]}>
-              {available.length === 0 && redeemed.length === 0 && (
-                <Text style={[s.muted, s.noneInFilter]}>{t("offers.noneInFilter")}</Text>
-              )}
-
-              {available.length > 0 && (
-                <Section title={t("offers.sections.available")}>
-                  {available.map((offer) => (
-                    <OfferListCard key={offer.id} offer={offer} used={false} onPress={() => setDrawerPlaceId(offer.place_id)} />
-                  ))}
-                </Section>
-              )}
-
-              {redeemed.length > 0 && (
-                <Section title={t("offers.sections.redeemed")}>
-                  {redeemed.map((offer) => (
-                    <OfferListCard key={offer.id} offer={offer} used onPress={() => setDrawerPlaceId(offer.place_id)} />
-                  ))}
-                </Section>
-              )}
+            <Animated.View style={slideStyle}>
+              {/* Aktuella sidan avgör höjden; grannarna ligger bredvid, klippta till samma höjd */}
+              <View onLayout={(e) => setPageH(e.nativeEvent.layout.height)} style={s.page}>
+                <OfferPage data={pages[filterIndex]} onOpen={setDrawerPlaceId} />
+              </View>
+              {[-1, 1].map((dir) => {
+                const neighbour = pages[filterIndex + dir];
+                if (!neighbour) return null;
+                return (
+                  <View
+                    key={dir}
+                    pointerEvents="none"
+                    style={[s.neighbour, { left: dir * step, maxHeight: pageH || undefined }]}
+                  >
+                    <OfferPage data={neighbour} onOpen={setDrawerPlaceId} />
+                  </View>
+                );
+              })}
             </Animated.View>
           </GestureDetector>
+
+          <JumpList
+            visible={jumpOpen}
+            labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
+            activeIndex={filterIndex}
+            onPick={(i) => { setJumpOpen(false); goTo(i); }}
+            onClose={() => setJumpOpen(false)}
+          />
         </>
       )}
 
@@ -255,6 +267,87 @@ export default function OffersScreen() {
         onClose={() => setDrawerPlaceId(null)}
       />
     </SettingsScreen>
+  );
+}
+
+/** En kategorisida: listorna "Att använda" och "Inlösta" (eller ett tomt-meddelande) */
+function OfferPage({ data, onOpen }: { data: PageData; onOpen: (placeId: number) => void }) {
+  const { t } = useTranslation();
+  const s = useThemedStyles(createStyles);
+  const empty = data.available.length === 0 && data.redeemed.length === 0;
+  return (
+    <View style={s.pageContent}>
+      {empty && <Text style={[s.muted, s.noneInFilter]}>{t("offers.noneInFilter")}</Text>}
+      {data.available.length > 0 && (
+        <Section title={t("offers.sections.available")}>
+          {data.available.map((offer) => (
+            <OfferListCard key={offer.id} offer={offer} used={false} onPress={() => onOpen(offer.place_id)} />
+          ))}
+        </Section>
+      )}
+      {data.redeemed.length > 0 && (
+        <Section title={t("offers.sections.redeemed")}>
+          {data.redeemed.map((offer) => (
+            <OfferListCard key={offer.id} offer={offer} used onPress={() => onOpen(offer.place_id)} />
+          ))}
+        </Section>
+      )}
+    </View>
+  );
+}
+
+/** ← Kategori → med prickar under. Pilen försvinner i ändarna, rubriken öppnar hopplistan. */
+function CategoryHeader({
+  index, labels, onStep, onOpenList,
+}: { index: number; labels: string[]; onStep: (dir: 1 | -1) => void; onOpenList: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const arrow = (dir: 1 | -1) => {
+    const hidden = index + dir < 0 || index + dir >= labels.length;
+    const Icon = dir === 1 ? ChevronRight : ChevronLeft;
+    return (
+      <Pressable onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
+        <Icon size={22} color={colors.muted} strokeWidth={2} />
+      </Pressable>
+    );
+  };
+  return (
+    <View style={s.catHeader}>
+      <View style={s.catRow}>
+        {arrow(-1)}
+        <Pressable onPress={onOpenList} hitSlop={8} style={s.catTitleWrap}>
+          <Text style={s.catTitle} numberOfLines={1}>{labels[index]}</Text>
+        </Pressable>
+        {arrow(1)}
+      </View>
+      <View style={s.dots}>
+        {labels.map((label, i) => (
+          <View key={label} style={[s.dot, i === index && s.dotActive]} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Genväg: alla kategorier i en lista, för att hoppa direkt utan att svepa igenom de emellan */
+function JumpList({
+  visible, labels, activeIndex, onPick, onClose,
+}: { visible: boolean; labels: string[]; activeIndex: number; onPick: (i: number) => void; onClose: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={s.jumpBackdrop} onPress={onClose}>
+        <View style={s.jumpSheet}>
+          {labels.map((label, i) => (
+            <Pressable key={label} onPress={() => onPick(i)} style={s.jumpRow}>
+              <Text style={[s.jumpText, i === activeIndex && { color: colors.goldText }]}>{label}</Text>
+              {i === activeIndex && <Check size={16} color={colors.goldText} strokeWidth={2.5} />}
+            </Pressable>
+          ))}
+        </View>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -374,8 +467,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   emptyTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text, textAlign: "center" },
   emptyBody: { textAlign: "center", lineHeight: 19 },
-  // Minst så hög att man kan svepa även när en kategori är nästan tom
-  swipeArea: { gap: 22, minHeight: 360 },
   noneInFilter: { textAlign: "center", paddingVertical: 32 },
 
   how: {
@@ -390,7 +481,27 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   howLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: c.text, textAlign: "center" },
 
-  chipsBleed: { marginHorizontal: -16 },
+  catHeader: { alignItems: "center", gap: 10 },
+  catRow: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
+  catTitleWrap: { flex: 1, alignItems: "center" },
+  catTitle: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.3, color: c.text },
+  arrow: { width: 32, alignItems: "center" },
+  dots: { flexDirection: "row", gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderStrong },
+  dotActive: { width: 18, backgroundColor: c.gold },
+
+  page: {},
+  pageContent: { gap: 22, minHeight: 360 },
+  // Grannsidan ligger utanför skärmen i sidled och klipps till aktuella sidans höjd
+  neighbour: { position: "absolute", top: 0, width: "100%", overflow: "hidden" },
+
+  jumpBackdrop: { flex: 1, backgroundColor: c.overlay, alignItems: "center", justifyContent: "center", padding: 32 },
+  jumpSheet: {
+    width: "100%", maxWidth: 340, borderRadius: 20, paddingVertical: 8,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
+  },
+  jumpRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 22, paddingVertical: 15 },
+  jumpText: { fontFamily: "Montserrat_500Medium", fontSize: 15, letterSpacing: -0.3, color: c.text },
 
   section: { gap: 12 },
   sectionTitle: {
