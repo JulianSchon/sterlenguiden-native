@@ -184,16 +184,12 @@ export function MemberCard({
     };
   });
 
-  // Materialkänsla medan kortet vänds: en glans som glider över kortet, och en mjuk skugga under det som
-  // smalnar av när kortet står på högkant. Båda är osynliga när kortet ligger plant.
+  // Materialkänsla medan kortet vänds: en glans som glider över kortet, osynlig när kortet ligger plant.
   const glareStyle = useAnimatedStyle(() => ({
     opacity: Math.abs(Math.sin(flipProgress.value * Math.PI)),
     transform: [{ translateX: interpolate(flipProgress.value, [0, 1], [-cardW * 0.6, cardW * 1.1]) }, { skewX: "-20deg" }],
   }));
-  const groundShadowStyle = useAnimatedStyle(() => ({
-    opacity: 0.6 * Math.abs(Math.sin(flipProgress.value * Math.PI)),
-    transform: [{ scaleX: 0.55 + 0.45 * Math.abs(Math.cos(flipProgress.value * Math.PI)) }],
-  }));
+
 
   /** Kortets fasade kant (som på ett riktigt kort) och glansen som följer vändningen. */
   const finish = (glareId: string, bevelColor: string) => (
@@ -503,19 +499,6 @@ export function MemberCard({
               style={[{ position: "absolute", borderRadius: edgeThickness / 2, backgroundColor: variant?.light ? "#A89C7C" : "#3A3A40" }, edgeStyle]}
             />
           )}
-          {backVisible && !showBackOnly && (
-            <Reanimated.View pointerEvents="none" style={[mc.groundShadow, groundShadowStyle]}>
-              <Svg width="100%" height="100%">
-                <Defs>
-                  <SvgRadial id="groundShadow" cx="50%" cy="50%" rx="50%" ry="50%">
-                    <Stop offset="0%" stopColor="#000" stopOpacity={0.55} />
-                    <Stop offset="100%" stopColor="#000" stopOpacity={0} />
-                  </SvgRadial>
-                </Defs>
-                <SvgRect x={0} y={0} width="100%" height="100%" fill="url(#groundShadow)" />
-              </Svg>
-            </Reanimated.View>
-          )}
           {!showBackOnly && Front}
           {backVisible && Back}
         </TouchableOpacity>
@@ -540,7 +523,6 @@ const createStyles = (k: number, cardW: number, cardH: number) => StyleSheet.cre
     borderWidth: Math.max(StyleSheet.hairlineWidth, 0.75 * k),
   },
   glare: { position: "absolute", top: 0, bottom: 0, left: 0, width: 120 * k },
-  groundShadow: { position: "absolute", left: cardW * 0.1, width: cardW * 0.8, bottom: -16 * k, height: 32 * k },
 
   sweep: {
     position: "absolute", top: 0, bottom: 0, width: 160 * k,
