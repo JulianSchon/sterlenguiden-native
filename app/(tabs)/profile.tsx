@@ -15,6 +15,8 @@ import { Settings, Crown, ChevronRight, ClipboardList, BarChart3, Medal, Heart, 
 import Svg, { Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { MemberCard } from "@/components/MemberCard";
+import { FadeImage } from "@/components/FadeImage";
+import { FadeOnChange } from "@/components/FadeOnChange";
 import { floatingNavSolidHeight } from "@/components/navigation/FloatingNav";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
@@ -44,7 +46,7 @@ function Thumbs({ uris }: { uris: string[] }) {
     <View style={s.thumbs}>
       {uris.slice(0, MAX_THUMBS).map((uri, i) => (
         <View key={`${uri}-${i}`} style={[s.thumb, { marginLeft: i > 0 ? -10 : 0, zIndex: i + 1 }]}>
-          <Image source={{ uri }} style={s.thumbImage} />
+          <FadeImage uri={uri} />
         </View>
       ))}
     </View>
@@ -148,10 +150,16 @@ function PrimaryTile({ icon, logo, tint, badge, title, subtitle, onPress }: {
     >
       <View>
         <IconTile icon={icon} logo={logo} tint={tint} size={58} />
-        {badge ? <View style={s.badge}><Text style={s.badgeText}>{badge > 99 ? "99+" : badge}</Text></View> : null}
+        {badge ? (
+          <FadeOnChange style={s.badge} value={badge}>
+            <Text style={s.badgeText}>{badge > 99 ? "99+" : badge}</Text>
+          </FadeOnChange>
+        ) : null}
       </View>
       <Text style={s.primaryTitle} numberOfLines={1}>{title}</Text>
-      <Text style={[s.primarySub, tint ? { color: tint } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{subtitle}</Text>
+      <FadeOnChange value={subtitle}>
+        <Text style={[s.primarySub, tint ? { color: tint } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{subtitle}</Text>
+      </FadeOnChange>
     </Pressable>
   );
 }
@@ -178,7 +186,9 @@ function ProfileRow({ icon, title, subtitle, thumbs, last = false, onPress }: {
       <IconTile icon={icon} />
       <View style={{ flex: 1 }}>
         <Text style={s.title} numberOfLines={1}>{title}</Text>
-        <Text style={s.subtitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{subtitle}</Text>
+        <FadeOnChange value={subtitle}>
+          <Text style={s.subtitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{subtitle}</Text>
+        </FadeOnChange>
       </View>
       {thumbs}
       <ChevronRight size={18} color={colors.faint} strokeWidth={2} />
@@ -375,7 +385,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   trophyImage: { width: BOX - 8, height: BOX - 8 },
   thumbs: { flexDirection: "row", alignItems: "center" },
   thumb: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, borderColor: c.bg, overflow: "hidden", backgroundColor: c.fill },
-  thumbImage: { width: "100%", height: "100%" },
 
   // Alla rader är exakt lika höga
   row: { flexDirection: "row", alignItems: "center", gap: 12, height: 65, paddingHorizontal: 4 },
