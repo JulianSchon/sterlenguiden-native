@@ -482,8 +482,8 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  // Samma rubrikstil som Inställningar och Mitt Österlen: versal Montserrat med luft mellan bokstäverna
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, textTransform: "uppercase", color: FG },
+  // Samma typsnitt och stil som Inställningar (versal Montserrat), men större eftersom det här är en huvudsida
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: 2, textTransform: "uppercase", color: FG },
   gearBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.05)",
