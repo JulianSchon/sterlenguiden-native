@@ -370,7 +370,7 @@ export default function ProfileScreen() {
           style={s.gearBtn}
           onPress={() => router.push("/settings" as any)}
         >
-          <Settings size={20} color={MUTED} strokeWidth={1.75} />
+          <Settings size={20} color={FG} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -484,11 +484,11 @@ const s = StyleSheet.create({
   },
   // Samma typsnitt och stil som Inställningar (versal Montserrat), men större eftersom det här är en huvudsida
   title: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: FG },
+  // Samma storlek och fyllning som tillbaka-knappen på Inställningar-sidorna
   gearBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.06)",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: BORDER,
   },
 
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
