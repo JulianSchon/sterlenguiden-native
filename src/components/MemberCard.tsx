@@ -163,7 +163,21 @@ export function MemberCard({
     setTimeout(() => setIsFlipped(flippedRef.current), 350);
   };
 
+  // Ett svep räknas inte också som ett tryck: annars vänder trycket vid släpp tillbaka kortet igen
+  // (svepet åt "rätt" håll tar ut sig självt, och åt "fel" håll vänder trycket kortet)
+  const swiping = useRef(false);
+  const swipeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startSwipe = () => {
+    if (swipeTimer.current) clearTimeout(swipeTimer.current);
+    swiping.current = true;
+  };
+  const endSwipe = () => {
+    if (swipeTimer.current) clearTimeout(swipeTimer.current);
+    swipeTimer.current = setTimeout(() => { swiping.current = false; }, 350);
+  };
+
   const handlePress = () => {
+    if (swiping.current) return;
     if (!isMember) { onBuyPress(); return; }
     if (disableFlip) { onCardPress?.(); return; }
     flip();
@@ -180,8 +194,14 @@ export function MemberCard({
     .enabled(isMember && !disableFlip && !showBackOnly)
     .activeOffsetX([-16, 16])
     .failOffsetY([-24, 24])
+    .onStart(() => {
+      runOnJS(startSwipe)();
+    })
     .onEnd((e) => {
       runOnJS(handleSwipe)(e.translationX, e.velocityX);
+    })
+    .onFinalize(() => {
+      runOnJS(endSwipe)();
     });
 
   // Roterande guldgradient — körs alltid (oavsett flip) så att baksidan
