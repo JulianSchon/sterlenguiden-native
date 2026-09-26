@@ -44,9 +44,9 @@ function matchesCategory(category: string | null, dbValues: string[]): boolean {
   });
 }
 
-const TICKET_H = 132;
+const TICKET_H = 190;
 const STUB_W = 58;
-const NOTCH = 18;
+const NOTCH = 28;
 
 /** Sidobandets färger på biljetten, en per kategorigrupp (guld för allt annat) */
 const GROUP_GRADIENTS: Record<FilterId | "other", [string, string]> = {
@@ -308,9 +308,9 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
         </View>
       </View>
 
-      {/* Hack ur biljetten: halvcirklar i sidans färg där bandet och bilden möts */}
-      <View style={[s.notch, s.notchTop, { backgroundColor: colors.bg }]} />
-      <View style={[s.notch, s.notchBottom, { backgroundColor: colors.bg }]} />
+      {/* Hack ur biljetten: halvcirklar i sidans färg mitt på varje kortsida */}
+      <View style={[s.notch, s.notchLeft, { backgroundColor: colors.bg }]} />
+      <View style={[s.notch, s.notchRight, { backgroundColor: colors.bg }]} />
     </Pressable>
   );
 }
@@ -379,9 +379,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     textTransform: "uppercase", color: "#FFFFFF",
   },
   body: { flex: 1, backgroundColor: c.tile },
-  notch: { position: "absolute", left: STUB_W - NOTCH / 2, width: NOTCH, height: NOTCH, borderRadius: NOTCH / 2 },
-  notchTop: { top: -NOTCH / 2 },
-  notchBottom: { bottom: -NOTCH / 2 },
+  notch: { position: "absolute", top: (TICKET_H - NOTCH) / 2, width: NOTCH, height: NOTCH, borderRadius: NOTCH / 2 },
+  notchLeft: { left: -NOTCH / 2 },
+  notchRight: { right: -NOTCH / 2 },
   badge: {
     position: "absolute", top: 10, left: 12,
     flexDirection: "row", alignItems: "center", gap: 4,
