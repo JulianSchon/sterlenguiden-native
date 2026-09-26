@@ -280,7 +280,7 @@ export const en: typeof sv = {
     },
     offers: {
       title: "Offers",
-      tile: "Save {{amount}}",
+      tile: "Discounts at local businesses",
       tileEmpty: "More soon",
     },
     history: { title: "History", count: "{{count}} visits", one: "1 visit" },

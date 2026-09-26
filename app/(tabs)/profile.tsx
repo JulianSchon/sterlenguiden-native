@@ -27,7 +27,6 @@ import { usePlaces } from "@/hooks/usePlaces";
 import { useAvailableOffers } from "@/hooks/useAvailableOffers";
 import { useVisits } from "@/hooks/useVisits";
 import { useTrophies } from "@/hooks/useTrophies";
-import { formatKr } from "@/lib/offers";
 import { computeCategoryStats, type CategoryStat } from "@/lib/categories";
 import { softenColor } from "@/lib/color";
 import { TIER_PALETTE, type Trophy } from "@/lib/achievements";
@@ -208,7 +207,7 @@ export default function ProfileScreen() {
   const { data: profile } = useProfile();
   const { data: favorites = [] } = useFavorites();
   const { data: places = [] } = usePlaces();
-  const { available: activeOffers, savings: offerSavings } = useAvailableOffers();
+  const { available: activeOffers } = useAvailableOffers();
   const { data: visits = [] } = useVisits();
   const { trophies } = useTrophies();
   const { isMember } = useMembership();
@@ -265,7 +264,7 @@ export default function ProfileScreen() {
   const visitCount = visits.filter((v) => places.some((p) => p.id === v.place_id)).length;
   const trophiesDone = trophies.filter((tr) => tr.done).length;
 
-  const offerSubtitle = activeOffers.length === 0 ? t("profile.offers.tileEmpty") : t("profile.offers.tile", { amount: formatKr(offerSavings) });
+  const offerSubtitle = activeOffers.length === 0 ? t("profile.offers.tileEmpty") : t("profile.offers.tile");
   const favSubtitle = favPlaces.length === 0 ? t("profile.favorites.empty")
     : favPlaces.length === 1 ? t("profile.favorites.one")
     : t("profile.favorites.count", { count: favPlaces.length });
