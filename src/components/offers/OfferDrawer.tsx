@@ -313,16 +313,14 @@ export function OfferDrawer({
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <View style={s.placeNameRow}>
-              <Text style={s.placeName} numberOfLines={1}>{place?.name ?? t("offers.drawer.place")}</Text>
-              {onOpenPlace && <ChevronRight size={18} color={colors.goldText} strokeWidth={2.2} />}
-            </View>
+            <Text style={s.placeName} numberOfLines={1}>{place?.name ?? t("offers.drawer.place")}</Text>
             <Text style={s.offerCount}>
               {offers.length === 1
                 ? t("offers.drawer.countOne")
                 : t("offers.drawer.count", { count: offers.length })}
             </Text>
           </View>
+          {onOpenPlace && <ChevronRight size={22} color={colors.muted} strokeWidth={2} />}
         </Pressable>
 
         <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
@@ -605,8 +603,7 @@ const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
   },
   logo: { width: "100%", height: "100%", transform: [{ scale: 1.2 }] },
   logoFallback: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.goldText },
-  placeNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  placeName: { flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text },
+  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text },
   offerCount: {
     fontFamily: "Inter_600SemiBold", fontSize: 11, color: c.goldText,
     letterSpacing: 1.98, marginTop: 2, textTransform: "uppercase",
