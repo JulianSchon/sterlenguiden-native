@@ -31,7 +31,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
-import { Crown, X, Clock, Timer, FileText, Check } from "lucide-react-native";
+import { Crown, X, Clock, Timer, FileText, Check, ChevronRight } from "lucide-react-native";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions, useActivateOffer } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
@@ -80,6 +80,7 @@ export function OfferDrawer({
   origin,
   edge,
   scrapImage,
+  onOpenPlace,
   onClose,
 }: {
   visible: boolean;
@@ -88,8 +89,11 @@ export function OfferDrawer({
   focusOffer?: Offer | null;
   /** Var biljettens sidoband satt. Utan den öppnas panelen med en vanlig glidning underifrån. */
   origin?: OriginRect | null;
-  /** Delas med biljetterna i listan: hur mycket rivkant som syns, så biljettens kant följer bandets */
-  edge: TearEdge;
+  /** Delas med biljetterna i listan: hur mycket rivkant som syns, så biljettens kant följer bandets.
+   *  Utan biljetter (platssidan) behövs den inte. */
+  edge?: TearEdge;
+  /** Gör platsens namn och logga till en länk till platssidan. Utelämna om man redan är på platssidan. */
+  onOpenPlace?: () => void;
   /** Biljettens bild, inläst i Skia i förväg; pappersbitarna klipps ur den. Utan den yr vita bitar. */
   scrapImage?: SkImage | null;
   onClose: () => void;
@@ -97,6 +101,7 @@ export function OfferDrawer({
   const { t } = useTranslation();
   const router = useRouter();
   const s = useThemedStyles(createSheetStyles);
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const { data: rawOffers = [] } = useOffers(placeId);
@@ -191,9 +196,11 @@ export function OfferDrawer({
   // Hur mycket rivkant som syns just nu. Biljettens kant i listan läser samma tal (edgeAmt/edgeProg),
   // så bandet och biljetten passar ihop hela vägen och kanten rätas ut i samma takt när bandet landar.
   const edgeAmt = useDerivedValue(() => tear.value * edgeGrow.value);
+  const ownEdge = { amt: useSharedValue(0), prog: useSharedValue(0) };
+  const sharedEdge = edge ?? ownEdge;
   useAnimatedReaction(
     () => ({ amt: edgeAmt.value, prog: tearProgress.value }),
-    (v) => { edge.amt.value = v.amt; edge.prog.value = v.prog; },
+    (v) => { sharedEdge.amt.value = v.amt; sharedEdge.prog.value = v.prog; },
   );
   const fringe = useDerivedValue(() => TEAR_FRINGE * edgeAmt.value);
   // Bandets kant ligger en aning innanför biljettens linje, så den aldrig kan överlappa bilden
@@ -297,7 +304,7 @@ export function OfferDrawer({
 
       {/* Panelen under bandet */}
       <Animated.View style={[s.sheet, { top: sheetTop, paddingBottom: insets.bottom + 12 }, sheetStyle]}>
-        <View style={s.header}>
+        <Pressable style={s.header} onPress={onOpenPlace} disabled={!onOpenPlace}>
           <View style={s.logoCircle}>
             {place?.logo_url ? (
               <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
@@ -306,14 +313,17 @@ export function OfferDrawer({
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.placeName} numberOfLines={1}>{place?.name ?? t("offers.drawer.place")}</Text>
+            <View style={s.placeNameRow}>
+              <Text style={s.placeName} numberOfLines={1}>{place?.name ?? t("offers.drawer.place")}</Text>
+              {onOpenPlace && <ChevronRight size={18} color={colors.goldText} strokeWidth={2.2} />}
+            </View>
             <Text style={s.offerCount}>
               {offers.length === 1
                 ? t("offers.drawer.countOne")
                 : t("offers.drawer.count", { count: offers.length })}
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
           {offers.map((offer, i) => (
@@ -595,7 +605,8 @@ const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
   },
   logo: { width: "100%", height: "100%", transform: [{ scale: 1.2 }] },
   logoFallback: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.goldText },
-  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text },
+  placeNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  placeName: { flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text },
   offerCount: {
     fontFamily: "Inter_600SemiBold", fontSize: 11, color: c.goldText,
     letterSpacing: 1.98, marginTop: 2, textTransform: "uppercase",

@@ -216,6 +216,7 @@ export default function OffersScreen() {
           origin={open?.origin}
           edge={edge}
           scrapImage={scrapImage}
+          onOpenPlace={() => open && router.push(`/place/${open.offer.place_id}` as any)}
           onClose={() => setOpen(null)}
         />
       }
@@ -438,6 +439,7 @@ function OfferListCard({
   offer, used, stubHidden, edge, onArm, onOpen,
 }: { offer: Offer; used: boolean; stubHidden: boolean; edge: TearEdge; onArm: (imageUrl: string | null) => void; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const imageUrl = offer.image_url ?? offer.place?.logo_url ?? null;
@@ -495,9 +497,10 @@ function OfferListCard({
           )}
 
           {offer.place?.logo_url && (
-            <View style={s.logoWrap}>
+            // Loggan öppnar platssidan; resten av biljetten öppnar erbjudandet
+            <Pressable style={s.logoWrap} hitSlop={8} onPress={() => router.push(`/place/${offer.place_id}` as any)}>
               <Image source={{ uri: offer.place.logo_url }} style={s.logo} resizeMode="cover" />
-            </View>
+            </Pressable>
           )}
 
           <View style={s.bottom}>
