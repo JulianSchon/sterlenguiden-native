@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Settings, Crown, ChevronRight, ClipboardList, BarChart3, Medal, Heart, type LucideIcon } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
-import Reanimated, { cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from "react-native-reanimated";
+import Reanimated, { cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { MemberCard } from "@/components/MemberCard";
 import { FadeImage } from "@/components/FadeImage";
@@ -152,14 +152,22 @@ function PrimaryTile({ icon, logo, tint, badge, title, subtitle, onPress }: {
   }, [badge, pulse]);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
 
+  // Hela ytan går att trycka på (stor träffyta), men det som rör sig vid tryck är själva knappen: ikon och text
+  // trycks ihop lite med en fjäder, i stället för att en ruta färgas bakom
+  const press = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
+
   return (
     <Pressable
-      style={({ pressed }) => [s.primary, pressed && s.pressed]}
+      style={s.primary}
+      onPressIn={() => { press.value = withSpring(0.93, { damping: 15, stiffness: 320 }); }}
+      onPressOut={() => { press.value = withSpring(1, { damping: 12, stiffness: 260 }); }}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress();
       }}
     >
+      <Reanimated.View style={[s.primaryInner, pressStyle]}>
       <View>
         <IconTile icon={icon} logo={logo} tint={tint} size={58} />
         {badge ? (
@@ -174,6 +182,7 @@ function PrimaryTile({ icon, logo, tint, badge, title, subtitle, onPress }: {
       <FadeOnChange value={subtitle}>
         <Text style={[s.primarySub, tint ? { color: tint } : null]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{subtitle}</Text>
       </FadeOnChange>
+      </Reanimated.View>
     </Pressable>
   );
 }
@@ -385,7 +394,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   // har egen luft ovanför ikonen, så knapparna sitter lägre än de mått som ger lika stora marginaler
   primaryRow: { flexDirection: "row", gap: 8, marginTop: 16 },
   list: { marginTop: 6 },
-  primary: { flex: 1, alignItems: "center", gap: 5, paddingVertical: 4, borderRadius: 16 },
+  primary: { flex: 1 },
+  primaryInner: { alignItems: "center", gap: 5, paddingVertical: 4 },
   // Samma typsnitt och storlek som raderna på Inställningar-sidorna
   primaryTitle: { fontFamily: "Montserrat_500Medium", fontSize: 14.5, letterSpacing: -0.3, color: c.text, marginTop: 2 },
   primarySub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted },
