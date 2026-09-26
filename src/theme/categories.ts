@@ -51,6 +51,12 @@ export function ticketColors(category: string | null): [string, string] {
   return [base, shade(base, 0.4)];
 }
 
+/** Färgen som rgba-sträng med genomskinlighet (Skia och React Native tar inte hex med alfa på samma sätt) */
+export function withAlpha(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 /** Blandar färgen mot svart (0 = oförändrad, 1 = svart), för andra änden av en gradient */
 export function shade(hex: string, amount: number): string {
   const n = parseInt(hex.slice(1), 16);

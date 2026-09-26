@@ -25,7 +25,7 @@ import Animated, {
   withTiming, type SharedValue,
 } from "react-native-reanimated";
 import {
-  Canvas, Path, Rect, Group, Image as SkiaImage, LinearGradient, Skia, vec, type SkImage,
+  Canvas, Path, Rect, RoundedRect, Group, Image as SkiaImage, LinearGradient, RadialGradient, Skia, vec, type SkImage,
 } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -38,7 +38,7 @@ import { useMembership } from "@/hooks/useMembership";
 import { useIsBusiness } from "@/hooks/useUserRole";
 import { offerEligibility, offerSavingsLabel, splitSavings, ACTIVE_SECS, type Offer } from "@/lib/offers";
 import { formatDate } from "@/i18n/dates";
-import { findCategory, ticketColors } from "@/theme/categories";
+import { findCategory, ticketColors, withAlpha } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { HoldToActivate } from "./HoldToActivate";
@@ -100,7 +100,7 @@ export function OfferDrawer({
   const { t } = useTranslation();
   const router = useRouter();
   const s = useThemedStyles(createSheetStyles);
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const { data: rawOffers = [] } = useOffers(placeId);
@@ -123,11 +123,13 @@ export function OfferDrawer({
   const CategoryIcon = findCategory(bandCategory)?.icon ?? Crown;
   const [gradFrom, gradTo] = ticketColors(bandCategory);
   const label = (bandCategory ?? "Österlen").toUpperCase();
+  const tint = findCategory(bandCategory)?.screen ?? "#D4A84F";
   // Etiketten på högkant krymps så den ryms, precis som på biljetten
   const fit = Math.min(1, STUB_TEXT_W / (label.length * 9.8));
 
   const bandTop = Math.max(insets.top + 10, screenH * 0.1);
   const sheetTop = bandTop + BAND_H;
+  const sheetH = screenH - sheetTop;
 
   // ── Animationen ──
   const p = useSharedValue(0);
@@ -309,6 +311,21 @@ export function OfferDrawer({
 
       {/* Panelen under bandet */}
       <Animated.View style={[s.sheet, { top: sheetTop, paddingBottom: insets.bottom + 12 }, sheetStyle]}>
+        {/* Bakgrunden: kategorins färg lyser upp från bandet och tonar ut i panelens grundfärg */}
+        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Rect x={0} y={0} width={screenW} height={sheetH}>
+            <LinearGradient
+              start={vec(0, 0)}
+              end={vec(0, sheetH)}
+              colors={[withAlpha(tint, scheme === "light" ? 0.2 : 0.34), withAlpha(tint, scheme === "light" ? 0.05 : 0.09), withAlpha(tint, 0)]}
+              positions={[0, 0.35, 0.8]}
+            />
+          </Rect>
+          <Rect x={0} y={0} width={screenW} height={sheetH}>
+            <RadialGradient c={vec(screenW * 0.85, sheetH * 0.92)} r={screenW * 0.9} colors={[withAlpha("#D4A84F", scheme === "light" ? 0.1 : 0.12), "rgba(212,168,79,0)"]} />
+          </Rect>
+        </Canvas>
+
         <Pressable style={s.header} onPress={onOpenPlace} disabled={!onOpenPlace}>
           <View style={s.logoCircle}>
             {place?.logo_url ? (
@@ -507,6 +524,7 @@ function OfferCard({
   const eligibility = offerEligibility(offer, redemptions);
   const savings = offerSavingsLabel(offer);
   const parts = savings ? splitSavings(savings) : null;
+  const [box, setBox] = useState({ w: 0, h: 0 });
 
   const validLabel = offer.expires_at
     ? t("offers.drawer.valid", { date: formatDate(offer.expires_at, "d MMM yyyy") })
@@ -520,7 +538,22 @@ function OfferCard({
       : null;
 
   return (
-    <View style={c.card}>
+    <View style={c.card} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      {/* Bakgrund i Skia: gradient, ett gyllene sken bakom rabatten och en kant som tonar ut */}
+      {box.w > 0 && (
+        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+          <RoundedRect x={0} y={0} width={box.w} height={box.h} r={18}>
+            <LinearGradient start={vec(0, 0)} end={vec(0, box.h)} colors={[colors.cardTop, colors.cardBottom]} />
+          </RoundedRect>
+          <RoundedRect x={0} y={0} width={box.w} height={box.h} r={18}>
+            <RadialGradient c={vec(60, 50)} r={box.w * 0.7} colors={[withAlpha("#D4A84F", 0.16), "rgba(212,168,79,0)"]} />
+          </RoundedRect>
+          <RoundedRect x={0.75} y={0.75} width={box.w - 1.5} height={box.h - 1.5} r={17.5} style="stroke" strokeWidth={1.5}>
+            <LinearGradient start={vec(0, 0)} end={vec(box.w, box.h)} colors={[withAlpha("#E8C674", 0.7), withAlpha("#E8C674", 0.12), withAlpha("#E8C674", 0.3)]} />
+          </RoundedRect>
+        </Canvas>
+      )}
+
       {/* Rabatten är det viktigaste: stor guldsiffra överst, som på biljetten */}
       {parts && (
         <View style={c.savings}>
@@ -596,7 +629,6 @@ const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
   sheet: {
     position: "absolute", left: 0, right: 0, bottom: 0,
     backgroundColor: c.card,
-    borderWidth: StyleSheet.hairlineWidth, borderTopWidth: 0, borderColor: c.border,
   },
   band: { position: "absolute", overflow: "hidden" },
   bandShadow: { position: "absolute", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, elevation: 12 },
@@ -638,8 +670,6 @@ const createCardStyles = (c: ThemeColors) => StyleSheet.create({
   card: {
     borderRadius: 18,
     padding: 20,
-    backgroundColor: c.tile,
-    borderWidth: 1, borderColor: c.goldBorder,
   },
   pill: {
     alignSelf: "flex-start",
