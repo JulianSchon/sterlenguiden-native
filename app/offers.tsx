@@ -11,8 +11,8 @@
  * prickarna visar att det finns fler. Svepet startar inte vid skärmens kant, den zonen
  * är reserverad för iOS "tillbaka".
  */
-import { useMemo, useState } from "react";
-import { View, Text, Image, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { View, Text, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
@@ -96,28 +96,39 @@ export default function OffersScreen() {
   const { data: offers = [], isLoading } = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
 
-  const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const [drawerPlaceId, setDrawerPlaceId] = useState<number | null>(null);
 
-  // Svep mellan kategorier: sidorna ligger bredvid varandra och följer fingret
+  // Svep mellan kategorier. Alla sidor ligger i en rad och raden förskjuts i sidled; att byta
+  // sida är bara att glida till nästa plats, inget innehåll byts ut (annars blinkar det).
   const { width: screenW } = useWindowDimensions();
-  const step = screenW - SIDE_MARGIN * 2 + PAGE_GAP;
-  const translateX = useSharedValue(0);
-  const [pageH, setPageH] = useState(0);
-  const filterIndex = FILTER_IDS.indexOf(activeFilter);
+  const pageW = screenW - SIDE_MARGIN * 2;
+  const step = pageW + PAGE_GAP;
+  const [active, setActive] = useState(0);
+  const offsetX = useSharedValue(0);
+  const busy = useSharedValue(false);
+  const [heights, setHeights] = useState<number[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const headerY = useRef(0);
 
-  // Nya sidan är den aktuella i flödet, så förskjutningen nollas i samma veva
-  const goTo = (index: number) => {
-    setActiveFilter(FILTER_IDS[index]);
-    translateX.value = 0;
+  // Har man scrollat långt ner glider vyn upp till rubriken samtidigt, så en kortare sida inte får hoppa
+  const settleScroll = () => {
+    if (scrollY.current > headerY.current) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, headerY.current - 12), animated: true });
+    }
   };
 
-  // Glid till grannsidan och byt när den är framme (pilar och svep)
-  const slideTo = (dir: 1 | -1, duration: number) => {
-    const target = filterIndex + dir;
-    if (target < 0 || target >= FILTER_IDS.length) return;
-    translateX.value = withTiming(-dir * step, { duration }, (done) => {
-      if (done) runOnJS(goTo)(target);
+  const arrived = (index: number) => {
+    setActive(index);
+    busy.value = false;
+  };
+
+  const slideTo = (target: number, duration: number) => {
+    if (target < 0 || target >= FILTER_IDS.length || busy.value) return;
+    busy.value = true;
+    settleScroll();
+    offsetX.value = withTiming(-target * step, { duration }, (done) => {
+      if (done) runOnJS(arrived)(target);
     });
   };
 
@@ -125,24 +136,25 @@ export default function OffersScreen() {
     .activeOffsetX([-20, 20])
     .failOffsetY([-14, 14])
     .onUpdate((e) => {
-      if (e.absoluteX - e.translationX < EDGE_ZONE) return;
+      if (busy.value || e.absoluteX - e.translationX < EDGE_ZONE) return;
       const dir = e.translationX < 0 ? 1 : -1;
-      const hasTarget = filterIndex + dir >= 0 && filterIndex + dir < FILTER_IDS.length;
+      const hasTarget = active + dir >= 0 && active + dir < FILTER_IDS.length;
       // Motstånd i ändarna: det går att dra lite, men inget byts
-      translateX.value = hasTarget ? e.translationX : e.translationX * 0.2;
+      offsetX.value = -active * step + (hasTarget ? e.translationX : e.translationX * 0.2);
     })
     .onEnd((e) => {
+      if (busy.value) return;
       const dir = e.translationX < 0 ? 1 : -1;
-      const hasTarget = filterIndex + dir >= 0 && filterIndex + dir < FILTER_IDS.length;
+      const hasTarget = active + dir >= 0 && active + dir < FILTER_IDS.length;
       const fastEnough = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
       if (hasTarget && fastEnough && e.absoluteX - e.translationX >= EDGE_ZONE) {
-        runOnJS(slideTo)(dir, 160);
+        runOnJS(slideTo)(active + dir, 160);
       } else {
-        translateX.value = withTiming(0, { duration: 180 });
+        offsetX.value = withTiming(-active * step, { duration: 180 });
       }
     });
 
-  const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+  const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: offsetX.value }] }));
 
   // Innehållet till varje sida (sex små listor, billigt att räkna om)
   const pages = useMemo(() => {
@@ -170,6 +182,8 @@ export default function OffersScreen() {
   return (
     <SettingsScreen
       title={t("offers.title")}
+      scrollRef={scrollRef}
+      onScroll={(y) => { scrollY.current = y; }}
       right={
         <Pressable
           disabled={isMember}
@@ -220,31 +234,36 @@ export default function OffersScreen() {
           {/* Förklaringen visas bara tills man löst in något första gången */}
           {redemptions.length === 0 && <HowItWorks />}
 
-          <CategoryHeader
-            index={filterIndex}
-            labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
-            onStep={(dir) => slideTo(dir, 220)}
-          />
+          <View onLayout={(e) => { headerY.current = e.nativeEvent.layout.y; }}>
+            <CategoryHeader
+              index={active}
+              labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
+              onStep={(dir) => slideTo(active + dir, 220)}
+            />
+          </View>
 
           <GestureDetector gesture={swipe}>
-            <Animated.View style={slideStyle}>
-              {/* Aktuella sidan avgör höjden; grannarna ligger bredvid, klippta till samma höjd */}
-              <View onLayout={(e) => setPageH(e.nativeEvent.layout.height)} style={s.page}>
-                <OfferPage data={pages[filterIndex]} onOpen={setDrawerPlaceId} />
-              </View>
-              {[-1, 1].map((dir) => {
-                const neighbour = pages[filterIndex + dir];
-                if (!neighbour) return null;
-                return (
+            {/* Höjden följer aktuella sidan; alla sidor ligger bredvid varandra, klippta till samma höjd */}
+            <Animated.View style={[{ height: heights[active] }, slideStyle]}>
+              {pages.map((page, i) => (
+                // Bara aktuella sidan och grannarna byggs, resten skulle bara kosta minne
+                Math.abs(i - active) <= 1 && (
                   <View
-                    key={dir}
-                    pointerEvents="none"
-                    style={[s.neighbour, { left: dir * step, maxHeight: pageH || undefined }]}
+                    key={FILTER_IDS[i]}
+                    pointerEvents={i === active ? "auto" : "none"}
+                    style={[s.page, { left: i * step, width: pageW, height: heights[active] }]}
                   >
-                    <OfferPage data={neighbour} onOpen={setDrawerPlaceId} />
+                    <View
+                      onLayout={(e) => {
+                        const h = e.nativeEvent.layout.height;
+                        setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
+                      }}
+                    >
+                      <OfferPage data={page} onOpen={setDrawerPlaceId} />
+                    </View>
                   </View>
-                );
-              })}
+                )
+              ))}
             </Animated.View>
           </GestureDetector>
 
@@ -464,11 +483,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderStrong },
   dotActive: { width: 18, backgroundColor: c.gold },
 
-  page: {},
+  page: { position: "absolute", top: 0, overflow: "hidden" },
   pageContent: { gap: 22, minHeight: 360 },
-  // Grannsidan ligger utanför skärmen i sidled och klipps till aktuella sidans höjd
-  neighbour: { position: "absolute", top: 0, width: "100%", overflow: "hidden" },
-
   section: { gap: 12 },
   sectionTitle: {
     fontFamily: "Montserrat_700Bold", fontSize: 11, letterSpacing: 1.5,

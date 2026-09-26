@@ -4,7 +4,7 @@
  * följer ramens färger det värdet i stället, för sidor där temat byts under
  * fingret (Utseende).
  */
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { View, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,8 +15,13 @@ import { darkColors, lightColors, type ThemeColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
 
 export function SettingsScreen({
-  title, right, compact = false, morph, children,
-}: { title: string; right?: ReactNode; compact?: boolean; morph?: SharedValue<number>; children: ReactNode }) {
+  title, right, compact = false, morph, scrollRef, onScroll, children,
+}: {
+  title: string; right?: ReactNode; compact?: boolean; morph?: SharedValue<number>;
+  /** För sidor som själva behöver scrolla eller veta var i listan man är */
+  scrollRef?: RefObject<ScrollView | null>; onScroll?: (y: number) => void;
+  children: ReactNode;
+}) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
@@ -54,6 +59,9 @@ export function SettingsScreen({
         {right}
       </Animated.View>
       <ScrollView
+        ref={scrollRef}
+        onScroll={onScroll ? (e) => onScroll(e.nativeEvent.contentOffset.y) : undefined}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         // Sidor som ryms på skärmen ska stå stilla; bara längre sidor (eller små skärmar) gungar och scrollar
         alwaysBounceVertical={false}
