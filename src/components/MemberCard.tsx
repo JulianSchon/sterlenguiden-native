@@ -29,8 +29,7 @@ import { initialsOf, toneOnTone } from "@/lib/color";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import * as Haptics from "expo-haptics";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring } from "react-native-reanimated";
-import { Canvas, Path as SkiaPath, Skia } from "@shopify/react-native-skia";
+import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
@@ -163,65 +162,6 @@ export function MemberCard({
   const backStyle = useAnimatedStyle(() => ({
     transform: [{ perspective: PERSPECTIVE }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [180, 360])}deg` }],
   }));
-
-  // Kortets tjocklek. Kortet ritas som en platt yta, så kanten byggs separat: kortets rundade omkrets räknas ut
-  // punkt för punkt, projiceras med samma vridning och perspektiv som kortet, och en kopia flyttas bakåt
-  // i djupled. Ytorna mellan omkretsen och kopian ritas i kantfärg bakom kortet. Då följer kanten kortets
-  // rundade hörn och är som bredast (kortets tjocklek) när kortet står på högkant.
-  const EDGE_PAD = 32;
-  const edgeThickness = 3.5 * k;
-  const outline = useMemo(() => {
-    const r = 16 * k;
-    const hw = cardW / 2;
-    const hh = cardH / 2;
-    const points: number[] = [];
-    // Hörnens mittpunkt och startvinkel, medurs från uppe till höger
-    const corners = [[hw - r, -hh + r, -90], [hw - r, hh - r, 0], [-hw + r, hh - r, 90], [-hw + r, -hh + r, 180]];
-    for (const [cx, cy, start] of corners) {
-      for (let i = 0; i <= 6; i++) {
-        const angle = ((start + (i * 90) / 6) * Math.PI) / 180;
-        points.push(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
-      }
-    }
-    return points;
-  }, [k, cardW, cardH]);
-  const edgePath = useDerivedValue(() => {
-    const theta = flipProgress.value * Math.PI;
-    const sin = Math.sin(theta);
-    const cos = Math.cos(theta);
-    const cx = cardW / 2 + EDGE_PAD;
-    const cy = cardH / 2 + EDGE_PAD;
-    const n = outline.length / 2;
-    const fx: number[] = [];
-    const fy: number[] = [];
-    const bx: number[] = [];
-    const by: number[] = [];
-    for (let i = 0; i < n; i++) {
-      const x = outline[2 * i];
-      const y = outline[2 * i + 1];
-      // Framsidans punkt och samma punkt flyttad en tjocklek bakåt längs kortets normal
-      const front = x * cos;
-      const frontZ = -x * sin;
-      const back = front - edgeThickness * sin;
-      const backZ = frontZ - edgeThickness * cos;
-      const frontScale = PERSPECTIVE / (PERSPECTIVE - frontZ);
-      const backScale = PERSPECTIVE / (PERSPECTIVE - backZ);
-      fx.push(cx + front * frontScale);
-      fy.push(cy + y * frontScale);
-      bx.push(cx + back * backScale);
-      by.push(cy + y * backScale);
-    }
-    const path = Skia.Path.Make();
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      path.moveTo(fx[i], fy[i]);
-      path.lineTo(fx[j], fy[j]);
-      path.lineTo(bx[j], by[j]);
-      path.lineTo(bx[i], by[i]);
-      path.close();
-    }
-    return path;
-  });
 
   const FLIP_SPRING = { damping: 14, stiffness: 110, mass: 0.9 };
 
@@ -504,14 +444,6 @@ export function MemberCard({
           disabled={showBackOnly}
           style={{ width: cardW, height: cardH }}
         >
-          {backVisible && !showBackOnly && (
-            <Canvas
-              pointerEvents="none"
-              style={{ position: "absolute", left: -EDGE_PAD, top: -EDGE_PAD, width: cardW + EDGE_PAD * 2, height: cardH + EDGE_PAD * 2 }}
-            >
-              <SkiaPath path={edgePath} color={variant?.light ? "#A89C7C" : "#3A3A40"} />
-            </Canvas>
-          )}
           {!showBackOnly && Front}
           {backVisible && Back}
         </TouchableOpacity>
