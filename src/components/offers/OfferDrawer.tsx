@@ -24,7 +24,9 @@ import Animated, {
   withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Canvas, Path, Rect, LinearGradient, vec } from "@shopify/react-native-skia";
+import {
+  Canvas, Path, Rect, Group, Image as SkiaImage, LinearGradient, Skia, vec, type SkImage,
+} from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -51,6 +53,9 @@ export interface OriginRect { x: number; y: number; w: number; h: number }
 export interface TearEdge { amt: SharedValue<number>; prog: SharedValue<number> }
 
 // Måtten på sidobandet i biljetten (måste stämma med OfferListCard i app/offers.tsx)
+const TICKET_H = 190;
+const STUB_W = 58;
+const SIDE_MARGIN = 16;
 const STUB_ICON_Y = 35;   // ikonens mitt, från bandets överkant
 const STUB_TEXT_Y = 113;  // textens mitt, från bandets överkant
 const STUB_TEXT_W = 114;  // hur bred text som ryms på högkant
@@ -75,6 +80,7 @@ export function OfferDrawer({
   focusOffer,
   origin,
   edge,
+  scrapImage,
   onClose,
 }: {
   visible: boolean;
@@ -85,6 +91,8 @@ export function OfferDrawer({
   origin?: OriginRect | null;
   /** Delas med biljetterna i listan: hur mycket rivkant som syns, så biljettens kant följer bandets */
   edge: TearEdge;
+  /** Biljettens bild, inläst i Skia i förväg; pappersbitarna klipps ur den. Utan den yr vita bitar. */
+  scrapImage?: SkImage | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -355,7 +363,7 @@ export function OfferDrawer({
         style={[s.bandShadow, bandStyle, shadowStyle, { backgroundColor: gradFrom }]}
       />
 
-      <TearScraps p={p} vert={vert} closing={closing} ox={ox} oy={oy} ow={ow} oh={oh} />
+      <TearScraps p={p} vert={vert} closing={closing} ox={ox} oy={oy} ow={ow} oh={oh} image={scrapImage ?? null} bodyW={screenW - SIDE_MARGIN * 2 - STUB_W} />
 
       <GestureDetector gesture={bandPan}>
         <Animated.View style={[s.band, bandStyle]}>
@@ -427,10 +435,14 @@ const SCRAPS = [
   { y: 0.96, dx: -44, dy: 72, rot: -320, w: 4, h: 4 },
 ];
 
-function TearScraps(props: {
+interface ScrapProps {
   p: SharedValue<number>; vert: SharedValue<number>; closing: SharedValue<boolean>;
   ox: SharedValue<number>; oy: SharedValue<number>; ow: SharedValue<number>; oh: SharedValue<number>;
-}) {
+  /** Biljettens bild och dess bredd på biljetten, för att klippa bitar ur den */
+  image: SkImage | null; bodyW: number;
+}
+
+function TearScraps(props: ScrapProps) {
   return (
     <>
       {SCRAPS.map((sc, i) => <Scrap key={i} sc={sc} {...props} />)}
@@ -438,11 +450,23 @@ function TearScraps(props: {
   );
 }
 
-function Scrap({ sc, p, vert, closing, ox, oy, ow, oh }: {
-  sc: (typeof SCRAPS)[number];
-  p: SharedValue<number>; vert: SharedValue<number>; closing: SharedValue<boolean>;
-  ox: SharedValue<number>; oy: SharedValue<number>; ow: SharedValue<number>; oh: SharedValue<number>;
-}) {
+// Bilderna är större bitar än pappersbitarna, så det syns att det är fotot som flyger
+const IMAGE_SCRAP_SCALE = 2.6;
+
+function Scrap({ sc, p, vert, closing, ox, oy, ow, oh, image, bodyW }: ScrapProps & { sc: (typeof SCRAPS)[number] }) {
+  const w = image ? sc.w * IMAGE_SCRAP_SCALE : sc.w;
+  const h = image ? sc.h * IMAGE_SCRAP_SCALE : sc.h;
+  // Formen: en ojämn trekant, så bitarna ser rivna ut och inte som fyrkanter
+  const shape = useMemo(() => {
+    const path = Skia.Path.Make();
+    path.moveTo(0, h * 0.15);
+    path.lineTo(w * 0.85, 0);
+    path.lineTo(w, h * 0.8);
+    path.lineTo(w * 0.3, h);
+    path.close();
+    return path;
+  }, [w, h]);
+
   const style = useAnimatedStyle(() => {
     // Varje bit lossnar lite olika tid, i takt med att rivningen når dess höjd (underifrån)
     const start = 0.01 + (1 - sc.y) * 0.1;
@@ -455,7 +479,20 @@ function Scrap({ sc, p, vert, closing, ox, oy, ow, oh }: {
       transform: [{ rotate: `${sc.rot * t}deg` }],
     };
   });
-  return <Animated.View pointerEvents="none" style={[{ position: "absolute", width: sc.w, height: sc.h, borderRadius: 1, backgroundColor: "#F4F0E6" }, style]} />;
+
+  if (!image) {
+    return <Animated.View pointerEvents="none" style={[{ position: "absolute", width: sc.w, height: sc.h, borderRadius: 1, backgroundColor: "#F4F0E6" }, style]} />;
+  }
+  // Utsnittet ur fotot: biten från kanten där den satt, med samma beskärning som på biljetten
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: "absolute", width: w, height: h }, style]}>
+      <Canvas style={StyleSheet.absoluteFill}>
+        <Group clip={shape}>
+          <SkiaImage image={image} x={-6} y={-(sc.y * TICKET_H - h / 2)} width={bodyW} height={TICKET_H} fit="cover" />
+        </Group>
+      </Canvas>
+    </Animated.View>
+  );
 }
 
 // ─── Ett erbjudandekort ───────────────────────────────────────────────────────

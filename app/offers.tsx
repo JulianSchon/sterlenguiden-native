@@ -20,7 +20,7 @@ import Animated, {
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Clock, Crown, ChevronLeft, ChevronRight } from "lucide-react-native";
-import { Canvas, Fill, LinearGradient, Line, Path, DashPathEffect, vec } from "@shopify/react-native-skia";
+import { Canvas, Fill, LinearGradient, Line, Path, DashPathEffect, useImage, vec } from "@shopify/react-native-skia";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
@@ -111,6 +111,9 @@ export default function OffersScreen() {
   // Vilken biljett som är öppen och var dess sidoband satt (bandet flyger därifrån och tillbaka)
   // Rivkantens läge, delas mellan panelen (skriver) och biljetterna (läser)
   const edge: TearEdge = { amt: useSharedValue(0), prog: useSharedValue(0) };
+  // Biljettens bild läses in i Skia så fort fingret nuddar biljetten, så pappersbitarna kan klippas ur den när det rivs
+  const [armedImage, setArmedImage] = useState<string | null>(null);
+  const scrapImage = useImage(armedImage);
   const [open, setOpen] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
 
   // Svep mellan kategorier. Alla sidor ligger i en rad och raden förskjuts i sidled; att byta
@@ -217,6 +220,7 @@ export default function OffersScreen() {
           focusOffer={open?.offer}
           origin={open?.origin}
           edge={edge}
+          scrapImage={scrapImage}
           onClose={() => setOpen(null)}
         />
       }
@@ -294,7 +298,7 @@ export default function OffersScreen() {
                         setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
                       }}
                     >
-                      <OfferPage data={page} hiddenOfferId={open?.origin ? open.offer.id : null} edge={edge} onOpen={(offer, origin) => setOpen({ offer, origin })} />
+                      <OfferPage data={page} hiddenOfferId={open?.origin ? open.offer.id : null} edge={edge} onArm={setArmedImage} onOpen={(offer, origin) => setOpen({ offer, origin })} />
                     </View>
                   </View>
                 )
@@ -311,8 +315,8 @@ export default function OffersScreen() {
 
 /** En kategorisida: listorna "Att använda" och "Inlösta" (eller ett tomt-meddelande) */
 function OfferPage({
-  data, hiddenOfferId, edge, onOpen,
-}: { data: PageData; hiddenOfferId: string | null; edge: TearEdge; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
+  data, hiddenOfferId, edge, onArm, onOpen,
+}: { data: PageData; hiddenOfferId: string | null; edge: TearEdge; onArm: (imageUrl: string | null) => void; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
   const s = useThemedStyles(createStyles);
   const empty = data.available.length === 0 && data.redeemed.length === 0;
@@ -322,14 +326,14 @@ function OfferPage({
       {data.available.length > 0 && (
         <Section title={t("offers.sections.available")}>
           {data.available.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} edge={edge} onOpen={onOpen} />
+            <OfferListCard key={offer.id} offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
           ))}
         </Section>
       )}
       {data.redeemed.length > 0 && (
         <Section title={t("offers.sections.redeemed")}>
           {data.redeemed.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used stubHidden={offer.id === hiddenOfferId} edge={edge} onOpen={onOpen} />
+            <OfferListCard key={offer.id} offer={offer} used stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
           ))}
         </Section>
       )}
@@ -436,8 +440,8 @@ function Perforation() {
 }
 
 function OfferListCard({
-  offer, used, stubHidden, edge, onOpen,
-}: { offer: Offer; used: boolean; stubHidden: boolean; edge: TearEdge; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
+  offer, used, stubHidden, edge, onArm, onOpen,
+}: { offer: Offer; used: boolean; stubHidden: boolean; edge: TearEdge; onArm: (imageUrl: string | null) => void; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
@@ -462,6 +466,7 @@ function OfferListCard({
   return (
     // Yttre lagret bär skuggan, det inre klipper bilden till biljettens form (overflow: hidden tar bort skuggor)
     <Pressable
+      onPressIn={() => onArm(imageUrl)}
       onPress={handlePress}
       style={({ pressed }) => [s.ticket, used && s.ticketUsed, stubHidden && s.ticketTorn, pressed && { transform: [{ scale: 0.98 }] }]}
     >
