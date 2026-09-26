@@ -6,6 +6,10 @@
  */
 import { Image } from "react-native";
 import { CARD_VARIANTS } from "@/lib/cardVariants";
+import { CARD_W } from "@/components/MemberCard";
+
+/** Kortens bredd i den svepbara raden på Utseende (delas med förhämtningen av bilderna) */
+export const CAROUSEL_CARD_WIDTH = Math.round(CARD_W * 0.82);
 
 export function prefetchCardImages() {
   for (const variant of CARD_VARIANTS) {

@@ -61,16 +61,16 @@ export function cardColors(variant: CardVariant): CardColors {
 }
 
 /**
- * Alla 10 kortvarianter.
- * De sju första är mörka (vit text), de tre sista ljusa (mörk text).
- * Varianter med bgImage använder PNG-bakgrund; övriga renderas som SVG-gradient.
+ * Kortvarianterna. bg och bg2 är bildens egen genomsnittsfärg (övre och undre halvan), så kortet
+ * har rätt färg redan medan bilden laddas. Varianter med bgImage använder PNG-bakgrund; övriga
+ * renderas som SVG-gradient.
  */
 export const CARD_VARIANTS: CardVariant[] = [
   {
     id: "forest",
     name: "Skog",
-    bg:  "#0A1E0D",
-    bg2: "#152A18",
+    bg:  "#2A3F29",
+    bg2: "#1B3120",
     glow: "rgba(50,160,70,0.16)",
     bgImage: require("../../assets/cards/card-forest.png"),
     light: false,
@@ -78,48 +78,48 @@ export const CARD_VARIANTS: CardVariant[] = [
   {
     id: "rapeseed",
     name: "Rapsfält",
-    bg:  "#F5E84A",
-    bg2: "#E8D820",
+    bg:  "#CB9E26",
+    bg2: "#C59720",
     bgImage: require("../../assets/cards/card-rapeseed.png"),
     light: true,
   },
   {
     id: "ocean",
     name: "Hav",
-    bg:  "#001A2E",
-    bg2: "#002A44",
+    bg:  "#2E526A",
+    bg2: "#1E4159",
     bgImage: require("../../assets/cards/card-ocean.png"),
     light: false,
   },
   {
     id: "grapes",
     name: "Druvor",
-    bg:  "#1A0A2E",
-    bg2: "#2A1044",
+    bg:  "#48141C",
+    bg2: "#3D0E16",
     bgImage: require("../../assets/cards/card-grapes.png"),
     light: false,
   },
   {
     id: "obsidian",
     name: "Obsidian",
-    bg:  "#0A0A0A",
-    bg2: "#1C1C1C",
+    bg:  "#191918",
+    bg2: "#111111",
     bgImage: require("../../assets/cards/card-obsidian.png"),
     light: false,
   },
   {
     id: "copper",
     name: "Koppar",
-    bg:  "#1A0E08",
-    bg2: "#2C1A0E",
+    bg:  "#532A16",
+    bg2: "#4D2613",
     bgImage: require("../../assets/cards/card-copper.png"),
     light: false,
   },
   {
     id: "sand",
     name: "Sand",
-    bg:  "#F0E5C8",
-    bg2: "#E0D0A8",
+    bg:  "#CCB69B",
+    bg2: "#C5AD91",
     bgImage: require("../../assets/cards/card-sand.png"),
     light: true,
   },

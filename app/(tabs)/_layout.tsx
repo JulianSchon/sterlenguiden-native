@@ -4,6 +4,7 @@ import FloatingNav from "@/components/navigation/FloatingNav";
 import { useRecordAppDay } from "@/hooks/useAppDays";
 import { usePrefetchPass } from "@/hooks/usePassHistory";
 import { prefetchCardImages } from "@/lib/cardImages";
+import { CardImagePreloader } from "@/components/CardImagePreloader";
 import { useEffect } from "react";
 
 export default function TabLayout() {
@@ -31,6 +32,7 @@ export default function TabLayout() {
 
       {/* Flytande nav – overlayt ovanpå alla tab-skärmar */}
       <FloatingNav />
+      <CardImagePreloader />
     </View>
   );
 }

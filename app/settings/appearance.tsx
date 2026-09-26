@@ -26,6 +26,7 @@ import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { MemberCard, CARD_W, CARD_H } from "@/components/MemberCard";
+import { CAROUSEL_CARD_WIDTH } from "@/lib/cardImages";
 import { Avatar } from "@/components/profile/Avatar";
 import { SwitchableAvatarRing } from "@/components/profile/AvatarRing";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -35,7 +36,7 @@ import { useMorphStyle } from "@/theme/morph";
 const { width: SW } = Dimensions.get("window");
 // Kortet är smalt nog att grannarna, som är mindre, får plats med luft mellan sig
 // och tittar fram en bit på var sida
-const ITEM_W = Math.round(CARD_W * 0.82);
+const ITEM_W = CAROUSEL_CARD_WIDTH;
 const STEP = ITEM_W;
 /** Sidopadding så att mittenkortet ligger mitt på skärmen; grannarna syns i resten av bredden */
 const SIDE = (SW - ITEM_W) / 2;

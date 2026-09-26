@@ -37,6 +37,8 @@ const { width: SW } = Dimensions.get("window");
 /** Kortets standardstorlek (hela skärmbredden minus sidomarginaler) */
 export const CARD_W = SW - 32;
 export const CARD_H = 200;
+/** Kortdesigner vars bild redan visats i den här sessionen: de tonas inte in igen utan visas direkt */
+const shownBackgrounds = new Set<string>();
 /** Perspektiv vid vändningen; högre värde ger en svagare förstoring av den sida som närmar sig */
 const PERSPECTIVE = 1600;
 
@@ -116,7 +118,7 @@ export function MemberCard({
   const flippedRef                          = useRef(showBackOnly || (startOnBack && isMember));
   const [time, setTime]                     = useState(new Date());
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
-  const bgFade                              = useRef(new Animated.Value(0)).current;
+  const bgFade                              = useRef(new Animated.Value(shownBackgrounds.has(getVariant(cardColor).id) ? 1 : 0)).current;
 
   // Baksidan ritas bara när den kan bli synlig; kort som är låsta till framsidan slipper dess animationer
   const backVisible = isMember && (showBackOnly || startOnBack || !disableFlip);
@@ -128,7 +130,7 @@ export function MemberCard({
   const baseBg  = isMember ? (variant?.bg ?? "#0A0A0A") : "#110D07";
 
   // Byter kortet design ska den nya bilden tonas in på nytt
-  useEffect(() => { bgFade.setValue(0); }, [variant?.id]);
+  useEffect(() => { bgFade.setValue(variant && shownBackgrounds.has(variant.id) ? 1 : 0); }, [variant?.id]);
 
   // Medlemskapet laddas efter första bilden; då ska kortet ändå landa på baksidan
   useEffect(() => {
@@ -328,7 +330,10 @@ export function MemberCard({
             style={StyleSheet.absoluteFill}
             imageStyle={{ borderRadius: 16 * k }}
             resizeMode="cover"
-            onLoad={() => Animated.timing(bgFade, { toValue: 1, duration: 200, useNativeDriver: true }).start()}
+            onLoad={() => {
+              if (variant) shownBackgrounds.add(variant.id);
+              Animated.timing(bgFade, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+            }}
           />
         </Animated.View>
       )}
