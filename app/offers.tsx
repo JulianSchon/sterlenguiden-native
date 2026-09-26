@@ -7,8 +7,8 @@
  * samma panel som platssidan använder.
  *
  * Kategorierna är sidor bredvid varandra: man sveper åt sidan och ser nästa
- * kategori glida in medan man drar. Rubriken visar var man är, pilarna och
- * prickarna visar att det finns fler, och ett tryck på rubriken öppnar en lista
+ * kategori glida in medan man drar. Rubriken visar var man är, och
+ * prickarna visar att det finns fler. Ett tryck på rubriken öppnar en lista
  * för att hoppa direkt. Svepet startar inte vid skärmens kant, den zonen är
  * reserverad för iOS "tillbaka".
  */
@@ -20,7 +20,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Fingerprint, Smartphone, Check, Clock, Crown, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { Fingerprint, Smartphone, Check, Clock, Crown } from "lucide-react-native";
 import { Canvas, Fill, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
@@ -225,7 +225,6 @@ export default function OffersScreen() {
           <CategoryHeader
             index={filterIndex}
             labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
-            onStep={(dir) => slideTo(dir, 220)}
             onOpenList={() => setJumpOpen(true)}
           />
 
@@ -296,30 +295,18 @@ function OfferPage({ data, onOpen }: { data: PageData; onOpen: (placeId: number)
   );
 }
 
-/** ← Kategori → med prickar under. Pilen försvinner i ändarna, rubriken öppnar hopplistan. */
+/** Kategorins namn mellan två linjer (som kortdesignen i Utseende), med prickar under. Rubriken öppnar hopplistan. */
 function CategoryHeader({
-  index, labels, onStep, onOpenList,
-}: { index: number; labels: string[]; onStep: (dir: 1 | -1) => void; onOpenList: () => void }) {
-  const { colors } = useTheme();
+  index, labels, onOpenList,
+}: { index: number; labels: string[]; onOpenList: () => void }) {
   const s = useThemedStyles(createStyles);
-  const arrow = (dir: 1 | -1) => {
-    const hidden = index + dir < 0 || index + dir >= labels.length;
-    const Icon = dir === 1 ? ChevronRight : ChevronLeft;
-    return (
-      <Pressable onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
-        <Icon size={22} color={colors.muted} strokeWidth={2} />
-      </Pressable>
-    );
-  };
   return (
     <View style={s.catHeader}>
-      <View style={s.catRow}>
-        {arrow(-1)}
-        <Pressable onPress={onOpenList} hitSlop={8} style={s.catTitleWrap}>
-          <Text style={s.catTitle} numberOfLines={1}>{labels[index]}</Text>
-        </Pressable>
-        {arrow(1)}
-      </View>
+      <Pressable onPress={onOpenList} hitSlop={8} style={s.catRow}>
+        <View style={s.rule} />
+        <Text style={s.catTitle} numberOfLines={1}>{labels[index].toUpperCase()}</Text>
+        <View style={s.rule} />
+      </Pressable>
       <View style={s.dots}>
         {labels.map((label, i) => (
           <View key={label} style={[s.dot, i === index && s.dotActive]} />
@@ -482,10 +469,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   howLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: c.text, textAlign: "center" },
 
   catHeader: { alignItems: "center", gap: 10 },
-  catRow: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
-  catTitleWrap: { flex: 1, alignItems: "center" },
-  catTitle: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.3, color: c.text },
-  arrow: { width: 32, alignItems: "center" },
+  catRow: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", gap: 14, paddingHorizontal: 8 },
+  rule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.goldBorder },
+  catTitle: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3, color: c.goldText },
   dots: { flexDirection: "row", gap: 6 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderStrong },
   dotActive: { width: 18, backgroundColor: c.gold },
