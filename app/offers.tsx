@@ -113,13 +113,10 @@ export default function OffersScreen() {
   const areaH = Math.max(heights[active] ?? 0, screenH - AREA_SLACK);
   const scrollRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
-  const headerY = useRef(0);
 
-  // Har man scrollat långt ner glider vyn upp till rubriken samtidigt, så en kortare sida inte får hoppa
+  // Vid varje sidbyte glider vyn upp till toppen, samma överallt, så en kortare sida inte får vyn att hoppa
   const settleScroll = () => {
-    if (scrollY.current > headerY.current) {
-      scrollRef.current?.scrollTo({ y: Math.max(0, headerY.current - 12), animated: true });
-    }
+    if (scrollY.current > 0) scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const arrived = (index: number) => {
@@ -238,13 +235,11 @@ export default function OffersScreen() {
           {/* Förklaringen visas bara tills man löst in något första gången */}
           {redemptions.length === 0 && <HowItWorks />}
 
-          <View onLayout={(e) => { headerY.current = e.nativeEvent.layout.y; }}>
-            <CategoryHeader
-              index={active}
-              labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
-              onStep={(dir) => slideTo(active + dir, 220)}
-            />
-          </View>
+          <CategoryHeader
+            index={active}
+            labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
+            onStep={(dir) => slideTo(active + dir, 220)}
+          />
 
           <GestureDetector gesture={swipe}>
             {/* Höjden följer aktuella sidan; alla sidor ligger bredvid varandra, klippta till samma höjd */}
