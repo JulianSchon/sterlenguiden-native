@@ -1,24 +1,32 @@
 /**
  * OfferDrawer — panelen med en plats erbjudanden.
  *
- * Här kopplas hela aktiveringskedjan ihop:
- *   håll-inne-knapp → bekräftelseruta → 60-sekundersskärm
+ * Öppningen är en riven biljett: sidobandet lossnar från biljetten i listan (längs den
+ * perforerade linjen), vrids från stående till liggande och blir panelens topp, medan
+ * panelen glider upp under det. Stänger man går det åt andra hållet: bandet flyger tillbaka
+ * och klickar fast på sin biljett. Utan biljett att riva (platssidan) glider bandet och
+ * panelen upp underifrån på samma sätt.
  *
- * Panelen går medvetet inte att svepa bort medan bekräftelse- eller
- * aktiv vy ligger ovanpå — man ska inte kunna råka stänga ner ett
- * erbjudande som precis börjat ticka.
+ * Panelen är ett lager på sidan, inte en Modal, så att bandet kan flyga från listan in i den.
+ * Lagret måste ligga som barn direkt under en helskärmsyta (se SettingsScreen `overlay`).
+ * Hela rörelsen styrs av ett enda tal, `p` (0 = biljetten, 1 = öppen panel), som också är
+ * det man drar i när man sveper panelen nedåt: man backar bokstavligen animationen.
  *
- * Den som inte har Österlenpasset ser exakt samma panel, men i stället för
- * håll-inne-knappen står "Skaffa Österlenpasset".
+ * Här kopplas också aktiveringskedjan ihop: håll-inne-knapp → bekräftelseruta → 60-sekundersskärm.
+ * Panelen går medvetet inte att stänga medan bekräftelse- eller aktiv vy ligger ovanpå.
  */
-import { useRef, useState } from "react";
-import {
-  Modal, View, Text, Image, ScrollView, Pressable, StyleSheet, Dimensions,
-  Animated, PanResponder,
-} from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, Image, ScrollView, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import Animated, {
+  Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
+  withSpring, withTiming,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Canvas, Fill, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import * as Haptics from "expo-haptics";
 import { Crown, X, Clock, Timer, FileText, Check } from "lucide-react-native";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions, useActivateOffer } from "@/hooks/useOfferRedemptions";
@@ -26,29 +34,52 @@ import { useMembership } from "@/hooks/useMembership";
 import { useIsBusiness } from "@/hooks/useUserRole";
 import { offerEligibility, offerSavingsLabel, ACTIVE_SECS, type Offer } from "@/lib/offers";
 import { formatDate } from "@/i18n/dates";
+import { findCategory, ticketColors } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { HoldToActivate } from "./HoldToActivate";
 import { OfferConfirmDialog } from "./OfferConfirmDialog";
 import { ActiveOfferView } from "./ActiveOfferView";
 
-const { height: SH } = Dimensions.get("window");
+/** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
+export interface OriginRect { x: number; y: number; w: number; h: number }
+
+// Måtten på sidobandet i biljetten (måste stämma med OfferListCard i app/offers.tsx)
+const STUB_ICON_Y = 35;   // ikonens mitt, från bandets överkant
+const STUB_TEXT_Y = 113;  // textens mitt, från bandets överkant
+const STUB_TEXT_W = 114;  // hur bred text som ryms på högkant
+const STUB_RADIUS = 18;
+
+const BAND_H = 76;
+const BAND_RADIUS = 24;
+const TEXT_BOX_W = 260;
+const OPEN_MS = 880;
+const CLOSE_MS = 720;
+const DRAG_RANGE = 420;    // hur långt man drar för att backa hela animationen
+const ease = Easing.bezier(0.3, 0, 0.2, 1);
+const easeOut = Easing.out(Easing.cubic);
 
 export function OfferDrawer({
   visible,
   placeId,
+  focusOffer,
+  origin,
   onClose,
 }: {
   visible: boolean;
   placeId: number;
+  /** Erbjudandet som trycktes: hamnar först och ger bandet dess kategori från första bildrutan */
+  focusOffer?: Offer | null;
+  /** Var biljettens sidoband satt. Utan den öppnas panelen med en vanlig glidning underifrån. */
+  origin?: OriginRect | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const { colors } = useTheme();
   const s = useThemedStyles(createSheetStyles);
   const insets = useSafeAreaInsets();
-  const { data: offers = [] } = useOffers(placeId);
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const { data: rawOffers = [] } = useOffers(placeId);
   const { data: redemptions = [] } = useOfferRedemptions();
   const { isMember } = useMembership();
   const { isBusiness } = useIsBusiness();
@@ -56,149 +87,241 @@ export function OfferDrawer({
 
   const [pending, setPending] = useState<Offer | null>(null);
   const [active, setActive] = useState<{ offer: Offer; activatedAt: number } | null>(null);
+  const locked = !!pending || !!active;
 
+  const offers = useMemo(
+    () => [...rawOffers].sort((a, b) => Number(b.id === focusOffer?.id) - Number(a.id === focusOffer?.id)),
+    [rawOffers, focusOffer?.id],
+  );
   const place = offers[0]?.place ?? null;
+  const bandCategory = (focusOffer ?? rawOffers[0])?.category ?? null;
+  const CategoryIcon = findCategory(bandCategory)?.icon ?? Crown;
+  const [gradFrom, gradTo] = ticketColors(bandCategory);
+  const label = (bandCategory ?? "Österlen").toUpperCase();
+  // Etiketten på högkant krymps så den ryms, precis som på biljetten
+  const fit = Math.min(1, STUB_TEXT_W / (label.length * 9.8));
 
-  // Svep ner för att stänga. Låses medan bekräftelse/aktiv vy ligger ovanpå —
-  // ett erbjudande som börjat ticka får inte kunna svepas bort av misstag.
-  const dragY = useRef(new Animated.Value(0)).current;
+  const bandTop = Math.max(insets.top + 10, screenH * 0.1);
+  const sheetTop = bandTop + BAND_H;
 
-  // Refs: PanResponder skapas bara en gång och skulle annars frysa fast
-  // gamla värden i sin closure
-  const lockedRef  = useRef(false);
-  lockedRef.current = !!pending || !!active;
+  // ── Animationen ──
+  const p = useSharedValue(0);
+  const startP = useSharedValue(0);
+  const ready = useSharedValue(0);
+  const vert = useSharedValue(0);
+  const ox = useSharedValue(0);
+  const oy = useSharedValue(0);
+  const ow = useSharedValue(0);
+  const oh = useSharedValue(0);
+  const lockedSV = useSharedValue(false);
+  useEffect(() => { lockedSV.value = locked; }, [locked]);
+  // Gester och animationer skapas en gång, så de läser onClose via en ref
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  const pan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) =>
-        !lockedRef.current && g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx),
-      onPanResponderMove: (_e, g) => {
-        if (g.dy > 0) dragY.setValue(g.dy);
-      },
-      onPanResponderRelease: (_e, g) => {
-        if (g.dy > 120 || g.vy > 0.8) {
-          Animated.timing(dragY, { toValue: SH, duration: 180, useNativeDriver: true })
-            .start(() => { dragY.setValue(0); onCloseRef.current(); });
-        } else {
-          Animated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
-        }
-      },
-    })
-  ).current;
+  useEffect(() => {
+    if (!visible) {
+      ready.value = 0;
+      p.value = 0;
+      return;
+    }
+    const o = origin ?? { x: 0, y: screenH, w: screenW, h: BAND_H };
+    ox.value = o.x; oy.value = o.y; ow.value = o.w; oh.value = o.h;
+    vert.value = origin ? 1 : 0;
+    p.value = 0;
+    ready.value = 1;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    p.value = withTiming(1, { duration: OPEN_MS, easing: ease });
+    const landed = setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}), OPEN_MS * 0.75);
+    return () => clearTimeout(landed);
+  }, [visible]);
 
-  const handleConfirm = async () => {
+  // Bandet har landat på sin biljett igen: lite klick, sedan lämnar lagret scenen
+  const finishClose = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onCloseRef.current();
+  };
+
+  const requestClose = () => {
+    if (locked) return;
+    p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * p.value), easing: ease }, (done) => {
+      if (done) runOnJS(finishClose)();
+    });
+  };
+
+  // Svep nedåt backar animationen i takt med fingret
+  const makePan = () => Gesture.Pan()
+    .activeOffsetY([-8, 8])
+    .failOffsetX([-30, 30])
+    .onStart(() => { cancelAnimation(p); startP.value = p.value; })
+    .onUpdate((e) => {
+      if (lockedSV.value) return;
+      p.value = Math.min(1, Math.max(0, startP.value - e.translationY / DRAG_RANGE));
+    })
+    .onEnd((e) => {
+      if (lockedSV.value || (p.value >= 0.72 && e.velocityY <= 900)) {
+        p.value = withSpring(1, { damping: 18, stiffness: 180 });
+        return;
+      }
+      p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * p.value), easing: ease }, (done) => {
+        if (done) runOnJS(finishClose)();
+      });
+    });
+  const bandPan = useMemo(makePan, []);
+  const headerPan = useMemo(makePan, []);
+
+  // m: bandets resa från biljetten till panelens topp. rip: det korta ryck när det rivs loss.
+  const m = useDerivedValue(() => easeOut(interpolate(p.value, [0.1, 0.72], [0, 1], "clamp")));
+  const rip = useDerivedValue(() => interpolate(p.value, [0, 0.1, 0.26], [0, 1, 0], "clamp"));
+  const bandW = useDerivedValue(() => ow.value + (screenW - ow.value) * m.value);
+  const bandH = useDerivedValue(() => oh.value + (BAND_H - oh.value) * m.value);
+  const gradEnd = useDerivedValue(() => vec(0, bandH.value));
+
+  const rootStyle = useAnimatedStyle(() => ({ opacity: ready.value }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0, 0.45], [0, 1], "clamp") }));
+
+  const bandStyle = useAnimatedStyle(() => ({
+    left: ox.value + (0 - ox.value) * m.value - rip.value * 8,
+    top: oy.value + (bandTop - oy.value) * m.value - rip.value * 5,
+    width: bandW.value,
+    height: bandH.value,
+    borderTopLeftRadius: STUB_RADIUS + (BAND_RADIUS - STUB_RADIUS) * m.value,
+    borderBottomLeftRadius: STUB_RADIUS * (1 - m.value),
+    borderTopRightRadius: BAND_RADIUS * m.value,
+    transform: [{ rotate: `${rip.value * -7}deg` }, { scale: 1 + rip.value * 0.05 }],
+  }));
+
+  // Etiketten: på högkant på biljetten, rak i bandet
+  const labelStyle = useAnimatedStyle(() => {
+    const cy = vert.value ? STUB_TEXT_Y + (BAND_H / 2 - STUB_TEXT_Y) * m.value : BAND_H / 2;
+    const deg = vert.value ? -90 * (1 - m.value) : 0;
+    const sc = vert.value ? fit + (1.1 - fit) * m.value : 1.1;
+    return {
+      left: bandW.value / 2 - TEXT_BOX_W / 2,
+      top: cy - 10,
+      transform: [{ rotate: `${deg}deg` }, { scale: sc }],
+    };
+  });
+  // Ikonen ligger ovanför texten på biljetten och till vänster om den i bandet
+  const iconStyleStub = useAnimatedStyle(() => ({
+    left: bandW.value / 2 - 9,
+    top: STUB_ICON_Y - 9 + (BAND_H / 2 - 9 - (STUB_ICON_Y - 9)) * m.value,
+    opacity: vert.value ? 1 - Math.min(1, m.value * 2) : 0,
+  }));
+  const iconStyleBand = useAnimatedStyle(() => ({
+    opacity: vert.value ? Math.max(0, m.value * 2 - 1) : 1,
+  }));
+  const closeStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0.85, 1], [0, 1], "clamp") }));
+
+  const sheetStyle = useAnimatedStyle(() => {
+    const sp = easeOut(interpolate(p.value, [0.34, 1], [0, 1], "clamp"));
+    return { transform: [{ translateY: (1 - sp) * (screenH - sheetTop) }] };
+  });
+
+  const handleConfirm = () => {
     const offer = pending;
     if (!offer) return;
     setPending(null);
-
     const activatedAt = Date.now();
     activate.mutate(offer.id);
-
     // Kort paus så bekräftelserutan hinner fada ut innan helskärmen tar över
     setTimeout(() => setActive({ offer, activatedAt }), 180);
   };
 
   const handleGetPass = () => {
-    onClose();
+    onCloseRef.current();
     router.push("/settings/pass-buy");
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      // Blockeras medan något ligger ovanpå — annars kan man svepa bort
-      // panelen mitt i en aktivering
-      onRequestClose={() => { if (!pending && !active) onClose(); }}
-    >
-      <View style={s.backdrop}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => { if (!pending && !active) onClose(); }}
-        />
+    <Animated.View style={[StyleSheet.absoluteFill, { zIndex: 50 }, rootStyle]}>
+      <Animated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
+      </Animated.View>
 
-        <Animated.View
-          style={[
-            s.sheet,
-            { paddingBottom: insets.bottom + 12, transform: [{ translateY: dragY }] },
-          ]}
-        >
-          <Pressable style={s.closeBtn} onPress={onClose} hitSlop={10}>
-            <X size={20} color={colors.muted} strokeWidth={2} />
-          </Pressable>
-
-          {/* Greppyta för svep-ner: strecket OCH hela header-raden.
-              Bara det tunna strecket är för litet att träffa. */}
-          <View {...pan.panHandlers}>
-            <View style={s.dragArea}>
-              <View style={s.handle} />
+      {/* Panelen under bandet */}
+      <Animated.View style={[s.sheet, { top: sheetTop, paddingBottom: insets.bottom + 12 }, sheetStyle]}>
+        <GestureDetector gesture={headerPan}>
+          <View style={s.header}>
+            <View style={s.logoCircle}>
+              {place?.logo_url ? (
+                <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
+              ) : (
+                <Text style={s.logoFallback}>{(place?.name ?? "?").charAt(0).toUpperCase()}</Text>
+              )}
             </View>
-
-            <View style={s.header}>
-              <View style={s.logoCircle}>
-                {place?.logo_url ? (
-                  <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
-                ) : (
-                  <Text style={s.logoFallback}>
-                    {(place?.name ?? "?").charAt(0).toUpperCase()}
-                  </Text>
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.placeName} numberOfLines={1}>
-                  {place?.name ?? t("offers.drawer.place")}
-                </Text>
-                <Text style={s.offerCount}>
-                  {offers.length === 1
-                    ? t("offers.drawer.countOne")
-                    : t("offers.drawer.count", { count: offers.length })}
-                </Text>
-              </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.placeName} numberOfLines={1}>{place?.name ?? t("offers.drawer.place")}</Text>
+              <Text style={s.offerCount}>
+                {offers.length === 1
+                  ? t("offers.drawer.countOne")
+                  : t("offers.drawer.count", { count: offers.length })}
+              </Text>
             </View>
           </View>
+        </GestureDetector>
 
-          <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
-            {offers.map((offer, i) => (
-              <OfferCard
-                key={offer.id}
-                offer={offer}
-                index={i}
-                redemptions={redemptions}
-                isMember={isMember}
-                isBusiness={isBusiness}
-                onActivate={() => setPending(offer)}
-                onGetPass={handleGetPass}
-              />
-            ))}
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+          {offers.map((offer, i) => (
+            <OfferCard
+              key={offer.id}
+              offer={offer}
+              index={i}
+              redemptions={redemptions}
+              isMember={isMember}
+              isBusiness={isBusiness}
+              onActivate={() => setPending(offer)}
+              onGetPass={handleGetPass}
+            />
+          ))}
+          {offers.length === 0 && <Text style={s.empty}>{t("offers.drawer.none")}</Text>}
+        </ScrollView>
+      </Animated.View>
 
-            {offers.length === 0 && <Text style={s.empty}>{t("offers.drawer.none")}</Text>}
-          </ScrollView>
+      {/* Bandet: biljettens sidoband som blir panelens topp */}
+      <GestureDetector gesture={bandPan}>
+        <Animated.View style={[s.band, bandStyle]}>
+          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Fill>
+              <LinearGradient start={vec(0, 0)} end={gradEnd} colors={[gradFrom, gradTo]} />
+            </Fill>
+          </Canvas>
+          <Animated.View style={[s.bandIcon, iconStyleStub]} pointerEvents="none">
+            <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
+          </Animated.View>
+          <Animated.View style={[s.bandIcon, { left: 22, top: BAND_H / 2 - 9 }, iconStyleBand]} pointerEvents="none">
+            <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
+          </Animated.View>
+          <Animated.Text style={[s.bandLabel, labelStyle]} numberOfLines={1}>{label}</Animated.Text>
+          <Animated.View style={[s.closeBtn, closeStyle]}>
+            <Pressable onPress={requestClose} hitSlop={12} disabled={locked}>
+              <X size={20} color="#FFFFFF" strokeWidth={2} />
+            </Pressable>
+          </Animated.View>
         </Animated.View>
+      </GestureDetector>
 
-        {/* Överläggen ligger INUTI drawerns modal — iOS visar inte en
-            modal ovanpå en annan, så egna Modal-fönster hade blivit osynliga */}
-        <OfferConfirmDialog
-          visible={!!pending}
-          dealText={pending?.title ?? ""}
-          onCancel={() => setPending(null)}
-          onConfirm={handleConfirm}
+      {/* Överläggen ligger inuti det här lagret så att de täcker hela skärmen */}
+      <OfferConfirmDialog
+        visible={!!pending}
+        dealText={pending?.title ?? ""}
+        onCancel={() => setPending(null)}
+        onConfirm={handleConfirm}
+      />
+
+      {active && (
+        <ActiveOfferView
+          visible
+          activatedAt={active.activatedAt}
+          placeName={active.offer.place?.name ?? ""}
+          placeLogoUrl={active.offer.place?.logo_url ?? null}
+          dealText={active.offer.title}
+          onClose={() => setActive(null)}
         />
-
-        {active && (
-          <ActiveOfferView
-            visible
-            activatedAt={active.activatedAt}
-            placeName={active.offer.place?.name ?? ""}
-            placeLogoUrl={active.offer.place?.logo_url ?? null}
-            dealText={active.offer.title}
-            onClose={() => setActive(null)}
-          />
-        )}
-      </View>
-    </Modal>
+      )}
+    </Animated.View>
   );
 }
 
@@ -299,22 +422,24 @@ function MetaRow({ icon, text }: { icon: React.ReactNode; text: string }) {
 }
 
 const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: "flex-end" },
+  backdrop: { backgroundColor: c.overlay },
   sheet: {
-    height: SH * 0.88,
+    position: "absolute", left: 0, right: 0, bottom: 0,
     backgroundColor: c.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderColor: c.border,
+    borderWidth: StyleSheet.hairlineWidth, borderTopWidth: 0, borderColor: c.border,
   },
-  dragArea: { paddingTop: 10, paddingBottom: 8, alignItems: "center" },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: c.borderStrong },
-  closeBtn: { position: "absolute", top: 16, right: 16, zIndex: 2, padding: 6 },
+  band: { position: "absolute", overflow: "hidden" },
+  bandIcon: { position: "absolute", width: 18, height: 18 },
+  // Textrutan är bredare än etiketten och centreras, så rotationen sker kring etikettens mitt
+  bandLabel: {
+    position: "absolute", width: TEXT_BOX_W, height: 20, textAlign: "center",
+    fontFamily: "Montserrat_700Bold", fontSize: 11.5, letterSpacing: 2, lineHeight: 20, color: "#FFFFFF",
+  },
+  closeBtn: { position: "absolute", top: BAND_H / 2 - 12, right: 18, width: 24, height: 24, alignItems: "center", justifyContent: "center" },
 
   header: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16,
+    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 14,
   },
   logoCircle: {
     width: 56, height: 56, borderRadius: 28,
@@ -323,7 +448,7 @@ const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: 1, borderColor: c.goldBorder,
     alignItems: "center", justifyContent: "center",
   },
-  logo: { width: "100%", height: "100%" },
+  logo: { width: "100%", height: "100%", transform: [{ scale: 1.2 }] },
   logoFallback: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.goldText },
   placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: c.text },
   offerCount: {

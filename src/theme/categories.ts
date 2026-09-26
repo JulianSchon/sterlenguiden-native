@@ -45,6 +45,12 @@ export function findCategory(category: string | null): CategoryDef | undefined {
   return CATEGORIES.find((def) => def.dbValues.some((v) => v.toLowerCase() === c));
 }
 
+/** Biljettens sidoband: kategorins färg mot en mörkare ton, guld för okänd kategori */
+export function ticketColors(category: string | null): [string, string] {
+  const base = findCategory(category)?.screen ?? "#D4A84F";
+  return [base, shade(base, 0.4)];
+}
+
 /** Blandar färgen mot svart (0 = oförändrad, 1 = svart), för andra änden av en gradient */
 export function shade(hex: string, amount: number): string {
   const n = parseInt(hex.slice(1), 16);

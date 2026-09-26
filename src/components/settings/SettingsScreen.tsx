@@ -15,11 +15,13 @@ import { darkColors, lightColors, type ThemeColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
 
 export function SettingsScreen({
-  title, right, compact = false, morph, scrollRef, onScroll, children,
+  title, right, compact = false, morph, scrollRef, onScroll, overlay, children,
 }: {
   title: string; right?: ReactNode; compact?: boolean; morph?: SharedValue<number>;
   /** För sidor som själva behöver scrolla eller veta var i listan man är */
   scrollRef?: RefObject<ScrollView | null>; onScroll?: (y: number) => void;
+  /** Lager ovanpå hela sidan, rubriken inräknad (t.ex. en panel som flyger in från en lista) */
+  overlay?: ReactNode;
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -70,6 +72,7 @@ export function SettingsScreen({
       >
         {children}
       </ScrollView>
+      {overlay}
     </Animated.View>
   );
 }

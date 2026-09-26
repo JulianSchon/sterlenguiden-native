@@ -29,9 +29,9 @@ import { useAvailableOffers } from "@/hooks/useAvailableOffers";
 import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
 } from "@/lib/offers";
-import { OfferDrawer } from "@/components/offers/OfferDrawer";
+import { OfferDrawer, type OriginRect } from "@/components/offers/OfferDrawer";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
-import { findCategory, shade, type CategoryId } from "@/theme/categories";
+import { findCategory, ticketColors, type CategoryId } from "@/theme/categories";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -73,12 +73,6 @@ function splitSavings(label: string): { before: string; big: string; after: stri
   };
 }
 
-/** Sidobandets toning: kategorins färg mot en mörkare ton, guld för okänd kategori */
-function stubColors(category: string | null): [string, string] {
-  const base = findCategory(category)?.screen ?? "#D4A84F";
-  return [base, shade(base, 0.4)];
-}
-
 const EDGE_ZONE = 24;     // px från kanten där svepet inte tar över
 const SWIPE_DISTANCE = 70; // hur långt man måste dra för att byta
 const SWIPE_SPEED = 600;   // eller hur snabbt (px/s)
@@ -113,7 +107,8 @@ export default function OffersScreen() {
   const { data: offers = [], isLoading } = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
 
-  const [drawerPlaceId, setDrawerPlaceId] = useState<number | null>(null);
+  // Vilken biljett som är öppen och var dess sidoband satt (bandet flyger därifrån och tillbaka)
+  const [open, setOpen] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
 
   // Svep mellan kategorier. Alla sidor ligger i en rad och raden förskjuts i sidled; att byta
   // sida är bara att glida till nästa plats, inget innehåll byts ut (annars blinkar det).
@@ -212,6 +207,15 @@ export default function OffersScreen() {
     <SettingsScreen
       title={t("offers.title")}
       scrollRef={scrollRef}
+      overlay={
+        <OfferDrawer
+          visible={open != null}
+          placeId={open?.offer.place_id ?? 0}
+          focusOffer={open?.offer}
+          origin={open?.origin}
+          onClose={() => setOpen(null)}
+        />
+      }
       onScroll={(y) => { scrollY.current = y; }}
       right={
         <Pressable
@@ -286,7 +290,7 @@ export default function OffersScreen() {
                         setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
                       }}
                     >
-                      <OfferPage data={page} onOpen={setDrawerPlaceId} />
+                      <OfferPage data={page} hiddenOfferId={open?.origin ? open.offer.id : null} onOpen={(offer, origin) => setOpen({ offer, origin })} />
                     </View>
                   </View>
                 )
@@ -297,17 +301,14 @@ export default function OffersScreen() {
         </>
       )}
 
-      <OfferDrawer
-        visible={drawerPlaceId != null}
-        placeId={drawerPlaceId ?? 0}
-        onClose={() => setDrawerPlaceId(null)}
-      />
     </SettingsScreen>
   );
 }
 
 /** En kategorisida: listorna "Att använda" och "Inlösta" (eller ett tomt-meddelande) */
-function OfferPage({ data, onOpen }: { data: PageData; onOpen: (placeId: number) => void }) {
+function OfferPage({
+  data, hiddenOfferId, onOpen,
+}: { data: PageData; hiddenOfferId: string | null; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
   const s = useThemedStyles(createStyles);
   const empty = data.available.length === 0 && data.redeemed.length === 0;
@@ -317,14 +318,14 @@ function OfferPage({ data, onOpen }: { data: PageData; onOpen: (placeId: number)
       {data.available.length > 0 && (
         <Section title={t("offers.sections.available")}>
           {data.available.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used={false} onPress={() => onOpen(offer.place_id)} />
+            <OfferListCard key={offer.id} offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} onOpen={onOpen} />
           ))}
         </Section>
       )}
       {data.redeemed.length > 0 && (
         <Section title={t("offers.sections.redeemed")}>
           {data.redeemed.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used onPress={() => onOpen(offer.place_id)} />
+            <OfferListCard key={offer.id} offer={offer} used stubHidden={offer.id === hiddenOfferId} onOpen={onOpen} />
           ))}
         </Section>
       )}
@@ -430,7 +431,9 @@ function Perforation() {
   );
 }
 
-function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; onPress: () => void }) {
+function OfferListCard({
+  offer, used, stubHidden, onOpen,
+}: { offer: Offer; used: boolean; stubHidden: boolean; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
@@ -440,17 +443,24 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
   const parts = savings ? splitSavings(savings) : null;
   const category = findCategory(offer.category);
   const CategoryIcon = category?.icon ?? Crown;
-  const [from, to] = stubColors(offer.category);
+  const [from, to] = ticketColors(offer.category);
+  const stubRef = useRef<View>(null);
+
+  // Mät sidobandets plats på skärmen så panelen kan riva loss det därifrån
+  const handlePress = () => {
+    if (!stubRef.current) return onOpen(offer, null);
+    stubRef.current.measureInWindow((x, y, w, h) => onOpen(offer, { x, y, w, h }));
+  };
 
   return (
     // Yttre lagret bär skuggan, det inre klipper bilden till biljettens form (overflow: hidden tar bort skuggor)
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [s.ticket, used && s.ticketUsed, pressed && { transform: [{ scale: 0.98 }] }]}
     >
       <View style={s.ticketClip}>
         {/* Sidoband i kategorins färg: ikon överst, kategorin på högkant under */}
-        <View style={s.stub}>
+        <View ref={stubRef} collapsable={false} style={[s.stub, stubHidden && { opacity: 0 }]}>
           <VerticalGradient colors={[from, to]} />
           <View style={s.stubIcon}>
             <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
