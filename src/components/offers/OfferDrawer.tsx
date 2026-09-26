@@ -59,6 +59,7 @@ const STUB_RADIUS = 18;
 const BAND_H = 76;
 const BAND_RADIUS = 24;
 const TEXT_BOX_W = 260;
+const BAND_SETBACK = 1.5;   // hur många punkter bandets kant ligger innanför biljettens rivlinje
 const GLINT_W = 110;
 const OPEN_MS = 1700;
 const CLOSE_MS = 1200;
@@ -210,7 +211,8 @@ export function OfferDrawer({
     (v) => { edge.amt.value = v.amt; edge.prog.value = v.prog; },
   );
   const fringe = useDerivedValue(() => TEAR_FRINGE * edgeAmt.value);
-  const edgeOut = useDerivedValue(() => EDGE_STROKE * edgeAmt.value);
+  // Bandets kant ligger en aning innanför biljettens linje, så den aldrig kan överlappa bilden
+  const edgeOut = useDerivedValue(() => (EDGE_STROKE - BAND_SETBACK) * edgeAmt.value);
   // Rivningen: bandet svänger ut kring sin övre kant, med ett darr som tar slut när det kommit loss
   const tilt = useDerivedValue(() => {
     const swing = interpolate(p.value, [0, 0.12, 0.22, RIP_END + 0.04], [0, 11, 8, 0], "clamp");
