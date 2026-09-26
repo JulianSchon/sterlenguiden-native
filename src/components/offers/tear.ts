@@ -1,0 +1,43 @@
+/**
+ * Rivkanten: en hackig linje som används både på bandet som rivs loss (OfferDrawer) och på
+ * kanten som blir kvar på biljetten i listan, så de två ser ut att passa ihop.
+ */
+import { Skia, type SkPath } from "@shopify/react-native-skia";
+
+export const TEAR_TEETH = 16;
+export const TEAR_DEPTH = 5;      // hur djupa tänderna är
+export const TEAR_FRINGE = 3;     // bredden på den vita papperskanten
+
+// Olika djup på tänderna så det ser riktigt riv ut och inte som en sågkant
+const JAGS = [0.9, 0.4, 1, 0.55, 0.8, 0.3, 1, 0.65];
+
+/** Bandets form med hackig högerkant. `amp` 0 ger en rak kant. `inset` flyttar kanten inåt (den vita kantens bredd). */
+export function tornBandPath(w: number, h: number, amp: number, inset: number): SkPath {
+  "worklet";
+  const path = Skia.Path.Make();
+  path.moveTo(0, 0);
+  path.lineTo(w - inset, 0);
+  for (let i = 1; i <= TEAR_TEETH; i++) {
+    const y = (h * i) / TEAR_TEETH;
+    const x = w - inset - (i % 2 === 1 ? amp * JAGS[i % JAGS.length] : 0);
+    path.lineTo(x, y);
+  }
+  path.lineTo(0, h);
+  path.close();
+  return path;
+}
+
+/** Den vita, hackiga papperskanten som blir kvar på biljettens vänstra sida när bandet rivits bort */
+export function tornEdgePath(h: number): SkPath {
+  const path = Skia.Path.Make();
+  path.moveTo(0, 0);
+  path.lineTo(TEAR_FRINGE, 0);
+  for (let i = 1; i <= TEAR_TEETH; i++) {
+    const y = (h * i) / TEAR_TEETH;
+    const x = TEAR_FRINGE + (i % 2 === 1 ? TEAR_DEPTH * JAGS[i % JAGS.length] : 0);
+    path.lineTo(x, y);
+  }
+  path.lineTo(0, h);
+  path.close();
+  return path;
+}

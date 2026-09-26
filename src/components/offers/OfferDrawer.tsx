@@ -9,7 +9,9 @@
  *
  * Panelen är ett lager på sidan, inte en Modal, så att bandet kan flyga från listan in i den.
  * Lagret måste ligga som barn direkt under en helskärmsyta (se SettingsScreen `overlay`).
- * Hela rörelsen styrs av ett enda tal, `p` (0 = biljetten, 1 = öppen panel), som också är
+ * Rivningen har tre delar: bandet lossnar underifrån (svänger ut kring sin övre kant med en
+ * hackig, vit rivkant och små vibrationer som ett riktigt ryck), flyger sedan till toppen och
+ * vrids, och sist glider panelen upp. Hela rörelsen styrs av ett enda tal, `p` (0 = biljetten, 1 = öppen panel), som också är
  * det man drar i när man sveper panelen nedåt: man backar bokstavligen animationen.
  *
  * Här kopplas också aktiveringskedjan ihop: håll-inne-knapp → bekräftelseruta → 60-sekundersskärm.
@@ -22,7 +24,7 @@ import Animated, {
   withSpring, withTiming,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Canvas, Fill, LinearGradient, vec } from "@shopify/react-native-skia";
+import { Canvas, Path, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -40,6 +42,7 @@ import type { ThemeColors } from "@/theme/colors";
 import { HoldToActivate } from "./HoldToActivate";
 import { OfferConfirmDialog } from "./OfferConfirmDialog";
 import { ActiveOfferView } from "./ActiveOfferView";
+import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE } from "./tear";
 
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
 export interface OriginRect { x: number; y: number; w: number; h: number }
@@ -53,8 +56,10 @@ const STUB_RADIUS = 18;
 const BAND_H = 76;
 const BAND_RADIUS = 24;
 const TEXT_BOX_W = 260;
-const OPEN_MS = 880;
-const CLOSE_MS = 720;
+const OPEN_MS = 1700;
+const CLOSE_MS = 1200;
+const RIP_END = 0.3;       // så stor del av öppningen som är själva rivningen
+const RIP_TICKS = 9;       // små vibrationer under rivningen
 const DRAG_RANGE = 420;    // hur långt man drar för att backa hela animationen
 const ease = Easing.bezier(0.3, 0, 0.2, 1);
 const easeOut = Easing.out(Easing.cubic);
@@ -130,15 +135,23 @@ export function OfferDrawer({
     vert.value = origin ? 1 : 0;
     p.value = 0;
     ready.value = 1;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     p.value = withTiming(1, { duration: OPEN_MS, easing: ease });
-    const landed = setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}), OPEN_MS * 0.75);
-    return () => clearTimeout(landed);
+    // Många små ryck under rivningen, det sista hårdast, sedan en lätt känsla när bandet landar
+    const ripMs = OPEN_MS * RIP_END * 0.85;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i < RIP_TICKS; i++) {
+      const style = i === RIP_TICKS - 1
+        ? Haptics.ImpactFeedbackStyle.Heavy
+        : i % 2 === 0 ? Haptics.ImpactFeedbackStyle.Rigid : Haptics.ImpactFeedbackStyle.Light;
+      timers.push(setTimeout(() => Haptics.impactAsync(style).catch(() => {}), (ripMs * i) / (RIP_TICKS - 1)));
+    }
+    timers.push(setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}), OPEN_MS * 0.85));
+    return () => timers.forEach(clearTimeout);
   }, [visible]);
 
   // Bandet har landat på sin biljett igen: lite klick, sedan lämnar lagret scenen
   const finishClose = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     onCloseRef.current();
   };
 
@@ -171,24 +184,41 @@ export function OfferDrawer({
   const headerPan = useMemo(makePan, []);
 
   // m: bandets resa från biljetten till panelens topp. rip: det korta ryck när det rivs loss.
-  const m = useDerivedValue(() => easeOut(interpolate(p.value, [0.1, 0.72], [0, 1], "clamp")));
-  const rip = useDerivedValue(() => interpolate(p.value, [0, 0.1, 0.26], [0, 1, 0], "clamp"));
+  const m = useDerivedValue(() => easeOut(interpolate(p.value, [RIP_END, 0.82], [0, 1], "clamp")));
+  // tear: hur mycket rivkant som syns (0 på biljetten, växer när det rivs, försvinner när bandet blir rakt)
+  const tear = useDerivedValue(() => interpolate(p.value, [0, 0.06], [0, 1], "clamp") * (1 - m.value));
+  // Rivningen: bandet svänger ut kring sin övre kant, med ett darr som tar slut när det kommit loss
+  const tilt = useDerivedValue(() => {
+    const swing = interpolate(p.value, [0, 0.12, 0.22, RIP_END + 0.04], [0, 11, 8, 0], "clamp");
+    const shake = Math.sin(p.value * 120) * 1.8 * interpolate(p.value, [0, RIP_END], [1, 0], "clamp");
+    return swing + shake * interpolate(p.value, [0, 0.03], [0, 1], "clamp");
+  });
+  const pullX = useDerivedValue(() => interpolate(p.value, [0, 0.12, RIP_END, 0.5], [0, -12, -5, 0], "clamp"));
+  const pullY = useDerivedValue(() => interpolate(p.value, [0, 0.12, RIP_END, 0.5], [0, -6, -2, 0], "clamp"));
   const bandW = useDerivedValue(() => ow.value + (screenW - ow.value) * m.value);
   const bandH = useDerivedValue(() => oh.value + (BAND_H - oh.value) * m.value);
   const gradEnd = useDerivedValue(() => vec(0, bandH.value));
+  // Bandets form: hackig högerkant medan det rivs, med en vit papperskant utanför färgen
+  const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, 0));
+  const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, TEAR_FRINGE * tear.value));
 
   const rootStyle = useAnimatedStyle(() => ({ opacity: ready.value }));
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0, 0.45], [0, 1], "clamp") }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0, 0.5], [0, 1], "clamp") }));
 
   const bandStyle = useAnimatedStyle(() => ({
-    left: ox.value + (0 - ox.value) * m.value - rip.value * 8,
-    top: oy.value + (bandTop - oy.value) * m.value - rip.value * 5,
+    left: ox.value + (0 - ox.value) * m.value + pullX.value,
+    top: oy.value + (bandTop - oy.value) * m.value + pullY.value,
     width: bandW.value,
     height: bandH.value,
     borderTopLeftRadius: STUB_RADIUS + (BAND_RADIUS - STUB_RADIUS) * m.value,
     borderBottomLeftRadius: STUB_RADIUS * (1 - m.value),
     borderTopRightRadius: BAND_RADIUS * m.value,
-    transform: [{ rotate: `${rip.value * -7}deg` }, { scale: 1 + rip.value * 0.05 }],
+    // Svänger kring övre högra hörnet, där biljetten sitter kvar längst
+    transformOrigin: "100% 0%",
+    transform: [
+      { rotate: `${tilt.value}deg` },
+      { scale: 1 + interpolate(p.value, [0, 0.12, RIP_END], [0, 0.05, 0], "clamp") },
+    ],
   }));
 
   // Etiketten: på högkant på biljetten, rak i bandet
@@ -214,7 +244,7 @@ export function OfferDrawer({
   const closeStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0.85, 1], [0, 1], "clamp") }));
 
   const sheetStyle = useAnimatedStyle(() => {
-    const sp = easeOut(interpolate(p.value, [0.34, 1], [0, 1], "clamp"));
+    const sp = easeOut(interpolate(p.value, [0.5, 1], [0, 1], "clamp"));
     return { transform: [{ translateY: (1 - sp) * (screenH - sheetTop) }] };
   });
 
@@ -284,9 +314,10 @@ export function OfferDrawer({
       <GestureDetector gesture={bandPan}>
         <Animated.View style={[s.band, bandStyle]}>
           <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Fill>
+            <Path path={paperPath} color="#F4F0E6" />
+            <Path path={colorPath}>
               <LinearGradient start={vec(0, 0)} end={gradEnd} colors={[gradFrom, gradTo]} />
-            </Fill>
+            </Path>
           </Canvas>
           <Animated.View style={[s.bandIcon, iconStyleStub]} pointerEvents="none">
             <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
