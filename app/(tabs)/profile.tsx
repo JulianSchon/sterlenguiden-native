@@ -483,7 +483,7 @@ const s = StyleSheet.create({
     marginBottom: 20,
   },
   // Samma typsnitt och stil som Inställningar (versal Montserrat), men större eftersom det här är en huvudsida
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: 2, textTransform: "uppercase", color: FG },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: FG },
   gearBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.05)",
