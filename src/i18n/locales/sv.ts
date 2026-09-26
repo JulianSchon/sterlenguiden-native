@@ -283,7 +283,7 @@ export const sv = {
     },
     offers: {
       title: "Förmåner",
-      tile: "Rabatter hos lokala företag",
+      tile: "Lokala rabatter",
       tileEmpty: "Snart fler",
     },
     history: { title: "Historik", count: "{{count}} besök", one: "1 besök" },
