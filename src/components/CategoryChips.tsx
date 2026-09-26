@@ -2,18 +2,24 @@
  * CategoryChips — delad pill-rad för kategorifilter.
  * Används av Förmåner och Favoriter, exakt samma utseende på båda.
  *
- * Aktiv: solid guld. Inaktiv: dämpad yta med dämpad text. Tryck: scale(0.95).
+ * Aktiv: solid guld med ett mjukt sken (Skia). Inaktiv: dämpad yta med dämpad text.
+ * Tryck: scale(0.95).
  * Färgerna följer temat. `inset` är sidomarginalen så raden kan gå kant i kant
  * på en sida som har egen marginal.
  */
-import { Pressable, Text, ScrollView, StyleSheet } from "react-native";
-import { useThemedStyles } from "@/theme/ThemeProvider";
+import { useState } from "react";
+import { Pressable, Text, ScrollView, View, StyleSheet } from "react-native";
+import { Canvas, RoundedRect, Blur } from "@shopify/react-native-skia";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 export interface ChipDef {
   id: string;
   label: string;
 }
+
+// Skenet ritas utanför pillens kant, så raden behöver luft över och under
+const GLOW = 12;
 
 export function CategoryChips({
   chips,
@@ -34,29 +40,48 @@ export function CategoryChips({
       style={s.scroll}
       contentContainerStyle={[s.content, { paddingHorizontal: inset }]}
     >
-      {chips.map((c) => {
-        const active = c.id === activeId;
-        return (
-          <Pressable
-            key={c.id}
-            onPress={() => onChange(c.id)}
-            style={({ pressed }) => [
-              s.chip,
-              active ? s.chipActive : s.chipIdle,
-              pressed && { transform: [{ scale: 0.95 }] },
-            ]}
-          >
-            <Text style={[s.text, active ? s.textActive : s.textIdle]}>{c.label}</Text>
-          </Pressable>
-        );
-      })}
+      {chips.map((c) => (
+        <Chip key={c.id} label={c.label} active={c.id === activeId} onPress={() => onChange(c.id)} />
+      ))}
     </ScrollView>
   );
 }
 
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  return (
+    <View onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+      {active && size.w > 0 && (
+        <Canvas
+          pointerEvents="none"
+          style={{ position: "absolute", left: -GLOW, top: -GLOW, width: size.w + GLOW * 2, height: size.h + GLOW * 2 }}
+        >
+          <RoundedRect x={GLOW} y={GLOW + 2} width={size.w} height={size.h} r={size.h / 2} color={colors.gold} opacity={0.4}>
+            <Blur blur={GLOW / 2} />
+          </RoundedRect>
+        </Canvas>
+      )}
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          s.chip,
+          active ? s.chipActive : s.chipIdle,
+          pressed && { transform: [{ scale: 0.95 }] },
+        ]}
+      >
+        <Text style={[s.text, active ? s.textActive : s.textIdle]}>{label}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  scroll: { flexGrow: 0, height: 44 },
-  content: { gap: 8, flexDirection: "row" },
+  // Höjden ger plats åt skenet; den negativa marginalen ger samma avstånd som förut
+  scroll: { flexGrow: 0, height: 44 + GLOW, marginVertical: -GLOW / 2 },
+  content: { gap: 8, flexDirection: "row", alignItems: "center" },
   chip: {
     flexShrink: 0,
     justifyContent: "center",
@@ -69,11 +94,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   chipActive: {
     backgroundColor: c.gold,
-    shadowColor: c.gold,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
   },
   chipIdle: {
     backgroundColor: c.fill,
