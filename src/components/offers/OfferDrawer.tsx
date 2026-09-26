@@ -213,8 +213,10 @@ export function OfferDrawer({
   // Bandets form: hackig högerkant medan det rivs, med en vit papperskant utanför färgen
   const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * edgeAmt.value, 0, tearProgress.value, edgeOut.value));
   const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * edgeAmt.value, fringe.value, tearProgress.value, edgeOut.value));
-  // Ett glansstråk som svepar över bandet när det landar (och tillbaka när det lyfts iväg)
+  // Ett glansstråk som svepar över bandet när det landar
   const glintX = useDerivedValue(() => interpolate(p.value, [0.84, 1], [-GLINT_W, bandW.value + GLINT_W * 0.3], "clamp"));
+  // Glansen visas bara när bandet landar, inte när det lyfts iväg vid stängning
+  const glintOpacity = useDerivedValue(() => (closing.value ? 0 : 1));
   const glintStart = useDerivedValue(() => vec(glintX.value, 0));
   const glintEnd = useDerivedValue(() => vec(glintX.value + GLINT_W, 0));
 
@@ -345,7 +347,7 @@ export function OfferDrawer({
           <Path path={colorPath}>
             <LinearGradient start={vec(0, 0)} end={gradEnd} colors={[gradFrom, gradTo]} />
           </Path>
-          <Rect x={glintX} y={0} width={GLINT_W} height={bandH}>
+          <Rect x={glintX} y={0} width={GLINT_W} height={bandH} opacity={glintOpacity}>
             <LinearGradient
               start={glintStart}
               end={glintEnd}
