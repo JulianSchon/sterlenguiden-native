@@ -34,7 +34,7 @@ import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-const MAX_THUMBS = 5;
+const MAX_THUMBS = 4;
 
 /** Små kvadratiska bilder (platsernas loggor) som ligger delvis över varandra. */
 function Thumbs({ uris }: { uris: string[] }) {
