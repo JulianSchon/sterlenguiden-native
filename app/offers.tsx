@@ -27,7 +27,7 @@ import { useMembership } from "@/hooks/useMembership";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvailableOffers } from "@/hooks/useAvailableOffers";
 import {
-  offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
+  offerEligibility, offerSavingsLabel, splitSavings, estimateOfferValue, formatKr, type Offer,
 } from "@/lib/offers";
 import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
 import { tornEdgeLine, tornCutRegion, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
@@ -59,20 +59,6 @@ const TICKET_H = 190;
 const STUB_W = 58;
 const NOTCH = 28;
 const BLEED = 6;
-
-/**
- * Delar företagets rabatt-text i det som ska synas stort ("20 %", "450 kr") och resten.
- * "Spara 450 kr" → före "Spara", stort "450 kr". "2 för 1" och annat utan enhet visas som helhet.
- */
-function splitSavings(label: string): { before: string; big: string; after: string } {
-  const m = label.match(/\d[\d\s.,]*\s?(%|kr|:-|sek)/i);
-  if (!m || m.index === undefined) return { before: "", big: label, after: "" };
-  return {
-    before: label.slice(0, m.index).trim(),
-    big: m[0].trim(),
-    after: label.slice(m.index + m[0].length).trim(),
-  };
-}
 
 const EDGE_ZONE = 24;     // px från kanten där svepet inte tar över
 const SWIPE_DISTANCE = 70; // hur långt man måste dra för att byta

@@ -302,6 +302,8 @@ export const en: typeof sv = {
     member: "Member",
     until: "Until {{date}}",
     notMember: "Not a member",
+    activating: "Activating…",
+    activateFailed: { title: "Couldn't activate", body: "The offer wasn't activated. Check your connection and try again." },
     how: {
       hold: "Press and hold",
       show: "Show the staff",

@@ -19,7 +19,7 @@
  * Panelen går medvetet inte att stänga medan bekräftelse- eller aktiv vy ligger ovanpå.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, ScrollView, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert, useWindowDimensions } from "react-native";
 import Animated, {
   Easing, useAnimatedReaction, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
   withTiming, type SharedValue,
@@ -36,14 +36,13 @@ import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions, useActivateOffer } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
 import { useIsBusiness } from "@/hooks/useUserRole";
-import { offerEligibility, offerSavingsLabel, ACTIVE_SECS, type Offer } from "@/lib/offers";
+import { offerEligibility, offerSavingsLabel, splitSavings, ACTIVE_SECS, type Offer } from "@/lib/offers";
 import { formatDate } from "@/i18n/dates";
 import { findCategory, ticketColors } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { HoldToActivate } from "./HoldToActivate";
 import { OfferConfirmDialog } from "./OfferConfirmDialog";
-import { ActiveOfferView } from "./ActiveOfferView";
 import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE, EDGE_STROKE } from "./tear";
 
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
@@ -111,8 +110,9 @@ export function OfferDrawer({
   const activate = useActivateOffer();
 
   const [pending, setPending] = useState<Offer | null>(null);
-  const [active, setActive] = useState<{ offer: Offer; activatedAt: number } | null>(null);
-  const locked = !!pending || !!active;
+  // Väntar på att servern ska registrera aktiveringen (personalskärmen visas först då)
+  const [activating, setActivating] = useState(false);
+  const locked = !!pending || activating;
 
   const offers = useMemo(
     () => [...rawOffers].sort((a, b) => Number(b.id === focusOffer?.id) - Number(a.id === focusOffer?.id)),
@@ -280,14 +280,19 @@ export function OfferDrawer({
     return { transform: [{ translateY: (1 - sp) * (screenH - sheetTop) }] };
   });
 
-  const handleConfirm = () => {
+  // Personalskärmen visas av ActiveOfferHost så fort servern bekräftat, inte härifrån
+  const handleConfirm = async () => {
     const offer = pending;
     if (!offer) return;
     setPending(null);
-    const activatedAt = Date.now();
-    activate.mutate(offer.id);
-    // Kort paus så bekräftelserutan hinner fada ut innan helskärmen tar över
-    setTimeout(() => setActive({ offer, activatedAt }), 180);
+    setActivating(true);
+    try {
+      await activate.mutateAsync(offer);
+    } catch {
+      Alert.alert(t("offers.activateFailed.title"), t("offers.activateFailed.body"));
+    } finally {
+      setActivating(false);
+    }
   };
 
   const handleGetPass = () => {
@@ -329,6 +334,7 @@ export function OfferDrawer({
               key={offer.id}
               offer={offer}
               index={i}
+              showIndex={offers.length > 1}
               redemptions={redemptions}
               isMember={isMember}
               isBusiness={isBusiness}
@@ -385,15 +391,11 @@ export function OfferDrawer({
         onConfirm={handleConfirm}
       />
 
-      {active && (
-        <ActiveOfferView
-          visible
-          activatedAt={active.activatedAt}
-          placeName={active.offer.place?.name ?? ""}
-          placeLogoUrl={active.offer.place?.logo_url ?? null}
-          dealText={active.offer.title}
-          onClose={() => setActive(null)}
-        />
+      {activating && (
+        <View style={s.activating}>
+          <ActivityIndicator color={colors.goldText} />
+          <Text style={s.activatingText}>{t("offers.activating")}</Text>
+        </View>
       )}
     </Animated.View>
   );
@@ -482,6 +484,7 @@ function Scrap({ sc, p, vert, closing, ox, oy, ow, oh, image, bodyW }: ScrapProp
 function OfferCard({
   offer,
   index,
+  showIndex,
   redemptions,
   isMember,
   isBusiness,
@@ -490,6 +493,7 @@ function OfferCard({
 }: {
   offer: Offer;
   index: number;
+  showIndex: boolean;
   redemptions: { offer_id: string; activated_at: string }[];
   isMember: boolean;
   isBusiness: boolean;
@@ -501,6 +505,7 @@ function OfferCard({
   const c = useThemedStyles(createCardStyles);
   const eligibility = offerEligibility(offer, redemptions);
   const savings = offerSavingsLabel(offer);
+  const parts = savings ? splitSavings(savings) : null;
 
   const validLabel = offer.expires_at
     ? t("offers.drawer.valid", { date: formatDate(offer.expires_at, "d MMM yyyy") })
@@ -515,21 +520,28 @@ function OfferCard({
 
   return (
     <View style={c.card}>
-      <View style={c.pill}>
-        <Crown size={10} color={colors.goldText} strokeWidth={2} />
-        <Text style={c.pillText}>{t("offers.drawer.offerN", { n: index + 1 })}</Text>
-      </View>
+      {/* Rabatten är det viktigaste: stor guldsiffra överst, som på biljetten */}
+      {parts && (
+        <View style={c.savings}>
+          {!!parts.before && <Text style={c.savingsSmall}>{parts.before}</Text>}
+          <View style={c.savingsRow}>
+            <Text style={c.savingsBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{parts.big}</Text>
+            {!!parts.after && <Text style={c.savingsAfter} numberOfLines={1}>{parts.after}</Text>}
+          </View>
+        </View>
+      )}
+
+      {showIndex && (
+        <View style={c.pill}>
+          <Crown size={10} color={colors.goldText} strokeWidth={2} />
+          <Text style={c.pillText}>{t("offers.drawer.offerN", { n: index + 1 })}</Text>
+        </View>
+      )}
 
       <Text style={c.title}>{offer.title}</Text>
 
       {!!offer.description && offer.description !== offer.title && (
         <Text style={c.description}>{offer.description}</Text>
-      )}
-
-      {savings && (
-        <View style={c.savingsPill}>
-          <Text style={c.savingsText}>{savings}</Text>
-        </View>
       )}
 
       <View style={c.metaBlock}>
@@ -575,6 +587,11 @@ function MetaRow({ icon, text }: { icon: React.ReactNode; text: string }) {
 
 const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
   backdrop: { backgroundColor: c.overlay },
+  activating: {
+    ...StyleSheet.absoluteFillObject, zIndex: 150, backgroundColor: c.overlay,
+    alignItems: "center", justifyContent: "center", gap: 12,
+  },
+  activatingText: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.text },
   sheet: {
     position: "absolute", left: 0, right: 0, bottom: 0,
     backgroundColor: c.card,
@@ -641,18 +658,14 @@ const createCardStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 20,
     color: c.muted, marginTop: 8,
   },
-  // Fast höjd så texten centreras exakt i pillen
-  savingsPill: {
-    alignSelf: "flex-start",
-    marginTop: 16,
-    height: 30,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: c.gold,
-    alignItems: "center",
-    justifyContent: "center",
+  savings: { marginBottom: 14 },
+  savingsSmall: {
+    fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, textTransform: "uppercase",
+    color: c.muted, marginBottom: 2,
   },
-  savingsText: { fontFamily: "Inter_700Bold", fontSize: 12, color: c.onGold, lineHeight: 16 },
+  savingsRow: { flexDirection: "row", alignItems: "baseline", gap: 10 },
+  savingsBig: { flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 46, lineHeight: 52, color: c.goldText },
+  savingsAfter: { flexShrink: 1, fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
 
   // Radbrytande rad, inte staplade rader — tre korta fakta ska få plats på två
   metaBlock: { marginTop: 18, flexDirection: "row", flexWrap: "wrap", columnGap: 20, rowGap: 9 },

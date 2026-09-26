@@ -144,6 +144,20 @@ export function offerSavingsLabel(offer: Offer): string | null {
   return offer.savings_label || null;
 }
 
+/**
+ * Delar företagets rabatt-text i det som ska synas stort ("20 %", "450 kr") och resten.
+ * "Spara 450 kr" → före "Spara", stort "450 kr". "2 för 1" och annat utan enhet visas som helhet.
+ */
+export function splitSavings(label: string): { before: string; big: string; after: string } {
+  const m = label.match(/\d[\d\s.,]*\s?(%|kr|:-|sek)/i);
+  if (!m || m.index === undefined) return { before: "", big: label, after: "" };
+  return {
+    before: label.slice(0, m.index).trim(),
+    big: m[0].trim(),
+    after: label.slice(m.index + m[0].length).trim(),
+  };
+}
+
 // ─── Filtrering ───────────────────────────────────────────────────────────────
 
 /** Ett erbjudande som får visas: påslaget och inte utgånget */

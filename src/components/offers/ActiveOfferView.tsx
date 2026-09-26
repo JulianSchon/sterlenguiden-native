@@ -5,6 +5,7 @@
  * skärmen för kassören: rörlig timerring, företagets namn och erbjudandet,
  * samt medlemskortets baksida med live-klocka som äkthetsbevis.
  *
+ * Visas av ActiveOfferHost (rotlayouten), inte av panelen, så den överlever en omstart.
  * Nedräkningen utgår ALLTID från activatedAt, aldrig från en lokal räknare —
  * annars skulle tiden pausas när appen läggs i bakgrunden och erbjudandet
  * kunna hållas aktivt hur länge som helst.
@@ -12,6 +13,8 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, Image, StyleSheet, Animated, Easing } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { preventScreenCapture } from "@/lib/screenCapture";
 import Svg, {
   Defs,
   LinearGradient as SvgGrad,
@@ -102,6 +105,12 @@ export function ActiveOfferView({
     return () => ringAnim.stopAnimation();
   }, [visible, activatedAt]);
 
+  // Skärmdumpar och skärminspelning stängs av så länge skärmen visas (kräver ett bygge med expo-screen-capture)
+  useEffect(() => {
+    if (!visible) return;
+    return preventScreenCapture();
+  }, [visible]);
+
   // Pulserande guldprick + "AKTIVT"
   useEffect(() => {
     if (!visible) return;
@@ -132,6 +141,8 @@ export function ActiveOfferView({
 
   return (
     <View style={[a.screen, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
+        {/* Skärmen är alltid svart, så statusfältet ska alltid vara ljust */}
+        <StatusBar style="light" />
         {/* Diskret guldglöd bakom allt */}
         <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
@@ -210,6 +221,7 @@ export function ActiveOfferView({
         </View>
 
         <Text style={a.instruction}>VISA DENNA SKÄRM FÖR PERSONALEN</Text>
+        <Text style={a.verify}>Kontrollera att klockan på kortet stämmer med din egen</Text>
 
         {/* ── Medlemskortets baksida = äkthetsbeviset ── */}
         <View style={a.cardWrap}>
@@ -229,8 +241,8 @@ export function ActiveOfferView({
 }
 
 const a = StyleSheet.create({
-  // Överlägg, inte egen Modal — ligger inuti drawerns modal och måste
-  // täcka allt, inklusive drawern själv
+  // Överlägg ovanpå hela appen (monteras av ActiveOfferHost i rotlayouten) och
+  // täcker allt, inklusive panelen och navigeringen
   screen: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 200,
@@ -278,6 +290,12 @@ const a = StyleSheet.create({
     letterSpacing: 2.64,
     textAlign: "center",
     marginTop: 24,
+  },
+
+  // Personalens kontroll: en inspelning visar en gammal tid, som inte stämmer med deras egen klocka
+  verify: {
+    fontFamily: "Inter_500Medium", fontSize: 12.5, color: "rgba(255,255,255,0.7)",
+    textAlign: "center", marginTop: 8,
   },
 
   cardWrap: { marginTop: "auto" as any, width: "100%", alignItems: "center" },

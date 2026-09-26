@@ -305,6 +305,8 @@ export const sv = {
     member: "Medlem",
     until: "Till {{date}}",
     notMember: "Ej medlem",
+    activating: "Aktiverar…",
+    activateFailed: { title: "Det gick inte att aktivera", body: "Erbjudandet aktiverades inte. Kontrollera din uppkoppling och försök igen." },
     how: {
       hold: "Håll inne",
       show: "Visa för personalen",

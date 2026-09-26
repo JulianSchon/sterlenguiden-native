@@ -1,4 +1,5 @@
 import { Stack, router } from "expo-router";
+import { ActiveOfferHost } from "@/components/offers/ActiveOfferHost";
 import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -129,6 +130,8 @@ function AppStack() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
+      {/* Personalskärmen för ett aktivt erbjudande: ovanpå allt, syns var man än är */}
+      <ActiveOfferHost />
       </GestureHandlerRootView>
     </NavigationThemeProvider>
   );

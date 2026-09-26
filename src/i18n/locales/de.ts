@@ -302,6 +302,8 @@ export const de: typeof sv = {
     member: "Mitglied",
     until: "Bis {{date}}",
     notMember: "Kein Mitglied",
+    activating: "Wird aktiviert…",
+    activateFailed: { title: "Aktivierung fehlgeschlagen", body: "Das Angebot wurde nicht aktiviert. Prüfe deine Verbindung und versuche es erneut." },
     how: {
       hold: "Gedrückt halten",
       show: "Dem Personal zeigen",
