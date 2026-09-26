@@ -302,7 +302,7 @@ export const de: typeof sv = {
       show: "Dem Personal zeigen",
       done: "Fertig",
     },
-    filters: { all: "Alle", food: "Essen", stay: "Unterkunft", experiences: "Erlebnisse", shopping: "Shopping" },
+    filters: { all: "Alle", food: "Essen & Trinken", stay: "Unterkunft", cafe: "Café & Bäckerei", shopping: "Shopping", activities: "Aktivitäten" },
     sections: { available: "Zum Einlösen", redeemed: "Eingelöst" },
     badge: { redeemed: "Eingelöst", endingSoon: "Endet bald", new: "Neu" },
     loading: "Angebote werden geladen…",

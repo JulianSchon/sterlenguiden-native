@@ -305,7 +305,7 @@ export const sv = {
       show: "Visa för personalen",
       done: "Klart",
     },
-    filters: { all: "Alla", food: "Mat", stay: "Boende", experiences: "Upplevelser", shopping: "Shopping" },
+    filters: { all: "Alla", food: "Mat & Dryck", stay: "Boende", cafe: "Café & Bageri", shopping: "Shopping", activities: "Aktiviteter" },
     sections: { available: "Att använda", redeemed: "Inlösta" },
     badge: { redeemed: "Inlöst", endingSoon: "Snart slut", new: "Nytt" },
     loading: "Laddar erbjudanden…",

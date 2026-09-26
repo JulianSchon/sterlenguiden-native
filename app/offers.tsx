@@ -21,46 +21,36 @@ import {
 import { OfferDrawer } from "@/components/offers/OfferDrawer";
 import { CategoryChips } from "@/components/CategoryChips";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { findCategory, shade, type CategoryId } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-// ─── Kategorifilter — matchar offers.category ────────────────────────────────
-type FilterId = "all" | "food" | "stay" | "experiences" | "shopping";
+// ─── Kategorifilter ──────────────────────────────────────────────────────────
+// Sex pillers över de åtta kategorierna. Erbjudanden utan känd kategori syns bara under "Alla".
+type FilterId = "all" | "food" | "stay" | "cafe" | "shopping" | "activities";
 
-const FILTER_DB_VALUES: Record<Exclude<FilterId, "all">, string[]> = {
-  food:        ["Mat & Dryck", "Mat", "Café & Bageri", "Cafe & Bageri"],
-  stay:        ["Hotell & B&B", "Boende"],
-  experiences: ["Natur & Upplevelser", "Natur", "Upplevelser", "Aktiviteter", "Sevärdheter"],
-  shopping:    ["Butiker", "Shopping", "Hantverk & Service", "Hantverk"],
+const FILTER_CATEGORIES: Record<Exclude<FilterId, "all">, CategoryId[]> = {
+  food:       ["mat-dryck"],
+  stay:       ["hotell-bb"],
+  cafe:       ["cafe-bageri"],
+  shopping:   ["butiker", "hantverk-service"],
+  activities: ["aktiviteter", "natur-upplevelser", "sevardheter"],
 };
-const FILTER_IDS: FilterId[] = ["all", "food", "stay", "experiences", "shopping"];
+const FILTER_IDS: FilterId[] = ["all", "food", "stay", "cafe", "shopping", "activities"];
 
-function matchesCategory(category: string | null, dbValues: string[]): boolean {
-  if (!category) return false;
-  const c = category.trim().toLowerCase();
-  return dbValues.some((v) => {
-    const t = v.toLowerCase();
-    return c === t || c.includes(t) || t.includes(c);
-  });
+function matchesFilter(category: string | null, filter: Exclude<FilterId, "all">): boolean {
+  const def = findCategory(category);
+  return !!def && FILTER_CATEGORIES[filter].includes(def.id);
 }
 
 const TICKET_H = 190;
 const STUB_W = 58;
 const NOTCH = 28;
 
-/** Sidobandets färger på biljetten, en per kategorigrupp (guld för allt annat) */
-const GROUP_GRADIENTS: Record<FilterId | "other", [string, string]> = {
-  all:         ["#D4A84F", "#B8893A"],
-  other:       ["#D4A84F", "#B8893A"],
-  food:        ["#F59E5B", "#E5586B"],
-  stay:        ["#A98BE0", "#6F6AD8"],
-  experiences: ["#4CC9A0", "#2B8FA8"],
-  shopping:    ["#6BB0F2", "#4B6FD6"],
-};
-
-function offerGroup(category: string | null): FilterId | "other" {
-  const groups = Object.keys(FILTER_DB_VALUES) as Exclude<FilterId, "all">[];
-  return groups.find((g) => matchesCategory(category, FILTER_DB_VALUES[g])) ?? "other";
+/** Sidobandets toning: kategorins färg mot en mörkare ton, guld för okänd kategori */
+function stubColors(category: string | null): [string, string] {
+  const base = findCategory(category)?.screen ?? "#D4A84F";
+  return [base, shade(base, 0.4)];
 }
 
 const DAY_MS = 86_400_000;
@@ -94,7 +84,7 @@ export default function OffersScreen() {
   const { available, redeemed } = useMemo(() => {
     const filtered = activeFilter === "all"
       ? offers
-      : offers.filter((o) => matchesCategory(o.category, FILTER_DB_VALUES[activeFilter]));
+      : offers.filter((o) => matchesFilter(o.category, activeFilter));
 
     const withState = filtered.map((offer) => ({ offer, used: !offerEligibility(offer, redemptions).canUse }));
     // Det som snart går ut först, därefter det nyaste
@@ -257,7 +247,7 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
   const imageUrl = offer.image_url ?? offer.place?.logo_url ?? null;
   const badge = offerBadge(offer, used);
   const savings = offerSavingsLabel(offer);
-  const [from, to] = GROUP_GRADIENTS[offerGroup(offer.category)];
+  const [from, to] = stubColors(offer.category);
 
   return (
     <Pressable
