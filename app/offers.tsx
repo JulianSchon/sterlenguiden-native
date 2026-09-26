@@ -8,12 +8,11 @@
  *
  * Kategorierna är sidor bredvid varandra: man sveper åt sidan och ser nästa
  * kategori glida in medan man drar. Rubriken visar var man är, pilarna och
- * prickarna visar att det finns fler. Ett tryck på rubriken öppnar en lista
- * för att hoppa direkt. Svepet startar inte vid skärmens kant, den zonen är
- * reserverad för iOS "tillbaka".
+ * prickarna visar att det finns fler. Svepet startar inte vid skärmens kant, den zonen
+ * är reserverad för iOS "tillbaka".
  */
 import { useMemo, useState } from "react";
-import { View, Text, Image, Pressable, Modal, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
@@ -105,7 +104,6 @@ export default function OffersScreen() {
   const step = screenW - SIDE_MARGIN * 2 + PAGE_GAP;
   const translateX = useSharedValue(0);
   const [pageH, setPageH] = useState(0);
-  const [jumpOpen, setJumpOpen] = useState(false);
   const filterIndex = FILTER_IDS.indexOf(activeFilter);
 
   // Nya sidan är den aktuella i flödet, så förskjutningen nollas i samma veva
@@ -226,7 +224,6 @@ export default function OffersScreen() {
             index={filterIndex}
             labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
             onStep={(dir) => slideTo(dir, 220)}
-            onOpenList={() => setJumpOpen(true)}
           />
 
           <GestureDetector gesture={swipe}>
@@ -251,13 +248,6 @@ export default function OffersScreen() {
             </Animated.View>
           </GestureDetector>
 
-          <JumpList
-            visible={jumpOpen}
-            labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
-            activeIndex={filterIndex}
-            onPick={(i) => { setJumpOpen(false); goTo(i); }}
-            onClose={() => setJumpOpen(false)}
-          />
         </>
       )}
 
@@ -298,11 +288,11 @@ function OfferPage({ data, onOpen }: { data: PageData; onOpen: (placeId: number)
 
 /**
  * ‹ ── NAMN ── › (linjerna som kortdesignen i Utseende) med prickar under. Pilarna är
- * för den som inte hittar svepet; de försvinner i ändarna. Namnet öppnar hopplistan.
+ * för den som inte hittar svepet; de försvinner i ändarna.
  */
 function CategoryHeader({
-  index, labels, onStep, onOpenList,
-}: { index: number; labels: string[]; onStep: (dir: 1 | -1) => void; onOpenList: () => void }) {
+  index, labels, onStep,
+}: { index: number; labels: string[]; onStep: (dir: 1 | -1) => void }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const arrow = (dir: 1 | -1) => {
@@ -318,11 +308,11 @@ function CategoryHeader({
     <View style={s.catHeader}>
       <View style={s.catRow}>
         {arrow(-1)}
-        <Pressable onPress={onOpenList} hitSlop={8} style={s.catMiddle}>
+        <View style={s.catMiddle}>
           <View style={s.rule} />
           <Text style={s.catTitle} numberOfLines={1}>{labels[index].toUpperCase()}</Text>
           <View style={s.rule} />
-        </Pressable>
+        </View>
         {arrow(1)}
       </View>
       <View style={s.dots}>
@@ -331,28 +321,6 @@ function CategoryHeader({
         ))}
       </View>
     </View>
-  );
-}
-
-/** Genväg: alla kategorier i en lista, för att hoppa direkt utan att svepa igenom de emellan */
-function JumpList({
-  visible, labels, activeIndex, onPick, onClose,
-}: { visible: boolean; labels: string[]; activeIndex: number; onPick: (i: number) => void; onClose: () => void }) {
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.jumpBackdrop} onPress={onClose}>
-        <View style={s.jumpSheet}>
-          {labels.map((label, i) => (
-            <Pressable key={label} onPress={() => onPick(i)} style={s.jumpRow}>
-              <Text style={[s.jumpText, i === activeIndex && { color: colors.goldText }]}>{label}</Text>
-              {i === activeIndex && <Check size={16} color={colors.goldText} strokeWidth={2.5} />}
-            </Pressable>
-          ))}
-        </View>
-      </Pressable>
-    </Modal>
   );
 }
 
@@ -500,14 +468,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   pageContent: { gap: 22, minHeight: 360 },
   // Grannsidan ligger utanför skärmen i sidled och klipps till aktuella sidans höjd
   neighbour: { position: "absolute", top: 0, width: "100%", overflow: "hidden" },
-
-  jumpBackdrop: { flex: 1, backgroundColor: c.overlay, alignItems: "center", justifyContent: "center", padding: 32 },
-  jumpSheet: {
-    width: "100%", maxWidth: 340, borderRadius: 20, paddingVertical: 8,
-    backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
-  },
-  jumpRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 22, paddingVertical: 15 },
-  jumpText: { fontFamily: "Montserrat_500Medium", fontSize: 15, letterSpacing: -0.3, color: c.text },
 
   section: { gap: 12 },
   sectionTitle: {
