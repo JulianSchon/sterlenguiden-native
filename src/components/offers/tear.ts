@@ -13,20 +13,22 @@ export const EDGE_STROKE = 1;     // linjetjockleken på kanten som blir kvar p�
 const JAGS = [0.9, 0.4, 1, 0.55, 0.8, 0.3, 1, 0.65];
 
 /**
- * Bandets form med hackig högerkant. `amp` 0 ger en rak kant. `inset` flyttar kanten inåt (den vita
- * kantens bredd). `progress` (0–1) är hur långt rivningen kommit: den går underifrån och uppåt,
- * så tänderna dyker upp från botten och vidare upp.
+ * Bandets form. Högerkanten är motstycket till den kant som blir kvar på biljetten (samma tänder,
+ * samma kurvor), så bandet passar i den när det sätts tillbaka: där biljetten saknar bild sticker
+ * bandet ut. `amp` 0 ger en rak kant, `edgeOut` är hur långt utanför den raka kanten linjen ligger,
+ * `inset` flyttar kanten inåt (den vita kantens bredd). `progress` (0–1) är hur långt rivningen
+ * kommit: den går underifrån och uppåt, så tänderna dyker upp från botten och vidare upp.
  */
-export function tornBandPath(w: number, h: number, amp: number, inset: number, progress: number): SkPath {
+export function tornBandPath(w: number, h: number, amp: number, inset: number, progress: number, edgeOut: number): SkPath {
   "worklet";
   const path = Skia.Path.Make();
   path.moveTo(0, 0);
-  path.lineTo(w - inset, 0);
-  let prevX = w - inset;
+  path.lineTo(w + edgeOut - inset, 0);
+  let prevX = w + edgeOut - inset;
   for (let i = 1; i <= TEAR_TEETH; i++) {
     const y = (h * i) / TEAR_TEETH;
     const torn = Math.min(1, Math.max(0, progress * TEAR_TEETH - (TEAR_TEETH - i) + 1));
-    const x = w - inset - (i % 2 === 1 ? amp * JAGS[i % JAGS.length] * torn : 0);
+    const x = w + edgeOut - inset + (i % 2 === 1 ? amp * JAGS[i % JAGS.length] * torn : 0);
     // Kurva i stället för rak linje: kanten blir böljande som rivet papper, inte en sågkant
     path.quadTo(prevX, y - h / TEAR_TEETH / 2, x, y);
     prevX = x;

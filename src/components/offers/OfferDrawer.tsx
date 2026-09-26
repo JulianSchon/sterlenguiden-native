@@ -42,7 +42,7 @@ import type { ThemeColors } from "@/theme/colors";
 import { HoldToActivate } from "./HoldToActivate";
 import { OfferConfirmDialog } from "./OfferConfirmDialog";
 import { ActiveOfferView } from "./ActiveOfferView";
-import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE } from "./tear";
+import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE, EDGE_STROKE } from "./tear";
 
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
 export interface OriginRect { x: number; y: number; w: number; h: number }
@@ -193,8 +193,11 @@ export function OfferDrawer({
   // tear: hur mycket rivkant som syns (0 på biljetten, växer när det rivs, försvinner när bandet blir rakt)
   const tear = useDerivedValue(() => 1 - m.value);
   // Hur långt rivningen kommit, underifrån och upp
-  const tearProgress = useDerivedValue(() => interpolate(p.value, [0, 0.13], [0, 1], "clamp"));
-  const fringe = useDerivedValue(() => TEAR_FRINGE * tear.value * interpolate(p.value, [0, 0.06], [0, 1], "clamp"));
+  // Vid stängning ligger kanten kvar hela vägen, så bandet passar i biljettens rivna kant när det sätts tillbaka
+  const tearProgress = useDerivedValue(() => (closing.value ? 1 : interpolate(p.value, [0, 0.13], [0, 1], "clamp")));
+  const edgeGrow = useDerivedValue(() => (closing.value ? 1 : interpolate(p.value, [0, 0.06], [0, 1], "clamp")));
+  const fringe = useDerivedValue(() => TEAR_FRINGE * tear.value * edgeGrow.value);
+  const edgeOut = useDerivedValue(() => EDGE_STROKE * tear.value * edgeGrow.value);
   // Rivningen: bandet svänger ut kring sin övre kant, med ett darr som tar slut när det kommit loss
   const tilt = useDerivedValue(() => {
     const swing = interpolate(p.value, [0, 0.12, 0.22, RIP_END + 0.04], [0, 11, 8, 0], "clamp");
@@ -207,8 +210,8 @@ export function OfferDrawer({
   const bandH = useDerivedValue(() => oh.value + (BAND_H - oh.value) * m.value);
   const gradEnd = useDerivedValue(() => vec(0, bandH.value));
   // Bandets form: hackig högerkant medan det rivs, med en vit papperskant utanför färgen
-  const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, 0, tearProgress.value));
-  const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, fringe.value, tearProgress.value));
+  const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, 0, tearProgress.value, edgeOut.value));
+  const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, fringe.value, tearProgress.value, edgeOut.value));
   // Ett glansstråk som svepar över bandet när det landar (och tillbaka när det lyfts iväg)
   const glintX = useDerivedValue(() => interpolate(p.value, [0.84, 1], [-GLINT_W, bandW.value + GLINT_W * 0.3], "clamp"));
   const glintStart = useDerivedValue(() => vec(glintX.value, 0));
@@ -220,7 +223,8 @@ export function OfferDrawer({
   const bandStyle = useAnimatedStyle(() => ({
     left: ox.value + (0 - ox.value) * m.value + pullX.value,
     top: oy.value + (bandTop - oy.value) * m.value + pullY.value,
-    width: bandW.value,
+    // Extra bredd åt höger så tänderna som sticker ut ur bandet inte klipps
+    width: bandW.value + (TEAR_DEPTH + EDGE_STROKE + 1) * tear.value,
     height: bandH.value,
     borderTopLeftRadius: STUB_RADIUS + (BAND_RADIUS - STUB_RADIUS) * m.value,
     borderBottomLeftRadius: STUB_RADIUS * (1 - m.value),
