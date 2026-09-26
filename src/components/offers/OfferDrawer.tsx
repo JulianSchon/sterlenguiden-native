@@ -11,8 +11,9 @@
  * Lagret måste ligga som barn direkt under en helskärmsyta (se SettingsScreen `overlay`).
  * Rivningen har tre delar: bandet lossnar underifrån (svänger ut kring sin övre kant med en
  * hackig, vit rivkant och små vibrationer som ett riktigt ryck), flyger sedan till toppen och
- * vrids, och sist glider panelen upp. Hela rörelsen styrs av ett enda tal, `p` (0 = biljetten, 1 = öppen panel), som också är
- * det man drar i när man sveper panelen nedåt: man backar bokstavligen animationen.
+ * vrids, och sist glider panelen upp. Hela rörelsen styrs av ett enda tal, `p` (0 = biljetten,
+ * 1 = öppen panel). Panelen stängs bara med krysset: att svepa den nedåt lät en dra runt hela
+ * animationen med fingret och fick temposkiftena att kännas fel.
  *
  * Här kopplas också aktiveringskedjan ihop: håll-inne-knapp → bekräftelseruta → 60-sekundersskärm.
  * Panelen går medvetet inte att stänga medan bekräftelse- eller aktiv vy ligger ovanpå.
@@ -20,10 +21,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Image, ScrollView, Pressable, StyleSheet, useWindowDimensions } from "react-native";
 import Animated, {
-  Easing, cancelAnimation, useAnimatedReaction, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
-  withSpring, withTiming, type SharedValue,
+  Easing, useAnimatedReaction, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
+  withTiming, type SharedValue,
 } from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
   Canvas, Path, Rect, Group, Image as SkiaImage, LinearGradient, Skia, vec, type SkImage,
 } from "@shopify/react-native-skia";
@@ -70,7 +70,6 @@ const OPEN_MS = 1700;
 const CLOSE_MS = 1200;
 const RIP_END = 0.3;       // så stor del av öppningen som är själva rivningen
 const RIP_TICKS = 9;       // små vibrationer under rivningen
-const COMMIT_P = 0.6;      // dras panelen så här långt ner tar den över och stänger sig själv, fingret behövs inte mer
 const ease = Easing.bezier(0.3, 0, 0.2, 1);
 const easeOut = Easing.out(Easing.cubic);
 
@@ -127,11 +126,6 @@ export function OfferDrawer({
 
   // ── Animationen ──
   const p = useSharedValue(0);
-  const startP = useSharedValue(0);
-  const committed = useSharedValue(false);
-  // Panelen följer fingret 1:1: sträckan den glider (halva animationen, p 1 → 0,5) är lika lång som fingerns
-  const dragRange = useSharedValue(1);
-  useEffect(() => { dragRange.value = 2 * (screenH - sheetTop); }, [screenH, sheetTop]);
   const ready = useSharedValue(0);
   const vert = useSharedValue(0);
   const ox = useSharedValue(0);
@@ -185,38 +179,6 @@ export function OfferDrawer({
       if (done) runOnJS(finishClose)();
     });
   };
-
-  // Svep nedåt backar animationen i takt med fingret
-  const makePan = () => Gesture.Pan()
-    .activeOffsetY([-8, 8])
-    .failOffsetX([-30, 30])
-    .onStart(() => { cancelAnimation(p); startP.value = p.value; committed.value = false; closing.value = true; })
-    .onUpdate((e) => {
-      if (lockedSV.value || committed.value) return;
-      const next = Math.min(1, Math.max(0, startP.value - e.translationY / dragRange.value));
-      if (next < COMMIT_P) {
-        // Långt nog: panelen stänger sig själv, så man inte kan dra runt hela animationen långsamt med fingret
-        committed.value = true;
-        // Tar över med fart från början (inte långsam start), eftersom fingret redan rört sig
-        p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * next), easing: easeOut }, (done) => {
-          if (done) runOnJS(finishClose)();
-        });
-        return;
-      }
-      p.value = next;
-    })
-    .onEnd((e) => {
-      if (committed.value) return;
-      if (lockedSV.value || (p.value >= 0.72 && e.velocityY <= 900)) {
-        p.value = withSpring(1, { damping: 18, stiffness: 180 });
-        return;
-      }
-      p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * p.value), easing: ease }, (done) => {
-        if (done) runOnJS(finishClose)();
-      });
-    });
-  const bandPan = useMemo(makePan, []);
-  const headerPan = useMemo(makePan, []);
 
   // m: bandets resa från biljetten till panelens topp. rip: det korta ryck när det rivs loss.
   const m = useDerivedValue(() => easeOut(interpolate(p.value, [RIP_END, 0.82], [0, 1], "clamp")));
@@ -305,7 +267,7 @@ export function OfferDrawer({
   const closeStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0.85, 1], [0, 1], "clamp") }));
 
   const sheetStyle = useAnimatedStyle(() => {
-    const sp = interpolate(p.value, [0.5, 1], [0, 1], "clamp");
+    const sp = easeOut(interpolate(p.value, [0.5, 1], [0, 1], "clamp"));
     return { transform: [{ translateY: (1 - sp) * (screenH - sheetTop) }] };
   });
 
@@ -328,31 +290,28 @@ export function OfferDrawer({
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { zIndex: 50 }, rootStyle]}>
-      <Animated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
-      </Animated.View>
+      {/* Bakgrunden fångar tryck (så listan bakom inte reagerar) men stänger inte: bara krysset stänger */}
+      <Animated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
 
       {/* Panelen under bandet */}
       <Animated.View style={[s.sheet, { top: sheetTop, paddingBottom: insets.bottom + 12 }, sheetStyle]}>
-        <GestureDetector gesture={headerPan}>
-          <View style={s.header}>
-            <View style={s.logoCircle}>
-              {place?.logo_url ? (
-                <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
-              ) : (
-                <Text style={s.logoFallback}>{(place?.name ?? "?").charAt(0).toUpperCase()}</Text>
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.placeName} numberOfLines={1}>{place?.name ?? t("offers.drawer.place")}</Text>
-              <Text style={s.offerCount}>
-                {offers.length === 1
-                  ? t("offers.drawer.countOne")
-                  : t("offers.drawer.count", { count: offers.length })}
-              </Text>
-            </View>
+        <View style={s.header}>
+          <View style={s.logoCircle}>
+            {place?.logo_url ? (
+              <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
+            ) : (
+              <Text style={s.logoFallback}>{(place?.name ?? "?").charAt(0).toUpperCase()}</Text>
+            )}
           </View>
-        </GestureDetector>
+          <View style={{ flex: 1 }}>
+            <Text style={s.placeName} numberOfLines={1}>{place?.name ?? t("offers.drawer.place")}</Text>
+            <Text style={s.offerCount}>
+              {offers.length === 1
+                ? t("offers.drawer.countOne")
+                : t("offers.drawer.count", { count: offers.length })}
+            </Text>
+          </View>
+        </View>
 
         <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
           {offers.map((offer, i) => (
@@ -380,35 +339,33 @@ export function OfferDrawer({
 
       <TearScraps p={p} vert={vert} closing={closing} ox={ox} oy={oy} ow={ow} oh={oh} image={scrapImage ?? null} bodyW={screenW - SIDE_MARGIN * 2 - STUB_W} />
 
-      <GestureDetector gesture={bandPan}>
-        <Animated.View style={[s.band, bandStyle]}>
-          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Path path={paperPath} color="#F4F0E6" />
-            <Path path={colorPath}>
-              <LinearGradient start={vec(0, 0)} end={gradEnd} colors={[gradFrom, gradTo]} />
-            </Path>
-            <Rect x={glintX} y={0} width={GLINT_W} height={bandH}>
-              <LinearGradient
-                start={glintStart}
-                end={glintEnd}
-                colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.42)", "rgba(255,255,255,0)"]}
-              />
-            </Rect>
-          </Canvas>
-          <Animated.View style={[s.bandIcon, iconStyleStub]} pointerEvents="none">
-            <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
-          </Animated.View>
-          <Animated.View style={[s.bandIcon, { left: 22, top: BAND_H / 2 - 9 }, iconStyleBand]} pointerEvents="none">
-            <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
-          </Animated.View>
-          <Animated.Text style={[s.bandLabel, labelStyle]} numberOfLines={1}>{label}</Animated.Text>
-          <Animated.View style={[s.closeBtn, closeStyle]}>
-            <Pressable onPress={requestClose} hitSlop={12} disabled={locked}>
-              <X size={20} color="#FFFFFF" strokeWidth={2} />
-            </Pressable>
-          </Animated.View>
+      <Animated.View style={[s.band, bandStyle]}>
+        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Path path={paperPath} color="#F4F0E6" />
+          <Path path={colorPath}>
+            <LinearGradient start={vec(0, 0)} end={gradEnd} colors={[gradFrom, gradTo]} />
+          </Path>
+          <Rect x={glintX} y={0} width={GLINT_W} height={bandH}>
+            <LinearGradient
+              start={glintStart}
+              end={glintEnd}
+              colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.42)", "rgba(255,255,255,0)"]}
+            />
+          </Rect>
+        </Canvas>
+        <Animated.View style={[s.bandIcon, iconStyleStub]} pointerEvents="none">
+          <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
         </Animated.View>
-      </GestureDetector>
+        <Animated.View style={[s.bandIcon, { left: 22, top: BAND_H / 2 - 9 }, iconStyleBand]} pointerEvents="none">
+          <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
+        </Animated.View>
+        <Animated.Text style={[s.bandLabel, labelStyle]} numberOfLines={1}>{label}</Animated.Text>
+        <Animated.View style={[s.closeBtn, closeStyle]}>
+          <Pressable onPress={requestClose} hitSlop={12} disabled={locked}>
+            <X size={20} color="#FFFFFF" strokeWidth={2} />
+          </Pressable>
+        </Animated.View>
+      </Animated.View>
 
       {/* Överläggen ligger inuti det här lagret så att de täcker hela skärmen */}
       <OfferConfirmDialog
