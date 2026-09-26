@@ -11,7 +11,7 @@ import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Clock, Crown } from "lucide-react-native";
-import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
+import { Canvas, Fill, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
@@ -239,6 +239,17 @@ function HowItWorks() {
 
 // ─── Ett erbjudandekort i listan ─────────────────────────────────────────────
 
+/** Lodrät toning över hela biljettens höjd (den är fast, så Skia behöver inte mäta något) */
+function VerticalGradient({ colors }: { colors: string[] }) {
+  return (
+    <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Fill>
+        <LinearGradient start={vec(0, 0)} end={vec(0, TICKET_H)} colors={colors} />
+      </Fill>
+    </Canvas>
+  );
+}
+
 function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; onPress: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -247,7 +258,6 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
   const badge = offerBadge(offer, used);
   const savings = offerSavingsLabel(offer);
   const [from, to] = GROUP_GRADIENTS[offerGroup(offer.category)];
-  const gradId = `stub${offer.id}`;
 
   return (
     <Pressable
@@ -256,15 +266,7 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
     >
       {/* Sidoband i kategorins färg, kategorin skriven på högkant */}
       <View style={s.stub}>
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-          <Defs>
-            <SvgGrad id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={from} />
-              <Stop offset="100%" stopColor={to} />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill={`url(#${gradId})`} />
-        </Svg>
+        <VerticalGradient colors={[from, to]} />
         <Text style={s.stubText} numberOfLines={1}>{offer.category ?? "Österlen"}</Text>
       </View>
 
@@ -272,16 +274,7 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
         {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
 
         {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-          <Defs>
-            <SvgGrad id={`fade${offer.id}`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor="#06060A" stopOpacity={0.15} />
-              <Stop offset="55%"  stopColor="#06060A" stopOpacity={0.3} />
-              <Stop offset="100%" stopColor="#06060A" stopOpacity={0.88} />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill={`url(#fade${offer.id})`} />
-        </Svg>
+        <VerticalGradient colors={["rgba(6,6,10,0.15)", "rgba(6,6,10,0.3)", "rgba(6,6,10,0.88)"]} />
 
         {badge && (
           <View style={s.badge}>
