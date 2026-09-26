@@ -2,16 +2,13 @@
  * CategoryChips — delad pill-rad för kategorifilter.
  * Används av Förmåner och Favoriter, exakt samma utseende på båda.
  *
- * Aktiv: solid guld (ingen gradient — provades, blev inte snyggt).
- * Inaktiv: mörkgrå med ljusgrå text. Tryck: scale(0.95), ingen annan animation.
+ * Aktiv: solid guld. Inaktiv: dämpad yta med dämpad text. Tryck: scale(0.95).
+ * Färgerna följer temat. `inset` är sidomarginalen så raden kan gå kant i kant
+ * på en sida som har egen marginal.
  */
 import { Pressable, Text, ScrollView, StyleSheet } from "react-native";
-
-const GOLD         = "#C5A059";
-const CHIP_DARK    = "#0B0B0D";
-const IDLE_BG      = "#242424";
-const IDLE_BORDER  = "rgba(255,255,255,0.08)";
-const IDLE_FG      = "rgba(255,255,255,0.55)";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
 export interface ChipDef {
   id: string;
@@ -22,17 +19,20 @@ export function CategoryChips({
   chips,
   activeId,
   onChange,
+  inset = 20,
 }: {
   chips: ChipDef[];
   activeId: string;
   onChange: (id: string) => void;
+  inset?: number;
 }) {
+  const s = useThemedStyles(createStyles);
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       style={s.scroll}
-      contentContainerStyle={s.content}
+      contentContainerStyle={[s.content, { paddingHorizontal: inset }]}
     >
       {chips.map((c) => {
         const active = c.id === activeId;
@@ -54,9 +54,9 @@ export function CategoryChips({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   scroll: { flexGrow: 0, height: 46 },
-  content: { paddingHorizontal: 20, gap: 8, flexDirection: "row" },
+  content: { gap: 8, flexDirection: "row" },
   chip: {
     flexShrink: 0,
     justifyContent: "center",
@@ -68,19 +68,19 @@ const s = StyleSheet.create({
     borderRadius: 9999,
   },
   chipActive: {
-    backgroundColor: GOLD,
-    shadowColor: GOLD,
+    backgroundColor: c.gold,
+    shadowColor: c.gold,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 6,
   },
   chipIdle: {
-    backgroundColor: IDLE_BG,
+    backgroundColor: c.fill,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: IDLE_BORDER,
+    borderColor: c.borderStrong,
   },
   text: { fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 16 },
-  textActive: { color: CHIP_DARK },
-  textIdle: { color: IDLE_FG },
+  textActive: { color: c.onGold },
+  textIdle: { color: c.muted },
 });

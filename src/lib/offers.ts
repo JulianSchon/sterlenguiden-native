@@ -5,6 +5,7 @@
  * (native-offers-spec.md §2) och måste bete sig exakt likadant där,
  * annars kan samma erbjudande lösas in olika många gånger på webb vs app.
  */
+import i18n from "i18next";
 
 export type RedemptionInterval = "once" | "daily" | "weekly" | "monthly" | "unlimited";
 
@@ -72,15 +73,15 @@ export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibili
   const limit = offer.redemption_limit ?? (interval === "once" ? 1 : null);
 
   const ruleLabel =
-    interval === "once"    ? "Kan användas en gång" :
-    interval === "daily"   ? "Kan användas en gång per dag" :
-    interval === "weekly"  ? "Kan användas en gång per vecka" :
-    interval === "monthly" ? "Kan användas en gång per månad" :
-    limit                  ? `Kan användas ${limit} gånger` :
-                             "Kan användas flera gånger";
+    interval === "once"    ? i18n.t("offers.rule.once") :
+    interval === "daily"   ? i18n.t("offers.rule.daily") :
+    interval === "weekly"  ? i18n.t("offers.rule.weekly") :
+    interval === "monthly" ? i18n.t("offers.rule.monthly") :
+    limit                  ? i18n.t("offers.rule.times", { n: limit }) :
+                             i18n.t("offers.rule.many");
 
   if (limit != null && usedCount >= limit) {
-    return { used: true, canUse: false, usedCount, reason: "Du har redan använt detta erbjudande", ruleLabel };
+    return { used: true, canUse: false, usedCount, reason: i18n.t("offers.reason.used"), ruleLabel };
   }
 
   const windowMs = INTERVAL_MS[interval];
@@ -88,56 +89,19 @@ export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibili
     const nextAt = +new Date(mine[0].activated_at) + windowMs;
     if (Date.now() < nextAt) {
       const hours = Math.ceil((nextAt - Date.now()) / 3_600_000);
-      const wait = hours >= 24 ? `${Math.ceil(hours / 24)} dagar` : `${hours} timmar`;
-      return { used: true, canUse: false, usedCount, reason: `Kan användas igen om ${wait}`, ruleLabel };
+      const reason = hours >= 24
+        ? i18n.t("offers.reason.againDays", { n: Math.ceil(hours / 24) })
+        : i18n.t("offers.reason.againHours", { n: hours });
+      return { used: true, canUse: false, usedCount, reason, ruleLabel };
     }
   }
 
   return { used: usedCount > 0, canUse: true, usedCount, reason: null, ruleLabel };
 }
 
-// ─── Värdeberäkning ───────────────────────────────────────────────────────────
-
-const AMOUNT_RE  = /(\d[\d\s]*)\s*(kr|:-|sek)/;
-const PERCENT_RE = /(\d{1,2})\s*%/;
-const FREEBIE_RE = /2 för 1|två för en|gratis|fri entré|fri frakt/;
-
-/**
- * Gissar vad ett erbjudande är värt i kronor. Används för "Spara upp till"-
- * siffran på förmånssidan, så det behöver vara rimligt — inte exakt.
- */
-export function estimateOfferValue(offer: Offer): number {
-  if (offer.savings_value && offer.savings_value > 0) return offer.savings_value;
-
-  const text = [offer.savings_label, offer.title, offer.description]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const amount = text.match(AMOUNT_RE);
-  if (amount) {
-    const kr = parseInt(amount[1].replace(/\s/g, ""), 10);
-    if (kr > 0) return Math.min(kr, 5000);
-  }
-
-  const percent = text.match(PERCENT_RE);
-  if (percent) {
-    const pct = parseInt(percent[1], 10);
-    if (pct > 0) return Math.round((500 * pct) / 100);
-  }
-
-  if (FREEBIE_RE.test(text)) return 150;
-
-  return 120;
-}
-
-export function formatKr(value: number): string {
-  return `${value.toLocaleString("sv-SE")} kr`;
-}
-
-/** Guldpillen på erbjudandekortet */
-export function offerSavingsLabel(offer: Offer): string {
-  return offer.savings_label || `Spara ${formatKr(estimateOfferValue(offer))}`;
+/** Guldpillen på erbjudandekortet: företagets egen formulering (t.ex. "20 % rabatt"), eller inget alls. */
+export function offerSavingsLabel(offer: Offer): string | null {
+  return offer.savings_label || null;
 }
 
 // ─── Filtrering ───────────────────────────────────────────────────────────────

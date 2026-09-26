@@ -7,6 +7,7 @@
  */
 import { useState } from "react";
 import { Pressable, View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Crown } from "lucide-react-native";
 import Animated, {
   useSharedValue,
@@ -19,10 +20,10 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
 const HOLD_MS = 1000;
-const GOLD    = "#C5A059";
-const GOLD_LT = "#E8C674";
 
 /** Eskalerande vibration när något lyckas — används även av aktiva vyn */
 export function celebrationHaptic() {
@@ -32,6 +33,9 @@ export function celebrationHaptic() {
 }
 
 export function HoldToActivate({ onComplete }: { onComplete: () => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const h = useThemedStyles(createStyles);
   const progress = useSharedValue(0);
   const pressed  = useSharedValue(0);
   const [holding, setHolding] = useState(false);
@@ -82,7 +86,7 @@ export function HoldToActivate({ onComplete }: { onComplete: () => void }) {
 
   // Texten går från guld till mörk först när fyllnaden hunnit under den
   const labelStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 0.55, 0.75], [GOLD_LT, GOLD_LT, "#0B0B0D"]),
+    color: interpolateColor(progress.value, [0, 0.55, 0.75], [colors.goldText, colors.goldText, colors.onGold]),
   }));
 
   const crownStyle = useAnimatedStyle(() => ({
@@ -101,10 +105,10 @@ export function HoldToActivate({ onComplete }: { onComplete: () => void }) {
         <Animated.View style={[h.fill, fillStyle]} pointerEvents="none" />
         <View style={h.row}>
           <Animated.View style={crownStyle}>
-            <Crown size={15} color={GOLD_LT} strokeWidth={2} />
+            <Crown size={15} color={colors.goldText} strokeWidth={2} />
           </Animated.View>
           <Animated.Text style={[h.label, labelStyle]}>
-            {holding ? "Håll inne…" : "Håll inne för att aktivera"}
+            {holding ? t("offers.hold.holding") : t("offers.hold.idle")}
           </Animated.Text>
         </View>
       </Pressable>
@@ -112,18 +116,18 @@ export function HoldToActivate({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-const h = StyleSheet.create({
-  // Mörk insida med guldkant — fyllnaden är det enda guldiga tills man håller
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  // Dämpad insida med guldkant — fyllnaden är det enda guldiga tills man håller
   wrap: {
     height: 52,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: c.fill,
     borderWidth: 1,
-    borderColor: "rgba(197,160,89,0.55)",
+    borderColor: c.goldBorder,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.3,
     shadowRadius: 14,
     elevation: 5,
   },
@@ -135,7 +139,7 @@ const h = StyleSheet.create({
   fill: {
     position: "absolute",
     left: 0, top: 0, bottom: 0,
-    backgroundColor: GOLD_LT,
+    backgroundColor: c.gold,
   },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   label: {
