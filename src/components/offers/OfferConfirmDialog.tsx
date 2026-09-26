@@ -6,11 +6,10 @@
  * skriven för att få folk att vänta tills de faktiskt står vid kassan.
  * Färger och text följer tema och språk.
  */
-import { useEffect, useRef } from "react";
-import { View, Text, Pressable, StyleSheet, Animated, Dimensions } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, Image, Pressable, StyleSheet, Animated, Dimensions } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Crown } from "lucide-react-native";
-import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
+import { Canvas, RoundedRect, LinearGradient, RadialGradient, vec } from "@shopify/react-native-skia";
 import { ACTIVE_SECS } from "@/lib/offers";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -33,6 +32,7 @@ export function OfferConfirmDialog({
   const { colors } = useTheme();
   const d = useThemedStyles(createStyles);
   const anim = useRef(new Animated.Value(0)).current;
+  const [box, setBox] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     if (visible) {
@@ -59,19 +59,27 @@ export function OfferConfirmDialog({
 
   return (
     <View style={d.overlay}>
-      <Animated.View style={[d.card, cardStyle]}>
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <SvgGrad id="confirmBg" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={colors.cardTop} />
-              <Stop offset="100%" stopColor={colors.cardBottom} />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#confirmBg)" />
-        </Svg>
+      <Animated.View
+        style={[d.card, cardStyle]}
+        onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      >
+        {/* Bakgrund i Skia: gradient, ett gyllene sken uppe till vänster och en kant som tonar ut */}
+        {box.w > 0 && (
+          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            <RoundedRect x={0} y={0} width={box.w} height={box.h} r={24}>
+              <LinearGradient start={vec(0, 0)} end={vec(0, box.h)} colors={[colors.cardTop, colors.cardBottom]} />
+            </RoundedRect>
+            <RoundedRect x={0} y={0} width={box.w} height={box.h} r={24}>
+              <RadialGradient c={vec(50, 40)} r={box.w * 0.8} colors={["rgba(212,168,79,0.18)", "rgba(212,168,79,0)"]} />
+            </RoundedRect>
+            <RoundedRect x={0.75} y={0.75} width={box.w - 1.5} height={box.h - 1.5} r={23.25} style="stroke" strokeWidth={1.5}>
+              <LinearGradient start={vec(0, 0)} end={vec(box.w, box.h)} colors={["rgba(232,198,116,0.7)", "rgba(232,198,116,0.12)", "rgba(232,198,116,0.3)"]} />
+            </RoundedRect>
+          </Canvas>
+        )}
 
-        <View style={d.crownCircle}>
-          <Crown size={20} color={colors.goldText} strokeWidth={2} />
+        <View style={d.logoCircle}>
+          <Image source={require("../../../assets/Osterlenappen-logo.png")} style={d.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
         </View>
 
         <Text style={d.title}>{t("offers.confirm.title")}</Text>
@@ -106,21 +114,19 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     width: CARD_W,
     borderRadius: 24,
     padding: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: c.goldBorder,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 30 },
     shadowOpacity: 0.5,
     shadowRadius: 40,
     elevation: 24,
   },
-  crownCircle: {
-    width: 40, height: 40, borderRadius: 20,
+  logoCircle: {
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: c.goldSoft,
     alignItems: "center", justifyContent: "center",
     marginBottom: 14,
   },
+  logo: { width: 30, height: 34 },
   title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.text, marginBottom: 8 },
   body: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, color: c.muted, marginBottom: 20 },
   buttonRow: { flexDirection: "row", gap: 10 },
