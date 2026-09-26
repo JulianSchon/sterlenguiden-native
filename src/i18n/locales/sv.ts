@@ -303,6 +303,7 @@ export const sv = {
     saveUpTo: "Spara upp till {{amount}}",
     saveUpToWithPass: "Spara upp till {{amount}} med Österlenpasset",
     member: "Medlem",
+    until: "Till {{date}}",
     notMember: "Ej medlem",
     how: {
       hold: "Håll inne",

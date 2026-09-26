@@ -20,7 +20,7 @@ import Animated, {
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Clock, Crown, ChevronLeft, ChevronRight } from "lucide-react-native";
-import { Canvas, Fill, LinearGradient, vec } from "@shopify/react-native-skia";
+import { Canvas, Fill, LinearGradient, Line, DashPathEffect, vec } from "@shopify/react-native-skia";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
@@ -32,6 +32,7 @@ import {
 import { OfferDrawer } from "@/components/offers/OfferDrawer";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { findCategory, shade, type CategoryId } from "@/theme/categories";
+import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -402,6 +403,17 @@ function VerticalGradient({ colors }: { colors: string[] }) {
   );
 }
 
+/** Perforerad linje mellan sidobandet och bilden */
+function Perforation() {
+  return (
+    <Canvas style={{ position: "absolute", left: STUB_W - 1, top: 0, width: 2, height: TICKET_H }} pointerEvents="none">
+      <Line p1={vec(1, NOTCH / 2)} p2={vec(1, TICKET_H - NOTCH / 2)} color="rgba(255,255,255,0.55)" style="stroke" strokeWidth={1.5}>
+        <DashPathEffect intervals={[3, 5]} />
+      </Line>
+    </Canvas>
+  );
+}
+
 function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; onPress: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -409,53 +421,72 @@ function OfferListCard({ offer, used, onPress }: { offer: Offer; used: boolean; 
   const imageUrl = offer.image_url ?? offer.place?.logo_url ?? null;
   const badge = offerBadge(offer, used);
   const savings = offerSavingsLabel(offer);
+  const category = findCategory(offer.category);
+  const CategoryIcon = category?.icon ?? Crown;
   const [from, to] = stubColors(offer.category);
 
   return (
+    // Yttre lagret bär skuggan, det inre klipper bilden till biljettens form (overflow: hidden tar bort skuggor)
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [s.ticket, used && s.ticketUsed, pressed && { transform: [{ scale: 0.98 }] }]}
     >
-      {/* Sidoband i kategorins färg, kategorin skriven på högkant */}
-      <View style={s.stub}>
-        <VerticalGradient colors={[from, to]} />
-        <Text style={s.stubText} numberOfLines={1}>{offer.category ?? "Österlen"}</Text>
-      </View>
-
-      <View style={s.body}>
-        {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
-
-        {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
-        <VerticalGradient colors={["rgba(6,6,10,0.15)", "rgba(6,6,10,0.3)", "rgba(6,6,10,0.88)"]} />
-
-        {badge && (
-          <View style={s.badge}>
-            {badge === "redeemed" && <Check size={10} color="#E8C674" strokeWidth={2.5} />}
-            {badge === "endingSoon" && <Clock size={10} color="#E8C674" strokeWidth={2.5} />}
-            <Text style={s.badgeText}>{t(`offers.badge.${badge}`)}</Text>
+      <View style={s.ticketClip}>
+        {/* Sidoband i kategorins färg: ikon överst, kategorin på högkant under */}
+        <View style={s.stub}>
+          <VerticalGradient colors={[from, to]} />
+          <View style={s.stubIcon}>
+            <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
           </View>
-        )}
-
-        {offer.place?.logo_url && (
-          <View style={s.logoWrap}>
-            <Image source={{ uri: offer.place.logo_url }} style={s.logo} resizeMode="cover" />
+          <View style={s.stubTextZone}>
+            <Text style={s.stubText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {offer.category ?? "Österlen"}
+            </Text>
           </View>
-        )}
+        </View>
 
-        <View style={s.bottom}>
-          <Text style={s.placeName} numberOfLines={1}>{offer.place?.name ?? "Österlen"}</Text>
-          <Text style={s.dealText} numberOfLines={1}>{offer.title}</Text>
-          {savings && (
-            <View style={s.savingsPill}>
-              <Text style={s.savingsText}>{savings}</Text>
+        <View style={s.body}>
+          {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
+
+          {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
+          <VerticalGradient colors={["rgba(6,6,10,0.15)", "rgba(6,6,10,0.3)", "rgba(6,6,10,0.88)"]} />
+
+          {badge && (
+            <View style={s.badge}>
+              {badge === "redeemed" && <Check size={10} color="#E8C674" strokeWidth={2.5} />}
+              {badge === "endingSoon" && <Clock size={10} color="#E8C674" strokeWidth={2.5} />}
+              <Text style={s.badgeText}>{t(`offers.badge.${badge}`)}</Text>
             </View>
           )}
-        </View>
-      </View>
 
-      {/* Hack ur biljetten: halvcirklar i sidans färg mitt på varje kortsida */}
-      <View style={[s.notch, s.notchLeft, { backgroundColor: colors.bg }]} />
-      <View style={[s.notch, s.notchRight, { backgroundColor: colors.bg }]} />
+          {offer.place?.logo_url && (
+            <View style={s.logoWrap}>
+              <Image source={{ uri: offer.place.logo_url }} style={s.logo} resizeMode="cover" />
+            </View>
+          )}
+
+          <View style={s.bottom}>
+            <Text style={s.placeName} numberOfLines={1}>{offer.place?.name ?? "Österlen"}</Text>
+            <Text style={s.dealText} numberOfLines={1}>{offer.title}</Text>
+            <View style={s.bottomRow}>
+              {savings ? (
+                <View style={s.savingsPill}>
+                  <Text style={s.savingsText}>{savings}</Text>
+                </View>
+              ) : <View />}
+              {offer.expires_at && (
+                <Text style={s.until}>{t("offers.until", { date: formatDate(offer.expires_at, "d MMM") })}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        <Perforation />
+
+        {/* Hack ur biljetten: halvcirklar i sidans färg mitt på varje kortsida */}
+        <View style={[s.notch, s.notchLeft, { backgroundColor: colors.bg }]} />
+        <View style={[s.notch, s.notchRight, { backgroundColor: colors.bg }]} />
+      </View>
     </Pressable>
   );
 }
@@ -516,16 +547,21 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   statusText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: c.muted },
 
   ticket: {
-    flexDirection: "row", height: TICKET_H, borderRadius: 18, overflow: "hidden",
-    backgroundColor: c.tile,
+    height: TICKET_H, borderRadius: 18, backgroundColor: c.tile,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 14, elevation: 6,
+  },
+  ticketClip: {
+    flex: 1, flexDirection: "row", borderRadius: 18, overflow: "hidden",
     borderWidth: StyleSheet.hairlineWidth, borderColor: c.tileBorder,
   },
   ticketUsed: { opacity: 0.55 },
-  stub: { width: STUB_W, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  // Bredden är biljettens höjd så texten får plats efter rotationen
+  stub: { width: STUB_W, alignItems: "center", overflow: "hidden" },
+  stubIcon: { height: 50, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 },
+  stubTextZone: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", paddingBottom: 14 },
+  // Bredden är zonens höjd så texten får plats efter rotationen
   stubText: {
-    width: TICKET_H, textAlign: "center", transform: [{ rotate: "-90deg" }],
-    fontFamily: "Montserrat_700Bold", fontSize: 12, letterSpacing: 2.2,
+    width: TICKET_H - 76, textAlign: "center", transform: [{ rotate: "-90deg" }],
+    fontFamily: "Montserrat_700Bold", fontSize: 11.5, letterSpacing: 2,
     textTransform: "uppercase", color: "#FFFFFF",
   },
   body: { flex: 1, backgroundColor: c.tile },
@@ -548,8 +584,10 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   bottom: { position: "absolute", left: 16, right: 14, bottom: 12, gap: 1 },
   placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: "#FFFFFF" },
   dealText: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
+  bottomRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 6 },
+  until: { fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.7)" },
   savingsPill: {
-    alignSelf: "flex-start", marginTop: 6,
+    alignSelf: "flex-start",
     paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
     backgroundColor: "#E8C674",
   },

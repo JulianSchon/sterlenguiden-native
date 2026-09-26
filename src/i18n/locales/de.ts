@@ -300,6 +300,7 @@ export const de: typeof sv = {
     saveUpTo: "Spare bis zu {{amount}}",
     saveUpToWithPass: "Spare bis zu {{amount}} mit dem Österlen-Pass",
     member: "Mitglied",
+    until: "Bis {{date}}",
     notMember: "Kein Mitglied",
     how: {
       hold: "Gedrückt halten",
