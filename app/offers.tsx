@@ -15,7 +15,7 @@ import { useMemo, useRef, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, runOnJS,
+  useSharedValue, useAnimatedStyle, withTiming, cancelAnimation, runOnJS,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -106,7 +106,8 @@ export default function OffersScreen() {
   const step = pageW + PAGE_GAP;
   const [active, setActive] = useState(0);
   const offsetX = useSharedValue(0);
-  const busy = useSharedValue(false);
+  const startX = useSharedValue(0);
+  const fromEdge = useSharedValue(false);
   const [heights, setHeights] = useState<number[]>([]);
   // Sidan är minst så hög som skärmen: hela ytan går att svepa även med ett enda erbjudande,
   // och det finns alltid något att scrolla upp till rubriken på, så en kort sida inte får vyn att hoppa
@@ -119,40 +120,51 @@ export default function OffersScreen() {
     if (scrollY.current > 0) scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
-  const arrived = (index: number) => {
-    setActive(index);
-    busy.value = false;
-  };
+  const arrived = (index: number) => setActive(index);
 
-  const slideTo = (target: number, duration: number) => {
-    if (target < 0 || target >= FILTER_IDS.length || busy.value) return;
-    busy.value = true;
+  // Pilarna: glid till grannsidan
+  const slideTo = (target: number) => {
+    if (target < 0 || target >= FILTER_IDS.length) return;
     settleScroll();
-    offsetX.value = withTiming(-target * step, { duration }, (done) => {
+    offsetX.value = withTiming(-target * step, { duration: 220 }, (done) => {
       if (done) runOnJS(arrived)(target);
     });
   };
 
+  // Svepet följer fingret och går att avbryta med ett nytt svep mitt i glidet. Ett snabbt
+  // kast räknas ut med fart och når flera sidor på en gång, så man snabbt kan ta sig till ändarna.
   const swipe = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .failOffsetY([-14, 14])
+    .onStart((e) => {
+      cancelAnimation(offsetX);
+      startX.value = offsetX.value;
+      fromEdge.value = e.absoluteX - e.translationX < EDGE_ZONE;
+    })
     .onUpdate((e) => {
-      if (busy.value || e.absoluteX - e.translationX < EDGE_ZONE) return;
-      const dir = e.translationX < 0 ? 1 : -1;
-      const hasTarget = active + dir >= 0 && active + dir < FILTER_IDS.length;
-      // Motstånd i ändarna: det går att dra lite, men inget byts
-      offsetX.value = -active * step + (hasTarget ? e.translationX : e.translationX * 0.2);
+      if (fromEdge.value) return;
+      const min = -(FILTER_IDS.length - 1) * step;
+      const raw = startX.value + e.translationX;
+      // Motstånd utanför första och sista sidan
+      offsetX.value = raw > 0 ? raw * 0.2 : raw < min ? min + (raw - min) * 0.2 : raw;
     })
     .onEnd((e) => {
-      if (busy.value) return;
-      const dir = e.translationX < 0 ? 1 : -1;
-      const hasTarget = active + dir >= 0 && active + dir < FILTER_IDS.length;
-      const fastEnough = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
-      if (hasTarget && fastEnough && e.absoluteX - e.translationX >= EDGE_ZONE) {
-        runOnJS(slideTo)(active + dir, 160);
-      } else {
-        offsetX.value = withTiming(-active * step, { duration: 180 });
+      const last = FILTER_IDS.length - 1;
+      const startIdx = Math.round(-startX.value / step);
+      let target = startIdx;
+      if (!fromEdge.value) {
+        const projected = offsetX.value + e.velocityX * 0.18;
+        target = Math.min(last, Math.max(0, Math.round(-projected / step)));
+        const intent = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
+        if (target === startIdx && intent) {
+          target = Math.min(last, Math.max(0, startIdx + (e.translationX < 0 ? 1 : -1)));
+        }
       }
+      if (target !== startIdx) runOnJS(settleScroll)();
+      const pagesAway = Math.max(1, Math.abs(Math.round(-offsetX.value / step) - target));
+      offsetX.value = withTiming(-target * step, { duration: 150 + 40 * (pagesAway - 1) }, (done) => {
+        if (done) runOnJS(arrived)(target);
+      });
     });
 
   const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: offsetX.value }] }));
@@ -238,15 +250,15 @@ export default function OffersScreen() {
           <CategoryHeader
             index={active}
             labels={FILTER_IDS.map((id) => t(`offers.filters.${id}`))}
-            onStep={(dir) => slideTo(active + dir, 220)}
+            onStep={(dir) => slideTo(active + dir)}
           />
 
           <GestureDetector gesture={swipe}>
             {/* Höjden följer aktuella sidan; alla sidor ligger bredvid varandra, klippta till samma höjd */}
             <Animated.View style={[{ height: areaH }, slideStyle]}>
               {pages.map((page, i) => (
-                // Bara aktuella sidan och grannarna byggs, resten skulle bara kosta minne
-                Math.abs(i - active) <= 1 && (
+                // Alla sidor finns med hela tiden: ett snabbt kast passerar flera sidor
+                (
                   <View
                     key={FILTER_IDS[i]}
                     pointerEvents={i === active ? "auto" : "none"}
