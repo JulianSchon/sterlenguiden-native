@@ -163,6 +163,27 @@ export function MemberCard({
     transform: [{ perspective: PERSPECTIVE }, { rotateY: `${interpolate(flipProgress.value, [0, 1], [180, 360])}deg` }],
   }));
 
+  // Kortets tjocklek: när kortet står nära högkant syns kanten som en rak list på den sida som närmar sig
+  // (vänster på framsidan, höger på baksidan). En rak list är bara rätt just när kortet står på högkant, så den
+  // tonas fram först då och är borta när kortet lutar, där kortets rundade hörn annars skulle stå emot den.
+  const edgeThickness = 3.5 * k;
+  const edgeStyle = useAnimatedStyle(() => {
+    const angle = flipProgress.value * Math.PI;
+    const sin = Math.abs(Math.sin(angle));
+    const cos = Math.cos(angle);
+    const scale = PERSPECTIVE / (PERSPECTIVE - (cardW / 2) * sin);
+    const width = edgeThickness * sin * scale;
+    const height = cardH * scale;
+    const halfFace = (cardW / 2) * Math.abs(cos) * scale;
+    return {
+      width,
+      height,
+      top: (cardH - height) / 2,
+      left: cardW / 2 + (cos >= 0 ? -halfFace - width : halfFace),
+      opacity: Math.min(1, Math.max(0, (0.4 - Math.abs(cos)) / 0.25)),
+    };
+  });
+
   // Materialkänsla medan kortet vänds: en glans som glider över kortet, och en mjuk skugga under det som
   // smalnar av när kortet står på högkant. Båda är osynliga när kortet ligger plant.
   const glareStyle = useAnimatedStyle(() => ({
@@ -476,6 +497,12 @@ export function MemberCard({
           disabled={showBackOnly}
           style={{ width: cardW, height: cardH }}
         >
+          {backVisible && !showBackOnly && (
+            <Reanimated.View
+              pointerEvents="none"
+              style={[{ position: "absolute", borderRadius: edgeThickness / 2, backgroundColor: variant?.light ? "#A89C7C" : "#3A3A40" }, edgeStyle]}
+            />
+          )}
           {backVisible && !showBackOnly && (
             <Reanimated.View pointerEvents="none" style={[mc.groundShadow, groundShadowStyle]}>
               <Svg width="100%" height="100%">
