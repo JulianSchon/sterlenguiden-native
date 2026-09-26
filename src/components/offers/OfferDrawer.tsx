@@ -21,10 +21,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Image, ScrollView, Pressable, StyleSheet, useWindowDimensions } from "react-native";
 import Animated, {
   Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
-  withSpring, withTiming,
+  withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Canvas, Path, LinearGradient, vec } from "@shopify/react-native-skia";
+import { Canvas, Path, Rect, LinearGradient, vec } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -56,6 +56,7 @@ const STUB_RADIUS = 18;
 const BAND_H = 76;
 const BAND_RADIUS = 24;
 const TEXT_BOX_W = 260;
+const GLINT_W = 110;
 const OPEN_MS = 1700;
 const CLOSE_MS = 1200;
 const RIP_END = 0.3;       // så stor del av öppningen som är själva rivningen
@@ -186,7 +187,10 @@ export function OfferDrawer({
   // m: bandets resa från biljetten till panelens topp. rip: det korta ryck när det rivs loss.
   const m = useDerivedValue(() => easeOut(interpolate(p.value, [RIP_END, 0.82], [0, 1], "clamp")));
   // tear: hur mycket rivkant som syns (0 på biljetten, växer när det rivs, försvinner när bandet blir rakt)
-  const tear = useDerivedValue(() => interpolate(p.value, [0, 0.06], [0, 1], "clamp") * (1 - m.value));
+  const tear = useDerivedValue(() => 1 - m.value);
+  // Hur långt rivningen kommit, underifrån och upp
+  const tearProgress = useDerivedValue(() => interpolate(p.value, [0, 0.13], [0, 1], "clamp"));
+  const fringe = useDerivedValue(() => TEAR_FRINGE * tear.value * interpolate(p.value, [0, 0.06], [0, 1], "clamp"));
   // Rivningen: bandet svänger ut kring sin övre kant, med ett darr som tar slut när det kommit loss
   const tilt = useDerivedValue(() => {
     const swing = interpolate(p.value, [0, 0.12, 0.22, RIP_END + 0.04], [0, 11, 8, 0], "clamp");
@@ -199,8 +203,12 @@ export function OfferDrawer({
   const bandH = useDerivedValue(() => oh.value + (BAND_H - oh.value) * m.value);
   const gradEnd = useDerivedValue(() => vec(0, bandH.value));
   // Bandets form: hackig högerkant medan det rivs, med en vit papperskant utanför färgen
-  const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, 0));
-  const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, TEAR_FRINGE * tear.value));
+  const paperPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, 0, tearProgress.value));
+  const colorPath = useDerivedValue(() => tornBandPath(bandW.value, bandH.value, TEAR_DEPTH * tear.value, fringe.value, tearProgress.value));
+  // Ett glansstråk som svepar över bandet när det landar (och tillbaka när det lyfts iväg)
+  const glintX = useDerivedValue(() => interpolate(p.value, [0.84, 1], [-GLINT_W, bandW.value + GLINT_W * 0.3], "clamp"));
+  const glintStart = useDerivedValue(() => vec(glintX.value, 0));
+  const glintEnd = useDerivedValue(() => vec(glintX.value + GLINT_W, 0));
 
   const rootStyle = useAnimatedStyle(() => ({ opacity: ready.value }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0, 0.5], [0, 1], "clamp") }));
@@ -240,6 +248,12 @@ export function OfferDrawer({
   }));
   const iconStyleBand = useAnimatedStyle(() => ({
     opacity: vert.value ? Math.max(0, m.value * 2 - 1) : 1,
+  }));
+  const shadowStyle = useAnimatedStyle(() => ({
+    // Något smalare än bandet så den hackiga kanten inte fylls i av skuggans yta
+    width: bandW.value - (TEAR_DEPTH + TEAR_FRINGE) * tear.value,
+    shadowOpacity: interpolate(p.value, [0, 0.12, 0.45, 1], [0, 0.55, 0.35, 0.25], "clamp"),
+    shadowRadius: interpolate(p.value, [0, 0.12, 1], [0, 18, 10], "clamp"),
   }));
   const closeStyle = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0.85, 1], [0, 1], "clamp") }));
 
@@ -311,6 +325,14 @@ export function OfferDrawer({
       </Animated.View>
 
       {/* Bandet: biljettens sidoband som blir panelens topp */}
+      {/* Skugga under bandet: växer när det lyfts loss (overflow: hidden på bandet själv tar bort skuggor) */}
+      <Animated.View
+        pointerEvents="none"
+        style={[s.bandShadow, bandStyle, shadowStyle, { backgroundColor: gradFrom }]}
+      />
+
+      <TearScraps p={p} vert={vert} ox={ox} oy={oy} ow={ow} oh={oh} />
+
       <GestureDetector gesture={bandPan}>
         <Animated.View style={[s.band, bandStyle]}>
           <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -318,6 +340,13 @@ export function OfferDrawer({
             <Path path={colorPath}>
               <LinearGradient start={vec(0, 0)} end={gradEnd} colors={[gradFrom, gradTo]} />
             </Path>
+            <Rect x={glintX} y={0} width={GLINT_W} height={bandH}>
+              <LinearGradient
+                start={glintStart}
+                end={glintEnd}
+                colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.42)", "rgba(255,255,255,0)"]}
+              />
+            </Rect>
           </Canvas>
           <Animated.View style={[s.bandIcon, iconStyleStub]} pointerEvents="none">
             <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
@@ -354,6 +383,55 @@ export function OfferDrawer({
       )}
     </Animated.View>
   );
+}
+
+// ─── Pappersbitar som yr iväg när biljetten rivs ─────────────────────────────
+
+// Fart i sidled/uppåt (px), rotation (grader) och storlek per bit; fasta värden så det ser likadant ut varje gång
+const SCRAPS = [
+  { y: 0.08, dx: -70, dy: -40, rot: 200, w: 5, h: 8 },
+  { y: 0.17, dx: -46, dy: 10, rot: -260, w: 4, h: 6 },
+  { y: 0.26, dx: -90, dy: -14, rot: 320, w: 6, h: 5 },
+  { y: 0.35, dx: -58, dy: 30, rot: -180, w: 4, h: 7 },
+  { y: 0.44, dx: -84, dy: -30, rot: 240, w: 5, h: 5 },
+  { y: 0.52, dx: -40, dy: 44, rot: -300, w: 3, h: 6 },
+  { y: 0.6, dx: -96, dy: 6, rot: 280, w: 6, h: 6 },
+  { y: 0.68, dx: -62, dy: 52, rot: -220, w: 4, h: 5 },
+  { y: 0.76, dx: -78, dy: 20, rot: 340, w: 5, h: 7 },
+  { y: 0.84, dx: -50, dy: 64, rot: -240, w: 3, h: 5 },
+  { y: 0.91, dx: -88, dy: 40, rot: 260, w: 5, h: 6 },
+  { y: 0.96, dx: -44, dy: 72, rot: -320, w: 4, h: 4 },
+];
+
+function TearScraps(props: {
+  p: SharedValue<number>; vert: SharedValue<number>;
+  ox: SharedValue<number>; oy: SharedValue<number>; ow: SharedValue<number>; oh: SharedValue<number>;
+}) {
+  return (
+    <>
+      {SCRAPS.map((sc, i) => <Scrap key={i} sc={sc} {...props} />)}
+    </>
+  );
+}
+
+function Scrap({ sc, p, vert, ox, oy, ow, oh }: {
+  sc: (typeof SCRAPS)[number];
+  p: SharedValue<number>; vert: SharedValue<number>;
+  ox: SharedValue<number>; oy: SharedValue<number>; ow: SharedValue<number>; oh: SharedValue<number>;
+}) {
+  const style = useAnimatedStyle(() => {
+    // Varje bit lossnar lite olika tid, i takt med att rivningen når dess höjd (underifrån)
+    const start = 0.01 + (1 - sc.y) * 0.1;
+    const t = interpolate(p.value, [start, start + 0.3], [0, 1], "clamp");
+    return {
+      opacity: vert.value && t > 0 && t < 1 ? 1 - t * t : 0,
+      left: ox.value + ow.value - 3 + sc.dx * t,
+      // Lite tyngdkraft: bitarna faller mer ju längre de flugit
+      top: oy.value + oh.value * sc.y + sc.dy * t + 120 * t * t,
+      transform: [{ rotate: `${sc.rot * t}deg` }],
+    };
+  });
+  return <Animated.View pointerEvents="none" style={[{ position: "absolute", width: sc.w, height: sc.h, borderRadius: 1, backgroundColor: "#F4F0E6" }, style]} />;
 }
 
 // ─── Ett erbjudandekort ───────────────────────────────────────────────────────
@@ -460,6 +538,7 @@ const createSheetStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderTopWidth: 0, borderColor: c.border,
   },
   band: { position: "absolute", overflow: "hidden" },
+  bandShadow: { position: "absolute", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, elevation: 12 },
   bandIcon: { position: "absolute", width: 18, height: 18 },
   // Textrutan är bredare än etiketten och centreras, så rotationen sker kring etikettens mitt
   bandLabel: {
