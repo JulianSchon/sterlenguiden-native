@@ -25,6 +25,7 @@ import * as Haptics from "expo-haptics";
 // BlurView (expo-blur) kräver native rebuild – ersatt med solid glass-bakgrund
 import { useIsBusiness } from "@/hooks/useUserRole";
 import { scrollToTop } from "@/lib/scrollRefs";
+import { useTheme } from "@/theme/ThemeProvider";
 import {
   NavHome,
   NavSearch,
@@ -44,8 +45,6 @@ const EXTRA_BOTTOM = 8;   // extra utrymme ovanpå safe area, så ikonerna hamna
  * Sidans innehåll ska sluta strax ovanför detta.
  */
 export const floatingNavSolidHeight = (bottomInset: number) => FLOATING_NAV_HEIGHT + bottomInset + EXTRA_BOTTOM;
-const GOLD        = "#C5A059";
-const BG          = "#121212";
 
 // ─── Hjälpare: aktiv tab från pathname ────────────────────────────────────────
 function resolveActiveTab(pathname: string): string {
@@ -77,6 +76,7 @@ interface NavButtonProps {
 }
 
 function NavButton({ onPress, label, isActive, showBadge, children }: NavButtonProps) {
+  const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = useCallback(() => {
@@ -113,9 +113,9 @@ function NavButton({ onPress, label, isActive, showBadge, children }: NavButtonP
         {/* Ikon + eventuell badge */}
         <View style={{ position: "relative" }}>
           {children}
-          {showBadge && <View style={s.badge} />}
+          {showBadge && <View style={[s.badge, { borderColor: colors.bg }]} />}
         </View>
-        <Text style={[s.tabLabel, isActive ? s.labelActive : s.labelInactive]}>
+        <Text style={[s.tabLabel, { color: isActive ? colors.goldText : colors.faint }]}>
           {label}
         </Text>
       </Animated.View>
@@ -125,6 +125,7 @@ function NavButton({ onPress, label, isActive, showBadge, children }: NavButtonP
 
 // ─── FloatingNav ──────────────────────────────────────────────────────────────
 export default function FloatingNav() {
+  const { colors } = useTheme();
   const router    = useRouter();
   const pathname  = usePathname();
   const insets    = useSafeAreaInsets();
@@ -209,7 +210,7 @@ export default function FloatingNav() {
         pointerEvents="box-none"
       >
         <View style={s.pill}>
-          <View style={[s.pillBlur, s.pillBg, { flexDirection: "row", height: FLOATING_NAV_HEIGHT, paddingHorizontal: 12 }]}>
+          <View style={[s.pillBlur, s.pillBg, { flexDirection: "row", height: FLOATING_NAV_HEIGHT, paddingHorizontal: 12, backgroundColor: `${colors.bg}E0`, borderColor: colors.border }]}>
             {buttons}
           </View>
         </View>
@@ -232,7 +233,7 @@ export default function FloatingNav() {
     >
       {/* Fade-gradient (icke-interaktiv), eller ett helfärgat fält på Profil */}
       {solid ? (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: BG }]} pointerEvents="none" />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} pointerEvents="none" />
       ) : (
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <Svg
@@ -243,10 +244,10 @@ export default function FloatingNav() {
         >
           <Defs>
             <SvgGrad id="navfade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={BG} stopOpacity={0}    />
-              <Stop offset="30%"  stopColor={BG} stopOpacity={0.55} />
-              <Stop offset="65%"  stopColor={BG} stopOpacity={0.88} />
-              <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
+              <Stop offset="0%"   stopColor={colors.bg} stopOpacity={0}    />
+              <Stop offset="30%"  stopColor={colors.bg} stopOpacity={0.55} />
+              <Stop offset="65%"  stopColor={colors.bg} stopOpacity={0.88} />
+              <Stop offset="100%" stopColor={colors.bg} stopOpacity={1}    />
             </SvgGrad>
           </Defs>
           <SvgRect width="100%" height="100%" fill="url(#navfade)" />
@@ -305,12 +306,9 @@ const s = StyleSheet.create({
   pillBlur: {
     borderRadius: 28,
     overflow: "hidden",
-    backgroundColor: "rgba(18,18,18,0.88)",
   },
   pillBg: {
-    backgroundColor: "rgba(18,18,18,0.75)",
     borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.08)",
     borderRadius: 28,
     alignItems: "center",
   },
@@ -332,8 +330,6 @@ const s = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     letterSpacing: 0.3,
   },
-  labelActive:   { color: GOLD },
-  labelInactive: { color: "rgba(255,255,255,0.4)" },
 
   // Badge på profil-ikon
   badge: {
@@ -345,6 +341,5 @@ const s = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#EF4444",
     borderWidth: 1.5,
-    borderColor: BG,
   },
 });

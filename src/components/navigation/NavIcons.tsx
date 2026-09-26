@@ -1,20 +1,26 @@
 /**
- * Custom SVG nav icons – active (gold/filled) and inactive (white 40 % / outline).
+ * Custom SVG nav icons – active (gold/filled) and inactive (dämpad / outline). Färgerna följer temat.
  * All icons are 26 × 26 px, designed to the native-nav-spec-v2.
  */
 import React from "react";
 import Svg, { Path, Circle, Line, Rect } from "react-native-svg";
+import { useTheme } from "@/theme/ThemeProvider";
 
-const GOLD     = "#C5A059";
-const INACTIVE = "rgba(255,255,255,0.4)";
 const WHITE    = "#FFFFFF";
 const SIZE     = 28;
 
 interface IconProps { active: boolean }
 
+/** Ikonfärgerna: guld när aktiv, dämpad när inte, och sidans bakgrund för "utskärningar" i guldfyllningen. */
+function useNavColors() {
+  const { colors } = useTheme();
+  return { GOLD: colors.gold, INACTIVE: colors.faint, CUT: colors.bg };
+}
+
 // ─── NavHome ──────────────────────────────────────────────────────────────────
 // Hus med dörr. Aktiv: fyllt hus (guld) + vit dörrutskärning.
 export function NavHome({ active }: IconProps) {
+  const { GOLD, INACTIVE, CUT } = useNavColors();
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (
@@ -25,7 +31,7 @@ export function NavHome({ active }: IconProps) {
             strokeLinejoin="round"
           />
           {/* Dörr – appens bakgrundsfärg */}
-          <Rect x={10} y={16.5} width={6} height={7} rx={0.5} fill="#121212" />
+          <Rect x={10} y={16.5} width={6} height={7} rx={0.5} fill={CUT} />
         </>
       ) : (
         <>
@@ -48,6 +54,7 @@ export function NavHome({ active }: IconProps) {
 // ─── NavSearch ────────────────────────────────────────────────────────────────
 // Förstoringsglas. Aktiv: ytterring + ifylld innercirkel + tjockare skaft.
 export function NavSearch({ active }: IconProps) {
+  const { GOLD, INACTIVE, CUT } = useNavColors();
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (
@@ -75,6 +82,7 @@ export function NavSearch({ active }: IconProps) {
 // ─── NavMap ───────────────────────────────────────────────────────────────────
 // Vikt karta med tre paneler. Aktiv: fylld (guld) + vita vecklinjer.
 export function NavMap({ active }: IconProps) {
+  const { GOLD, INACTIVE, CUT } = useNavColors();
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (
@@ -104,10 +112,10 @@ export function NavMap({ active }: IconProps) {
 
 // ─── NavCalendar ──────────────────────────────────────────────────────────────
 // Exakt portering av användarens SVG (viewBox 0 0 24 24, skalad till 26×26).
-// Aktiv: fylld guld, hooks+dots i bakgrundsfärg (#121212).
+// Aktiv: fylld guld, hooks+dots i bakgrundsfärg.
 // Inaktiv: stroke-only, ingen fill.
 export function NavCalendar({ active }: IconProps) {
-  const CUT = "#121212"; // appens bakgrundsfärg – skapar "utskärning" i guldfyllet
+  const { GOLD, INACTIVE, CUT } = useNavColors();
   return (
     // Ursprungs-viewBox 24×24, renderas i 26×26 → automatisk skalning
     <Svg width={SIZE} height={SIZE} viewBox="0 0 24 24">
@@ -145,6 +153,7 @@ export function NavCalendar({ active }: IconProps) {
 // ─── NavProfile ───────────────────────────────────────────────────────────────
 // Person. Aktiv: fylld kropp.
 export function NavProfile({ active }: IconProps) {
+  const { GOLD, INACTIVE, CUT } = useNavColors();
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (
@@ -165,6 +174,7 @@ export function NavProfile({ active }: IconProps) {
 // ─── NavBusiness ──────────────────────────────────────────────────────────────
 // Shoppingväska/butik. Aktiv: fylld (guld) + vit detalj.
 export function NavBusiness({ active }: IconProps) {
+  const { GOLD, INACTIVE, CUT } = useNavColors();
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (
