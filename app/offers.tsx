@@ -109,7 +109,21 @@ export default function OffersScreen() {
   const firstName = profile?.display_name?.trim().split(/\s+/)[0];
 
   return (
-    <SettingsScreen title={t("offers.title")}>
+    <SettingsScreen
+      title={t("offers.title")}
+      right={
+        <Pressable
+          disabled={isMember}
+          onPress={() => router.push("/settings/pass-buy")}
+          style={[s.status, isMember && s.statusActive]}
+        >
+          <View style={[s.statusDot, { backgroundColor: isMember ? colors.success : colors.faint }]} />
+          <Text style={[s.statusText, isMember && { color: colors.success }]}>
+            {isMember ? t("offers.member") : t("offers.notMember")}
+          </Text>
+        </Pressable>
+      }
+    >
       {isLoading && (
         <View style={s.center}>
           <Text style={s.muted}>{t("offers.loading")}</Text>
@@ -129,21 +143,9 @@ export default function OffersScreen() {
       {!isLoading && offers.length > 0 && (
         <>
           <View>
-            <View style={s.heroTop}>
-              <Text style={s.greeting} numberOfLines={1}>
-                {firstName ? t("offers.greeting", { name: firstName }) : t("offers.greetingNoName")}
-              </Text>
-              <Pressable
-                disabled={isMember}
-                onPress={() => router.push("/settings/pass-buy")}
-                style={[s.status, isMember && s.statusActive]}
-              >
-                <View style={[s.statusDot, { backgroundColor: isMember ? colors.success : colors.faint }]} />
-                <Text style={[s.statusText, isMember && { color: colors.success }]}>
-                  {isMember ? t("offers.member") : t("offers.notMember")}
-                </Text>
-              </Pressable>
-            </View>
+            <Text style={s.greeting} numberOfLines={1}>
+              {firstName ? t("offers.greeting", { name: firstName }) : t("offers.greetingNoName")}
+            </Text>
             <Text style={s.greetingLine} numberOfLines={1} adjustsFontSizeToFit>
               {isMember
                 ? usable.length === 0
@@ -334,8 +336,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   list: { gap: 14 },
 
-  heroTop: { flexDirection: "row", alignItems: "center", gap: 12 },
-  greeting: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: c.text },
+  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: c.text },
   greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: c.goldText },
   saveLine: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 8 },
   status: {
