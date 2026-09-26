@@ -30,7 +30,7 @@ import {
   offerEligibility, offerSavingsLabel, estimateOfferValue, formatKr, type Offer,
 } from "@/lib/offers";
 import { OfferDrawer, type OriginRect } from "@/components/offers/OfferDrawer";
-import { tornEdgePath, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
+import { tornEdgePath, tornCutPath, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { findCategory, ticketColors, type CategoryId } from "@/theme/categories";
 import { formatDate } from "@/i18n/dates";
@@ -59,7 +59,9 @@ const TICKET_H = 190;
 const STUB_W = 58;
 const NOTCH = 28;
 const BLEED = 6;
-const TORN_EDGE = tornEdgePath(TICKET_H); // papperskanten som blir kvar när bandet rivits bort
+// Kanten som blir kvar när bandet rivits bort, och biten av bilden utanför den som försvinner med bandet
+const TORN_EDGE = tornEdgePath(TICKET_H);
+const TORN_CUT = tornCutPath(TICKET_H);
 
 /**
  * Delar företagets rabatt-text i det som ska synas stort ("20 %", "450 kr") och resten.
@@ -524,6 +526,7 @@ function OfferListCard({
             pointerEvents="none"
           >
             <Canvas style={StyleSheet.absoluteFill}>
+              <Path path={TORN_CUT} color={colors.bg} />
               <Path path={TORN_EDGE} color="rgba(244,240,230,0.9)" style="stroke" strokeWidth={EDGE_STROKE} />
             </Canvas>
           </Animated.View>

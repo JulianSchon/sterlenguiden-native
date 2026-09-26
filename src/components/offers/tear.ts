@@ -52,3 +52,12 @@ export function tornEdgePath(h: number): SkPath {
   }
   return path;
 }
+
+/** Ytan till vänster om rivkanten: den del av bilden som satt på "fel" sida och ska bort (fylls med sidans bakgrund) */
+export function tornCutPath(h: number): SkPath {
+  const path = tornEdgePath(h);
+  path.lineTo(0, h);
+  path.lineTo(0, 0);
+  path.close();
+  return path;
+}
