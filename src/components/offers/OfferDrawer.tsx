@@ -216,7 +216,8 @@ export function OfferDrawer({
   // Rivningen: bandet svänger ut kring sin övre kant, med ett darr som tar slut när det kommit loss
   const tilt = useDerivedValue(() => {
     const swing = interpolate(p.value, [0, 0.12, 0.22, RIP_END + 0.04], [0, 11, 8, 0], "clamp");
-    const shake = Math.sin(p.value * 120) * 1.8 * interpolate(p.value, [0, RIP_END], [1, 0], "clamp");
+    // Darret svänger bara utåt (aldrig in mot biljetten) och är av när bandet är på väg tillbaka
+    const shake = closing.value ? 0 : Math.abs(Math.sin(p.value * 120)) * 1.8 * interpolate(p.value, [0, RIP_END], [1, 0], "clamp");
     return swing + shake * interpolate(p.value, [0, 0.03], [0, 1], "clamp");
   });
   const pullX = useDerivedValue(() => interpolate(p.value, [0, 0.12, RIP_END, 0.5], [0, -12, -5, 0], "clamp"));
