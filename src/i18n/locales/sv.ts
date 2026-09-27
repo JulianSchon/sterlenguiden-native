@@ -329,7 +329,7 @@ export const sv = {
       many: "Kan användas flera gånger",
     },
     reason: {
-      used: "Du har redan använt detta erbjudande",
+      used: "Inlöst {{date}} kl {{time}}",
       againHours: "Kan användas igen om {{n}} h",
       againDays: "Kan användas igen om {{n}} d",
     },

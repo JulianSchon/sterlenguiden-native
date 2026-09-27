@@ -6,6 +6,7 @@
  * annars kan samma erbjudande lösas in olika många gånger på webb vs app.
  */
 import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
 
 export type RedemptionInterval = "once" | "daily" | "weekly" | "monthly" | "unlimited";
 
@@ -81,7 +82,7 @@ export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibili
                              i18n.t("offers.rule.many");
 
   if (limit != null && usedCount >= limit) {
-    return { used: true, canUse: false, usedCount, reason: i18n.t("offers.reason.used"), ruleLabel };
+    return { used: true, canUse: false, usedCount, reason: i18n.t("offers.reason.used", { date: formatDate(mine[0].activated_at, "d MMM"), time: formatDate(mine[0].activated_at, "HH:mm") }), ruleLabel };
   }
 
   const windowMs = INTERVAL_MS[interval];

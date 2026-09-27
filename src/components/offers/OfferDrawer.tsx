@@ -699,7 +699,7 @@ const createCardStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.muted, marginBottom: -3,
   },
   savingsBig: { flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 46, lineHeight: 52, color: c.goldText },
-  savingsAfter: { marginBottom: 0, marginTop: -2 },
+  savingsAfter: { marginBottom: 0, marginTop: 2 },
 
   // Radbrytande rad, inte staplade rader — tre korta fakta ska få plats på två
   metaBlock: { marginTop: 18, flexDirection: "row", flexWrap: "wrap", columnGap: 20, rowGap: 9 },

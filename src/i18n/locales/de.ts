@@ -326,7 +326,7 @@ export const de: typeof sv = {
       many: "Mehrfach nutzbar",
     },
     reason: {
-      used: "Du hast dieses Angebot bereits genutzt",
+      used: "Eingelöst am {{date}} um {{time}}",
       againHours: "Wieder nutzbar in {{n}} Std.",
       againDays: "Wieder nutzbar in {{n}} Tg.",
     },

@@ -655,7 +655,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8,
   },
   // "RABATT" under siffran ser ut som "SPARA" ovanför den
-  savingsAfter: { marginBottom: 0, marginTop: -2 },
+  savingsAfter: { marginBottom: 0, marginTop: 2 },
   dealRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
   until: { fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.7)" },
 });

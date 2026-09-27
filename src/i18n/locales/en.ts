@@ -326,7 +326,7 @@ export const en: typeof sv = {
       many: "Can be used several times",
     },
     reason: {
-      used: "You have already used this offer",
+      used: "Redeemed {{date}} at {{time}}",
       againHours: "Can be used again in {{n}} h",
       againDays: "Can be used again in {{n}} d",
     },
