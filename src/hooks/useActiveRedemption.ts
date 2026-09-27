@@ -14,6 +14,8 @@ export interface ActiveRedemption {
   title: string;
   placeName: string;
   placeLogoUrl: string | null;
+  category: string | null;
+  savingsLabel: string | null;
   /** Serverns tid för aktiveringen, i millisekunder */
   activatedAt: number;
 }
@@ -33,7 +35,7 @@ export function useActiveRedemption() {
       const since = new Date(Date.now() - ACTIVE_SECS * 1000).toISOString();
       const { data, error } = await (supabase as any)
         .from("offer_redemptions")
-        .select("offer_id, activated_at, offer:offers(title, place:places(name, logo_url))")
+        .select("offer_id, activated_at, offer:offers(title, category, savings_label, place:places(name, logo_url))")
         .eq("user_id", user.id)
         .gte("activated_at", since)
         .order("activated_at", { ascending: false })
@@ -47,6 +49,8 @@ export function useActiveRedemption() {
         title: row.offer.title,
         placeName: row.offer.place?.name ?? "",
         placeLogoUrl: row.offer.place?.logo_url ?? null,
+        category: row.offer.category ?? null,
+        savingsLabel: row.offer.savings_label ?? null,
         activatedAt: new Date(row.activated_at).getTime(),
       };
     },

@@ -2,47 +2,52 @@
  * Aktiv erbjudande-vy — personalens verifieringsskärm.
  *
  * Helskärm som låser appen i 60 sekunder. Inget går att göra utom att visa
- * skärmen för kassören: rörlig timerring, företagets namn och erbjudandet,
- * samt medlemskortets baksida med live-klocka som äkthetsbevis.
+ * skärmen för kassören: vad erbjudandet är, en rörlig timerring med sekunderna stort,
+ * samt medlemskortets baksida med live-klocka som äkthetsbevis. Personalen jämför den
+ * klockan med sin egen: en inspelning visar en gammal tid.
  *
  * Visas av ActiveOfferHost (rotlayouten), inte av panelen, så den överlever en omstart.
  * Nedräkningen utgår ALLTID från activatedAt, aldrig från en lokal räknare —
  * annars skulle tiden pausas när appen läggs i bakgrunden och erbjudandet
  * kunna hållas aktivt hur länge som helst.
+ *
+ * Skärmen är alltid svart (även i ljust läge) och alltid på svenska: den är till för personalen.
  */
-import { useEffect, useRef, useState } from "react";
-import { View, Text, Image, StyleSheet, Animated, Easing } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, Image, StyleSheet, Animated as RNAnimated, Easing as RNEasing } from "react-native";
+import Animated, {
+  Easing, FadeIn, ZoomIn, useDerivedValue, useSharedValue, withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { preventScreenCapture } from "@/lib/screenCapture";
-import Svg, {
-  Defs,
-  LinearGradient as SvgGrad,
-  RadialGradient as SvgRadial,
-  Stop,
-  Circle as SvgCircle,
-  Rect as SvgRect,
-  Text as SvgText,
-} from "react-native-svg";
+import * as Haptics from "expo-haptics";
+import { Clock } from "lucide-react-native";
+import { Canvas, Circle, Group, Path, Rect, RadialGradient, LinearGradient, Skia, vec } from "@shopify/react-native-skia";
 import { MemberCard } from "@/components/MemberCard";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl, useCardPhotoUrl } from "@/hooks/useAvatarUrl";
 import { useAuth } from "@/hooks/useAuth";
-import { ACTIVE_SECS } from "@/lib/offers";
+import { ACTIVE_SECS, splitSavings } from "@/lib/offers";
+import { preventScreenCapture } from "@/lib/screenCapture";
+import { findCategory, withAlpha } from "@/theme/categories";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 
 const GOLD    = "#C5A059";
 const GOLD_LT = "#E8C674";
 const GOLD_HI = "#F2D88A";
+const WARN    = "#F59E0B"; // sista sekunderna
 const FG      = "#F5F1E8";
 
-const RING     = 200;
-const STROKE   = 6;
+const RING     = 210;
+const STROKE   = 8;
 const RADIUS   = (RING - STROKE) / 2;
-const CIRC     = 2 * Math.PI * RADIUS;
+const WARN_SECS = 10;
+const EXPIRED_HOLD_MS = 1600; // "Utgånget" visas en stund innan skärmen försvinner
 
-const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
+/** Ringens bana: en hel cirkel som Skia ritar en del av (start/end 0–1) */
+const RING_PATH = Skia.Path.Make();
+RING_PATH.addCircle(RING / 2, RING / 2, RADIUS);
 
 function secsLeft(activatedAt: number): number {
   const elapsed = (Date.now() - activatedAt) / 1000;
@@ -55,6 +60,8 @@ export function ActiveOfferView({
   placeName,
   placeLogoUrl,
   dealText,
+  category,
+  savingsLabel,
   onClose,
 }: {
   visible: boolean;
@@ -63,6 +70,8 @@ export function ActiveOfferView({
   placeName: string;
   placeLogoUrl: string | null;
   dealText: string;
+  category?: string | null;
+  savingsLabel?: string | null;
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -72,8 +81,10 @@ export function ActiveOfferView({
   const cardPhotoUrl = useCardPhotoUrl();
 
   const [remaining, setRemaining] = useState(() => secsLeft(activatedAt));
-  const ringAnim  = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const expired = remaining <= 0;
+  const pulseAnim = useMemo(() => new RNAnimated.Value(0), []);
+  const tint = findCategory(category ?? null)?.screen ?? GOLD;
+  const parts = savingsLabel ? splitSavings(savingsLabel) : null;
 
   // Nedräkning — läser klockan, räknar inte själv
   useEffect(() => {
@@ -82,28 +93,25 @@ export function ActiveOfferView({
     const id = setInterval(() => {
       const left = secsLeft(activatedAt);
       setRemaining(left);
-      if (left <= 0) {
-        clearInterval(id);
-        onClose();
-      }
+      if (left <= 0) clearInterval(id);
     }, 250);
     return () => clearInterval(id);
   }, [visible, activatedAt]);
 
-  // Ringen animeras i ett svep över den tid som faktiskt återstår, så den
-  // rör sig mjukt istället för att hoppa var 250:e millisekund
+  // Tiden är slut: "Utgånget" står kvar en stund så personalen hinner se det, sedan försvinner skärmen
   useEffect(() => {
-    if (!visible) return;
-    const leftMs = Math.max(0, activatedAt + ACTIVE_SECS * 1000 - Date.now());
-    ringAnim.setValue(leftMs / (ACTIVE_SECS * 1000));
-    Animated.timing(ringAnim, {
-      toValue: 0,
-      duration: leftMs,
-      easing: Easing.linear,
-      useNativeDriver: false, // strokeDashoffset går inte via native driver
-    }).start();
-    return () => ringAnim.stopAnimation();
-  }, [visible, activatedAt]);
+    if (!visible || !expired) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    const id = setTimeout(onClose, EXPIRED_HOLD_MS);
+    return () => clearTimeout(id);
+  }, [visible, expired]);
+
+  // En bekräftande vibration när skärmen visas för första gången (inte när den öppnas igen efter en omstart)
+  useEffect(() => {
+    if (visible && secsLeft(activatedAt) >= ACTIVE_SECS - 3) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+  }, [visible]);
 
   // Skärmdumpar och skärminspelning stängs av så länge skärmen visas (kräver ett bygge med expo-screen-capture)
   useEffect(() => {
@@ -111,26 +119,29 @@ export function ActiveOfferView({
     return preventScreenCapture();
   }, [visible]);
 
-  // Pulserande guldprick + "AKTIVT"
+  // Ringen töms jämnt över den tid som faktiskt återstår, på UI-tråden
+  const progress = useSharedValue(1);
   useEffect(() => {
     if (!visible) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    const leftMs = Math.max(0, activatedAt + ACTIVE_SECS * 1000 - Date.now());
+    progress.value = leftMs / (ACTIVE_SECS * 1000);
+    progress.value = withTiming(0, { duration: leftMs, easing: Easing.linear });
+  }, [visible, activatedAt]);
+  const ringEnd = useDerivedValue(() => progress.value);
+
+  // Pulserande prick + "AKTIVT ERBJUDANDE"
+  useEffect(() => {
+    if (!visible) return;
+    const loop = RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(pulseAnim, { toValue: 1, duration: 800, easing: RNEasing.inOut(RNEasing.quad), useNativeDriver: true }),
+        RNAnimated.timing(pulseAnim, { toValue: 0, duration: 800, easing: RNEasing.inOut(RNEasing.quad), useNativeDriver: true }),
       ])
     );
     loop.start();
     return () => loop.stop();
   }, [visible]);
-
-  const dashOffset = ringAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [CIRC, 0],
-  });
   const pulseOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
-
-  const mmss = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`;
 
   const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? "Medlem";
   const memberSince = profile?.created_at
@@ -139,104 +150,102 @@ export function ActiveOfferView({
 
   if (!visible) return null;
 
+  // De sista sekunderna blir ringen och siffran bärnstensfärgade
+  const warn = !expired && remaining <= WARN_SECS;
+  const ringGradient = warn ? [WARN, WARN] : [GOLD_HI, GOLD];
+
   return (
-    <View style={[a.screen, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
-        {/* Skärmen är alltid svart, så statusfältet ska alltid vara ljust */}
-        <StatusBar style="light" />
-        {/* Diskret guldglöd bakom allt */}
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <SvgRadial id="activeGlow" cx="50%" cy="45%" rx="65%" ry="40%">
-              <Stop offset="0%"   stopColor={GOLD} stopOpacity={0.10} />
-              <Stop offset="45%"  stopColor={GOLD} stopOpacity={0.04} />
-              <Stop offset="100%" stopColor={GOLD} stopOpacity={0}    />
-            </SvgRadial>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#activeGlow)" />
-        </Svg>
+    <Animated.View
+      entering={FadeIn.duration(260)}
+      style={[a.screen, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}
+    >
+      {/* Skärmen är alltid svart, så statusfältet ska alltid vara ljust */}
+      <StatusBar style="light" />
 
-        {/* ── Företagsidentitet ── */}
-        <View style={a.identity}>
-          <View style={a.logoWrap}>
-            {placeLogoUrl ? (
-              <Image source={{ uri: placeLogoUrl }} style={a.logo} resizeMode="cover" />
-            ) : (
-              <Text style={a.logoFallback}>{placeName.charAt(0).toUpperCase()}</Text>
-            )}
-          </View>
+      {/* Bakgrund i Skia: kategorins färg lyser svagt uppifrån, guld bakom ringen */}
+      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Rect x={0} y={0} width={4000} height={4000}>
+          <RadialGradient c={vec(200, 0)} r={420} colors={[withAlpha(tint, 0.32), withAlpha(tint, 0)]} />
+        </Rect>
+        <Rect x={0} y={0} width={4000} height={4000}>
+          <RadialGradient c={vec(200, 400)} r={280} colors={["rgba(197,160,89,0.12)", "rgba(197,160,89,0)"]} />
+        </Rect>
+      </Canvas>
 
-          <Text style={a.placeName} numberOfLines={1}>{placeName}</Text>
+      {/* ── Vad erbjudandet är ── */}
+      <View style={a.identity}>
+        <View style={a.logoWrap}>
+          {placeLogoUrl ? (
+            <Image source={{ uri: placeLogoUrl }} style={a.logo} resizeMode="cover" />
+          ) : (
+            <Text style={a.logoFallback}>{placeName.charAt(0).toUpperCase()}</Text>
+          )}
+        </View>
+        <Text style={a.placeName} numberOfLines={1}>{placeName}</Text>
 
-          <View style={a.statusRow}>
-            <Animated.View style={[a.pulseDot, { opacity: pulseOpacity }]} />
-            <Text style={a.statusLabel}>AKTIVT ERBJUDANDE</Text>
-          </View>
-
-          <Text style={a.dealText} numberOfLines={2}>{dealText}</Text>
+        <View style={a.statusRow}>
+          <RNAnimated.View style={[a.pulseDot, { opacity: pulseOpacity }, expired && { backgroundColor: WARN }]} />
+          <Text style={[a.statusLabel, expired && { color: WARN }]}>
+            {expired ? "UTGÅNGET" : "AKTIVT ERBJUDANDE"}
+          </Text>
         </View>
 
-        {/* ── Timerring ── */}
-        <View style={a.ringWrap}>
-          <Svg width={RING} height={RING}>
-            <Defs>
-              <SvgGrad id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0%"   stopColor={GOLD_HI} />
-                <Stop offset="100%" stopColor={GOLD} />
-              </SvgGrad>
-              <SvgGrad id="activeTextGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0%"   stopColor="#F6E7BC" />
-                <Stop offset="45%"  stopColor={GOLD_LT} />
-                <Stop offset="100%" stopColor="#B8934A" />
-              </SvgGrad>
-            </Defs>
+        <Text style={a.dealText} numberOfLines={2}>{dealText}</Text>
+        {parts && (
+          <View style={a.savingsRow}>
+            {!!parts.before && <Text style={a.savingsSmall}>{parts.before}</Text>}
+            <Text style={a.savingsBig}>{parts.big}</Text>
+            {!!parts.after && <Text style={a.savingsSmall}>{parts.after}</Text>}
+          </View>
+        )}
+      </View>
 
-            {/* Spår */}
-            <SvgCircle
-              cx={RING / 2} cy={RING / 2} r={RADIUS}
-              stroke="rgba(255,255,255,0.06)" strokeWidth={STROKE} fill="none"
+      {/* ── Timerring med sekunderna stort i mitten ── */}
+      <Animated.View entering={ZoomIn.springify().damping(15).delay(120)} style={a.ringWrap}>
+        <Canvas style={{ width: RING, height: RING }}>
+          {/* Spår */}
+          <Circle cx={RING / 2} cy={RING / 2} r={RADIUS} style="stroke" strokeWidth={STROKE} color="rgba(255,255,255,0.07)" />
+          {/* Skenet bakom ringen */}
+          <Circle cx={RING / 2} cy={RING / 2} r={RADIUS + 20}>
+            <RadialGradient
+              c={vec(RING / 2, RING / 2)}
+              r={RADIUS + 20}
+              colors={[warn ? "rgba(245,158,11,0.16)" : "rgba(232,198,116,0.12)", "rgba(0,0,0,0)"]}
             />
-            {/* Progress — roterad så den startar högst upp */}
-            <AnimatedCircle
-              cx={RING / 2} cy={RING / 2} r={RADIUS}
-              stroke="url(#ringGrad)" strokeWidth={STROKE} fill="none"
-              strokeLinecap="round"
-              strokeDasharray={CIRC}
-              strokeDashoffset={dashOffset}
-              transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
-            />
-
-            {/* Guldgradient-text kräver SVG — vanlig color går inte */}
-            <SvgText
-              x={RING / 2} y={RING / 2 + 2}
-              textAnchor="middle"
-              fontSize={30}
-              fontFamily="PlayfairDisplay_700Bold"
-              fill="url(#activeTextGrad)"
-            >
-              AKTIVT
-            </SvgText>
-          </Svg>
-
-          <Text style={a.countdown}>{mmss}</Text>
+          </Circle>
+          {/* Förloppet: startar högst upp och töms medurs */}
+          <Group origin={vec(RING / 2, RING / 2)} transform={[{ rotate: -Math.PI / 2 }]}>
+            <Path path={RING_PATH} style="stroke" strokeWidth={STROKE} strokeCap="round" start={0} end={ringEnd}>
+              <LinearGradient start={vec(0, 0)} end={vec(RING, RING)} colors={ringGradient} />
+            </Path>
+          </Group>
+        </Canvas>
+        <View style={a.ringCenter} pointerEvents="none">
+          <Text style={[a.seconds, warn && { color: WARN }]}>{remaining}</Text>
+          <Text style={a.secondsLabel}>SEKUNDER KVAR</Text>
         </View>
+      </Animated.View>
 
-        <Text style={a.instruction}>VISA DENNA SKÄRM FÖR PERSONALEN</Text>
+      {/* ── Kontrollen personalen gör ── */}
+      <View style={a.verifyChip}>
+        <Clock size={14} color={GOLD_LT} strokeWidth={2} />
         <Text style={a.verify}>Kontrollera att klockan på kortet stämmer med din egen</Text>
+      </View>
 
-        {/* ── Medlemskortets baksida = äkthetsbeviset ── */}
-        <View style={a.cardWrap}>
-          <MemberCard
-            showBackOnly
-            displayName={displayName}
-            isMember
-            memberSince={memberSince}
-            cardColor={profile?.card_color}
-            avatarUrl={avatarUrl}
-            profileImageUrl={cardPhotoUrl}
-            onBuyPress={() => {}}
-          />
-        </View>
-    </View>
+      {/* ── Medlemskortets baksida = äkthetsbeviset ── */}
+      <View style={a.cardWrap}>
+        <MemberCard
+          showBackOnly
+          displayName={displayName}
+          isMember
+          memberSince={memberSince}
+          cardColor={profile?.card_color}
+          avatarUrl={avatarUrl}
+          profileImageUrl={cardPhotoUrl}
+          onBuyPress={() => {}}
+        />
+      </View>
+    </Animated.View>
   );
 }
 
@@ -251,52 +260,44 @@ const a = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  identity: { alignItems: "center", gap: 6 },
+  identity: { alignItems: "center", gap: 5 },
   logoWrap: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 60, height: 60, borderRadius: 30,
     overflow: "hidden",
     borderWidth: 1, borderColor: "rgba(230,199,122,0.45)",
     backgroundColor: "#141416",
     alignItems: "center", justifyContent: "center",
-    shadowColor: GOLD, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35, shadowRadius: 16, elevation: 6,
     marginBottom: 6,
   },
-  logo: { width: "100%", height: "100%" },
+  logo: { width: "100%", height: "100%", transform: [{ scale: 1.2 }] },
   logoFallback: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: GOLD_LT },
-  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: FG },
+  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: -0.2, color: FG },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD_LT },
-  statusLabel: {
-    fontFamily: "Inter_600SemiBold", fontSize: 10, color: GOLD_LT,
-    letterSpacing: 2.8,
-  },
+  statusLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: GOLD_LT, letterSpacing: 2.8 },
   dealText: {
-    fontFamily: "PlayfairDisplay_700Bold", fontSize: 19, color: FG,
-    textAlign: "center", marginTop: 4,
+    fontFamily: "Montserrat_700Bold", fontSize: 21, letterSpacing: -0.4, lineHeight: 27, color: "#FFFFFF",
+    textAlign: "center", marginTop: 6,
   },
+  savingsRow: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: 2 },
+  savingsBig: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 30, color: GOLD_LT },
+  savingsSmall: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.75)" },
 
-  ringWrap: { alignItems: "center", marginTop: 32 },
-  countdown: {
-    fontFamily: "Inter_400Regular", fontSize: 13,
-    color: "rgba(255,255,255,0.55)",
-    marginTop: -28,
+  ringWrap: { alignItems: "center", justifyContent: "center", marginTop: 22 },
+  ringCenter: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  seconds: {
+    fontFamily: "Montserrat_700Bold", fontSize: 64, lineHeight: 70, color: GOLD_LT,
     fontVariant: ["tabular-nums"],
   },
-
-  instruction: {
-    fontFamily: "Inter_400Regular", fontSize: 11,
-    color: "rgba(255,255,255,0.45)",
-    letterSpacing: 2.64,
-    textAlign: "center",
-    marginTop: 24,
-  },
+  secondsLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.4, color: "rgba(255,255,255,0.5)", marginTop: -2 },
 
   // Personalens kontroll: en inspelning visar en gammal tid, som inte stämmer med deras egen klocka
-  verify: {
-    fontFamily: "Inter_500Medium", fontSize: 12.5, color: "rgba(255,255,255,0.7)",
-    textAlign: "center", marginTop: 8,
+  verifyChip: {
+    flexDirection: "row", alignItems: "center", gap: 8, marginTop: 20,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    backgroundColor: "rgba(232,198,116,0.10)", borderWidth: 1, borderColor: "rgba(232,198,116,0.28)",
   },
+  verify: { fontFamily: "Inter_500Medium", fontSize: 12, color: "rgba(255,255,255,0.85)" },
 
   cardWrap: { marginTop: "auto" as any, width: "100%", alignItems: "center" },
 });

@@ -50,6 +50,8 @@ export function useActivateOffer() {
         title: offer.title,
         placeName: offer.place?.name ?? "",
         placeLogoUrl: offer.place?.logo_url ?? null,
+        category: offer.category,
+        savingsLabel: offer.savings_label,
         activatedAt: new Date(data.activated_at).getTime(),
       };
     },

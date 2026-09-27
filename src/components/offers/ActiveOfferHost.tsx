@@ -20,6 +20,8 @@ export function ActiveOfferHost() {
       placeName={data.placeName}
       placeLogoUrl={data.placeLogoUrl}
       dealText={data.title}
+      category={data.category}
+      savingsLabel={data.savingsLabel}
       onClose={() => queryClient.setQueryData(ACTIVE_REDEMPTION_KEY, null)}
     />
   );
