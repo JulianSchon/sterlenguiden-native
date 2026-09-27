@@ -696,7 +696,7 @@ const createCardStyles = (c: ThemeColors) => StyleSheet.create({
   savings: { marginBottom: 14 },
   savingsSmall: {
     fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, textTransform: "uppercase",
-    color: c.muted, marginBottom: 2,
+    color: c.muted, marginBottom: -3,
   },
   savingsBig: { flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 46, lineHeight: 52, color: c.goldText },
   savingsAfter: { marginBottom: 0, marginTop: -2 },

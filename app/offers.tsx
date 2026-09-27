@@ -486,10 +486,10 @@ function OfferListCard({
           <VerticalGradient colors={["rgba(6,6,10,0.1)", "rgba(6,6,10,0.35)", "rgba(6,6,10,0.92)"]} />
 
           {badge && (
-            <View style={s.badge}>
-              {badge === "redeemed" && <Check size={10} color="#E8C674" strokeWidth={2.5} />}
+            <View style={[s.badge, badge === "redeemed" && s.badgeGrey]}>
+              {badge === "redeemed" && <Check size={10} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />}
               {badge === "endingSoon" && <Clock size={10} color="#E8C674" strokeWidth={2.5} />}
-              <Text style={s.badgeText}>{t(`offers.badge.${badge}`)}</Text>
+              <Text style={[s.badgeText, badge === "redeemed" && s.badgeTextGrey]}>{t(`offers.badge.${badge}`)}</Text>
             </View>
           )}
 
@@ -631,6 +631,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)", borderWidth: 1, borderColor: "rgba(230,199,122,0.45)",
   },
   badgeText: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#E8C674", letterSpacing: 0.6, textTransform: "uppercase" },
+  // Inlöst är en historik, inte något att agera på: grå i stället för guld
+  badgeGrey: { borderColor: "rgba(255,255,255,0.3)" },
+  badgeTextGrey: { color: "rgba(255,255,255,0.7)" },
   logoWrap: {
     position: "absolute", top: 10, right: 12,
     width: 34, height: 34, borderRadius: 17, overflow: "hidden",
@@ -645,7 +648,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   savings: { marginBottom: 6 },
   savingsSmall: {
     fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.4, textTransform: "uppercase",
-    color: "rgba(255,255,255,0.8)", marginBottom: 1,
+    color: "rgba(255,255,255,0.8)", marginBottom: -3,
   },
   savingsBig: {
     flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 38, lineHeight: 44, color: "#E8C674",
