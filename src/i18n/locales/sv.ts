@@ -340,7 +340,7 @@ export const sv = {
       offerN: "Erbjudande {{n}}",
       valid: "Giltigt: {{date}}",
       forever: "Tillsvidare",
-      activeSecs: "{{secs}} s aktivt",
+      activeSecs: "{{secs}}s aktivt",
       business: "Ej tillgängligt för företagskonton",
       getPass: "Skaffa Österlenpasset",
     },

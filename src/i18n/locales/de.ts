@@ -337,7 +337,7 @@ export const de: typeof sv = {
       offerN: "Angebot {{n}}",
       valid: "Gültig: {{date}}",
       forever: "Bis auf Weiteres",
-      activeSecs: "{{secs}} Sek. aktiv",
+      activeSecs: "{{secs}}s aktiv",
       business: "Für Firmenkonten nicht verfügbar",
       getPass: "Österlen-Pass holen",
     },

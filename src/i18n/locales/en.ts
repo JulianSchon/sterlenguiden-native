@@ -337,7 +337,7 @@ export const en: typeof sv = {
       offerN: "Offer {{n}}",
       valid: "Valid: {{date}}",
       forever: "Until further notice",
-      activeSecs: "Active for {{secs}} s",
+      activeSecs: "Active for {{secs}}s",
       business: "Not available for business accounts",
       getPass: "Get the Österlen Pass",
     },
