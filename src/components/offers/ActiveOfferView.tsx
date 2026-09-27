@@ -21,7 +21,6 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
-import { Clock } from "lucide-react-native";
 import { Canvas, Circle, Group, Path, Rect, RadialGradient, LinearGradient, Skia, vec } from "@shopify/react-native-skia";
 import { MemberCard } from "@/components/MemberCard";
 import { useProfile } from "@/hooks/useProfile";
@@ -226,12 +225,6 @@ export function ActiveOfferView({
         </View>
       </Animated.View>
 
-      {/* ── Kontrollen personalen gör ── */}
-      <View style={a.verifyChip}>
-        <Clock size={14} color={GOLD_LT} strokeWidth={2} />
-        <Text style={a.verify}>Kontrollera att klockan på kortet stämmer med din egen</Text>
-      </View>
-
       {/* ── Medlemskortets baksida = äkthetsbeviset ── */}
       <View style={a.cardWrap}>
         <MemberCard
@@ -290,14 +283,6 @@ const a = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   secondsLabel: { fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.4, color: "rgba(255,255,255,0.5)", marginTop: -2 },
-
-  // Personalens kontroll: en inspelning visar en gammal tid, som inte stämmer med deras egen klocka
-  verifyChip: {
-    flexDirection: "row", alignItems: "center", gap: 8, marginTop: 20,
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    backgroundColor: "rgba(232,198,116,0.10)", borderWidth: 1, borderColor: "rgba(232,198,116,0.28)",
-  },
-  verify: { fontFamily: "Inter_500Medium", fontSize: 12, color: "rgba(255,255,255,0.85)" },
 
   cardWrap: { marginTop: "auto" as any, width: "100%", alignItems: "center" },
 });
