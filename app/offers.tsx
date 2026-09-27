@@ -21,7 +21,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Clock, Crown, ChevronLeft, ChevronRight } from "lucide-react-native";
 import { Canvas, Fill, LinearGradient, Line, Path, DashPathEffect, useImage, vec } from "@shopify/react-native-skia";
-import { useOffers } from "@/hooks/useOffers";
+import { useOffers, useRedeemedOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
 import { useProfile } from "@/hooks/useProfile";
@@ -92,6 +92,7 @@ export default function OffersScreen() {
   const { data: profile } = useProfile();
   const { available: usable } = useAvailableOffers();
   const { data: offers = [], isLoading } = useOffers();
+  const { data: redeemedOffers = [] } = useRedeemedOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
 
   // Vilken biljett som är öppen och var dess sidoband satt (bandet flyger därifrån och tillbaka)
@@ -176,15 +177,25 @@ export default function OffersScreen() {
   const pages = useMemo(() => {
     // Senast tillagda först, oavsett kategori
     const byNewest = (a: Offer, b: Offer) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    // Senast inlöst först i "Inlösta"
+    const lastRedeemed = new Map<string, number>();
+    for (const r of redemptions) {
+      lastRedeemed.set(r.offer_id, Math.max(lastRedeemed.get(r.offer_id) ?? 0, new Date(r.activated_at).getTime()));
+    }
+    const byLastRedeemed = (a: Offer, b: Offer) => (lastRedeemed.get(b.id) ?? 0) - (lastRedeemed.get(a.id) ?? 0);
+
     const usedIds = new Set(offers.filter((o) => !offerEligibility(o, redemptions).canUse).map((o) => o.id));
+    // Inlösta erbjudanden som gått ut eller stängts av finns kvar i historiken
+    const validIds = new Set(offers.map((o) => o.id));
+    const gone = redeemedOffers.filter((o) => !validIds.has(o.id));
     return FILTER_IDS.map((id): PageData => {
-      const filtered = id === "all" ? offers : offers.filter((o) => matchesFilter(o.category, id));
+      const inFilter = (o: Offer) => id === "all" || matchesFilter(o.category, id);
       return {
-        available: filtered.filter((o) => !usedIds.has(o.id)).sort(byNewest),
-        redeemed: filtered.filter((o) => usedIds.has(o.id)).sort(byNewest),
+        available: offers.filter((o) => inFilter(o) && !usedIds.has(o.id)).sort(byNewest),
+        redeemed: [...offers.filter((o) => inFilter(o) && usedIds.has(o.id)), ...gone.filter(inFilter)].sort(byLastRedeemed),
       };
     });
-  }, [offers, redemptions]);
+  }, [offers, redeemedOffers, redemptions]);
 
   // Det som går att lösa in just nu, oberoende av valt filter
   const totalValue = usable.reduce((sum, o) => sum + estimateOfferValue(o), 0);
@@ -226,7 +237,7 @@ export default function OffersScreen() {
         </View>
       )}
 
-      {!isLoading && offers.length === 0 && (
+      {!isLoading && offers.length === 0 && redeemedOffers.length === 0 && (
         <View style={s.center}>
           <View style={s.emptyIcon}>
             <Crown size={28} color={colors.goldText} strokeWidth={1.5} />
@@ -236,7 +247,7 @@ export default function OffersScreen() {
         </View>
       )}
 
-      {!isLoading && offers.length > 0 && (
+      {!isLoading && (offers.length > 0 || redeemedOffers.length > 0) && (
         <>
           <View>
             <Text style={s.greeting} numberOfLines={1}>
@@ -493,17 +504,19 @@ function OfferListCard({
             {parts && (
               <View style={s.savings}>
                 {!!parts.before && <Text style={s.savingsSmall}>{parts.before}</Text>}
-                <View style={s.savingsRow}>
-                  <Text style={s.savingsBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{parts.big}</Text>
-                  {!!parts.after && <Text style={s.savingsAfter} numberOfLines={1}>{parts.after}</Text>}
-                </View>
+                <Text style={s.savingsBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{parts.big}</Text>
+                {!!parts.after && <Text style={[s.savingsSmall, s.savingsAfter]}>{parts.after}</Text>}
               </View>
             )}
             <Text style={s.placeName} numberOfLines={1}>{offer.place?.name ?? "Österlen"}</Text>
             <View style={s.dealRow}>
               <Text style={s.dealText} numberOfLines={1}>{offer.title}</Text>
               {offer.expires_at && (
-                <Text style={s.until}>{t("offers.until", { date: formatDate(offer.expires_at, "d MMM") })}</Text>
+                <Text style={s.until}>
+                  {new Date(offer.expires_at).getTime() < Date.now()
+                    ? t("offers.expired")
+                    : t("offers.until", { date: formatDate(offer.expires_at, "d MMM") })}
+                </Text>
               )}
             </View>
           </View>
@@ -626,7 +639,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   // Lite förstorad så att den fyller hela cirkeln även när loggan är en kvadrat med luft i hörnen
   logo: { width: "100%", height: "100%", transform: [{ scale: 1.2 }] },
   bottom: { position: "absolute", left: 16, right: 14, bottom: 12, gap: 1 },
-  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: "#FFFFFF" },
+  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: -0.3, color: "#FFFFFF" },
   dealText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
   // Rabatten är det viktiga: stor guldsiffra direkt på bilden, ingen ruta runt
   savings: { marginBottom: 6 },
@@ -634,15 +647,12 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.4, textTransform: "uppercase",
     color: "rgba(255,255,255,0.8)", marginBottom: 1,
   },
-  savingsRow: { flexDirection: "row", alignItems: "baseline", gap: 8 },
   savingsBig: {
     flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 38, lineHeight: 44, color: "#E8C674",
     textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8,
   },
-  savingsAfter: {
-    flexShrink: 1, fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
-  },
+  // "RABATT" under siffran ser ut som "SPARA" ovanför den
+  savingsAfter: { marginBottom: 0, marginTop: -2 },
   dealRow: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
   until: { fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.7)" },
 });

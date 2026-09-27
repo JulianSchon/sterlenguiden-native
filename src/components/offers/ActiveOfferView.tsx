@@ -191,7 +191,7 @@ export function ActiveOfferView({
 
         <Text style={a.dealText} numberOfLines={2}>{dealText}</Text>
         {parts && (
-          <View style={a.savingsRow}>
+          <View style={a.savings}>
             {!!parts.before && <Text style={a.savingsSmall}>{parts.before}</Text>}
             <Text style={a.savingsBig}>{parts.big}</Text>
             {!!parts.after && <Text style={a.savingsSmall}>{parts.after}</Text>}
@@ -272,7 +272,7 @@ const a = StyleSheet.create({
     fontFamily: "Montserrat_700Bold", fontSize: 21, letterSpacing: -0.4, lineHeight: 27, color: "#FFFFFF",
     textAlign: "center", marginTop: 6,
   },
-  savingsRow: { flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: 2 },
+  savings: { alignItems: "center", marginTop: 2 },
   savingsBig: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 30, color: GOLD_LT },
   savingsSmall: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", color: "rgba(255,255,255,0.75)" },
 

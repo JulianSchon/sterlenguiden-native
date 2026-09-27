@@ -302,6 +302,7 @@ export const de: typeof sv = {
     member: "Mitglied",
     until: "Bis {{date}}",
     notMember: "Kein Mitglied",
+    expired: "Abgelaufen",
     activating: "Wird aktiviert…",
     activateFailed: { title: "Aktivierung fehlgeschlagen", body: "Das Angebot wurde nicht aktiviert. Prüfe deine Verbindung und versuche es erneut." },
     how: {
@@ -339,6 +340,7 @@ export const de: typeof sv = {
       forever: "Bis auf Weiteres",
       activeSecs: "{{secs}}s aktiv",
       business: "Für Firmenkonten nicht verfügbar",
+      expired: "Dieses Angebot ist abgelaufen",
       getPass: "Österlen-Pass holen",
     },
     hold: { idle: "Gedrückt halten zum Aktivieren", holding: "Weiter halten…" },

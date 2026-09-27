@@ -302,6 +302,7 @@ export const en: typeof sv = {
     member: "Member",
     until: "Until {{date}}",
     notMember: "Not a member",
+    expired: "Expired",
     activating: "Activating…",
     activateFailed: { title: "Couldn't activate", body: "The offer wasn't activated. Check your connection and try again." },
     how: {
@@ -339,6 +340,7 @@ export const en: typeof sv = {
       forever: "Until further notice",
       activeSecs: "Active for {{secs}}s",
       business: "Not available for business accounts",
+      expired: "This offer has expired",
       getPass: "Get the Österlen Pass",
     },
     hold: { idle: "Press and hold to activate", holding: "Keep holding…" },

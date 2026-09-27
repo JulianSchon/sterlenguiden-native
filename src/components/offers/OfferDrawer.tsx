@@ -114,8 +114,9 @@ export function OfferDrawer({
   const [activating, setActivating] = useState(false);
   const locked = !!pending || activating;
 
+  // Ett utgånget, inlöst erbjudande (öppnat från historiken) finns inte i listan över giltiga: lägg till det
   const offers = useMemo(
-    () => [...rawOffers].sort((a, b) => Number(b.id === focusOffer?.id) - Number(a.id === focusOffer?.id)),
+    () => (focusOffer && !rawOffers.some((o) => o.id === focusOffer.id) ? [focusOffer, ...rawOffers] : [...rawOffers]).sort((a, b) => Number(b.id === focusOffer?.id) - Number(a.id === focusOffer?.id)),
     [rawOffers, focusOffer?.id],
   );
   const place = offers[0]?.place ?? null;
@@ -526,14 +527,19 @@ function OfferCard({
   const parts = savings ? splitSavings(savings) : null;
   const [box, setBox] = useState({ w: 0, h: 0 });
 
-  const validLabel = offer.expires_at
-    ? t("offers.drawer.valid", { date: formatDate(offer.expires_at, "d MMM yyyy") })
-    : t("offers.drawer.forever");
+  const isExpired = !!offer.expires_at && new Date(offer.expires_at).getTime() < Date.now();
+  const validLabel = isExpired
+    ? t("offers.expired")
+    : offer.expires_at
+      ? t("offers.drawer.valid", { date: formatDate(offer.expires_at, "d MMM yyyy") })
+      : t("offers.drawer.forever");
 
   // Företagskonton kan aldrig lösa in — de skulle kunna aktivera sina egna
   const blocked = isBusiness
     ? t("offers.drawer.business")
-    : isMember && !eligibility.canUse
+    : isExpired
+      ? t("offers.drawer.expired")
+      : isMember && !eligibility.canUse
       ? eligibility.reason
       : null;
 
@@ -558,10 +564,8 @@ function OfferCard({
       {parts && (
         <View style={c.savings}>
           {!!parts.before && <Text style={c.savingsSmall}>{parts.before}</Text>}
-          <View style={c.savingsRow}>
-            <Text style={c.savingsBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{parts.big}</Text>
-            {!!parts.after && <Text style={c.savingsAfter} numberOfLines={1}>{parts.after}</Text>}
-          </View>
+          <Text style={c.savingsBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{parts.big}</Text>
+          {!!parts.after && <Text style={[c.savingsSmall, c.savingsAfter]}>{parts.after}</Text>}
         </View>
       )}
 
@@ -694,9 +698,8 @@ const createCardStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, textTransform: "uppercase",
     color: c.muted, marginBottom: 2,
   },
-  savingsRow: { flexDirection: "row", alignItems: "baseline", gap: 10 },
   savingsBig: { flexShrink: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 46, lineHeight: 52, color: c.goldText },
-  savingsAfter: { flexShrink: 1, fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
+  savingsAfter: { marginBottom: 0, marginTop: -2 },
 
   // Radbrytande rad, inte staplade rader — tre korta fakta ska få plats på två
   metaBlock: { marginTop: 18, flexDirection: "row", flexWrap: "wrap", columnGap: 20, rowGap: 9 },

@@ -305,6 +305,7 @@ export const sv = {
     member: "Medlem",
     until: "Till {{date}}",
     notMember: "Ej medlem",
+    expired: "Utgånget",
     activating: "Aktiverar…",
     activateFailed: { title: "Det gick inte att aktivera", body: "Erbjudandet aktiverades inte. Kontrollera din uppkoppling och försök igen." },
     how: {
@@ -342,6 +343,7 @@ export const sv = {
       forever: "Tillsvidare",
       activeSecs: "{{secs}}s aktivt",
       business: "Ej tillgängligt för företagskonton",
+      expired: "Erbjudandet har gått ut",
       getPass: "Skaffa Österlenpasset",
     },
     hold: { idle: "Håll inne för att aktivera", holding: "Håll inne…" },
