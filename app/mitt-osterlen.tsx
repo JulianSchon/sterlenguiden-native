@@ -10,7 +10,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
-import { Canvas, Circle, Group, RadialGradient, vec } from "@shopify/react-native-skia";
+import { Canvas, Circle, Group, RadialGradient, SweepGradient, vec } from "@shopify/react-native-skia";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Users } from "lucide-react-native";
@@ -28,6 +28,9 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const CARD = "#1A1A1D";
 const WEEKDAY_LABELS = ["MÅN", "TIS", "ONS", "TOR", "FRE", "LÖR", "SÖN"];
+// Gradientringen runt Vänner-ikonen — se friendsIconWrap
+const FRIENDS_RING_SIZE = 56;
+const FRIENDS_RING_R = 25;
 
 export default function MittOsterlenScreen() {
   const router = useRouter();
@@ -110,8 +113,18 @@ export default function MittOsterlenScreen() {
         </View>
 
         <PressableScale style={s.friendsTile} scale={0.97} onPress={() => router.push("/friends")}>
-          <View style={s.friendsIcon}>
-            <Users size={22} color={FG} strokeWidth={2} />
+          <View style={s.friendsIconWrap}>
+            {/* Varm gradientring runt ikonen — samma idé som story-ringarna på Utforska/Hem, fast
+                en riktig flerfärgad gradient (Skia SweepGradient) i stället för en enfärgad kant,
+                och dämpad så den känns som en detalj, inte skrikig. */}
+            <Canvas style={{ position: "absolute", width: FRIENDS_RING_SIZE, height: FRIENDS_RING_SIZE }} pointerEvents="none">
+              <Circle cx={FRIENDS_RING_SIZE / 2} cy={FRIENDS_RING_SIZE / 2} r={FRIENDS_RING_R} style="stroke" strokeWidth={2.5}>
+                <SweepGradient c={vec(FRIENDS_RING_SIZE / 2, FRIENDS_RING_SIZE / 2)} colors={["#C5A059", "#D97757", "#B8577A", "#C5A059"]} />
+              </Circle>
+            </Canvas>
+            <View style={s.friendsIcon}>
+              <Users size={20} color={FG} strokeWidth={2} />
+            </View>
             {pendingFriendRequests > 0 && (
               <View style={s.friendsBadge}>
                 <Text style={s.friendsBadgeText}>{pendingFriendRequests > 9 ? "9+" : pendingFriendRequests}</Text>
@@ -188,17 +201,20 @@ const s = StyleSheet.create({
     marginTop: 28, marginHorizontal: 16, padding: 16, borderRadius: 20,
     backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
   },
+  // Ringen (Canvas) ligger centrerad bakom friendsIcon i den här — se FRIENDS_RING_SIZE/_R ovan
+  friendsIconWrap: { width: FRIENDS_RING_SIZE, height: FRIENDS_RING_SIZE, alignItems: "center", justifyContent: "center" },
   friendsIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "#1E1B16", // varmare/mörkare än korten runt om, så den tunna gradientringen inte tävlar med en grå platta
     alignItems: "center", justifyContent: "center",
   },
   friendsBadge: {
-    position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9,
+    position: "absolute", top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9,
     backgroundColor: "#C0392B", alignItems: "center", justifyContent: "center", paddingHorizontal: 4,
     borderWidth: 2, borderColor: BG,
   },
   friendsBadgeText: { fontFamily: "Inter_700Bold", fontSize: 10, color: "#FFFFFF" },
-  friendsTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: FG },
+  // Playfair bort — bara för personnamn i appen numera, det här är en navigeringsetikett
+  friendsTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG },
   friendsSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 2 },
 });

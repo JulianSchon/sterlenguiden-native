@@ -402,7 +402,7 @@ function VisitedRingBox({ visitsTotal, totalPlaces }: { visitsTotal: number; tot
         <ProgressRing percent={percent} centerValue={visitsTotal} />
       </View>
       <Text style={s.statBoxLabel}>{visitsTotal} av {totalPlaces}</Text>
-      <Text style={s.statBoxCaption}>besökta platser</Text>
+      <Text style={s.statBoxCaption}>Besökta platser</Text>
     </View>
   );
 }
