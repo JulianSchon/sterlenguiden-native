@@ -82,13 +82,14 @@ export default function FriendProfileScreen() {
   }, [places, stats]);
 
   // Samma två toner som personens eget Österlenpass-kort — fritt valda oavsett medlemskap, bara
-  // kosmetik. Ljusa kort (Sand, Rapsfält) behöver mörk text, annars försvinner den i bakgrunden.
+  // kosmetik. Bara NAMNET (som sitter mot kortets egen färg, högst upp) byter ton för ljusa kort
+  // (Sand, Rapsfält) — användarnamn/ort/medlem-sedan ligger alltid nere i den mörka toningen, långt
+  // ner mot sidans bakgrund, och ska därför alltid vara ljusa oavsett kortval.
   const variant = friend ? getVariant(friend.cardColor) : null;
   const heroColors = variant ? cardColors(variant) : null;
   const heroFrom = variant?.bg ?? "#171310";
   const heroTo = variant?.bg2 ?? "#0E0B08";
   const heroText = heroColors?.text ?? "#FFFFFF";
-  const heroMuted = heroColors?.muted ?? "rgba(255,255,255,0.75)";
 
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;
@@ -114,8 +115,10 @@ export default function FriendProfileScreen() {
             </SvgGrad>
             <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0%"   stopColor={BG} stopOpacity={0}    />
-              <Stop offset="55%"  stopColor={BG} stopOpacity={0.1}  />
-              <Stop offset="80%"  stopColor={BG} stopOpacity={0.6}  />
+              <Stop offset="20%"  stopColor={BG} stopOpacity={0.04} />
+              <Stop offset="40%"  stopColor={BG} stopOpacity={0.15} />
+              <Stop offset="60%"  stopColor={BG} stopOpacity={0.38} />
+              <Stop offset="80%"  stopColor={BG} stopOpacity={0.72} />
               <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
             </SvgGrad>
           </Defs>
@@ -156,16 +159,16 @@ export default function FriendProfileScreen() {
           </View>
           <Text style={[s.name, { color: heroText }]}>{who}</Text>
           <View style={s.metaRow}>
-            {friend?.username && <Text style={[s.meta, { color: heroMuted }]}>@{friend.username}</Text>}
+            {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
             {friend?.city && (
               <View style={s.metaItem}>
-                <MapPin size={12} color={heroMuted} strokeWidth={2} />
-                <Text style={[s.meta, { color: heroMuted }]}>{friend.city}</Text>
+                <MapPin size={12} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+                <Text style={s.meta}>{friend.city}</Text>
               </View>
             )}
           </View>
           {friend?.memberSince && (
-            <Text style={[s.since, { color: heroMuted }]}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
+            <Text style={s.since}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
           )}
         </View>
 
