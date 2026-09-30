@@ -1,3 +1,4 @@
+import { Alert } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,12 +39,13 @@ export function useToggleFavorite() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: existing } = await supabase
+      const { data: existing, error: findError } = await supabase
         .from("favorites")
         .select("id")
         .eq("user_id", user.id)
         .eq("place_id", placeId)
         .maybeSingle();
+      if (findError) throw findError;
 
       // Felet lästes tidigare aldrig av — misslyckades sparandet (t.ex. RLS) såg det ändå ut
       // att fungera i stunden, tills listan uppdaterades och hjärtat hoppade tillbaka igen.
@@ -63,8 +65,11 @@ export function useToggleFavorite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favorites"] });
     },
+    // TILLFÄLLIGT under felsökningen av att favoriter inte sparas — visar databasens
+    // riktiga felmeddelande på skärmen i stället för bara i terminalen. Ta bort igen sen.
     onError: (error) => {
       console.error("Kunde inte spara favorit:", error);
+      Alert.alert("Kunde inte spara favorit", String((error as any)?.message ?? error));
     },
   });
 }
