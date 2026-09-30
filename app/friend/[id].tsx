@@ -2,12 +2,10 @@
  * En persons profil, öppnad från Vänner (sökträff, förfrågan eller vän).
  * Samma hårdkodat mörka stil som resten av Mitt Österlen.
  *
- * Bakgrunden är personens eget Österlenpass-korts FÄRGER (samma två toner som variant.bg/bg2 i
- * cardVariants.ts) — inte själva kortbilden. Bildfilerna är gjorda för det breda, låga kortformatet
- * och har appens logotyp inbakad längst ner till höger, tänkt att skymmas av kortets egen text;
- * sträckt över den här höga, smala heron blev logotypen istället huvudmotivet och såg ut som en
- * söndrig, tudelad bild. Färgerna är säkra att använda i alla format. Namnet står bara en gång,
- * i heron, inte i headern.
+ * Ingen egen bakgrundsbild/toning längre (det höll aldrig, fyra försök) — i stället samma mönster
+ * som troféerna på Utmaningar: en mjuk, suddig glöd (GlowCanvas) bakom profilringen, färgad efter
+ * personens eget Österlenpass-kort. Enklare, och håller ihop med resten av appens formspråk.
+ * Headern är INTE sticky, ligger i scrollflödet som vanligt.
  *
  * Innan ni är vänner är statistiken och aktivitetsloggen en igenkännbar men blurrad förhandstitt
  * (expo-blur, redan inbyggt sedan tidigare bygge) — riktiga rader och rutor i rätt form, men med
@@ -24,7 +22,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
-import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import {
   ArrowLeft, MapPin, Heart, Sparkles, Ticket, Compass, Flame, UserMinus, UserPlus, Check, X,
 } from "lucide-react-native";
@@ -40,7 +37,7 @@ import { stickerImageUrl } from "@/hooks/useCollectibles";
 import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
 import { GROUP_INFO } from "@/lib/achievements";
-import { TrophyMedal } from "@/components/trophies/TrophyMedal";
+import { TrophyMedal, GlowCanvas } from "@/components/trophies/TrophyMedal";
 import { getVariant } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
@@ -49,7 +46,7 @@ const FG    = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const CARD  = "#1A1A1D";
 const GOLD  = "#C5A059";
-const HERO_H = 340;
+const AVATAR_SIZE = 92;
 
 /** Grå stapel i skelettet — aldrig text, bara form, så den aldrig kan tas för en riktig siffra */
 function SkelBar({ w, h }: { w: number; h: number }) {
@@ -81,11 +78,10 @@ export default function FriendProfileScreen() {
     return cat && cat.visited > 0 ? cat : null;
   }, [places, stats]);
 
-  // Samma två toner som personens eget Österlenpass-kort — fritt valda oavsett medlemskap, bara
-  // kosmetik. All text är vit (läses bäst mot alla kortfärger, även ljusa som Sand/Rapsfält).
+  // Samma kortfärg som personens eget Österlenpass, fritt valt oavsett medlemskap, bara kosmetik —
+  // används bara som glödens färg bakom profilringen nu.
   const variant = friend ? getVariant(friend.cardColor) : null;
-  const heroFrom = variant?.bg ?? "#171310";
-  const heroTo = variant?.bg2 ?? "#0E0B08";
+  const glowColor = variant?.bg ?? GOLD;
 
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;
@@ -101,54 +97,27 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      {/* Fast header, samma mönster som Mitt Österlen och Vänner: ligger UTANFÖR scrollytan med egen
-          solid bakgrund, så den alltid täcker toppen av skärmen — även under iOS "gummibandet" när
-          man drar ner förbi kanten. Det var det som saknades när headern låg i scrollflödet: det
-          tomrum studsen tillfälligt blottar ovanför innehållet visade sidans svarta botten rakt av. */}
-      <View style={[s.header, { paddingTop: insets.top, backgroundColor: BG }]}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
-        {isFriend && (
-          <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-            <UserMinus size={24} color="#B33939" strokeWidth={2} />
-          </TouchableOpacity>
-        )}
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
-        {/* Bakgrund + hero i ett och samma block, i scrollflödet — rullar bort med resten av sidan.
-            Kortets egna två toner, med en lång, mjuk toning ner mot sidans botten. */}
-        <View style={{ height: HERO_H }}>
-          <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Defs>
-              <SvgGrad id="heroBase" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={heroFrom} />
-                <Stop offset="100%" stopColor={heroTo} />
-              </SvgGrad>
-              {/* Mörk högst upp (smälter ihop med headern rakt ovanför), reser sig till kortfärgen
-                  mitt i, tonar sedan ner mot svart igen mot sidans botten. Aldrig helt ren kortfärg
-                  någonstans (peak-opaciteten är 0.35, inte 0) — mer urvattnat, mindre grälla toner. */}
-              <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%"   stopColor={BG} stopOpacity={0.9}  />
-                <Stop offset="18%"  stopColor={BG} stopOpacity={0.55} />
-                <Stop offset="38%"  stopColor={BG} stopOpacity={0.35} />
-                <Stop offset="55%"  stopColor={BG} stopOpacity={0.42} />
-                <Stop offset="75%"  stopColor={BG} stopOpacity={0.68} />
-                <Stop offset="90%"  stopColor={BG} stopOpacity={0.9}  />
-                <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
-              </SvgGrad>
-            </Defs>
-            <SvgRect width="100%" height="100%" fill="url(#heroBase)" />
-            <SvgRect width="100%" height="100%" fill="url(#heroFade)" />
-          </Svg>
+        {/* Headern ligger i scrollflödet, inte sticky */}
+        <View style={[s.header, { paddingTop: insets.top }]}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+          </TouchableOpacity>
+          {isFriend && (
+            <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
+              <UserMinus size={24} color="#B33939" strokeWidth={2} />
+            </TouchableOpacity>
+          )}
+        </View>
 
-          <View style={s.hero}>
+        <View style={s.hero}>
           <View>
-            <Avatar size={92} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
+            {/* Samma mjuka glöd som bakom troféerna på Utmaningar (GlowCanvas), färgad efter kortet */}
+            <GlowCanvas size={AVATAR_SIZE} color={glowColor} opacity={0.6} radiusRatio={0.42} blurRatio={0.24} />
+            <Avatar size={AVATAR_SIZE} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
             {/* Elden ersätter en egen "streak"-ruta: syns bara från 1 dag, en 0 är ingen streak värd att visa.
                 Vid 40px är den levande, riktade elden (StreakFlame) för liten och för svajig för att läsas —
                 siffran hamnade bakom lågan och rörde sig med den. En liten, stilla pill med ikon + siffra
@@ -173,7 +142,6 @@ export default function FriendProfileScreen() {
           {friend?.memberSince && (
             <Text style={s.since}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
           )}
-          </View>
         </View>
 
         {profileLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />}
@@ -408,15 +376,15 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingBottom: 12,
   },
-  // Samma storlek och form som tillbaka-knappen på Vänner-sidan och resten av appen
+  // Samma storlek, form och färg som tillbaka-knappen på Vänner-sidan och resten av appen
   headerBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(0,0,0,0.30)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
 
-  hero: { alignItems: "center", paddingTop: 56 },
+  hero: { alignItems: "center", paddingTop: 20 },
   streakBadge: {
     position: "absolute", right: -8, bottom: -6,
     flexDirection: "row", alignItems: "center", gap: 3,
@@ -426,7 +394,9 @@ const s = StyleSheet.create({
   streakBadgeNumber: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#FFFFFF" },
   // Playfair bort härifrån också — samma sans-serif (Inter) som resten av sidan, bara större och
   // fetare, som en riktig rubrik i stället för en bruten skrivstil.
-  name: { fontFamily: "Inter_400Regular", fontSize: 22, color: "#FFFFFF", marginTop: 14 },
+  // Samma typsnitt som "Senaste aktivitet" och de andra sektionsrubrikerna (s.sectionTitle),
+  // fast utan versaler/spårning — det är ett namn, inte en rubrik.
+  name: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.2, color: "#FFFFFF", marginTop: 14 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
