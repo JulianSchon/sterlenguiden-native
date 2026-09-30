@@ -66,6 +66,14 @@ export const en: typeof sv = {
       nextChange: "You can change your name again on {{date}}.",
       cooldown: "You changed your name recently. Please try again later.",
     },
+    username: {
+      label: "Username",
+      placeholder: "username",
+      hint: "Others can find you as a friend by your username. 3–20 characters: letters, numbers, dot and underscore.",
+      save: "Save username",
+      taken: "That username is already taken.",
+      invalid: "Use 3–20 characters: letters, numbers, dot or underscore.",
+    },
     about: {
       birthDateHint: "Your date of birth is used to show the right offers. It cannot be changed once saved.",
       day: "Day",

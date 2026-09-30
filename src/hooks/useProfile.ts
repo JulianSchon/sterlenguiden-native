@@ -5,6 +5,8 @@ export interface Profile {
   id: string;
   user_id: string;
   display_name: string | null;
+  username: string | null;
+  city: string | null;
   avatar_url: string | null;
   profile_image_url: string | null;
   card_photo_changed_at: string | null;

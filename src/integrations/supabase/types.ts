@@ -791,6 +791,7 @@ export type Database = {
           card_photo_changed_at: string | null
           updated_at: string
           user_id: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -819,6 +820,7 @@ export type Database = {
           card_photo_changed_at?: string | null
           updated_at?: string
           user_id: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -847,6 +849,34 @@ export type Database = {
           card_photo_changed_at?: string | null
           updated_at?: string
           user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          responded_at?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -1149,6 +1179,40 @@ export type Database = {
           is_premium: boolean
           place_id: number
         }[]
+      }
+      rpc_search_users: {
+        Args: { q: string }
+        Returns: {
+          user_id: string
+          username: string | null
+          display_name: string | null
+          city: string | null
+          circle_color: string | null
+          avatar_ring: string | null
+          member_since: string
+          friendship_id: string | null
+          status: string | null
+          direction: string | null
+        }[]
+      }
+      rpc_list_friendships: {
+        Args: never
+        Returns: {
+          friendship_id: string
+          user_id: string
+          username: string | null
+          display_name: string | null
+          city: string | null
+          circle_color: string | null
+          avatar_ring: string | null
+          status: string
+          direction: string
+          created_at: string
+        }[]
+      }
+      rpc_friend_stats: {
+        Args: { target_user_id: string }
+        Returns: Json
       }
       has_role: {
         Args: {

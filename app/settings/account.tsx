@@ -79,6 +79,12 @@ export default function AccountSettings() {
   const nameLocked = !!nextNameChange && nextNameChange.getTime() > Date.now();
   const nameChanged = name.trim().length > 1 && name.trim() !== displayName;
 
+  const usernameInput = useRef<TextInput>(null);
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [username, setUsername] = useState(profile?.username ?? "");
+  useEffect(() => setUsername(profile?.username ?? ""), [profile?.username]);
+  const usernameChanged = username.trim().length >= 3 && username.trim() !== (profile?.username ?? "");
+
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
@@ -99,6 +105,16 @@ export default function AccountSettings() {
     } catch (e) {
       const cooldown = e instanceof Error && e.message === "display_name_cooldown";
       Alert.alert(t("common.error"), cooldown ? t("account.name.cooldown") : t("common.error"));
+    }
+  }
+
+  async function saveUsername() {
+    try {
+      await updateProfile.mutateAsync({ username: username.trim() });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (e) {
+      const key = e instanceof Error && (e.message === "username_taken" || e.message === "username_invalid") ? e.message : null;
+      Alert.alert(t("common.error"), key ? t(`account.username.${key === "username_taken" ? "taken" : "invalid"}`) : t("common.error"));
     }
   }
 
@@ -206,6 +222,32 @@ export default function AccountSettings() {
               <QuietButton label={t("account.name.save")} onPress={saveName} loading={updateProfile.isPending} />
             )}
 
+            {/* Användarnamn — så att vänner kan hitta dig; inget krav, ingen väntetid att byta */}
+            <View style={[s.nameField, s.usernameField, usernameFocused && s.nameFieldFocused]}>
+              <Text style={s.usernameAt}>@</Text>
+              <TextInput
+                ref={usernameInput}
+                style={s.nameInput}
+                value={username}
+                onChangeText={(v) => setUsername(v.replace(/s/g, ""))}
+                onFocus={() => setUsernameFocused(true)}
+                onBlur={() => setUsernameFocused(false)}
+                selectTextOnFocus
+                maxLength={20}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder={t("account.username.placeholder")}
+                placeholderTextColor={colors.faint}
+              />
+              <TouchableOpacity onPress={() => usernameInput.current?.focus()} hitSlop={12} accessibilityLabel={t("account.username.label")}>
+                <Pencil size={17} color={colors.goldText} strokeWidth={1.8} />
+              </TouchableOpacity>
+            </View>
+            <Text style={s.hint}>{t("account.username.hint")}</Text>
+            {usernameChanged && (
+              <QuietButton label={t("account.username.save")} onPress={saveUsername} loading={updateProfile.isPending} />
+            )}
+
             {profile?.birth_date ? (
               <View style={[s.row, s.detailRow]}>
                 <Calendar size={16} color={colors.faint} strokeWidth={1.7} />
@@ -303,6 +345,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: 12, backgroundColor: c.raised, borderWidth: 1, borderColor: c.borderStrong,
   },
+  usernameField: { marginTop: 14 },
+  usernameAt: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.faint },
   nameFieldFocused: { borderColor: c.gold },
   // fontSize över 16 hindrar iOS från att zooma in vid fokus
   nameInput: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 18, color: c.text, paddingVertical: 4 },

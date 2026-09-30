@@ -86,6 +86,7 @@ export function useRemoveAvatar() {
 
 type ProfileChanges = {
   display_name?: string;
+  username?: string;
   circle_color?: string;
   birth_date?: string;
   lives_in_osterlen?: boolean;
@@ -108,6 +109,9 @@ export function useUpdateProfile() {
       if (error) {
         if (error.message.includes("display_name_cooldown")) throw new Error("display_name_cooldown");
         if (error.message.includes("birth_date_locked")) throw new Error("birth_date_locked");
+        // 23505 = unikt värde upptaget (användarnamnet är redan taget), 23514 = ogiltigt format
+        if (changes.username !== undefined && error.code === "23505") throw new Error("username_taken");
+        if (changes.username !== undefined && error.code === "23514") throw new Error("username_invalid");
         throw error;
       }
     },

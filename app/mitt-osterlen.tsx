@@ -13,7 +13,9 @@ import { ArrowLeft } from "lucide-react-native";
 import { Canvas, Circle, Group, RadialGradient, vec } from "@shopify/react-native-skia";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
+import { Users } from "lucide-react-native";
 import { StreakFlame } from "@/components/streak/StreakFlame";
+import { useFriendRequestCount } from "@/hooks/useFriends";
 import { StickersSection } from "@/components/stickers/StickersSection";
 import { ListsSection } from "@/components/lists/ListsSection";
 import { MemoriesSection } from "@/components/memories/MemoriesSection";
@@ -30,6 +32,7 @@ export default function MittOsterlenScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: days = [] } = useAppDays();
+  const pendingFriendRequests = useFriendRequestCount();
 
   const today = swedishDay();
   const streak = useMemo(() => computeStreak(days, today), [days, today]);
@@ -105,6 +108,25 @@ export default function MittOsterlenScreen() {
           </View>
         </View>
 
+        <TouchableOpacity style={s.friendsTile} activeOpacity={0.85} onPress={() => router.push("/friends")}>
+          <View style={s.friendsIcon}>
+            <Users size={22} color={FG} strokeWidth={2} />
+            {pendingFriendRequests > 0 && (
+              <View style={s.friendsBadge}>
+                <Text style={s.friendsBadgeText}>{pendingFriendRequests > 9 ? "9+" : pendingFriendRequests}</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.friendsTitle}>Vänner</Text>
+            <Text style={s.friendsSub}>
+              {pendingFriendRequests > 0
+                ? pendingFriendRequests === 1 ? "1 väntande förfrågan" : `${pendingFriendRequests} väntande förfrågningar`
+                : "Lägg till vänner och se deras statistik"}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
         <ListsSection />
         <MemoriesSection />
         <StickersSection />
@@ -159,4 +181,23 @@ const s = StyleSheet.create({
     width: 30, height: 30, borderRadius: 15,
     borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.25)",
   },
+
+  friendsTile: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    marginTop: 28, marginHorizontal: 16, padding: 16, borderRadius: 20,
+    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+  },
+  friendsIcon: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center", justifyContent: "center",
+  },
+  friendsBadge: {
+    position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: "#C0392B", alignItems: "center", justifyContent: "center", paddingHorizontal: 4,
+    borderWidth: 2, borderColor: BG,
+  },
+  friendsBadgeText: { fontFamily: "Inter_700Bold", fontSize: 10, color: "#FFFFFF" },
+  friendsTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: FG },
+  friendsSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 2 },
 });

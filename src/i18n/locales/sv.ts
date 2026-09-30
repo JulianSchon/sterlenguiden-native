@@ -69,6 +69,14 @@ export const sv = {
       nextChange: "Du kan ändra namnet igen den {{date}}.",
       cooldown: "Du har ändrat namnet för nyligen. Försök igen senare.",
     },
+    username: {
+      label: "Användarnamn",
+      placeholder: "anvandarnamn",
+      hint: "Andra kan hitta dig som vän via ditt användarnamn. 3–20 tecken: bokstäver, siffror, punkt och understreck.",
+      save: "Spara användarnamn",
+      taken: "Användarnamnet är redan taget.",
+      invalid: "Använd 3–20 tecken: bokstäver, siffror, punkt eller understreck.",
+    },
     about: {
       birthDateHint: "Ditt födelsedatum används för att visa rätt erbjudanden. Det kan inte ändras efter att du sparat det.",
       day: "Dag",

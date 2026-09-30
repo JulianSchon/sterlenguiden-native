@@ -66,6 +66,14 @@ export const de: typeof sv = {
       nextChange: "Du kannst deinen Namen am {{date}} wieder ändern.",
       cooldown: "Du hast deinen Namen kürzlich geändert. Bitte versuche es später erneut.",
     },
+    username: {
+      label: "Benutzername",
+      placeholder: "benutzername",
+      hint: "Andere können dich über deinen Benutzernamen als Freund finden. 3–20 Zeichen: Buchstaben, Zahlen, Punkt und Unterstrich.",
+      save: "Benutzernamen speichern",
+      taken: "Dieser Benutzername ist bereits vergeben.",
+      invalid: "Verwende 3–20 Zeichen: Buchstaben, Zahlen, Punkt oder Unterstrich.",
+    },
     about: {
       birthDateHint: "Dein Geburtsdatum wird verwendet, um passende Angebote zu zeigen. Nach dem Speichern kann es nicht mehr geändert werden.",
       day: "Tag",
