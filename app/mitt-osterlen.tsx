@@ -13,7 +13,7 @@ import { ArrowLeft } from "lucide-react-native";
 import { Canvas, Circle, Group, RadialGradient, SweepGradient, vec } from "@shopify/react-native-skia";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import { Users, ChevronRight } from "lucide-react-native";
+import { Users, ChevronRight, X } from "lucide-react-native";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { useFriendRequestCount } from "@/hooks/useFriends";
 import { PressableScale } from "@/components/PressableScale";
@@ -62,7 +62,10 @@ export default function MittOsterlenScreen() {
       >
 
         <View style={s.hero}>
-          <View style={{ alignItems: "center" }}>
+          {/* Fast storlek (elden själv är alltid 215×238) i stället för auto — annars är
+              flameGlowAnchors procentbaserade left/top odefinierade mot en förälder utan egen
+              höjd, vilket var därför glöden inte satt centrerad. */}
+          <View style={{ width: 215, height: 238, alignItems: "center" }}>
             {/* Varm glöd bakom elden plus en mjuk skugga vid dess fot, så den känns som att den
                 svävar en liten bit ovanför bakgrunden i stället för att ligga platt mot den. */}
             <View style={s.flameGlowAnchor} pointerEvents="none">
@@ -94,7 +97,7 @@ export default function MittOsterlenScreen() {
             </Canvas>
             <Text style={s.number}>{streak.current}</Text>
           </View>
-          <Text style={s.label}>{streak.current === 1 ? "Dags streak" : "Dagars streak"}</Text>
+          <Text style={s.label}>Streak</Text>
           <Text style={s.hint}>Öppna appen varje dag</Text>
         </View>
 
@@ -115,11 +118,23 @@ export default function MittOsterlenScreen() {
             {week.map((d, i) => {
               const done = daySet.has(d);
               const isToday = d === today;
+              // En passerad dag utan appöppning är MISSAD (grå, kryss) — skiljer sig från en dag
+              // som bara inte hänt än (idag om den inte öppnats, eller kommande dagar), där det
+              // fortfarande kan bli en flamma. Datumsträngar ("YYYY-MM-DD") går att jämföra rakt av.
+              const missed = !done && d < today;
               return (
                 <View key={d} style={s.weekDay}>
                   <Text style={[s.weekLabel, isToday && { color: FG }]}>{WEEKDAY_LABELS[i]}</Text>
                   <View style={s.weekSlot}>
-                    {done ? <StreakFlame compact size={30} timeOffset={i * 700} /> : <View style={s.emptyDay} />}
+                    {done ? (
+                      <StreakFlame compact size={30} timeOffset={i * 700} />
+                    ) : missed ? (
+                      <View style={s.missedDay}>
+                        <X size={14} color={MUTED} strokeWidth={2.5} />
+                      </View>
+                    ) : (
+                      <View style={s.emptyDay} />
+                    )}
                   </View>
                 </View>
               );
@@ -187,10 +202,10 @@ const s = StyleSheet.create({
   // Versal geometrisk sans med luft mellan bokstäverna, vänsterställd bredvid tillbaka-knappen
   title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
   hero: { alignItems: "center" },
-  // 260×260-ankare centrerat över eldens ungefärliga kroppsmitt (lite under den geometriska mitten,
-  // dit själva lågans massa faktiskt drar) — samma knep som Vänner-plattans gradientring, RadialGlow
-  // förutsätter en kvadratisk förälder och elden själv är inte kvadratisk.
-  flameGlowAnchor: { position: "absolute", left: "50%", top: "55%", marginLeft: -130, marginTop: -130, width: 260, height: 260 },
+  // 260×260-ankare centrerat i pixlar (inte %) över eldens 215×238-yta — samma knep som Vänner-
+  // plattans gradientring, RadialGlow förutsätter en kvadratisk förälder och elden är inte
+  // kvadratisk. Procent gav en odefinierad position mot en förälder utan egen fast höjd.
+  flameGlowAnchor: { position: "absolute", left: (215 - 260) / 2, top: (238 - 260) / 2, width: 260, height: 260 },
   // Siffran sitter över eldens nedre del, som på Whoop
   numberWrap: { marginTop: -69, width: 340, height: 100, alignItems: "center", justifyContent: "center" },
   scrim: { position: "absolute", left: 0, top: -60, width: 340, height: 220 },
@@ -216,6 +231,12 @@ const s = StyleSheet.create({
   emptyDay: {
     width: 30, height: 30, borderRadius: 15,
     borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.25)",
+  },
+  // Passerad dag, ingen appöppning — fylld grå med ett kryss, skiljer sig medvetet från den
+  // streckade (ännu-inte-hänt) cirkeln ovan
+  missedDay: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center",
   },
 
   friendsTile: {

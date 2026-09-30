@@ -491,13 +491,13 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
   if (!target) {
     return <View style={[s.activityRow, bordered && s.activityRowBorder]}>{content}</View>;
   }
-  // Liten fördröjning innan navigeringen — annars hinner man aldrig SE ihoptryckningen; skärmen
-  // byts ut i samma ögonblick fingret lyfts.
+  // Ingen fördröjning — navigerar direkt (samma känsla som Vänner-knappen på Mitt Österlen), och
+  // PressableScales egen ihoptryckning hinner redan synas under själva trycket/hållet.
   return (
     <PressableScale
       style={[s.activityRow, bordered && s.activityRowBorder]}
       scale={0.94}
-      onPress={() => setTimeout(() => router.push(target as any), 220)}
+      onPress={() => router.push(target as any)}
     >
       {content}
     </PressableScale>

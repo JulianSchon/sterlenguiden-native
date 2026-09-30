@@ -158,9 +158,8 @@ function FriendRow({ friend }: { friend: FriendResult }) {
   const remove = useRemoveFriendship();
   const busy = send.isPending || accept.isPending || remove.isPending;
 
-  // Liten fördröjning innan navigeringen — annars hinner man aldrig SE ihoptryckningen; skärmen
-  // byts ut i samma ögonblick fingret lyfts (samma knep som vänprofilens aktivitetsrader).
-  const tap = () => setTimeout(() => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } }), 220);
+  // Ingen fördröjning — lika snabb som Vänner-knappen på Mitt Österlen.
+  const tap = () => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } });
 
   return (
     <PressableScale style={s.row} scale={0.96} onPress={tap}>
@@ -266,7 +265,7 @@ const s = StyleSheet.create({
 
   // Mindre yta ner mot sökfältet ovanför (var 28, kändes för stort både för "X resultat" och
   // för "1 vän" när listan är kort)
-  section: { marginTop: 16, paddingHorizontal: 16 },
+  section: { marginTop: 22, paddingHorizontal: 16 },
   // Playfair bort — bara för personnamn i appen numera, sektionsrubriker delar Montserrat
   sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: FG },
   resultCount: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED, marginTop: 4 },
