@@ -4,7 +4,7 @@ import Reanimated, {
   FadeIn, FadeOut, SlideInRight, SlideOutLeft, useAnimatedStyle, useSharedValue, withTiming, interpolateColor,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { Check, Plus, ArrowLeft } from "lucide-react-native";
+import { Check, Plus } from "lucide-react-native";
 import { useCreateList } from "@/hooks/useLists";
 import { useFriendships, type FriendResult } from "@/hooks/useFriends";
 import { useProfile } from "@/hooks/useProfile";
@@ -17,7 +17,7 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 const CARD = "#1A1A1D";
-const AVATAR_SIZE = 48;
+const AVATAR_SIZE = 40;
 const AVATAR_OVERLAP = 16;
 
 export function CreateListSheet({
@@ -133,10 +133,6 @@ export function CreateListSheet({
         </Reanimated.View>
       ) : (
         <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={{ gap: 12 }}>
-          <TouchableOpacity style={s.backRow} onPress={() => setStep("form")} hitSlop={8}>
-            <ArrowLeft size={16} color={MUTED} strokeWidth={2.2} />
-            <Text style={s.backText}>Tillbaka</Text>
-          </TouchableOpacity>
           {friends.length === 0 ? (
             <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, paddingVertical: 12 }}>
               Inga vänner att bjuda in än.
@@ -201,8 +197,6 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(197,160,89,0.12)", alignItems: "center", justifyContent: "center",
     borderWidth: 1.5, borderColor: GOLD,
   },
-  backRow: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
-  backText: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
   friendRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
     paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12,
