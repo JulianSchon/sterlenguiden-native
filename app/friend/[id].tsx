@@ -129,12 +129,16 @@ export default function FriendProfileScreen() {
                 <Stop offset="0%" stopColor={heroFrom} />
                 <Stop offset="100%" stopColor={heroTo} />
               </SvgGrad>
+              {/* Mörk högst upp (smälter ihop med headern rakt ovanför), reser sig till kortfärgen
+                  mitt i, tonar sedan ner mot svart igen mot sidans botten. Aldrig helt ren kortfärg
+                  någonstans (peak-opaciteten är 0.35, inte 0) — mer urvattnat, mindre grälla toner. */}
               <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%"   stopColor={BG} stopOpacity={0}    />
-                <Stop offset="20%"  stopColor={BG} stopOpacity={0.04} />
-                <Stop offset="40%"  stopColor={BG} stopOpacity={0.15} />
-                <Stop offset="60%"  stopColor={BG} stopOpacity={0.38} />
-                <Stop offset="80%"  stopColor={BG} stopOpacity={0.72} />
+                <Stop offset="0%"   stopColor={BG} stopOpacity={0.9}  />
+                <Stop offset="18%"  stopColor={BG} stopOpacity={0.55} />
+                <Stop offset="38%"  stopColor={BG} stopOpacity={0.35} />
+                <Stop offset="55%"  stopColor={BG} stopOpacity={0.42} />
+                <Stop offset="75%"  stopColor={BG} stopOpacity={0.68} />
+                <Stop offset="90%"  stopColor={BG} stopOpacity={0.9}  />
                 <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
               </SvgGrad>
             </Defs>
@@ -279,10 +283,12 @@ function TrophyRow({ trophies }: { trophies: FriendStats["trophies"] }) {
 
 function ActivityRow({ who, activity, bordered }: { who: string; activity: FriendActivity; bordered: boolean }) {
   const date = format(new Date(activity.happenedAt), "HH:mm, d MMM", { locale: sv });
-  const text =
-    activity.kind === "visit" ? `${who} besökte ${activity.label}` :
-    activity.kind === "favorite" ? `${who} lade till ${activity.label} i favoriter` :
-    `${who} samlade in ${activity.label}`;
+  // Bara namnet ska vara fetstilt — resten av meningen vanlig text, så det inte ser ut som att
+  // hela raden skriker. Byggd som två Text-delar (RN slår ihop dem till en rad ändå).
+  const rest =
+    activity.kind === "visit" ? ` besökte ${activity.label}` :
+    activity.kind === "favorite" ? ` lade till ${activity.label} i favoriter` :
+    ` samlade in ${activity.label}`;
 
   // Stickerns bild ligger i stickerbucketen (kräver stickerImageUrl); platsens/eventets image_url
   // är redan en öppen adress och används som den är. Saknas en bild visas kategorins egen ikon.
@@ -305,7 +311,10 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
         </View>
       )}
       <View style={s.activityBody}>
-        <Text style={s.activityText} numberOfLines={2}>{text}</Text>
+        <Text style={s.activityText} numberOfLines={2}>
+          <Text style={s.activityWho}>{who}</Text>
+          {rest}
+        </Text>
         <Text style={s.activityDate}>{date}</Text>
       </View>
     </View>
@@ -415,7 +424,9 @@ const s = StyleSheet.create({
     backgroundColor: "#1A1A1D", borderWidth: 1.5, borderColor: BG,
   },
   streakBadgeNumber: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#FFFFFF" },
-  name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: "#FFFFFF", marginTop: 14 },
+  // Playfair bort härifrån också — samma sans-serif (Inter) som resten av sidan, bara större och
+  // fetare, som en riktig rubrik i stället för en bruten skrivstil.
+  name: { fontFamily: "Inter_700Bold", fontSize: 23, letterSpacing: -0.3, color: "#FFFFFF", marginTop: 14 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
@@ -446,7 +457,8 @@ const s = StyleSheet.create({
   },
   // Ett riktigt foto (plats/event) fyller rutan; en sticker ligger fri (contain) på samma mörka platta
   activityThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: CARD },
-  activityText: { fontFamily: "Inter_500Medium", fontSize: 14, color: FG, lineHeight: 19 },
+  activityText: { fontFamily: "Inter_400Regular", fontSize: 14, color: FG, lineHeight: 19 },
+  activityWho: { fontFamily: "Inter_700Bold" },
   activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
   trophyRow: { flexDirection: "row", flexWrap: "wrap", gap: 16, paddingHorizontal: 4 },
