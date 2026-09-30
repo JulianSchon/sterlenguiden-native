@@ -432,15 +432,15 @@ const s = StyleSheet.create({
   sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, marginBottom: 12 },
   card: { borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
 
-  activityRow: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingHorizontal: 16, paddingVertical: 16 },
-  activityBody: { flex: 1, minHeight: 48, justifyContent: "space-between" },
+  activityRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  activityBody: { flex: 1, minHeight: 40, justifyContent: "space-between" },
   activityRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)" },
   activityIcon: {
-    width: 48, height: 48, borderRadius: 12, backgroundColor: "rgba(197,160,89,0.12)",
+    width: 40, height: 40, borderRadius: 10, backgroundColor: "rgba(197,160,89,0.12)",
     alignItems: "center", justifyContent: "center",
   },
   // Ett riktigt foto (plats/event) fyller rutan; en sticker ligger fri (contain) på samma mörka platta
-  activityThumb: { width: 48, height: 48, borderRadius: 12, backgroundColor: CARD },
+  activityThumb: { width: 40, height: 40, borderRadius: 10, backgroundColor: CARD },
   activityText: { fontFamily: "Inter_500Medium", fontSize: 14, color: FG, lineHeight: 19 },
   activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
