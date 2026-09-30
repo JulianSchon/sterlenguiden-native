@@ -5,7 +5,8 @@
  * Ingen egen bakgrundsbild/toning längre (det höll aldrig, fyra försök) — i stället samma mönster
  * som troféerna på Utmaningar: en mjuk, suddig glöd (GlowCanvas) bakom profilringen, färgad efter
  * personens eget Österlenpass-kort. Enklare, och håller ihop med resten av appens formspråk.
- * Headern är INTE sticky, ligger i scrollflödet som vanligt.
+ * Headern är sticky (som Mitt Österlen/Vänner), namnet står i den. Under den ligger profilbilden
+ * ovanpå en identitetsbox (Streak/Besök/Favoriter) — samma mönster som en typisk profilsida.
  *
  * Innan ni är vänner är statistiken och aktivitetsloggen en igenkännbar men blurrad förhandstitt
  * (expo-blur, redan inbyggt sedan tidigare bygge) — riktiga rader och rutor i rätt form, men med
@@ -23,11 +24,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import {
-  ArrowLeft, MapPin, Heart, Sparkles, Ticket, Compass, Flame, UserMinus, UserPlus, Check, X,
+  ArrowLeft, MapPin, Heart, Sparkles, Ticket, Compass, UserMinus, UserPlus, Check, X,
 } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Avatar } from "@/components/profile/Avatar";
+import { StreakFlame } from "@/components/streak/StreakFlame";
 import { PressableScale } from "@/components/PressableScale";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
@@ -51,6 +53,35 @@ const AVATAR_SIZE = 92;
 /** Grå stapel i skelettet — aldrig text, bara form, så den aldrig kan tas för en riktig siffra */
 function SkelBar({ w, h }: { w: number; h: number }) {
   return <View style={{ width: w, height: h, borderRadius: h / 2, backgroundColor: "rgba(255,255,255,0.10)" }} />;
+}
+
+/** Besök/Favoriter-kolumnen i identitetsboxen — grå stapel i stället för siffra innan ni är vänner. */
+function IdentityStat({ value, label }: { value: number | null; label: string }) {
+  return (
+    <View style={s.identityCol}>
+      {value === null ? <SkelBar w={26} h={20} /> : <Text style={s.identityValue}>{value}</Text>}
+      <Text style={s.identityLabel}>{label}</Text>
+    </View>
+  );
+}
+
+/** Streak-kolumnen — exakt samma eld (Skia, kompakt) som veckoraden och siffran på Mitt Österlen,
+ * bara i miniatyr. Lågan själv är ren dekoration (ingen persondata) och animeras alltid; bara
+ * siffran ovanpå döljs innan ni är vänner. */
+function StreakColumn({ value }: { value: number | null }) {
+  return (
+    <View style={s.identityCol}>
+      <View style={s.streakFlame}>
+        <StreakFlame compact size={32} />
+        {value !== null && (
+          <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]} pointerEvents="none">
+            <Text style={s.streakFlameNumber}>{value}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={s.identityLabel}>Streak</Text>
+    </View>
+  );
 }
 
 export default function FriendProfileScreen() {
@@ -104,10 +135,14 @@ export default function FriendProfileScreen() {
         <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
           <ArrowLeft size={24} color={FG} strokeWidth={2} />
         </TouchableOpacity>
-        {isFriend && (
+        <Text style={s.headerTitle} numberOfLines={1}>{who}</Text>
+        {isFriend ? (
           <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
             <UserMinus size={24} color="#B33939" strokeWidth={2} />
           </TouchableOpacity>
+        ) : (
+          // Osynlig platshållare i samma storlek, så namnet ändå hamnar mitt i raden
+          <View style={[s.headerBtn, { opacity: 0 }]} pointerEvents="none" />
         )}
       </View>
 
@@ -116,35 +151,39 @@ export default function FriendProfileScreen() {
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
         <View style={s.hero}>
-          <View>
-            {/* Samma mjuka glöd som bakom troféerna på Utmaningar (GlowCanvas), färgad efter kortet */}
+          <View style={{ zIndex: 2 }}>
             {/* Samma mått som den framhävda troféns permanenta glöd på Utmaningar — stor, mjuk, diffus */}
             <GlowCanvas size={AVATAR_SIZE} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
             <Avatar size={AVATAR_SIZE} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
-            {/* Elden ersätter en egen "streak"-ruta: syns bara från 1 dag, en 0 är ingen streak värd att visa.
-                Vid 40px är den levande, riktade elden (StreakFlame) för liten och för svajig för att läsas —
-                siffran hamnade bakom lågan och rörde sig med den. En liten, stilla pill med ikon + siffra
-                bredvid varandra går att läsa direkt i stället. */}
-            {!!streak && streak.current >= 1 && (
-              <View style={s.streakBadge} pointerEvents="none">
-                <Flame size={13} color={GOLD} fill={GOLD} strokeWidth={1.5} />
-                <Text style={s.streakBadgeNumber}>{streak.current}</Text>
-              </View>
-            )}
           </View>
-          <Text style={s.name}>{who}</Text>
-          <View style={s.metaRow}>
-            {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
-            {friend?.city && (
-              <View style={s.metaItem}>
-                <MapPin size={12} color="rgba(255,255,255,0.6)" strokeWidth={2} />
-                <Text style={s.meta}>{friend.city}</Text>
-              </View>
+
+          {/* Profilbilden ligger ovanpå den här boxen (negativ marginal), som på referensbilden */}
+          <View style={s.identityCard}>
+            <Text style={s.name}>{who}</Text>
+            <View style={s.metaRow}>
+              {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
+              {friend?.city && (
+                <View style={s.metaItem}>
+                  <MapPin size={12} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+                  <Text style={s.meta}>{friend.city}</Text>
+                </View>
+              )}
+            </View>
+            {friend?.memberSince && (
+              <Text style={s.since}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
             )}
+
+            <View style={s.identityDivider} />
+
+            {/* Streak/besök/favoriter — bara riktiga siffror när ni är vänner, annars platshållare */}
+            <View style={s.identityStats}>
+              <StreakColumn value={isFriend && streak ? streak.current : null} />
+              <View style={s.identityColDivider} />
+              <IdentityStat value={isFriend && stats ? stats.visitsTotal : null} label="Besök" />
+              <View style={s.identityColDivider} />
+              <IdentityStat value={isFriend && stats ? stats.favoritesTotal : null} label="Favoriter" />
+            </View>
           </View>
-          {friend?.memberSince && (
-            <Text style={s.since}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
-          )}
         </View>
 
         {profileLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />}
@@ -192,13 +231,6 @@ function RealContent({
         </View>
       )}
 
-      {/* Streaken ligger redan som eld på profilringen ovanför — de tre andra som en rad */}
-      <View style={[s.statsRow, { marginTop: 22 }]}>
-        <StatTile value={String(stats.visitsTotal)} label={stats.visitsTotal === 1 ? "Besökt plats" : "Besökta platser"} />
-        <StatTile icon={<Heart size={16} color={GOLD} strokeWidth={2} />} value={String(stats.favoritesTotal)} label={stats.favoritesTotal === 1 ? "Favorit" : "Favoriter"} />
-        <StatTile icon={<Ticket size={16} color={GOLD} strokeWidth={2} />} value={String(stats.stickersTotal)} label="Samlarobjekt" />
-      </View>
-
       {stats.trophies.length > 0 && (
         <View style={s.section}>
           <Text style={s.sectionTitle}>Troféer</Text>
@@ -206,31 +238,18 @@ function RealContent({
         </View>
       )}
 
-      {(topCategory || stats.visitsTotal > 0) && (
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Statistik</Text>
-          <View style={s.card}>
-            {topCategory && (
-              <View style={[s.statRow, { borderTopWidth: 0 }]}>
-                <View style={s.statRowIcon}>
-                  <topCategory.Icon size={15} color={GOLD} strokeWidth={2} />
-                </View>
-                <Text style={s.statRowLabel}>Mest besökta kategori</Text>
-                <Text style={s.statRowValue} numberOfLines={1}>{topCategory.label}</Text>
-              </View>
-            )}
-            {totalPlaces > 0 && (
-              <View style={[s.statRow, !topCategory && { borderTopWidth: 0 }]}>
-                <View style={s.statRowIcon}>
-                  <Compass size={15} color={GOLD} strokeWidth={2} />
-                </View>
-                <Text style={s.statRowLabel}>Utforskat av Österlen</Text>
-                <Text style={s.statRowValue}>{stats.visitsTotal} av {totalPlaces}</Text>
-              </View>
-            )}
-          </View>
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>Statistik</Text>
+        <View style={s.card}>
+          {topCategory && (
+            <StatRow first icon={<topCategory.Icon size={15} color={GOLD} strokeWidth={2} />} label="Mest besökta kategori" value={topCategory.label} />
+          )}
+          <StatRow first={!topCategory} icon={<Ticket size={15} color={GOLD} strokeWidth={2} />} label="Samlarobjekt" value={String(stats.stickersTotal)} />
+          {totalPlaces > 0 && (
+            <StatRow icon={<Compass size={15} color={GOLD} strokeWidth={2} />} label="Utforskat av Österlen" value={`${stats.visitsTotal} av ${totalPlaces}`} />
+          )}
         </View>
-      )}
+      </View>
     </>
   );
 }
@@ -292,12 +311,12 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
   );
 }
 
-function StatTile({ icon, value, label }: { icon?: React.ReactNode; value: string; label: string }) {
+function StatRow({ icon, label, value, first }: { icon: React.ReactNode; label: string; value: string; first?: boolean }) {
   return (
-    <View style={s.statTile}>
-      {icon}
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statLabel}>{label}</Text>
+    <View style={[s.statRow, first && { borderTopWidth: 0 }]}>
+      <View style={s.statRowIcon}>{icon}</View>
+      <Text style={s.statRowLabel}>{label}</Text>
+      <Text style={s.statRowValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -315,7 +334,8 @@ function LockedContent({
 }) {
   return (
     <View style={s.lockedWrap}>
-      {/* Skelettet: samma form som den riktiga statistiken, men aldrig påhittade siffror */}
+      {/* Skelettet: samma form som den riktiga aktivitetsloggen, men aldrig påhittade siffror.
+          Streak/besök/favoriter har redan sin egen platshållare uppe i identitetsboxen. */}
       <View style={{ flex: 1 }}>
         <View style={[s.section, { marginTop: 32 }]}>
           <View style={s.card}>
@@ -326,14 +346,6 @@ function LockedContent({
               </View>
             ))}
           </View>
-        </View>
-        <View style={s.statsRow}>
-          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={60} h={10} /></View>
-          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={70} h={10} /></View>
-        </View>
-        <View style={s.statsRow}>
-          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={60} h={10} /></View>
-          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={70} h={10} /></View>
         </View>
       </View>
 
@@ -386,34 +398,41 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
+  headerTitle: { flex: 1, marginHorizontal: 8, textAlign: "center", fontFamily: "Montserrat_700Bold", fontSize: 17, color: FG },
 
-  hero: { alignItems: "center", paddingTop: 20 },
-  streakBadge: {
-    position: "absolute", right: -8, bottom: -6,
-    flexDirection: "row", alignItems: "center", gap: 3,
-    paddingHorizontal: 8, height: 24, borderRadius: 12,
-    backgroundColor: "#1A1A1D", borderWidth: 1.5, borderColor: BG,
+  hero: { alignItems: "center", paddingTop: 24 },
+
+  // Kortet identitetsboxen ligger på — profilbilden (92px, zIndex 2) sticker upp genom det övre
+  // hålet (negativ marginTop = halva avatarstorleken), samma överlapp som referensbilden.
+  identityCard: {
+    alignSelf: "stretch", marginHorizontal: 16, marginTop: -(AVATAR_SIZE / 2),
+    paddingTop: AVATAR_SIZE / 2 + 14, paddingBottom: 20, paddingHorizontal: 20,
+    alignItems: "center", borderRadius: 20,
+    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
   },
-  streakBadgeNumber: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#FFFFFF" },
   // Playfair bort härifrån också — samma sans-serif (Inter) som resten av sidan, bara större och
   // fetare, som en riktig rubrik i stället för en bruten skrivstil.
   // Samma typsnitt som "Senaste aktivitet" och de andra sektionsrubrikerna (s.sectionTitle),
   // fast utan versaler/spårning — det är ett namn, inte en rubrik.
-  name: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.2, color: "#FFFFFF", marginTop: 14 },
+  name: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.2, color: "#FFFFFF" },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
   since: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 8 },
 
-  errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
-
-  statsRow: { flexDirection: "row", gap: 12, marginHorizontal: 16, marginTop: 12 },
-  statTile: {
-    flex: 1, alignItems: "center", gap: 4, paddingVertical: 18,
-    borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+  identityDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginTop: 18 },
+  identityStats: { flexDirection: "row", alignItems: "flex-end", alignSelf: "stretch", marginTop: 16 },
+  identityCol: { flex: 1, alignItems: "center", gap: 4 },
+  identityColDivider: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: "rgba(255,255,255,0.12)" },
+  identityValue: { fontFamily: "Inter_700Bold", fontSize: 20, color: FG },
+  identityLabel: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED },
+  streakFlame: { width: 32, height: 43, alignItems: "center", justifyContent: "center" },
+  streakFlameNumber: {
+    fontFamily: "Inter_700Bold", fontSize: 13, color: "#FFFFFF", textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
-  statValue: { fontFamily: "Inter_700Bold", fontSize: 22, color: FG, marginTop: 2 },
-  statLabel: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
+
+  errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
 
   section: { marginTop: 26, paddingHorizontal: 16 },
   // Playfair är bara för namn (personnamn) — sidans/hub-rubriker (Mitt Österlen, Vänner, Förmåner)
