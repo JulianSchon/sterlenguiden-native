@@ -65,7 +65,7 @@ function SkelBar({ w, h }: { w: number; h: number }) {
 /** Streak/Besök/Favoriter-kolumnen i identitetsboxen: etikett ovanför, ifylld symbol + siffra i en
  * rad under — samma mönster för alla tre (streak-lågan är bara en annan "ikon"). Grå stapel i
  * stället för siffra innan ni är vänner; symbolen är ren dekoration och visas alltid. */
-function IdentityStat({ icon, value, label }: { icon: React.ReactNode; value: number | null; label: string }) {
+function IdentityStat({ icon, value, label }: { icon: React.ReactNode; value: number | string | null; label: string }) {
   return (
     <View style={s.identityCol}>
       <Text style={s.identityLabel}>{label}</Text>
@@ -147,7 +147,7 @@ export default function FriendProfileScreen() {
           <View style={{ zIndex: 2 }}>
             {/* Riktig radial gradient (RadialGlow), inte en suddad kant — garanterat noll vid sin
                 egen kant så den aldrig syns klippt mot headern ovanför, oavsett scrollposition. */}
-            <RadialGlow size={AVATAR_SIZE} color={glowColor} opacity={0.3} radiusRatio={1.1} />
+            <RadialGlow size={AVATAR_SIZE} color={glowColor} opacity={0.6} radiusRatio={1.1} />
             <Avatar size={AVATAR_SIZE} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
           </View>
 
@@ -168,7 +168,7 @@ export default function FriendProfileScreen() {
             <View style={s.identityStats}>
               <IdentityStat
                 icon={<StreakFlame compact size={19} />}
-                value={isFriend && streak ? streak.current : null}
+                value={isFriend && streak ? (streak.current > 0 ? streak.current : "–") : null}
                 label="Streak"
               />
               <View style={s.identityColDivider} />
@@ -642,7 +642,9 @@ const s = StyleSheet.create({
     borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
     overflow: "hidden", // rymmer glöden (RadialGlow) snyggt inom kortets rundade form
   },
-  categoryCircle: { width: 84, height: 84, borderRadius: 42, alignItems: "center", justifyContent: "center" },
+  // Samma synliga diameter som progressringen bredvid (RING_R 35 + halva RING_STROKE 6 = 38 radie)
+  // — annars ser kategori-cirkeln större ut trots att båda ligger i en lika stor 84×84-yta.
+  categoryCircle: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center" },
   statBoxLabel: { fontFamily: "Inter_700Bold", fontSize: 14, color: FG, marginTop: 10, textAlign: "center" },
   statBoxCaption: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED, textAlign: "center" },
 
