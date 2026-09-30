@@ -7,6 +7,7 @@ import {
   Canvas, Circle, SweepGradient, RadialGradient, BlurMask, vec,
 } from "@shopify/react-native-skia";
 import { TIER_PALETTE, type Tier } from "@/lib/achievements";
+import { withAlpha } from "@/theme/categories";
 
 // Riktig trofékonst (ChatGPT-genererad, beskuren till transparent PNG per
 // grupp+nivå, se assets/badges/). Grupper utan bild här faller tillbaka på
@@ -58,6 +59,35 @@ export function GlowCanvas({
     >
       <Circle cx={canvasSize / 2} cy={canvasSize / 2} r={size * radiusRatio} color={color} opacity={opacity}>
         <BlurMask blur={size * blurRatio} style="normal" />
+      </Circle>
+    </Canvas>
+  );
+}
+
+// RadialGlow — en riktig radial gradient i stället för en suddad kant. En Gaussisk oskärpa
+// (GlowCanvas ovan) fasar bara ASYMPTOTISKT mot noll — den blir aldrig exakt transparent, bara
+// väldigt svag — så om ytan den ligger på klipps av nära kanten (t.ex. mot en sticky header) syns
+// en svag men verklig kant där svansen huggs av. En radial gradient med en sista stopp på HELT
+// transparent har ingen svans: bortom sin egen radie är den matematiskt noll, garanterat sömlös
+// oavsett hur nära den klipps. Används där GlowCanvas riskerar synas mot en sådan gräns.
+export function RadialGlow({
+  size, color, opacity = 0.3, radiusRatio = 1.1,
+}: { size: number; color: string; opacity?: number; radiusRatio?: number }) {
+  const r = size * radiusRatio;
+  const canvasSize = r * 2;
+  const pad = (canvasSize - size) / 2;
+  return (
+    <Canvas
+      style={{ position: "absolute", width: canvasSize, height: canvasSize, left: -pad, top: -pad }}
+      pointerEvents="none"
+    >
+      <Circle cx={r} cy={r} r={r}>
+        <RadialGradient
+          c={vec(r, r)}
+          r={r}
+          colors={[withAlpha(color, opacity), withAlpha(color, opacity * 0.5), withAlpha(color, 0)]}
+          positions={[0, 0.45, 1]}
+        />
       </Circle>
     </Canvas>
   );

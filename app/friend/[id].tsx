@@ -44,7 +44,7 @@ import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
 import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
 import { CATEGORIES } from "@/theme/categories";
-import { TrophyMedal, GlowCanvas } from "@/components/trophies/TrophyMedal";
+import { TrophyMedal, RadialGlow } from "@/components/trophies/TrophyMedal";
 import { getVariant } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
@@ -145,8 +145,9 @@ export default function FriendProfileScreen() {
       >
         <View style={s.hero}>
           <View style={{ zIndex: 2 }}>
-            {/* Samma mått som den framhävda troféns permanenta glöd på Utmaningar — stor, mjuk, diffus */}
-            <GlowCanvas size={AVATAR_SIZE} color={glowColor} opacity={0.22} radiusRatio={0.95} blurRatio={0.4} />
+            {/* Riktig radial gradient (RadialGlow), inte en suddad kant — garanterat noll vid sin
+                egen kant så den aldrig syns klippt mot headern ovanför, oavsett scrollposition. */}
+            <RadialGlow size={AVATAR_SIZE} color={glowColor} opacity={0.3} radiusRatio={1.1} />
             <Avatar size={AVATAR_SIZE} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
           </View>
 
@@ -356,12 +357,15 @@ function TopCategoryBox({ topCategory }: { topCategory: ReturnType<typeof comput
   const color = topCategory ? CATEGORIES.find((c) => c.id === topCategory.id)?.screen : null;
   return (
     <View style={s.statBox}>
-      <View style={[s.categoryCircle, { backgroundColor: color ?? "rgba(255,255,255,0.06)" }]}>
-        {topCategory ? (
-          <topCategory.Icon size={30} color="#FFFFFF" strokeWidth={2} />
-        ) : (
-          <Compass size={28} color={MUTED} strokeWidth={2} />
-        )}
+      <View style={{ width: 84, height: 84, alignItems: "center", justifyContent: "center" }}>
+        {topCategory && color && <RadialGlow size={84} color={color} opacity={0.35} radiusRatio={1.3} />}
+        <View style={[s.categoryCircle, { backgroundColor: color ?? "rgba(255,255,255,0.06)" }]}>
+          {topCategory ? (
+            <topCategory.Icon size={30} color="#FFFFFF" strokeWidth={2} />
+          ) : (
+            <Compass size={28} color={MUTED} strokeWidth={2} />
+          )}
+        </View>
       </View>
       <Text style={s.statBoxLabel} numberOfLines={1}>{topCategory ? topCategory.label : "Inga besök än"}</Text>
       <Text style={s.statBoxCaption}>Mest besökta kategori</Text>
@@ -373,7 +377,10 @@ function VisitedRingBox({ visitsTotal, totalPlaces }: { visitsTotal: number; tot
   const percent = totalPlaces > 0 ? Math.round((visitsTotal / totalPlaces) * 100) : 0;
   return (
     <View style={s.statBox}>
-      <ProgressRing percent={percent} centerValue={visitsTotal} />
+      <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: "center", justifyContent: "center" }}>
+        <RadialGlow size={RING_SIZE} color={GOLD} opacity={0.3} radiusRatio={1.3} />
+        <ProgressRing percent={percent} centerValue={visitsTotal} />
+      </View>
       <Text style={s.statBoxLabel}>{visitsTotal} av {totalPlaces}</Text>
       <Text style={s.statBoxCaption}>upptäckta platser</Text>
     </View>
@@ -416,12 +423,13 @@ function ProgressRing({ percent, centerValue }: { percent: number; centerValue: 
 function ActivityRow({ who, activity, bordered }: { who: string; activity: FriendActivity; bordered: boolean }) {
   const router = useRouter();
   const date = format(new Date(activity.happenedAt), "HH:mm, d MMM", { locale: sv });
-  // Bara namnet ska vara fetstilt — resten av meningen vanlig text, så det inte ser ut som att
-  // hela raden skriker. Byggd som två Text-delar (RN slår ihop dem till en rad ändå).
-  const rest =
-    activity.kind === "visit" ? ` besökte ${activity.label}` :
-    activity.kind === "favorite" ? ` lade till ${activity.label} i favoriter` :
-    ` samlade in ${activity.label}`;
+  // Platsen/saken är fetstilt, inte namnet — det är den man faktiskt bryr sig om i en aktivitetslogg
+  // (vilken plats, inte vem). Byggd som flera Text-delar (RN slår ihop dem till en rad ändå).
+  const verb =
+    activity.kind === "visit" ? "besökte" :
+    activity.kind === "favorite" ? "lade till" :
+    "samlade in";
+  const suffix = activity.kind === "favorite" ? " i favoriter" : "";
 
   // Platsens/eventets image_url är redan en öppen adress och används som den är. Saknas en bild
   // visas kategorins egen ikon. Stickers använder alltid StickerArt — samma lila/guldstjärna-
@@ -455,8 +463,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
       )}
       <View style={s.activityBody}>
         <Text style={s.activityText} numberOfLines={2}>
-          <Text style={s.activityWho}>{who}</Text>
-          {rest}
+          {who} {verb} <Text style={s.activityStrong}>{activity.label}</Text>{suffix}
         </Text>
         <Text style={s.activityDate}>{date}</Text>
       </View>
@@ -544,8 +551,8 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // Mer luft under den sticky headern än förut — glödens mjuka oskärpa (se GlowCanvas) sträcker
-  // sig långt över avataren, och satt för nära headern skars den av mot dess raka kant.
+  // Mer luft under den sticky headern än förut, så glöden (RadialGlow) har gott om plats att
+  // tona ut i innan den når headern.
   hero: { alignItems: "center", paddingTop: 84 },
 
   // Kortet identitetsboxen ligger på — profilbilden (92px, zIndex 2) sticker upp genom det övre
@@ -596,7 +603,7 @@ const s = StyleSheet.create({
   // Ett riktigt foto (plats/event) fyller rutan; stickers ritar sin egen cirkel (StickerArt) utan denna platta
   activityThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: CARD },
   activityText: { fontFamily: "Inter_400Regular", fontSize: 14, color: FG, lineHeight: 19 },
-  activityWho: { fontFamily: "Inter_700Bold" },
+  activityStrong: { fontFamily: "Inter_700Bold" },
   activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
   trophyLabel: { fontFamily: "Inter_500Medium", fontSize: 10.5, color: MUTED, textAlign: "center", marginTop: 6 },
@@ -627,6 +634,7 @@ const s = StyleSheet.create({
   statBox: {
     flex: 1, alignItems: "center", gap: 4, paddingVertical: 20, paddingHorizontal: 12,
     borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    overflow: "hidden", // rymmer glöden (RadialGlow) snyggt inom kortets rundade form
   },
   categoryCircle: { width: 84, height: 84, borderRadius: 42, alignItems: "center", justifyContent: "center" },
   statBoxLabel: { fontFamily: "Inter_700Bold", fontSize: 14, color: FG, marginTop: 10, textAlign: "center" },
