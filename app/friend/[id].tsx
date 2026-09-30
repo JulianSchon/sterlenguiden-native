@@ -28,7 +28,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import {
-  ArrowLeft, MapPin, Heart, Compass, UserMinus, UserPlus, Check, X,
+  ArrowLeft, MapPin, Heart, Compass, Trash2, UserPlus, Check, X,
 } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -131,11 +131,6 @@ export default function FriendProfileScreen() {
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{who}</Text>
-          {isFriend && (
-            <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-              <UserMinus size={24} color="#B33939" strokeWidth={2} />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
 
@@ -219,6 +214,16 @@ export default function FriendProfileScreen() {
             Vänner sedan {format(new Date(friend.friendsSince), "MMMM yyyy", { locale: sv })}
           </Text>
         )}
+
+        {/* Längst ner som en textlänk i stället för en ikonknapp i headern — samma mönster som
+            "Ta bort minnet" (app/memories/[id].tsx). Bekräftelsen är fortfarande native Alert,
+            precis som resten av appens destruktiva bekräftelser (lists/memories/settings). */}
+        {isFriend && (
+          <TouchableOpacity style={s.deleteBtn} onPress={confirmRemove} hitSlop={8}>
+            <Trash2 size={16} color="#E57373" strokeWidth={2} />
+            <Text style={s.deleteText}>Ta bort vän</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
@@ -290,10 +295,10 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
           const info = getTrophyMeta(t.achievementType, t.level);
           if (!info) return null;
           return (
-            <Pressable key={i} style={{ width: itemWidth, alignItems: "center" }} onPress={() => setSelected(t)}>
+            <PressableScale key={i} style={{ width: itemWidth, alignItems: "center" }} scale={0.94} onPress={() => setSelected(t)}>
               <TrophyMedal size={medalSize} tier={t.level} Icon={info.Icon} unlocked groupId={t.achievementType} />
               <Text style={s.trophyLabel} numberOfLines={1}>{info.identity}</Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -592,6 +597,9 @@ const s = StyleSheet.create({
   errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
   // "Medlem sedan ..." längst ner på sidan, efter allt annat innehåll
   memberSince: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, textAlign: "center", marginTop: 32, paddingHorizontal: 30 },
+  // Samma mönster som "Ta bort minnet" (app/memories/[id].tsx) — textlänk längst ner, inte en ikonknapp i headern
+  deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 24, paddingVertical: 14 },
+  deleteText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#E57373" },
 
   section: { marginTop: 26, paddingHorizontal: 16 },
   // Playfair är bara för namn (personnamn) — sidans/hub-rubriker (Mitt Österlen, Vänner, Förmåner)
