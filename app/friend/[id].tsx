@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, Image, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, ActivityIndicator, Alert,
-  Animated, Easing, useWindowDimensions,
+  Animated, Easing, useWindowDimensions, type StyleProp, type ViewStyle,
 } from "react-native";
 import Svg, { Circle as SvgCircle, Text as SvgText, Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -204,7 +204,8 @@ export default function FriendProfileScreen() {
         ) : null}
 
         {/* Flyttad hit från under namnet — offentlig info oavsett vänskapsstatus */}
-        {friend?.memberSince && (
+        {/* Bara innan ni är vänner är det här okänt terräng — inget skäl att visa det datumet förrän ni faktiskt är vänner */}
+        {isFriend && friend?.memberSince && (
           <Text style={s.memberSince}>
             Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}
           </Text>
@@ -548,10 +549,12 @@ function LockedContent({
 
       <View style={s.lockedCard}>
         {friend.friendStatus === "none" && (
-          <PressableScale style={s.primaryBtn} disabled={busy} onPress={onAdd}>
-            <UserPlus size={17} color="#0B0B0D" strokeWidth={2.2} />
-            <Text style={s.primaryBtnText}>Lägg till vän</Text>
-          </PressableScale>
+          <GoldButton
+            icon={<UserPlus size={17} color={GOLD} strokeWidth={2.2} />}
+            label="Lägg till vän"
+            disabled={busy}
+            onPress={onAdd}
+          />
         )}
         {friend.friendStatus === "outgoing" && friend.friendshipId && (
           <>
@@ -569,14 +572,38 @@ function LockedContent({
                 <X size={16} color={MUTED} strokeWidth={2.2} />
                 <Text style={s.ghostBtnText}>Neka</Text>
               </PressableScale>
-              <PressableScale style={[s.primaryBtn, { flex: 1 }]} disabled={busy} onPress={onAccept}>
-                <Check size={16} color="#0B0B0D" strokeWidth={2.4} />
-                <Text style={s.primaryBtnText}>Acceptera</Text>
-              </PressableScale>
+              <GoldButton
+                style={{ flex: 1 }}
+                icon={<Check size={16} color={GOLD} strokeWidth={2.4} />}
+                label="Acceptera"
+                disabled={busy}
+                onPress={onAccept}
+              />
             </View>
           </>
         )}
       </View>
+    </View>
+  );
+}
+
+// Primärknappen (Lägg till vän / Acceptera) — samma mönster som Lägg till vän-knappen i vänlistan
+// (app/friends.tsx): ytterkant i guld i stället för helt guldfylld, plus en liten glöd bakom.
+// Glödens 48×48-ankare centreras via flexbox i stället för RadialGlows egna -pad-matte (som
+// förutsätter en kvadratisk förälder) — knappen är olika bred beroende på läge (ensam eller
+// bredvid Neka), aldrig kvadratisk.
+function GoldButton({
+  icon, label, disabled, onPress, style,
+}: { icon: React.ReactNode; label: string; disabled?: boolean; onPress: () => void; style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={style}>
+      <View style={s.goldGlowAnchor} pointerEvents="none">
+        <RadialGlow size={48} color={GOLD} opacity={0.18} radiusRatio={1.4} />
+      </View>
+      <PressableScale style={s.primaryBtn} disabled={disabled} onPress={onPress}>
+        {icon}
+        <Text style={s.primaryBtnText}>{label}</Text>
+      </PressableScale>
     </View>
   );
 }
@@ -693,15 +720,19 @@ const s = StyleSheet.create({
   lockedWrap: { flex: 1, marginTop: 6 },
   lockedCard: {
     position: "absolute", left: 16, right: 16, top: "45%", transform: [{ translateY: -60 }],
-    padding: 16, borderRadius: 18, gap: 12, alignItems: "stretch",
+    padding: 16, borderRadius: 18, gap: 12, alignItems: "stretch", overflow: "hidden", // rymmer GoldButtons glöd
     backgroundColor: "rgba(26,26,29,0.75)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
   },
   actionHint: { fontFamily: "Inter_500Medium", fontSize: 13, color: FG, textAlign: "center" },
+  // Ytterkant i guld i stället för helt guldfylld — samma mönster som Lägg till vän-knappen i
+  // vänlistan (app/friends.tsx). Glöden bakom ligger i GoldButton, se dess goldGlowAnchor.
   primaryBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    height: 48, borderRadius: 12, backgroundColor: GOLD,
+    height: 48, borderRadius: 12,
+    backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1.5, borderColor: GOLD,
   },
-  primaryBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#0B0B0D" },
+  primaryBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD },
+  goldGlowAnchor: { position: "absolute", left: "50%", top: "50%", marginLeft: -24, marginTop: -24, width: 48, height: 48 },
   ghostBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     height: 48, borderRadius: 12,
