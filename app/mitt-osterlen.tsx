@@ -211,7 +211,7 @@ const s = StyleSheet.create({
   // förut. Samma knep som Vänner-plattans gradientring: RadialGlow förutsätter en kvadratisk
   // förälder och elden är inte kvadratisk, så vi ger den ett eget kvadratiskt ankare i stället.
   // -20 på top flyttar glöden lite högre än ren mittcentrering.
-  flameGlowAnchor: { position: "absolute", left: (320 - 320) / 2, top: (238 - 320) / 2 - 20, width: 320, height: 320 },
+  flameGlowAnchor: { position: "absolute", left: (320 - 320) / 2, top: (238 - 320) / 2 - 10, width: 320, height: 320 },
   // Siffran sitter över eldens nedre del, som på Whoop
   numberWrap: { marginTop: -69, width: 340, height: 100, alignItems: "center", justifyContent: "center" },
   scrim: { position: "absolute", left: 0, top: -60, width: 340, height: 220 },
