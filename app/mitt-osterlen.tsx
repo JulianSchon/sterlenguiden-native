@@ -69,7 +69,7 @@ export default function MittOsterlenScreen() {
             {/* Varm glöd bakom elden plus en mjuk skugga vid dess fot, så den känns som att den
                 svävar en liten bit ovanför bakgrunden i stället för att ligga platt mot den. */}
             <View style={s.flameGlowAnchor} pointerEvents="none">
-              <RadialGlow size={260} color="#FF9A1F" opacity={0.42} radiusRatio={0.95} />
+              <RadialGlow size={230} color="#FF9A1F" opacity={0.38} radiusRatio={0.8} />
             </View>
             <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
               <Group origin={vec(107.5, 216)} transform={[{ scaleY: 0.22 }]}>
@@ -209,7 +209,7 @@ const s = StyleSheet.create({
   // 260×260-ankare centrerat i pixlar (inte %) över eldens 215×238-yta — samma knep som Vänner-
   // plattans gradientring, RadialGlow förutsätter en kvadratisk förälder och elden är inte
   // kvadratisk. Procent gav en odefinierad position mot en förälder utan egen fast höjd.
-  flameGlowAnchor: { position: "absolute", left: (215 - 260) / 2, top: (238 - 260) / 2, width: 260, height: 260 },
+  flameGlowAnchor: { position: "absolute", left: (215 - 230) / 2, top: (238 - 230) / 2, width: 230, height: 230 },
   // Siffran sitter över eldens nedre del, som på Whoop
   numberWrap: { marginTop: -69, width: 340, height: 100, alignItems: "center", justifyContent: "center" },
   scrim: { position: "absolute", left: 0, top: -60, width: 340, height: 220 },
