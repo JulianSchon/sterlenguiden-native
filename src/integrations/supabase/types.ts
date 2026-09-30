@@ -1189,6 +1189,8 @@ export type Database = {
           city: string | null
           circle_color: string | null
           avatar_ring: string | null
+          is_member: boolean
+          card_color: string | null
           member_since: string
           friendship_id: string | null
           status: string | null
@@ -1204,6 +1206,8 @@ export type Database = {
           city: string | null
           circle_color: string | null
           avatar_ring: string | null
+          is_member: boolean
+          card_color: string | null
           member_since: string
           friendship_id: string | null
           status: string | null
@@ -1220,6 +1224,8 @@ export type Database = {
           city: string | null
           circle_color: string | null
           avatar_ring: string | null
+          is_member: boolean
+          card_color: string | null
           status: string
           direction: string
           created_at: string
