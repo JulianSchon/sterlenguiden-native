@@ -13,6 +13,8 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 const CARD = "#1A1A1D";
+const AVATAR_SIZE = 48;
+const AVATAR_OVERLAP = 16;
 
 export function CreateListSheet({
   visible, onClose, onCreated,
@@ -97,20 +99,27 @@ export function CreateListSheet({
           <View style={{ gap: 6 }}>
             <Text style={s.label}>Medlemmar</Text>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View style={{ position: "relative" }}>
-                <Avatar
-                  size={48}
-                  uri={avatarUrl}
-                  name={profile?.display_name ?? "?"}
-                  color={profile?.circle_color ?? "#2A2A2A"}
-                  ring={profile?.avatar_ring}
-                />
-                <TouchableOpacity style={s.addBadge} onPress={() => setStep("picker")} activeOpacity={0.75} hitSlop={6}>
-                  <Plus size={14} color="#0B0B0D" strokeWidth={3} />
+              {/* + är lika stor som avataren (48px), bara delvis bakom den — inte en liten badge */}
+              <View style={{ width: AVATAR_SIZE + (AVATAR_SIZE - AVATAR_OVERLAP), height: AVATAR_SIZE }}>
+                <TouchableOpacity
+                  style={[s.addCircle, { left: AVATAR_SIZE - AVATAR_OVERLAP }]}
+                  onPress={() => setStep("picker")}
+                  activeOpacity={0.75}
+                >
+                  <Plus size={18} color="#0B0B0D" strokeWidth={3} />
                 </TouchableOpacity>
+                <View style={{ position: "absolute", left: 0, top: 0 }}>
+                  <Avatar
+                    size={AVATAR_SIZE}
+                    uri={avatarUrl}
+                    name={profile?.display_name ?? "?"}
+                    color={profile?.circle_color ?? "#2A2A2A"}
+                    ring={profile?.avatar_ring}
+                  />
+                </View>
               </View>
               {selectedFriends.length > 0 && (
-                <View style={{ flexDirection: "row", marginLeft: 12, gap: 8 }}>
+                <View style={{ flexDirection: "row", marginLeft: 8, gap: 8 }}>
                   {selectedFriends.map((f) => (
                     <Avatar key={f.userId} size={40} uri={null} name={f.displayName ?? f.username ?? "?"} color={f.circleColor ?? "#2A2A2A"} ring={f.avatarRing} />
                   ))}
@@ -167,8 +176,9 @@ export function CreateListSheet({
 
 const s = StyleSheet.create({
   label: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
-  addBadge: {
-    position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10,
+  // Samma storlek som avataren (inte en liten badge) — ligger bakom den, bara delvis synlig
+  addCircle: {
+    position: "absolute", top: 0, width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
     backgroundColor: GOLD, alignItems: "center", justifyContent: "center",
     borderWidth: 2, borderColor: CARD,
   },
