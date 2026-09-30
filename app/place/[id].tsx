@@ -51,6 +51,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { colors } from "@/lib/colors";
 import { useOffers } from "@/hooks/useOffers";
+import { useToggleFavorite, useIsFavorite } from "@/hooks/useFavorites";
 import { OfferDrawer } from "@/components/offers/OfferDrawer";
 import { CheckInSection } from "@/components/checkin/CheckInSection";
 import { SaveToListSheet } from "@/components/lists/SaveToListSheet";
@@ -218,13 +219,16 @@ export default function PlaceDetailScreen() {
     .map((u) => u.trim())
     .filter(Boolean);
 
-  const [favorited, setFavorited] = useState(false);
+  // Hjärtat var tidigare bara lokal knapp-state som aldrig sparades — bytt mot det riktiga
+  // favoritsystemet (samma som Hem, Kalender och Discover redan använder).
+  const toggleFavorite = useToggleFavorite();
+  const favorited = useIsFavorite(place?.id);
   const [offersOpen, setOffersOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const heartScale = useRef(new Animated.Value(1)).current;
 
   const handleHeart = () => {
-    setFavorited((f) => !f);
+    if (place) toggleFavorite.mutate({ placeId: place.id });
     Animated.sequence([
       Animated.spring(heartScale, { toValue: 1.3, useNativeDriver: true, speed: 80 }),
       Animated.spring(heartScale, { toValue: 0.9, useNativeDriver: true, speed: 80 }),

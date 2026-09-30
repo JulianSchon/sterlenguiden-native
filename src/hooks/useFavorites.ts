@@ -1,4 +1,3 @@
-import { Alert } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -65,11 +64,8 @@ export function useToggleFavorite() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favorites"] });
     },
-    // TILLFÄLLIGT under felsökningen av att favoriter inte sparas — visar databasens
-    // riktiga felmeddelande på skärmen i stället för bara i terminalen. Ta bort igen sen.
     onError: (error) => {
       console.error("Kunde inte spara favorit:", error);
-      Alert.alert("Kunde inte spara favorit", String((error as any)?.message ?? error));
     },
   });
 }
