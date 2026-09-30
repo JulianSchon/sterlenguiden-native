@@ -1182,7 +1182,7 @@ export type Database = {
       }
       rpc_list_profiles_public: {
         Args: { target_user_ids: string[] }
-        Returns: { id: string; display_name: string | null; circle_color: string | null; avatar_ring: string | null }[]
+        Returns: { user_id: string; display_name: string | null; username: string | null; circle_color: string | null; avatar_ring: string | null }[]
       }
       reorder_list_places: { Args: { target_list_id: string; ordered_row_ids: string[] }; Returns: undefined }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }

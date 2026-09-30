@@ -70,7 +70,6 @@ export default function ListDetailScreen() {
 
   const isOwner = !!list && list.ownerId === user?.id;
   const offerPlaceIds = new Set(offers.map((o) => o.place_id));
-  const offersInListCount = list ? list.places.filter((p) => offerPlaceIds.has(p.place.id)).length : 0;
 
   const openCoverMenu = usePhotoMenu(
     (source) => list ? changeCover.mutateAsync({ listId: list.id, source }) : Promise.resolve(),
@@ -135,6 +134,7 @@ export default function ListDetailScreen() {
       ) : (
         <DraggableFlatList
           containerStyle={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
           data={list.places}
           keyExtractor={(lp) => lp.rowId}
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 32 }}
@@ -180,7 +180,6 @@ export default function ListDetailScreen() {
 
                 <Text style={s.meta}>
                   Senast uppdaterad {formatShortDate(list.lastUpdatedAt)} · {list.places.length} {list.places.length === 1 ? "plats" : "platser"}
-                  {offersInListCount > 0 ? ` · ${offersInListCount} med Österlenpass` : ""}
                 </Text>
               </View>
 
@@ -219,6 +218,7 @@ export default function ListDetailScreen() {
             visible={addOpen}
             onClose={() => setAddOpen(false)}
             listId={list.id}
+            listName={list.name}
             existingPlaceIds={list.places.map((p) => p.place.id)}
           />
           <MembersSheet
@@ -272,20 +272,24 @@ function PlaceRow({
       disabled={isActive}
     >
       {place.image_url ? <Image source={{ uri: place.image_url }} style={s.thumb} /> : <View style={s.thumb} />}
-      <View style={{ flex: 1, gap: 4 }}>
-        <View style={s.addedByRow}>
-          <Avatar size={16} uri={addedBy.isMe ? avatarUrl : null} name={addedBy.name} color={addedBy.circleColor ?? "#2A2A2A"} ring={addedBy.avatarRing} />
-          <Text style={s.addedByText} numberOfLines={1}>{addedBy.name}</Text>
-        </View>
-        <Text style={s.placeName} numberOfLines={2}>{place.name}</Text>
-        {place.nearest_town && <Text style={s.townText} numberOfLines={1}>{place.nearest_town}</Text>}
-        <View style={s.badgeRow}>
+      {/* Tre våningar som fyller bildens höjd: vem + öppet/stängt överst, namnet i mitten,
+          ort + Österlenpass underst — i stället för fem rader staplade tätt på varandra */}
+      <View style={s.placeBody}>
+        <View style={s.topLine}>
+          <View style={s.addedByRow}>
+            <Avatar size={16} uri={addedBy.isMe ? avatarUrl : null} name={addedBy.name} color={addedBy.circleColor ?? "#2A2A2A"} ring={addedBy.avatarRing} />
+            <Text style={s.addedByText} numberOfLines={1}>{addedBy.name}</Text>
+          </View>
           {place.opening_hours && (
             <View style={s.statusBadge}>
               <View style={[s.statusDot, { backgroundColor: open ? "#4ADE80" : "#E57373" }]} />
               <Text style={s.statusText}>{open ? "Öppet" : "Stängt"}</Text>
             </View>
           )}
+        </View>
+        <Text style={s.placeName} numberOfLines={2}>{place.name}</Text>
+        <View style={s.bottomLine}>
+          {place.nearest_town ? <Text style={s.townText} numberOfLines={1}>{place.nearest_town}</Text> : <View />}
           {hasOffer && (
             <View style={s.offerBadge}>
               <Ticket size={11} color={GOLD} strokeWidth={2.2} />
@@ -342,11 +346,13 @@ const s = StyleSheet.create({
   },
   placeRowActive: { borderColor: "rgba(197,160,89,0.5)", shadowOpacity: 0.4 },
   thumb: { width: 92, height: 92, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.06)" },
-  addedByRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  addedByText: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
-  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 16, lineHeight: 19, letterSpacing: -0.2, color: FG },
-  townText: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
-  badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  placeBody: { flex: 1, minHeight: 92, justifyContent: "space-between", gap: 6 },
+  topLine: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  bottomLine: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  addedByRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  addedByText: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
+  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 16, lineHeight: 20, letterSpacing: -0.2, color: FG },
+  townText: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 4 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: MUTED },

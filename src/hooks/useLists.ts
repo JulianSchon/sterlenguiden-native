@@ -125,10 +125,9 @@ export function useList(id: string | undefined) {
       // raden (RLS), precis som i Vänner-grunden — rpc_list_profiles_public löser samma sak här.
       const ids = [...new Set([...data.list_members.map((m) => m.user_id), ...data.list_places.map((p) => p.added_by)])];
       const { data: profiles, error: profilesError } = await supabase.rpc("rpc_list_profiles_public", { target_user_ids: ids });
-      // Om detta felar (t.ex. migration 015 inte körd i Supabase än) faller alla namn tillbaka
-      // till "Medlem" nedan — inte fel i sig, men annars ett osynligt fel att felsöka.
       if (profilesError) console.error("rpc_list_profiles_public misslyckades:", profilesError);
-      const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
+      const byId = new Map((profiles ?? []).map((p) => [p.user_id, p]));
+      const nameOf = (uid: string) => byId.get(uid)?.display_name || byId.get(uid)?.username || "Medlem";
 
       const places = data.list_places
         .filter((lp) => lp.places)
@@ -138,7 +137,7 @@ export function useList(id: string | undefined) {
           position: lp.position,
           addedBy: {
             userId: lp.added_by,
-            name: byId.get(lp.added_by)?.display_name || "Medlem",
+            name: nameOf(lp.added_by),
             isMe: lp.added_by === userId,
             circleColor: byId.get(lp.added_by)?.circle_color ?? null,
             avatarRing: byId.get(lp.added_by)?.avatar_ring ?? null,
@@ -165,7 +164,7 @@ export function useList(id: string | undefined) {
         members: data.list_members.map((m) => ({
           userId: m.user_id,
           role: m.role as "owner" | "member",
-          name: byId.get(m.user_id)?.display_name || "Medlem",
+          name: nameOf(m.user_id),
           circleColor: byId.get(m.user_id)?.circle_color ?? null,
           avatarRing: byId.get(m.user_id)?.avatar_ring ?? null,
         })),

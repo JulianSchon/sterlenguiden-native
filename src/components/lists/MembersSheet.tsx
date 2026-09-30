@@ -42,11 +42,14 @@ export function MembersSheet({
   }
 
   function openMember(member: ListMember) {
+    const isMe = member.userId === user?.id;
     const viewProfile = () => {
       onClose();
-      router.push({ pathname: "/friend/[id]", params: { id: member.userId } });
+      // Sig själv öppnar man i sin egen Profil-flik, inte vänprofilen (som visar "Lägg till vän")
+      if (isMe) router.push("/(tabs)/profile" as any);
+      else router.push({ pathname: "/friend/[id]", params: { id: member.userId } });
     };
-    if (isOwner && member.userId !== user?.id) {
+    if (isOwner && !isMe) {
       Alert.alert(member.name, undefined, [
         { text: "Visa profil", onPress: viewProfile },
         { text: "Ta bort från lista", style: "destructive", onPress: () => removeMember.mutate({ listId, userId: member.userId }) },
