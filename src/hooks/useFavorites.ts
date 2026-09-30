@@ -45,19 +45,26 @@ export function useToggleFavorite() {
         .eq("place_id", placeId)
         .maybeSingle();
 
+      // Felet lästes tidigare aldrig av — misslyckades sparandet (t.ex. RLS) såg det ändå ut
+      // att fungera i stunden, tills listan uppdaterades och hjärtat hoppade tillbaka igen.
       if (existing) {
-        await supabase.from("favorites").delete().eq("id", existing.id);
+        const { error } = await supabase.from("favorites").delete().eq("id", existing.id);
+        if (error) throw error;
       } else {
-        await supabase.from("favorites").insert({
+        const { error } = await supabase.from("favorites").insert({
           user_id: user.id,
           place_id: placeId,
           event_id: null,
           service_point_id: null,
         });
+        if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favorites"] });
+    },
+    onError: (error) => {
+      console.error("Kunde inte spara favorit:", error);
     },
   });
 }
