@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ArrowLeft, Search, UserPlus, Check, X, Users } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
+import { PressableScale } from "@/components/PressableScale";
 import { useProfile } from "@/hooks/useProfile";
 import {
   useSearchUsers, useFriendships, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
@@ -92,9 +93,14 @@ export default function FriendsScreen() {
             ) : results.length === 0 ? (
               <Text style={s.empty}>Ingen med det användarnamnet.</Text>
             ) : (
-              <View style={{ gap: 10, marginTop: 14 }}>
-                {results.map((r) => <FriendRow key={r.userId} friend={r} />)}
-              </View>
+              <>
+                <Text style={s.resultCount}>
+                  {results.length === 1 ? "1 resultat" : `${results.length} resultat`}
+                </Text>
+                <View style={{ gap: 10, marginTop: 12 }}>
+                  {results.map((r) => <FriendRow key={r.userId} friend={r} />)}
+                </View>
+              </>
             )}
           </View>
         ) : (
@@ -151,18 +157,10 @@ function FriendRow({ friend }: { friend: FriendResult }) {
   const remove = useRemoveFriendship();
   const busy = send.isPending || accept.isPending || remove.isPending;
 
-  const tap = () => {
-    if (friend.friendStatus === "accepted") {
-      router.push({ pathname: "/friend/[id]", params: { id: friend.userId } });
-    }
-  };
+  const tap = () => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } });
 
   return (
-    <TouchableOpacity
-      style={s.row}
-      activeOpacity={friend.friendStatus === "accepted" ? 0.75 : 1}
-      onPress={tap}
-    >
+    <PressableScale style={s.row} scale={0.97} onPress={tap}>
       <Avatar size={44} uri={null} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
       <View style={{ flex: 1 }}>
         <Text style={s.rowName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
@@ -176,7 +174,8 @@ function FriendRow({ friend }: { friend: FriendResult }) {
           icon={<UserPlus size={16} color={"#0B0B0D"} strokeWidth={2.2} />}
           gold
           disabled={busy}
-          onPress={() => {
+          onPress={(e) => {
+            e.stopPropagation();
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             send.mutate(friend.userId);
           }}
@@ -184,7 +183,13 @@ function FriendRow({ friend }: { friend: FriendResult }) {
       )}
 
       {friend.friendStatus === "outgoing" && friend.friendshipId && (
-        <Text style={s.pending} onPress={() => remove.mutate(friend.friendshipId!)}>Avbryt</Text>
+        <PressableScale
+          style={s.cancelBtn}
+          disabled={busy}
+          onPress={(e) => { e.stopPropagation(); remove.mutate(friend.friendshipId!); }}
+        >
+          <Text style={s.cancelBtnText}>Avbryt</Text>
+        </PressableScale>
       )}
 
       {friend.friendStatus === "incoming" && friend.friendshipId && (
@@ -192,13 +197,14 @@ function FriendRow({ friend }: { friend: FriendResult }) {
           <RowButton
             icon={<X size={16} color={MUTED} strokeWidth={2.2} />}
             disabled={busy}
-            onPress={() => remove.mutate(friend.friendshipId!)}
+            onPress={(e) => { e.stopPropagation(); remove.mutate(friend.friendshipId!); }}
           />
           <RowButton
             icon={<Check size={16} color={"#0B0B0D"} strokeWidth={2.4} />}
             gold
             disabled={busy}
-            onPress={() => {
+            onPress={(e) => {
+              e.stopPropagation();
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
               accept.mutate(friend.friendshipId!);
             }}
@@ -209,20 +215,20 @@ function FriendRow({ friend }: { friend: FriendResult }) {
       {friend.friendStatus === "accepted" && (
         <Text style={s.friendsLabel}>Vänner</Text>
       )}
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
-function RowButton({ icon, gold, disabled, onPress }: { icon: React.ReactNode; gold?: boolean; disabled?: boolean; onPress: () => void }) {
+function RowButton({ icon, gold, disabled, onPress }: { icon: React.ReactNode; gold?: boolean; disabled?: boolean; onPress: (e: any) => void }) {
   return (
-    <TouchableOpacity
-      style={[s.rowBtn, gold ? s.rowBtnGold : s.rowBtnGhost, disabled && { opacity: 0.5 }]}
+    <PressableScale
+      style={[s.rowBtn, gold ? s.rowBtnGold : s.rowBtnGhost]}
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
     >
       {icon}
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
@@ -251,6 +257,7 @@ const s = StyleSheet.create({
 
   section: { marginTop: 28, paddingHorizontal: 16 },
   sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG },
+  resultCount: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED, marginTop: 4 },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, lineHeight: 21, marginTop: 10 },
   emptyState: { alignItems: "center", gap: 10, marginTop: 24, paddingHorizontal: 10 },
 
@@ -265,6 +272,11 @@ const s = StyleSheet.create({
   rowBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   rowBtnGold: { backgroundColor: GOLD },
   rowBtnGhost: { backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-  pending: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
+  cancelBtn: {
+    height: 34, paddingHorizontal: 14, borderRadius: 17,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
+  },
+  cancelBtnText: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
   friendsLabel: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD_LT },
 });

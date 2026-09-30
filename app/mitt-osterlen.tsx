@@ -16,6 +16,7 @@ import { sv } from "date-fns/locale";
 import { Users } from "lucide-react-native";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { useFriendRequestCount } from "@/hooks/useFriends";
+import { PressableScale } from "@/components/PressableScale";
 import { StickersSection } from "@/components/stickers/StickersSection";
 import { ListsSection } from "@/components/lists/ListsSection";
 import { MemoriesSection } from "@/components/memories/MemoriesSection";
@@ -108,7 +109,7 @@ export default function MittOsterlenScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={s.friendsTile} activeOpacity={0.85} onPress={() => router.push("/friends")}>
+        <PressableScale style={s.friendsTile} scale={0.97} onPress={() => router.push("/friends")}>
           <View style={s.friendsIcon}>
             <Users size={22} color={FG} strokeWidth={2} />
             {pendingFriendRequests > 0 && (
@@ -125,7 +126,7 @@ export default function MittOsterlenScreen() {
                 : "Lägg till vänner och se deras statistik"}
             </Text>
           </View>
-        </TouchableOpacity>
+        </PressableScale>
 
         <ListsSection />
         <MemoriesSection />

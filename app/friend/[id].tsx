@@ -1,19 +1,27 @@
 /**
- * En väns profil — bara synlig när ni är vänner (rpc_friend_stats nekar annars).
+ * En persons profil, öppnad från Vänner (sökträff, förfrågan eller vän).
  * Samma hårdkodat mörka stil som resten av Mitt Österlen.
  *
  * Ingen profilbild visas, bara initialring — medvetet, se friends-grundens
  * integritetsbeslut: en topplista/vänprofil ska aldrig läcka ett foto.
+ *
+ * Innan ni är vänner visas bara namn, ort och "medlem sedan" plus rätt knapp för läget
+ * (lägg till / skickad / acceptera). Statistiken (rpc_friend_stats) hämtas och visas
+ * först när relationen faktiskt är accepterad.
  */
 import { useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, MapPin, Flame, Ticket, UserMinus } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+import { ArrowLeft, MapPin, Flame, Ticket, UserMinus, UserPlus, Check, X } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Avatar } from "@/components/profile/Avatar";
-import { useFriendships, useFriendStats, useRemoveFriendship } from "@/hooks/useFriends";
+import { PressableScale } from "@/components/PressableScale";
+import {
+  useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
+} from "@/hooks/useFriends";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
 const BG    = "#121212";
@@ -27,10 +35,13 @@ export default function FriendProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const { data: friendships = [] } = useFriendships();
-  const friend = friendships.find((f) => f.userId === id);
-  const { data: stats, isLoading, isError } = useFriendStats(id ?? null);
+  const { data: friend, isLoading: profileLoading } = useFriendProfile(id ?? null);
+  const isFriend = friend?.friendStatus === "accepted";
+  const { data: stats, isLoading: statsLoading, isError } = useFriendStats(isFriend ? id ?? null : null);
+  const send = useSendFriendRequest();
+  const accept = useAcceptFriendRequest();
   const remove = useRemoveFriendship();
+  const busy = send.isPending || accept.isPending || remove.isPending;
 
   const streak = useMemo(
     () => (stats ? computeStreak(stats.appDays, swedishDay()) : null),
@@ -56,8 +67,8 @@ export default function FriendProfileScreen() {
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.title} numberOfLines={1}>{(friend?.displayName ?? friend?.username ?? "VÄN").toUpperCase()}</Text>
-          {friend?.friendshipId && (
+          <Text style={s.title} numberOfLines={1}>{(friend?.displayName ?? friend?.username ?? "PROFIL").toUpperCase()}</Text>
+          {isFriend && (
             <TouchableOpacity style={s.removeBtn} onPress={confirmRemove} hitSlop={8}>
               <UserMinus size={19} color={MUTED} strokeWidth={2} />
             </TouchableOpacity>
@@ -70,21 +81,76 @@ export default function FriendProfileScreen() {
           <Avatar size={84} uri={null} name={friend?.displayName ?? friend?.username ?? "?"} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
           <Text style={s.name}>{friend?.displayName || friend?.username}</Text>
           {friend?.username && <Text style={s.username}>@{friend.username}</Text>}
-          {friend?.city && (
-            <View style={s.cityRow}>
-              <MapPin size={13} color={MUTED} strokeWidth={2} />
-              <Text style={s.city}>{friend.city}</Text>
-            </View>
-          )}
+          <View style={s.metaRow}>
+            {friend?.city && (
+              <View style={s.metaItem}>
+                <MapPin size={13} color={MUTED} strokeWidth={2} />
+                <Text style={s.meta}>{friend.city}</Text>
+              </View>
+            )}
+            {friend?.memberSince && (
+              <Text style={s.meta}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
+            )}
+          </View>
         </View>
 
-        {isLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />}
+        {profileLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />}
 
-        {isError && (
-          <Text style={s.errorText}>Kunde inte hämta statistik just nu.</Text>
+        {/* Inte vänner än: bara ett kort med rätt knapp för läget */}
+        {friend && !isFriend && (
+          <View style={s.actionCard}>
+            {friend.friendStatus === "none" && (
+              <PressableScale
+                style={s.primaryBtn}
+                disabled={busy}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  send.mutate(friend.userId);
+                }}
+              >
+                <UserPlus size={17} color="#0B0B0D" strokeWidth={2.2} />
+                <Text style={s.primaryBtnText}>Lägg till vän</Text>
+              </PressableScale>
+            )}
+
+            {friend.friendStatus === "outgoing" && friend.friendshipId && (
+              <>
+                <Text style={s.actionHint}>Vänförfrågan skickad</Text>
+                <PressableScale style={s.ghostBtn} disabled={busy} onPress={() => remove.mutate(friend.friendshipId!)}>
+                  <Text style={s.ghostBtnText}>Avbryt förfrågan</Text>
+                </PressableScale>
+              </>
+            )}
+
+            {friend.friendStatus === "incoming" && friend.friendshipId && (
+              <>
+                <Text style={s.actionHint}>Vill bli vän med dig</Text>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <PressableScale style={[s.ghostBtn, { flex: 1 }]} disabled={busy} onPress={() => remove.mutate(friend.friendshipId!)}>
+                    <X size={16} color={MUTED} strokeWidth={2.2} />
+                    <Text style={s.ghostBtnText}>Neka</Text>
+                  </PressableScale>
+                  <PressableScale
+                    style={[s.primaryBtn, { flex: 1 }]}
+                    disabled={busy}
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                      accept.mutate(friend.friendshipId!);
+                    }}
+                  >
+                    <Check size={16} color="#0B0B0D" strokeWidth={2.4} />
+                    <Text style={s.primaryBtnText}>Acceptera</Text>
+                  </PressableScale>
+                </View>
+              </>
+            )}
+          </View>
         )}
 
-        {stats && streak && (
+        {isFriend && statsLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />}
+        {isFriend && isError && <Text style={s.errorText}>Kunde inte hämta statistik just nu.</Text>}
+
+        {isFriend && stats && streak && (
           <>
             <View style={s.statsRow}>
               <StatTile icon={<Flame size={18} color={GOLD} strokeWidth={2} />} value={String(streak.current)} label={streak.current === 1 ? "Dags streak" : "Dagars streak"} />
@@ -139,8 +205,26 @@ const s = StyleSheet.create({
   hero: { alignItems: "center", marginTop: 12, gap: 4 },
   name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: FG, marginTop: 12 },
   username: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
-  cityRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  city: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
+
+  actionCard: {
+    marginTop: 22, marginHorizontal: 16, padding: 16, borderRadius: 18, gap: 12,
+    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", alignItems: "stretch",
+  },
+  actionHint: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED, textAlign: "center" },
+  primaryBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    height: 48, borderRadius: 12, backgroundColor: GOLD,
+  },
+  primaryBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#0B0B0D" },
+  ghostBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    height: 48, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
+  },
+  ghostBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG },
 
   errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 40, paddingHorizontal: 30 },
 

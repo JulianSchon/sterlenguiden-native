@@ -1195,6 +1195,21 @@ export type Database = {
           direction: string | null
         }[]
       }
+      rpc_get_profile: {
+        Args: { target_user_id: string }
+        Returns: {
+          user_id: string
+          username: string | null
+          display_name: string | null
+          city: string | null
+          circle_color: string | null
+          avatar_ring: string | null
+          member_since: string
+          friendship_id: string | null
+          status: string | null
+          direction: string | null
+        }[]
+      }
       rpc_list_friendships: {
         Args: never
         Returns: {

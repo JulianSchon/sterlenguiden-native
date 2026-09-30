@@ -134,6 +134,31 @@ export function useRemoveFriendship() {
   });
 }
 
+/** En enskild persons profil, oavsett om ni är vänner än. */
+export function useFriendProfile(targetUserId: string | null) {
+  return useQuery({
+    queryKey: ["friends", "profile", targetUserId],
+    enabled: !!targetUserId,
+    queryFn: async (): Promise<FriendResult | null> => {
+      const { data, error } = await supabase.rpc("rpc_get_profile", { target_user_id: targetUserId! });
+      if (error) throw error;
+      const r = data?.[0];
+      if (!r) return null;
+      return {
+        userId: r.user_id,
+        username: r.username,
+        displayName: r.display_name,
+        city: r.city,
+        circleColor: r.circle_color,
+        avatarRing: r.avatar_ring,
+        memberSince: r.member_since,
+        friendshipId: r.friendship_id,
+        friendStatus: toStatus(r.status, r.direction),
+      };
+    },
+  });
+}
+
 /** En väns statistik — servern nekar (kastar) om ni inte är vänner. */
 export function useFriendStats(targetUserId: string | null) {
   return useQuery({
