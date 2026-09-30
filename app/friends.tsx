@@ -158,11 +158,13 @@ function FriendRow({ friend }: { friend: FriendResult }) {
   const remove = useRemoveFriendship();
   const busy = send.isPending || accept.isPending || remove.isPending;
 
-  const tap = () => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } });
+  // Liten fördröjning innan navigeringen — annars hinner man aldrig SE ihoptryckningen; skärmen
+  // byts ut i samma ögonblick fingret lyfts (samma knep som vänprofilens aktivitetsrader).
+  const tap = () => setTimeout(() => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } }), 150);
 
   return (
-    <PressableScale style={s.row} scale={0.97} onPress={tap}>
-      <Avatar size={44} uri={null} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
+    <PressableScale style={s.row} scale={0.96} onPress={tap}>
+      <Avatar size={50} uri={null} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
       <View style={{ flex: 1 }}>
         <Text style={s.rowName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
         <Text style={s.rowSub} numberOfLines={1}>
@@ -216,7 +218,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
       {friend.friendStatus === "accepted" && (
         <View style={s.friendsLabelRow}>
           <Text style={s.friendsLabel}>Vänner</Text>
-          <ChevronRight size={16} color={GOLD_LT} strokeWidth={2} />
+          <ChevronRight size={20} color={MUTED} strokeWidth={2} />
         </View>
       )}
     </PressableScale>
@@ -226,7 +228,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
 function RowButton({ icon, gold, disabled, onPress }: { icon: React.ReactNode; gold?: boolean; disabled?: boolean; onPress: (e: any) => void }) {
   return (
     <View style={{ width: 34, height: 34 }}>
-      {gold && <RadialGlow size={34} color={GOLD} opacity={0.5} radiusRatio={1.3} />}
+      {gold && <RadialGlow size={34} color={GOLD} opacity={0.22} radiusRatio={1.1} />}
       <PressableScale
         style={[s.rowBtn, gold ? s.rowBtnGold : s.rowBtnGhost]}
         onPress={onPress}
@@ -272,13 +274,13 @@ const s = StyleSheet.create({
   emptyState: { alignItems: "center", gap: 10, marginTop: 24, paddingHorizontal: 10 },
 
   row: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    padding: 12, borderRadius: 14,
+    flexDirection: "row", alignItems: "center", gap: 14,
+    padding: 16, borderRadius: 16,
     backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
     overflow: "hidden", // rymmer Lägg till vän-knappens glöd (RadialGlow) inom kortets rundade form
   },
-  rowName: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
-  rowSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 1 },
+  rowName: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: FG },
+  rowSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
 
   rowBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   // Ytterkanten i guld i stället för en helt guldfylld knapp, plus en glöd bakom (se RowButton)
