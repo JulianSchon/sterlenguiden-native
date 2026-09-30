@@ -17,6 +17,7 @@ import { Users, ChevronRight } from "lucide-react-native";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { useFriendRequestCount } from "@/hooks/useFriends";
 import { PressableScale } from "@/components/PressableScale";
+import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { StickersSection } from "@/components/stickers/StickersSection";
 import { ListsSection } from "@/components/lists/ListsSection";
 import { MemoriesSection } from "@/components/memories/MemoriesSection";
@@ -61,7 +62,21 @@ export default function MittOsterlenScreen() {
       >
 
         <View style={s.hero}>
-          <StreakFlame size={215} />
+          <View style={{ alignItems: "center" }}>
+            {/* Varm glöd bakom elden plus en mjuk skugga vid dess fot, så den känns som att den
+                svävar en liten bit ovanför bakgrunden i stället för att ligga platt mot den. */}
+            <View style={s.flameGlowAnchor} pointerEvents="none">
+              <RadialGlow size={260} color="#FF9A1F" opacity={0.4} radiusRatio={1} />
+            </View>
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Group origin={vec(107.5, 216)} transform={[{ scaleY: 0.22 }]}>
+                <Circle cx={107.5} cy={216} r={80}>
+                  <RadialGradient c={vec(107.5, 216)} r={80} colors={["rgba(0,0,0,0.5)", "rgba(0,0,0,0)"]} positions={[0, 1]} />
+                </Circle>
+              </Group>
+            </Canvas>
+            <StreakFlame size={215} />
+          </View>
           <View style={s.numberWrap}>
             {/* Mörkt, mjukt sken bakom siffran så den syns mot elden. Tonar ut
                 till helt transparent långt innan ytans kant — ingen synlig ruta. */}
@@ -172,6 +187,10 @@ const s = StyleSheet.create({
   // Versal geometrisk sans med luft mellan bokstäverna, vänsterställd bredvid tillbaka-knappen
   title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
   hero: { alignItems: "center" },
+  // 260×260-ankare centrerat över eldens ungefärliga kroppsmitt (lite under den geometriska mitten,
+  // dit själva lågans massa faktiskt drar) — samma knep som Vänner-plattans gradientring, RadialGlow
+  // förutsätter en kvadratisk förälder och elden själv är inte kvadratisk.
+  flameGlowAnchor: { position: "absolute", left: "50%", top: "55%", marginLeft: -130, marginTop: -130, width: 260, height: 260 },
   // Siffran sitter över eldens nedre del, som på Whoop
   numberWrap: { marginTop: -69, width: 340, height: 100, alignItems: "center", justifyContent: "center" },
   scrim: { position: "absolute", left: 0, top: -60, width: 340, height: 220 },

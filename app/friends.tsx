@@ -160,7 +160,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
 
   // Liten fördröjning innan navigeringen — annars hinner man aldrig SE ihoptryckningen; skärmen
   // byts ut i samma ögonblick fingret lyfts (samma knep som vänprofilens aktivitetsrader).
-  const tap = () => setTimeout(() => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } }), 150);
+  const tap = () => setTimeout(() => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } }), 220);
 
   return (
     <PressableScale style={s.row} scale={0.96} onPress={tap}>

@@ -497,7 +497,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
     <PressableScale
       style={[s.activityRow, bordered && s.activityRowBorder]}
       scale={0.94}
-      onPress={() => setTimeout(() => router.push(target as any), 150)}
+      onPress={() => setTimeout(() => router.push(target as any), 220)}
     >
       {content}
     </PressableScale>
