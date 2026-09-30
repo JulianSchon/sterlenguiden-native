@@ -138,7 +138,7 @@ export default function FriendProfileScreen() {
           </TouchableOpacity>
           {isFriend && (
             <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-              <UserMinus size={24} color="#8B2B2B" strokeWidth={2} />
+              <UserMinus size={24} color="#B33939" strokeWidth={2} />
             </TouchableOpacity>
           )}
         </View>
@@ -407,7 +407,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  hero: { alignItems: "center", paddingTop: 24 },
+  hero: { alignItems: "center", paddingTop: 8 },
   streakBadge: {
     position: "absolute", right: -8, bottom: -6,
     flexDirection: "row", alignItems: "center", gap: 3,
