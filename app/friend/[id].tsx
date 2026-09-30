@@ -301,8 +301,10 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
           {activity.kind === "visit" ? <MapPin size={18} color={GOLD} strokeWidth={2} /> : activity.kind === "favorite" ? <Heart size={18} color={GOLD} strokeWidth={2} /> : <Sparkles size={18} color={GOLD} strokeWidth={2} />}
         </View>
       )}
-      <Text style={s.activityText} numberOfLines={2}>{text}</Text>
-      <Text style={s.activityDate}>{date}</Text>
+      <View style={s.activityBody}>
+        <Text style={s.activityText} numberOfLines={2}>{text}</Text>
+        <Text style={s.activityDate}>{date}</Text>
+      </View>
     </View>
   );
 }
@@ -430,7 +432,8 @@ const s = StyleSheet.create({
   sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, marginBottom: 12 },
   card: { borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
 
-  activityRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 16 },
+  activityRow: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingHorizontal: 16, paddingVertical: 16 },
+  activityBody: { flex: 1, minHeight: 48, justifyContent: "space-between" },
   activityRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)" },
   activityIcon: {
     width: 48, height: 48, borderRadius: 12, backgroundColor: "rgba(197,160,89,0.12)",
@@ -438,8 +441,8 @@ const s = StyleSheet.create({
   },
   // Ett riktigt foto (plats/event) fyller rutan; en sticker ligger fri (contain) på samma mörka platta
   activityThumb: { width: 48, height: 48, borderRadius: 12, backgroundColor: CARD },
-  activityText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG, lineHeight: 19 },
-  activityDate: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
+  activityText: { fontFamily: "Inter_500Medium", fontSize: 14, color: FG, lineHeight: 19 },
+  activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
   trophyRow: { flexDirection: "row", flexWrap: "wrap", gap: 16, paddingHorizontal: 4 },
   trophyItem: { width: 68, alignItems: "center", gap: 6 },
