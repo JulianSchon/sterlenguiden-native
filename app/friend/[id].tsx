@@ -66,9 +66,9 @@ export default function FriendProfileScreen() {
     [stats],
   );
 
-  // Samma kortdesign som personens eget Österlenpass — bara kosmetik, aldrig känsligt.
+  // Samma kortdesign personen valt i Utseende — fri att välja oavsett medlemskap, bara kosmetik.
   // Ljusa kort (Sand, Rapsfält) behöver mörk text, annars försvinner den i bilden.
-  const variant = friend?.isMember ? getVariant(friend.cardColor) : null;
+  const variant = friend ? getVariant(friend.cardColor) : null;
   const heroColors = variant ? cardColors(variant) : null;
   const heroBg = variant?.bg ?? "#171310";
   const heroText = heroColors?.text ?? "#FFFFFF";
