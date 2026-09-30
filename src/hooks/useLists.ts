@@ -57,29 +57,34 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-/** Listorna där den inloggade är medlem (RLS filtrerar bort resten). */
+/** Listorna där den inloggade är medlem (RLS filtrerar bort resten) — en lista man bara är
+ * PENDING-inbjuden till räknas inte med här förrän man accepterat, se usePendingListInvites(). */
 export function useLists() {
   return useQuery({
     queryKey: ["lists", "mine"],
     queryFn: async (): Promise<ListSummary[]> => {
+      const userId = await requireUserId();
       const { data, error } = await supabase
         .from("lists")
-        .select("*, list_places(place_id, created_at, places(image_url)), list_members(user_id)")
+        .select("*, list_places(place_id, created_at, places(image_url)), list_members(user_id, status)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []).map((l) => {
-        const byAge = [...l.list_places].sort((a, b) => a.created_at.localeCompare(b.created_at));
-        return {
-          id: l.id,
-          name: l.name,
-          description: l.description,
-          ownerId: l.owner_id,
-          inviteCode: l.invite_code,
-          placeIds: l.list_places.map((p) => p.place_id),
-          memberCount: l.list_members.length,
-          images: byAge.map((p) => firstImageUrl(p.places?.image_url)).filter((u): u is string => !!u).slice(0, 4),
-        };
-      });
+      return (data ?? [])
+        .filter((l) => l.owner_id === userId || l.list_members.some((m) => m.user_id === userId && m.status === "accepted"))
+        .map((l) => {
+          const byAge = [...l.list_places].sort((a, b) => a.created_at.localeCompare(b.created_at));
+          const acceptedMembers = l.list_members.filter((m) => m.status === "accepted");
+          return {
+            id: l.id,
+            name: l.name,
+            description: l.description,
+            ownerId: l.owner_id,
+            inviteCode: l.invite_code,
+            placeIds: l.list_places.map((p) => p.place_id),
+            memberCount: acceptedMembers.length,
+            images: byAge.map((p) => firstImageUrl(p.places?.image_url)).filter((u): u is string => !!u).slice(0, 4),
+          };
+        });
     },
   });
 }
@@ -164,6 +169,48 @@ export function useAddListMembers() {
       const { error } = await supabase.rpc("add_list_members", {
         target_list_id: listId, target_user_ids: friendIds,
       });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+export interface PendingListInvite {
+  listId: string;
+  listName: string;
+  ownerName: string;
+}
+
+/** Listinbjudningar TILL mig som väntar på svar — visas som en stor kort-popup på Mitt Österlen. */
+export function usePendingListInvites() {
+  return useQuery({
+    queryKey: ["lists", "pending-invites"],
+    queryFn: async (): Promise<PendingListInvite[]> => {
+      const { data, error } = await supabase.rpc("rpc_pending_list_invites");
+      if (error) throw error;
+      return (data ?? []).map((r) => ({ listId: r.list_id, listName: r.list_name, ownerName: r.owner_name }));
+    },
+  });
+}
+
+export function useAcceptListInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (listId: string) => {
+      const { error } = await supabase.rpc("accept_list_invite", { target_list_id: listId });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/** Avböjer en inbjudan — samma som att lämna listan, fast innan man någonsin gick med. */
+export function useDeclineListInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (listId: string) => {
+      const userId = await requireUserId();
+      const { error } = await supabase.from("list_members").delete().eq("list_id", listId).eq("user_id", userId);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),

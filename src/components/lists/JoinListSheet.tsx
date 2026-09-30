@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, TextInput } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useJoinList } from "@/hooks/useLists";
@@ -10,6 +10,15 @@ export function JoinListSheet({
   const [code, setCode] = useState("");
   const join = useJoinList();
   const sheetInput = useSheetInput();
+  const inputRef = useRef<TextInput>(null);
+
+  // Tangentbordet ska redan vara uppe när popupen dyker upp, inte kräva ett extra tryck i fältet.
+  // Ett litet dröjsmål behövs — annars hinner fokusförsöket komma före Modal-animationen.
+  useEffect(() => {
+    if (!visible) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 150);
+    return () => clearTimeout(t);
+  }, [visible]);
 
   async function submit() {
     const id = await join.mutateAsync(code);
@@ -25,9 +34,10 @@ export function JoinListSheet({
     <Sheet visible={visible} onClose={onClose} title="Gå med i lista" centered>
       <View style={{ gap: 12 }}>
         <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.6)" }}>
-          Skriv in koden du fått av den som äger listan.
+          Skriv in koden du fått av listans ägare.
         </Text>
         <TextInput
+          ref={inputRef}
           style={[sheetInput, { letterSpacing: 3, textAlign: "center", fontFamily: "Inter_600SemiBold" }]}
           value={code}
           onChangeText={(t) => {
