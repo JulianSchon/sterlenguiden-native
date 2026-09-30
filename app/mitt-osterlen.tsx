@@ -13,7 +13,7 @@ import { ArrowLeft } from "lucide-react-native";
 import { Canvas, Circle, Group, RadialGradient, SweepGradient, vec } from "@shopify/react-native-skia";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import { Users } from "lucide-react-native";
+import { Users, ChevronRight } from "lucide-react-native";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { useFriendRequestCount } from "@/hooks/useFriends";
 import { PressableScale } from "@/components/PressableScale";
@@ -139,6 +139,9 @@ export default function MittOsterlenScreen() {
                 : "Lägg till vänner och se deras statistik"}
             </Text>
           </View>
+          {/* Utan den här kunde ringen längst till vänster lätt läsas som "dina vänners avatarer
+              kommer synas här", inte en ren navigeringsrad */}
+          <ChevronRight size={20} color={MUTED} strokeWidth={2} />
         </PressableScale>
 
         <ListsSection />
