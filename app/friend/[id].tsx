@@ -17,28 +17,31 @@
  * integritetsbeslut. Att visa en väns riktiga foto kräver att den privata bild-mappens
  * åtkomstregler öppnas för vänner, vilket är en egen, medveten säkerhetsändring.
  */
-import { useMemo } from "react";
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { useMemo, useState } from "react";
+import {
+  View, Text, Image, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, ActivityIndicator, Alert,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import {
-  ArrowLeft, MapPin, Heart, Sparkles, Ticket, Compass, UserMinus, UserPlus, Check, X,
+  ArrowLeft, MapPin, Heart, Ticket, Compass, UserMinus, UserPlus, Check, X,
 } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Avatar } from "@/components/profile/Avatar";
 import { StreakFlame } from "@/components/streak/StreakFlame";
+import { StickerArt } from "@/components/stickers/StickerArt";
 import { PressableScale } from "@/components/PressableScale";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
   type FriendActivity, type FriendResult, type FriendStats,
 } from "@/hooks/useFriends";
-import { stickerImageUrl } from "@/hooks/useCollectibles";
 import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
-import { GROUP_INFO } from "@/lib/achievements";
+import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
 import { TrophyMedal, GlowCanvas } from "@/components/trophies/TrophyMedal";
 import { getVariant } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
@@ -49,8 +52,8 @@ const MUTED = "rgba(245,241,232,0.55)";
 const CARD  = "#1A1A1D";
 const GOLD  = "#C5A059";
 const RED   = "#B83434"; // samma röd som hjärtat på platssidan när den är favoritmarkerad
-const GREEN = "#34C759"; // vanlig kartnåls-grön, inte kategorifärgerna (de är för mörka/dova här)
-const AVATAR_SIZE = 92;
+const GREEN = "hsl(150,30%,28%)"; // exakt samma mörkgröna som StandardPin på kartan (app/(tabs)/map.tsx)
+const AVATAR_SIZE = 108;
 
 /** Grå stapel i skelettet — aldrig text, bara form, så den aldrig kan tas för en riktig siffra */
 function SkelBar({ w, h }: { w: number; h: number }) {
@@ -148,15 +151,13 @@ export default function FriendProfileScreen() {
           {/* Profilbilden ligger ovanpå den här boxen (negativ marginal), som på referensbilden */}
           <View style={s.identityCard}>
             <Text style={s.name}>{who}</Text>
-            <View style={s.metaRow}>
-              {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
-              {friend?.city && (
-                <View style={s.metaItem}>
-                  <MapPin size={12} color="rgba(255,255,255,0.6)" strokeWidth={2} />
-                  <Text style={s.meta}>{friend.city}</Text>
-                </View>
-              )}
-            </View>
+            {friend?.username && <Text style={[s.meta, s.metaFirst]}>@{friend.username}</Text>}
+            {friend?.city && (
+              <View style={[s.metaItem, !friend?.username && s.metaFirst]}>
+                <MapPin size={12} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+                <Text style={s.meta}>{friend.city}</Text>
+              </View>
+            )}
             <View style={s.identityDivider} />
 
             {/* Streak/besök/favoriter — bara riktiga siffror när ni är vänner, annars platshållare.
@@ -235,12 +236,7 @@ function RealContent({
         </View>
       )}
 
-      {stats.trophies.length > 0 && (
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Troféer</Text>
-          <TrophyRow trophies={stats.trophies} />
-        </View>
-      )}
+      {stats.trophies.length > 0 && <TrophySection trophies={stats.trophies} />}
 
       <View style={s.section}>
         <Text style={s.sectionTitle}>Statistik</Text>
@@ -258,19 +254,67 @@ function RealContent({
   );
 }
 
-function TrophyRow({ trophies }: { trophies: FriendStats["trophies"] }) {
+// Horisontell rad med exakt 3 synliga medaljer (samma bredd-räkning som rastret på Utmaningar),
+// senast upplåsta först — rpc_friend_stats levererar redan i upplåsningsordning (unlocked_at
+// stigande), så vi behöver bara vända listan i stället för att ta med ett eget datumfält.
+// Klick öppnar samma sortens beskrivningskort som på den egna Utmaningar-sidan.
+function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
+  const { width: winW } = useWindowDimensions();
+  const [selected, setSelected] = useState<FriendStats["trophies"][number] | null>(null);
+
+  const ordered = useMemo(() => [...trophies].reverse(), [trophies]);
+
+  const pageW = winW - 32; // 16px sidmarginal, samma mönster som s.section/Utmaningar
+  const gap = 16;
+  const itemWidth = (pageW - gap * 2) / 3;
+  const medalSize = Math.round(itemWidth * 0.86);
+
+  const meta = selected ? getTrophyMeta(selected.achievementType, selected.level) : null;
+
   return (
-    <View style={s.trophyRow}>
-      {trophies.map((t, i) => {
-        const info = GROUP_INFO[t.achievementType];
-        if (!info) return null;
-        return (
-          <View key={i} style={s.trophyItem}>
-            <TrophyMedal size={52} tier={t.level} Icon={info.Icon} unlocked groupId={t.achievementType} />
-            <Text style={s.trophyLabel} numberOfLines={1}>{info.theme}</Text>
-          </View>
-        );
-      })}
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>Troféer</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        snapToInterval={itemWidth + gap}
+        contentContainerStyle={{ gap }}
+      >
+        {ordered.map((t, i) => {
+          const info = getTrophyMeta(t.achievementType, t.level);
+          if (!info) return null;
+          return (
+            <Pressable key={i} style={{ width: itemWidth, alignItems: "center" }} onPress={() => setSelected(t)}>
+              <TrophyMedal size={medalSize} tier={t.level} Icon={info.Icon} unlocked groupId={t.achievementType} />
+              <Text style={s.trophyLabel} numberOfLines={1}>{info.identity}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <Modal visible={!!selected} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
+        <Pressable style={s.modalOverlay} onPress={() => setSelected(null)}>
+          <Pressable style={s.modalCard} onPress={(e) => e.stopPropagation()}>
+            {selected && meta && (
+              <>
+                <TouchableOpacity style={s.modalClose} onPress={() => setSelected(null)}>
+                  <X size={22} color={MUTED} strokeWidth={2} />
+                </TouchableOpacity>
+                <TrophyMedal size={140} tier={selected.level} Icon={meta.Icon} unlocked groupId={selected.achievementType} />
+                <View style={[s.modalRibbon, { backgroundColor: TIER_PALETTE[selected.level].rim }]}>
+                  <Text style={s.modalRibbonText}>{meta.levelLabel.toUpperCase()}</Text>
+                </View>
+                <Text style={s.modalIdentity}>{meta.identity}</Text>
+                <Text style={s.modalLevelName}>{meta.levelName}</Text>
+                <Text style={s.modalTagline}>{meta.tagline}</Text>
+                <View style={s.modalDivider} />
+                <Text style={s.modalReq}>{meta.requirementText}</Text>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -284,24 +328,22 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
     activity.kind === "favorite" ? ` lade till ${activity.label} i favoriter` :
     ` samlade in ${activity.label}`;
 
-  // Stickerns bild ligger i stickerbucketen (kräver stickerImageUrl); platsens/eventets image_url
-  // är redan en öppen adress och används som den är. Saknas en bild visas kategorins egen ikon.
-  const photoUri =
-    activity.kind === "sticker"
-      ? (activity.imagePath ? stickerImageUrl(activity.imagePath) : null)
-      : firstImageUrl(activity.imagePath);
+  // Platsens/eventets image_url är redan en öppen adress och används som den är. Saknas en bild
+  // visas kategorins egen ikon. Stickers använder alltid StickerArt — samma lila/guldstjärna-
+  // platshållare som resten av appen (Utmaningar, kartan) tills konstfilen finns i Supabase.
+  const photoUri = activity.kind === "sticker" ? null : firstImageUrl(activity.imagePath);
 
   return (
     <View style={[s.activityRow, bordered && s.activityRowBorder]}>
-      {photoUri ? (
-        <Image
-          source={{ uri: photoUri }}
-          style={s.activityThumb}
-          resizeMode={activity.kind === "sticker" ? "contain" : "cover"}
-        />
+      {activity.kind === "sticker" ? (
+        // Ingen fyrkantig CARD-platta bakom — StickerArt är redan en egen cirkel, precis som
+        // i Samlarobjekt-rutnätet och på kartan.
+        <StickerArt imagePath={activity.imagePath} size={44} silhouette={false} />
+      ) : photoUri ? (
+        <Image source={{ uri: photoUri }} style={s.activityThumb} resizeMode="cover" />
       ) : (
         <View style={s.activityIcon}>
-          {activity.kind === "visit" ? <MapPin size={18} color={GOLD} strokeWidth={2} /> : activity.kind === "favorite" ? <Heart size={18} color={GOLD} strokeWidth={2} /> : <Sparkles size={18} color={GOLD} strokeWidth={2} />}
+          {activity.kind === "visit" ? <MapPin size={18} color={GOLD} strokeWidth={2} /> : <Heart size={18} color={GOLD} strokeWidth={2} />}
         </View>
       )}
       <View style={s.activityBody}>
@@ -407,7 +449,7 @@ const s = StyleSheet.create({
 
   // Mer luft under den sticky headern än förut — glödens mjuka oskärpa (se GlowCanvas) sträcker
   // sig långt över avataren, och satt för nära headern skars den av mot dess raka kant.
-  hero: { alignItems: "center", paddingTop: 56 },
+  hero: { alignItems: "center", paddingTop: 84 },
 
   // Kortet identitetsboxen ligger på — profilbilden (92px, zIndex 2) sticker upp genom det övre
   // hålet (negativ marginTop = halva avatarstorleken), samma överlapp som referensbilden.
@@ -422,10 +464,11 @@ const s = StyleSheet.create({
   // Samma typsnitt som "Senaste aktivitet" och de andra sektionsrubrikerna (s.sectionTitle),
   // fast utan versaler/spårning — det är ett namn, inte en rubrik.
   name: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.2, color: "#FFFFFF" },
-  // Ersätter den gamla "Medlem sedan"-raden här — nål + ort i stället, datumet flyttat längst ner på sidan
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
-  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  // Ersätter den gamla "Medlem sedan"-raden här — användarnamn och ort på var sin rad under namnet,
+  // datumet flyttat längst ner på sidan
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
+  metaFirst: { marginTop: 6 },
 
   identityDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginTop: 18 },
   identityStats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginTop: 16 },
@@ -453,15 +496,34 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 11, backgroundColor: "rgba(197,160,89,0.12)",
     alignItems: "center", justifyContent: "center",
   },
-  // Ett riktigt foto (plats/event) fyller rutan; en sticker ligger fri (contain) på samma mörka platta
+  // Ett riktigt foto (plats/event) fyller rutan; stickers ritar sin egen cirkel (StickerArt) utan denna platta
   activityThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: CARD },
   activityText: { fontFamily: "Inter_400Regular", fontSize: 14, color: FG, lineHeight: 19 },
   activityWho: { fontFamily: "Inter_700Bold" },
   activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
-  trophyRow: { flexDirection: "row", flexWrap: "wrap", gap: 16, paddingHorizontal: 4 },
-  trophyItem: { width: 68, alignItems: "center", gap: 6 },
-  trophyLabel: { fontFamily: "Inter_500Medium", fontSize: 10.5, color: MUTED, textAlign: "center" },
+  trophyLabel: { fontFamily: "Inter_500Medium", fontSize: 10.5, color: MUTED, textAlign: "center", marginTop: 6 },
+
+  // Beskrivningskortet som öppnas vid klick — samma mönster som troféernas detaljmodal på
+  // Utmaningar (app/challenges.tsx), men Montserrat i stället för Playfair på rubriken (Playfair
+  // är bara för personnamn i den här appen, se vänprofilens övriga typsnittsbeslut).
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalCard: {
+    width: "100%", maxWidth: 340, borderRadius: 24,
+    backgroundColor: "#1A1A1A", padding: 24, paddingTop: 32, alignItems: "center",
+    borderWidth: 0.5, borderColor: "rgba(197,160,89,0.25)",
+  },
+  modalClose: {
+    position: "absolute", top: 14, right: 14, width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center",
+  },
+  modalRibbon: { marginTop: 20, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.15)" },
+  modalRibbonText: { fontFamily: "Inter_600SemiBold", fontSize: 9, color: "#fdf6e3", letterSpacing: 1.8, textTransform: "uppercase" },
+  modalIdentity: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: -0.2, color: FG, marginTop: 12, textAlign: "center" },
+  modalLevelName: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: GOLD, letterSpacing: 2.2, textTransform: "uppercase", marginTop: 4 },
+  modalTagline: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.65)", textAlign: "center", maxWidth: 260, marginTop: 12 },
+  modalDivider: { width: 64, height: 1, backgroundColor: "rgba(197,160,89,0.35)", marginVertical: 20 },
+  modalReq: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.55)", textAlign: "center" },
 
   statRow: {
     flexDirection: "row", alignItems: "center", gap: 10,

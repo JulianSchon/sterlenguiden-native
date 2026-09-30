@@ -216,9 +216,30 @@ const GROUPS: GroupDef[] = [
 
 export const GROUP_ORDER = GROUPS.map((g) => g.id);
 
-/** Tema-namn och ikon per grupp, för ställen (t.ex. vänprofilen) som bara vill visa en upplåst trofé utan hela poängmotorn. */
-export const GROUP_INFO: Record<string, { theme: string; Icon: React.ComponentType<any> }> =
-  Object.fromEntries(GROUPS.map((g) => [g.id, { theme: g.theme, Icon: g.Icon }]));
+export interface TrophyMeta {
+  identity: string;      // gruppens temanamn, t.ex. "Utforskaren"
+  levelName: string;     // nivå-specifikt smeknamn
+  levelLabel: string;    // "Brons"/"Silver"/"Guld"
+  tagline: string;
+  requirementText: string;
+  Icon: React.ComponentType<any>;
+}
+
+/** Statisk info (inget framsteg/mål) för en grupp+nivå — ställen som bara vet VILKA troféer någon
+ * redan låst upp (t.ex. vänprofilen, som inte har hela poängmotorn/UserStats för den personen). */
+export function getTrophyMeta(groupId: string, tier: Tier): TrophyMeta | null {
+  const group = GROUPS.find((g) => g.id === groupId);
+  if (!group) return null;
+  const spec = group.tiers[TIER_ORDER.indexOf(tier)];
+  return {
+    identity: group.theme,
+    levelName: spec.levelName,
+    levelLabel: TIER_LABEL[tier],
+    tagline: group.tagline,
+    requirementText: spec.requirementText,
+    Icon: group.Icon,
+  };
+}
 
 // ─── Troféer ────────────────────────────────────────────────────────────────────
 export interface Trophy {

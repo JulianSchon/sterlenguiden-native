@@ -4,18 +4,18 @@
  */
 import { Image, View } from "react-native";
 import Svg, { Circle, Polygon } from "react-native-svg";
-import { stickerImageUrl, type Collectible } from "@/hooks/useCollectibles";
+import { stickerImageUrl } from "@/hooks/useCollectibles";
 
 const STAR = "12,4.5 14.4,9.6 20,10.3 15.8,14.1 17,19.6 12,16.8 7,19.6 8.2,14.1 4,10.3 9.6,9.6";
 const SILHOUETTE = "#3A3A44";
 
 export function StickerArt({
-  collectible, size, silhouette,
-}: { collectible: Collectible; size: number; silhouette: boolean }) {
-  if (collectible.imagePath) {
+  imagePath, size, silhouette,
+}: { imagePath: string | null; size: number; silhouette: boolean }) {
+  if (imagePath) {
     return (
       <Image
-        source={{ uri: stickerImageUrl(collectible.imagePath) }}
+        source={{ uri: stickerImageUrl(imagePath) }}
         // tintColor gör alla synliga pixlar till en enda färg = silhuett
         style={{ width: size, height: size, tintColor: silhouette ? SILHOUETTE : undefined }}
         resizeMode="contain"

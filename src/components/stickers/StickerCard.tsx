@@ -79,7 +79,7 @@ export function StickerCard({
             },
           ]}
         >
-          <StickerArt collectible={collectible} size={96} silhouette={!collected} />
+          <StickerArt imagePath={collectible.imagePath} size={96} silhouette={!collected} />
         </Animated.View>
 
         <View style={{ flex: 1 }}>

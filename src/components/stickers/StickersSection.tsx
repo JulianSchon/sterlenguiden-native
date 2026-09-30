@@ -37,7 +37,7 @@ export function StickersSection() {
               activeOpacity={0.8}
               onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } } as any)}
             >
-              <StickerArt collectible={c} size={68} silhouette={!has} />
+              <StickerArt imagePath={c.imagePath} size={68} silhouette={!has} />
               <Text style={[s.name, has && { color: FG }]} numberOfLines={2}>{c.name}</Text>
             </TouchableOpacity>
           );
