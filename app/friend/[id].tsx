@@ -48,6 +48,8 @@ const FG    = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const CARD  = "#1A1A1D";
 const GOLD  = "#C5A059";
+const RED   = "#B83434"; // samma röd som hjärtat på platssidan när den är favoritmarkerad
+const GREEN = "#34C759"; // vanlig kartnåls-grön, inte kategorifärgerna (de är för mörka/dova här)
 const AVATAR_SIZE = 92;
 
 /** Grå stapel i skelettet — aldrig text, bara form, så den aldrig kan tas för en riktig siffra */
@@ -139,7 +141,7 @@ export default function FriendProfileScreen() {
         <View style={s.hero}>
           <View style={{ zIndex: 2 }}>
             {/* Samma mått som den framhävda troféns permanenta glöd på Utmaningar — stor, mjuk, diffus */}
-            <GlowCanvas size={AVATAR_SIZE} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
+            <GlowCanvas size={AVATAR_SIZE} color={glowColor} opacity={0.22} radiusRatio={0.95} blurRatio={0.4} />
             <Avatar size={AVATAR_SIZE} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
           </View>
 
@@ -161,19 +163,19 @@ export default function FriendProfileScreen() {
                 Etikett ovanför, ifylld symbol + siffra i en rad under, precis som referensbilden. */}
             <View style={s.identityStats}>
               <IdentityStat
-                icon={<StreakFlame compact size={20} />}
+                icon={<StreakFlame compact size={15} />}
                 value={isFriend && streak ? streak.current : null}
                 label="Streak"
               />
               <View style={s.identityColDivider} />
               <IdentityStat
-                icon={<MapPin size={16} color={GOLD} fill={GOLD} strokeWidth={1.5} />}
+                icon={<MapPin size={16} color="#FFFFFF" fill={GREEN} strokeWidth={1.5} />}
                 value={isFriend && stats ? stats.visitsTotal : null}
                 label="Besök"
               />
               <View style={s.identityColDivider} />
               <IdentityStat
-                icon={<Heart size={16} color={GOLD} fill={GOLD} strokeWidth={1.5} />}
+                icon={<Heart size={16} color={RED} fill={RED} strokeWidth={1.5} />}
                 value={isFriend && stats ? stats.favoritesTotal : null}
                 label="Favoriter"
               />

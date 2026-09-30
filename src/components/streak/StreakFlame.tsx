@@ -169,7 +169,11 @@ function Ember({ t, index }: { t: SharedValue<number>; index: number }) {
 }
 
 const VIEW_FULL = { x: 0, y: TOP_CROP, w: W, h: H };
-const VIEW_COMPACT = { x: 40, y: 58, w: 220, h: 296 };
+// Lågans botten ligger fast vid y=350 (BASE) — 296 gav bara ~4 enheter marginal ner till kant 354,
+// vilket i småformat (kompakta lågor ner mot ~15px bredd) blir under en bildpunkt: avrundningen av
+// canvasens pixelhöjd kunde då nypa av lågans understa, antialiserade kant. Mer marginal (20 enheter
+// till) håller kanten ordentligt innanför duken oavsett storlek, utan att flytta eller skala lågan.
+const VIEW_COMPACT = { x: 40, y: 58, w: 220, h: 316 };
 
 type StreakFlameProps = {
   /** Bredd i pixlar; höjden följer av formen */
