@@ -64,3 +64,16 @@ export function shade(hex: string, amount: number): string {
   const ch = (shift: number) => Math.round(((n >> shift) & 255) * k);
   return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
 }
+
+/** Blandar färgen mot vitt (0 = oförändrad, 1 = vitt) — shade()s motsats. En mörk, dov bottenfärg
+ * (t.ex. Skog eller Hav bland Österlenpassets kortvarianter) ser knappt ut att glöda alls som en
+ * halvgenomskinlig fläck av sin egen färg mot en nästan svart bakgrund, oavsett opacitet — en
+ * bländning behöver lyftas MOT vitt för att faktiskt läsas som ljus. */
+export function tint(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (shift: number) => {
+    const c = (n >> shift) & 255;
+    return Math.round(c + (255 - c) * amount);
+  };
+  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+}

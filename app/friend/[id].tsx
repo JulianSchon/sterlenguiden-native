@@ -43,7 +43,7 @@ import {
 import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
 import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
-import { CATEGORIES } from "@/theme/categories";
+import { CATEGORIES, tint } from "@/theme/categories";
 import { TrophyMedal, RadialGlow } from "@/components/trophies/TrophyMedal";
 import { getVariant } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
@@ -103,9 +103,10 @@ export default function FriendProfileScreen() {
   }, [places, stats]);
 
   // Samma kortfärg som personens eget Österlenpass, fritt valt oavsett medlemskap, bara kosmetik —
-  // används bara som glödens färg bakom profilringen nu.
+  // används bara som glödens färg bakom profilringen nu. Lyft mot vitt (tint) innan den används —
+  // en mörk kortfärg som Skog eller Hav annars knappt syns glöda alls mot den nästan svarta bakgrunden.
   const variant = friend ? getVariant(friend.cardColor) : null;
-  const glowColor = variant?.bg ?? GOLD;
+  const glowColor = tint(variant?.bg ?? GOLD, 0.35);
 
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;
@@ -455,12 +456,8 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
     activity.eventId ? `/event/${activity.eventId}` :
     null;
 
-  const Row = target ? TouchableOpacity : View;
-  return (
-    <Row
-      style={[s.activityRow, bordered && s.activityRowBorder]}
-      {...(target ? { activeOpacity: 0.7, onPress: () => router.push(target as any) } : {})}
-    >
+  const content = (
+    <>
       {activity.kind === "sticker" ? (
         // Ingen fyrkantig CARD-platta bakom — StickerArt är redan en egen cirkel, precis som
         // i Samlarobjekt-rutnätet och på kartan.
@@ -478,7 +475,22 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
         </Text>
         <Text style={s.activityDate}>{date}</Text>
       </View>
-    </Row>
+    </>
+  );
+
+  // Bara besök/favoriter (har ett mål) får tryckåterkoppling — stickers är inte klickbara alls,
+  // se target ovan.
+  if (!target) {
+    return <View style={[s.activityRow, bordered && s.activityRowBorder]}>{content}</View>;
+  }
+  return (
+    <PressableScale
+      style={[s.activityRow, bordered && s.activityRowBorder]}
+      scale={0.97}
+      onPress={() => router.push(target as any)}
+    >
+      {content}
+    </PressableScale>
   );
 }
 
@@ -598,7 +610,7 @@ const s = StyleSheet.create({
   // "Medlem sedan ..." längst ner på sidan, efter allt annat innehåll
   memberSince: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, textAlign: "center", marginTop: 32, paddingHorizontal: 30 },
   // Samma mönster som "Ta bort minnet" (app/memories/[id].tsx) — textlänk längst ner, inte en ikonknapp i headern
-  deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 24, paddingVertical: 14 },
+  deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, paddingVertical: 14 },
   deleteText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#E57373" },
 
   section: { marginTop: 26, paddingHorizontal: 16 },
