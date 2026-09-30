@@ -22,7 +22,7 @@ import {
   View, Text, Image, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, ActivityIndicator, Alert,
   Animated, Easing, useWindowDimensions,
 } from "react-native";
-import Svg, { Circle as SvgCircle, Text as SvgText } from "react-native-svg";
+import Svg, { Circle as SvgCircle, Text as SvgText, Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -401,7 +401,7 @@ function VisitedRingBox({ visitsTotal, totalPlaces }: { visitsTotal: number; tot
         <ProgressRing percent={percent} centerValue={visitsTotal} />
       </View>
       <Text style={s.statBoxLabel}>{visitsTotal} av {totalPlaces}</Text>
-      <Text style={s.statBoxCaption}>upptäckta platser</Text>
+      <Text style={s.statBoxCaption}>besökta platser</Text>
     </View>
   );
 }
@@ -532,6 +532,19 @@ function LockedContent({
       </View>
 
       <BlurView intensity={38} tint="dark" style={StyleSheet.absoluteFill} />
+      {/* Det frostade glaset har inget kvar att sudda ut längst ner (bara tom bakgrund under
+          skelettet), så det såg ut att sluta tvärt i en tydlig kant där. Tonar i stället ner mot
+          samma bakgrundsfärg där, så övergången aldrig syns som en gräns. */}
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <SvgGrad id="lockedFade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={BG} stopOpacity={0} />
+            <Stop offset="65%" stopColor={BG} stopOpacity={0} />
+            <Stop offset="100%" stopColor={BG} stopOpacity={1} />
+          </SvgGrad>
+        </Defs>
+        <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#lockedFade)" />
+      </Svg>
 
       <View style={s.lockedCard}>
         {friend.friendStatus === "none" && (
@@ -664,7 +677,7 @@ const s = StyleSheet.create({
   modalDivider: { width: 64, height: 1, backgroundColor: "rgba(197,160,89,0.35)", marginVertical: 20 },
   modalReq: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.55)", textAlign: "center" },
 
-  // Statistik: två boxar sida vid sida (mest besökta kategori / upptäckta platser)
+  // Statistik: två boxar sida vid sida (mest besökta kategori / besökta platser)
   statBoxRow: { flexDirection: "row", gap: 12 },
   statBox: {
     flex: 1, alignItems: "center", gap: 4, paddingVertical: 20, paddingHorizontal: 12,
