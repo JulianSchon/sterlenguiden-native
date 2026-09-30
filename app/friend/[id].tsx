@@ -557,9 +557,9 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // Mer luft under den sticky headern än förut, så glöden (RadialGlow) har gott om plats att
-  // tona ut i innan den når headern.
-  hero: { alignItems: "center", paddingTop: 84 },
+  // RadialGlow (radiusRatio 1.1) bleder ~65px ovanför avataren innan den är helt utfasad — 70px
+  // ger den precis plats att tona ut i utan att klippas, med lite marginal, utan onödigt dödutrymme.
+  hero: { alignItems: "center", paddingTop: 70 },
 
   // Kortet identitetsboxen ligger på — profilbilden (92px, zIndex 2) sticker upp genom det övre
   // hålet (negativ marginTop = halva avatarstorleken), samma överlapp som referensbilden.
