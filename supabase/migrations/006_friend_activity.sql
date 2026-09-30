@@ -10,6 +10,10 @@
 -- 1. rpc_search_users — + is_member, card_color
 -- ------------------------------------------------------------
 
+-- CREATE OR REPLACE kan inte ändra en funktions returtyp (bara innehållet) — de tre funktionerna
+-- nedan får nya returkolumner (is_member, card_color) och måste därför droppas först.
+drop function if exists public.rpc_search_users(text);
+
 create or replace function public.rpc_search_users(q text)
 returns table (
   user_id       uuid,
@@ -66,6 +70,8 @@ grant execute on function public.rpc_search_users(text) to authenticated;
 -- 2. rpc_list_friendships — + is_member, card_color
 -- ------------------------------------------------------------
 
+drop function if exists public.rpc_list_friendships();
+
 create or replace function public.rpc_list_friendships()
 returns table (
   friendship_id uuid,
@@ -112,6 +118,8 @@ grant execute on function public.rpc_list_friendships() to authenticated;
 -- ------------------------------------------------------------
 -- 3. rpc_get_profile — + is_member, card_color
 -- ------------------------------------------------------------
+
+drop function if exists public.rpc_get_profile(uuid);
 
 create or replace function public.rpc_get_profile(target_user_id uuid)
 returns table (
