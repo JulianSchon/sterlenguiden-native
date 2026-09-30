@@ -20,6 +20,8 @@ export interface StackMember {
   avatarUri?: string | null;
   circleColor: string | null;
   avatarRing: string | null;
+  /** Inbjuden men inte accepterat än — ritas nedtonad */
+  pending?: boolean;
 }
 
 export function MemberAvatarStack({
@@ -38,7 +40,10 @@ export function MemberAvatarStack({
             marginLeft: i > 0 ? -overlap : 0,
           }}
         >
-          <Avatar size={size} uri={m.avatarUri ?? null} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
+          {/* Ringen runt ligger kvar i full färg så överlappet fortfarande läses rätt — bara själva cirkeln tonas ned */}
+          <View style={m.pending && { opacity: 0.35 }}>
+            <Avatar size={size} uri={m.avatarUri ?? null} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
+          </View>
         </View>
       ))}
       {onAddPress && (

@@ -47,6 +47,8 @@ export interface ListPlace {
 export interface ListMember {
   userId: string;
   role: "owner" | "member";
+  /** Inbjuden men har inte tackat ja än */
+  pending: boolean;
   name: string;
   circleColor: string | null;
   avatarRing: string | null;
@@ -113,7 +115,7 @@ export function useList(id: string | undefined) {
       const { data, error } = await supabase
         .from("lists")
         .select(
-          "*, list_members(user_id, role), list_places(id, created_at, added_by, position, places(id, name, image_url, nearest_town, categories, opening_hours))"
+          "*, list_members(user_id, role, status), list_places(id, created_at, added_by, position, places(id, name, image_url, nearest_town, categories, opening_hours))"
         )
         .eq("id", id!)
         .maybeSingle();
@@ -164,6 +166,7 @@ export function useList(id: string | undefined) {
         members: data.list_members.map((m) => ({
           userId: m.user_id,
           role: m.role as "owner" | "member",
+          pending: m.status === "pending",
           name: nameOf(m.user_id),
           circleColor: byId.get(m.user_id)?.circle_color ?? null,
           avatarRing: byId.get(m.user_id)?.avatar_ring ?? null,

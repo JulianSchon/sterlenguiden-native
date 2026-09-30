@@ -20,7 +20,7 @@ import {
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, MoreHorizontal, Minus, Plus, Ticket, GripVertical } from "lucide-react-native";
+import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical } from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useDuplicateList,
@@ -171,6 +171,7 @@ export default function ListDetailScreen() {
                       avatarUri: m.userId === user?.id ? avatarUrl : null,
                       circleColor: m.circleColor,
                       avatarRing: m.avatarRing,
+                      pending: m.pending,
                     }))}
                   />
                 </View>
@@ -272,28 +273,28 @@ function PlaceRow({
       disabled={isActive}
     >
       {place.image_url ? <Image source={{ uri: place.image_url }} style={s.thumb} /> : <View style={s.thumb} />}
-      {/* Tre våningar som fyller bildens höjd: vem + öppet/stängt överst, namnet i mitten,
-          ort + Österlenpass underst — i stället för fem rader staplade tätt på varandra */}
+      {/* Tre våningar som fyller bildens höjd: vem + Österlenpasset överst, namnet i mitten,
+          ort + öppet/stängt underst — i stället för fem rader staplade tätt på varandra */}
       <View style={s.placeBody}>
         <View style={s.topLine}>
           <View style={s.addedByRow}>
             <Avatar size={16} uri={addedBy.isMe ? avatarUrl : null} name={addedBy.name} color={addedBy.circleColor ?? "#2A2A2A"} ring={addedBy.avatarRing} />
             <Text style={s.addedByText} numberOfLines={1}>{addedBy.name}</Text>
           </View>
-          {place.opening_hours && (
-            <View style={s.statusBadge}>
-              <View style={[s.statusDot, { backgroundColor: open ? "#4ADE80" : "#E57373" }]} />
-              <Text style={s.statusText}>{open ? "Öppet" : "Stängt"}</Text>
+          {hasOffer && (
+            <View style={s.offerBadge}>
+              <Crown size={11} color={GOLD} strokeWidth={2.2} />
+              <Text style={s.offerText}>Österlenpasset</Text>
             </View>
           )}
         </View>
         <Text style={s.placeName} numberOfLines={2}>{place.name}</Text>
         <View style={s.bottomLine}>
           {place.nearest_town ? <Text style={s.townText} numberOfLines={1}>{place.nearest_town}</Text> : <View />}
-          {hasOffer && (
-            <View style={s.offerBadge}>
-              <Ticket size={11} color={GOLD} strokeWidth={2.2} />
-              <Text style={s.offerText}>Österlenpass</Text>
+          {place.opening_hours && (
+            <View style={s.statusBadge}>
+              <View style={[s.statusDot, { backgroundColor: open ? "#4ADE80" : "#E57373" }]} />
+              <Text style={s.statusText}>{open ? "Öppet" : "Stängt"}</Text>
             </View>
           )}
         </View>

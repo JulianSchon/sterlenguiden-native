@@ -52,7 +52,11 @@ export function MembersSheet({
     if (isOwner && !isMe) {
       Alert.alert(member.name, undefined, [
         { text: "Visa profil", onPress: viewProfile },
-        { text: "Ta bort från lista", style: "destructive", onPress: () => removeMember.mutate({ listId, userId: member.userId }) },
+        {
+          text: member.pending ? "Dra tillbaka inbjudan" : "Ta bort från lista",
+          style: "destructive",
+          onPress: () => removeMember.mutate({ listId, userId: member.userId }),
+        },
         { text: "Avbryt", style: "cancel" },
       ]);
     } else {
@@ -73,8 +77,11 @@ export function MembersSheet({
         <View style={{ gap: 2, marginBottom: 18 }}>
           {members.map((m) => (
             <PressableScale key={m.userId} style={s.memberRow} scale={0.98} onPress={() => openMember(m)}>
-              <Avatar size={36} uri={m.userId === user?.id ? avatarUrl : null} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
-              <Text style={s.memberName} numberOfLines={1}>{m.name}</Text>
+              <View style={m.pending && { opacity: 0.35 }}>
+                <Avatar size={36} uri={m.userId === user?.id ? avatarUrl : null} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
+              </View>
+              <Text style={[s.memberName, m.pending && { color: MUTED }]} numberOfLines={1}>{m.name}</Text>
+              {m.pending && <Text style={s.pendingPill}>Väntar</Text>}
               <ChevronRight size={18} color={MUTED} strokeWidth={2} />
             </PressableScale>
           ))}
@@ -101,6 +108,10 @@ export function MembersSheet({
 const s = StyleSheet.create({
   memberRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12 },
   memberName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
+  pendingPill: {
+    fontFamily: "Inter_600SemiBold", fontSize: 11, color: MUTED, overflow: "hidden",
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.07)",
+  },
   sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: MUTED, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 },
   emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, paddingVertical: 8 },
 });
