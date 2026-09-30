@@ -35,10 +35,18 @@ export interface FriendActivity {
   happenedAt: string;
 }
 
+export interface FriendTrophy {
+  achievementType: string;
+  level: "bronze" | "silver" | "gold";
+}
+
 export interface FriendStats {
   appDays: string[];
   visitsTotal: number;
   stickersTotal: number;
+  favoritesTotal: number;
+  visitedPlaceIds: number[];
+  trophies: FriendTrophy[];
   activity: FriendActivity[];
 }
 
@@ -172,6 +180,9 @@ export function useFriendStats(targetUserId: string | null) {
         appDays: j?.app_days ?? [],
         visitsTotal: j?.visits_total ?? 0,
         stickersTotal: j?.stickers_total ?? 0,
+        favoritesTotal: j?.favorites_total ?? 0,
+        visitedPlaceIds: j?.visited_place_ids ?? [],
+        trophies: (j?.trophies ?? []).map((t: any) => ({ achievementType: t.achievement_type, level: t.level })),
         activity: (j?.activity ?? []).map((a: any) => ({
           kind: a.kind,
           label: a.label,

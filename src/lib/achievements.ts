@@ -216,6 +216,10 @@ const GROUPS: GroupDef[] = [
 
 export const GROUP_ORDER = GROUPS.map((g) => g.id);
 
+/** Tema-namn och ikon per grupp, för ställen (t.ex. vänprofilen) som bara vill visa en upplåst trofé utan hela poängmotorn. */
+export const GROUP_INFO: Record<string, { theme: string; Icon: React.ComponentType<any> }> =
+  Object.fromEntries(GROUPS.map((g) => [g.id, { theme: g.theme, Icon: g.Icon }]));
+
 // ─── Troféer ────────────────────────────────────────────────────────────────────
 export interface Trophy {
   key: string;

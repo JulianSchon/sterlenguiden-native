@@ -2,9 +2,12 @@
  * En persons profil, öppnad från Vänner (sökträff, förfrågan eller vän).
  * Samma hårdkodat mörka stil som resten av Mitt Österlen.
  *
- * Bakgrunden är personens eget Österlenpass-kort (samma bild som på MemberCard) — det är
- * offentligt kosmetiskt, inte känsligt, så det visas även innan ni är vänner. Namnet står bara en
- * gång, i heron, inte i headern.
+ * Bakgrunden är personens eget Österlenpass-korts FÄRGER (samma två toner som variant.bg/bg2 i
+ * cardVariants.ts) — inte själva kortbilden. Bildfilerna är gjorda för det breda, låga kortformatet
+ * och har appens logotyp inbakad längst ner till höger, tänkt att skymmas av kortets egen text;
+ * sträckt över den här höga, smala heron blev logotypen istället huvudmotivet och såg ut som en
+ * söndrig, tudelad bild. Färgerna är säkra att använda i alla format. Namnet står bara en gång,
+ * i heron, inte i headern.
  *
  * Innan ni är vänner är statistiken och aktivitetsloggen en igenkännbar men blurrad förhandstitt
  * (expo-blur, redan inbyggt sedan tidigare bygge) — riktiga rader och rutor i rätt form, men med
@@ -22,7 +25,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
-import { ArrowLeft, MapPin, Heart, Sparkles, Flame, Ticket, UserMinus, UserPlus, Check, X } from "lucide-react-native";
+import {
+  ArrowLeft, MapPin, Heart, Sparkles, Flame, Ticket, Compass, UserMinus, UserPlus, Check, X,
+} from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Avatar } from "@/components/profile/Avatar";
@@ -32,6 +37,10 @@ import {
   type FriendActivity, type FriendResult, type FriendStats,
 } from "@/hooks/useFriends";
 import { stickerImageUrl } from "@/hooks/useCollectibles";
+import { usePlaces } from "@/hooks/usePlaces";
+import { computeCategoryStats } from "@/lib/categories";
+import { GROUP_INFO } from "@/lib/achievements";
+import { TrophyMedal } from "@/components/trophies/TrophyMedal";
 import { getVariant, cardColors } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
@@ -55,6 +64,7 @@ export default function FriendProfileScreen() {
   const { data: friend, isLoading: profileLoading } = useFriendProfile(id ?? null);
   const isFriend = friend?.friendStatus === "accepted";
   const { data: stats, isLoading: statsLoading, isError } = useFriendStats(isFriend ? id ?? null : null);
+  const { data: places = [] } = usePlaces();
   const send = useSendFriendRequest();
   const accept = useAcceptFriendRequest();
   const remove = useRemoveFriendship();
@@ -65,12 +75,18 @@ export default function FriendProfileScreen() {
     () => (stats ? computeStreak(stats.appDays, swedishDay()) : null),
     [stats],
   );
+  const topCategory = useMemo(() => {
+    if (!stats) return null;
+    const cat = computeCategoryStats(places, stats.visitedPlaceIds)[0];
+    return cat && cat.visited > 0 ? cat : null;
+  }, [places, stats]);
 
-  // Samma kortdesign personen valt i Utseende — fri att välja oavsett medlemskap, bara kosmetik.
-  // Ljusa kort (Sand, Rapsfält) behöver mörk text, annars försvinner den i bilden.
+  // Samma två toner som personens eget Österlenpass-kort — fritt valda oavsett medlemskap, bara
+  // kosmetik. Ljusa kort (Sand, Rapsfält) behöver mörk text, annars försvinner den i bakgrunden.
   const variant = friend ? getVariant(friend.cardColor) : null;
   const heroColors = variant ? cardColors(variant) : null;
-  const heroBg = variant?.bg ?? "#171310";
+  const heroFrom = variant?.bg ?? "#171310";
+  const heroTo = variant?.bg2 ?? "#0E0B08";
   const heroText = heroColors?.text ?? "#FFFFFF";
   const heroMuted = heroColors?.muted ?? "rgba(255,255,255,0.75)";
 
@@ -88,26 +104,27 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      {/* Bakgrund: kortets egen bild (eller en tyst mörk ton utan pass), med en lång, mjuk toning ner mot sidans botten */}
-      <View style={[StyleSheet.absoluteFill, { height: HERO_H, backgroundColor: heroBg }]} pointerEvents="none">
-        {variant?.bgImage && (
-          <Image source={variant.bgImage} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        )}
+      {/* Bakgrund: kortets egna två toner, med en lång, mjuk toning ner mot sidans botten */}
+      <View style={[StyleSheet.absoluteFill, { height: HERO_H }]} pointerEvents="none">
         <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
           <Defs>
+            <SvgGrad id="heroBase" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={heroFrom} />
+              <Stop offset="100%" stopColor={heroTo} />
+            </SvgGrad>
             <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={BG} stopOpacity={0.05} />
-              <Stop offset="35%"  stopColor={BG} stopOpacity={0.15} />
-              <Stop offset="65%"  stopColor={BG} stopOpacity={0.55} />
-              <Stop offset="88%"  stopColor={BG} stopOpacity={0.94} />
+              <Stop offset="0%"   stopColor={BG} stopOpacity={0}    />
+              <Stop offset="55%"  stopColor={BG} stopOpacity={0.1}  />
+              <Stop offset="80%"  stopColor={BG} stopOpacity={0.6}  />
               <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
             </SvgGrad>
           </Defs>
+          <SvgRect width="100%" height="100%" fill="url(#heroBase)" />
           <SvgRect width="100%" height="100%" fill="url(#heroFade)" />
         </Svg>
       </View>
 
-      {/* Headern flyter ovanpå bilden — inget namn här, det står bara en gång, i heron */}
+      {/* Headern flyter ovanpå bakgrunden — inget namn här, det står bara en gång, i heron */}
       <View style={[s.header, { top: insets.top }]}>
         <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
           <ArrowLeft size={22} color={FG} strokeWidth={2} />
@@ -146,7 +163,9 @@ export default function FriendProfileScreen() {
           <>
             {statsLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 30 }} />}
             {isError && <Text style={s.errorText}>Kunde inte hämta statistik just nu.</Text>}
-            {stats && streak && <RealContent who={who} stats={stats} streak={streak} />}
+            {stats && streak && (
+              <RealContent who={who} stats={stats} streak={streak} topCategory={topCategory} totalPlaces={places.length} />
+            )}
           </>
         ) : friend ? (
           <LockedContent friend={friend} busy={busy} onAdd={() => {
@@ -162,22 +181,18 @@ export default function FriendProfileScreen() {
   );
 }
 
-// ─── Innehåll när ni är vänner: riktig statistik och aktivitetslogg ──────────
+// ─── Innehåll när ni är vänner: aktivitet, statistik, troféer ────────────────
 
-function RealContent({ who, stats, streak }: { who: string; stats: FriendStats; streak: ReturnType<typeof computeStreak> }) {
+function RealContent({
+  who, stats, streak, topCategory, totalPlaces,
+}: {
+  who: string; stats: FriendStats; streak: ReturnType<typeof computeStreak>;
+  topCategory: ReturnType<typeof computeCategoryStats>[number] | null; totalPlaces: number;
+}) {
   return (
     <>
-      <View style={s.statsRow}>
-        <StatTile icon={<Flame size={18} color={GOLD} strokeWidth={2} />} value={String(streak.current)} label={streak.current === 1 ? "Dags streak" : "Dagars streak"} />
-        <StatTile value={String(streak.longest)} label="Längsta streak" />
-      </View>
-      <View style={s.statsRow}>
-        <StatTile value={String(stats.visitsTotal)} label={stats.visitsTotal === 1 ? "Besökt plats" : "Besökta platser"} />
-        <StatTile icon={<Ticket size={18} color={GOLD} strokeWidth={2} />} value={String(stats.stickersTotal)} label="Samlarobjekt" />
-      </View>
-
       {stats.activity.length > 0 && (
-        <View style={s.section}>
+        <View style={[s.section, { marginTop: 22 }]}>
           <Text style={s.sectionTitle}>Senaste aktivitet</Text>
           <View style={s.card}>
             {stats.activity.map((a, i) => (
@@ -186,7 +201,66 @@ function RealContent({ who, stats, streak }: { who: string; stats: FriendStats; 
           </View>
         </View>
       )}
+
+      <View style={[s.statsRow, { marginTop: stats.activity.length > 0 ? 22 : 22 }]}>
+        <StatTile icon={<Flame size={18} color={GOLD} strokeWidth={2} />} value={String(streak.current)} label={streak.current === 1 ? "Dags streak" : "Dagars streak"} />
+        <StatTile value={String(stats.visitsTotal)} label={stats.visitsTotal === 1 ? "Besökt plats" : "Besökta platser"} />
+      </View>
+      <View style={s.statsRow}>
+        <StatTile icon={<Heart size={18} color={GOLD} strokeWidth={2} />} value={String(stats.favoritesTotal)} label={stats.favoritesTotal === 1 ? "Favorit" : "Favoriter"} />
+        <StatTile icon={<Ticket size={18} color={GOLD} strokeWidth={2} />} value={String(stats.stickersTotal)} label="Samlarobjekt" />
+      </View>
+
+      {stats.trophies.length > 0 && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Troféer</Text>
+          <TrophyRow trophies={stats.trophies} />
+        </View>
+      )}
+
+      {(topCategory || stats.visitsTotal > 0) && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Statistik</Text>
+          <View style={s.card}>
+            {topCategory && (
+              <View style={[s.statRow, { borderTopWidth: 0 }]}>
+                <View style={s.statRowIcon}>
+                  <topCategory.Icon size={15} color={GOLD} strokeWidth={2} />
+                </View>
+                <Text style={s.statRowLabel}>Mest besökta kategori</Text>
+                <Text style={s.statRowValue} numberOfLines={1}>{topCategory.label}</Text>
+              </View>
+            )}
+            {totalPlaces > 0 && (
+              <View style={[s.statRow, !topCategory && { borderTopWidth: 0 }]}>
+                <View style={s.statRowIcon}>
+                  <Compass size={15} color={GOLD} strokeWidth={2} />
+                </View>
+                <Text style={s.statRowLabel}>Utforskat av Österlen</Text>
+                <Text style={s.statRowValue}>{stats.visitsTotal} av {totalPlaces}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
     </>
+  );
+}
+
+function TrophyRow({ trophies }: { trophies: FriendStats["trophies"] }) {
+  return (
+    <View style={s.trophyRow}>
+      {trophies.map((t, i) => {
+        const info = GROUP_INFO[t.achievementType];
+        if (!info) return null;
+        return (
+          <View key={i} style={s.trophyItem}>
+            <TrophyMedal size={52} tier={t.level} Icon={info.Icon} unlocked groupId={t.achievementType} />
+            <Text style={s.trophyLabel} numberOfLines={1}>{info.theme}</Text>
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -237,21 +311,24 @@ function LockedContent({
     <View style={s.lockedWrap}>
       {/* Skelettet: samma form som den riktiga statistiken, men aldrig påhittade siffror */}
       <View style={{ flex: 1 }}>
-      <View style={s.statsRow}>
-        <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={60} h={10} /></View>
-        <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={70} h={10} /></View>
-      </View>
-      <View style={[s.section, { marginTop: 20 }]}>
-        <View style={s.card}>
-          {SKELETON_WIDTHS.map((w, i) => (
-            <View key={i} style={[s.activityRow, i > 0 && s.activityRowBorder]}>
-              <View style={s.activityIcon} />
-              <SkelBar w={w} h={12} />
-            </View>
-          ))}
+        <View style={[s.section, { marginTop: 22 }]}>
+          <View style={s.card}>
+            {SKELETON_WIDTHS.map((w, i) => (
+              <View key={i} style={[s.activityRow, i > 0 && s.activityRowBorder]}>
+                <View style={s.activityIcon} />
+                <SkelBar w={w} h={12} />
+              </View>
+            ))}
+          </View>
         </View>
-      </View>
-
+        <View style={s.statsRow}>
+          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={60} h={10} /></View>
+          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={70} h={10} /></View>
+        </View>
+        <View style={s.statsRow}>
+          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={60} h={10} /></View>
+          <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={70} h={10} /></View>
+        </View>
       </View>
 
       <BlurView intensity={38} tint="dark" style={StyleSheet.absoluteFill} />
@@ -304,7 +381,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  hero: { alignItems: "center", paddingTop: 118 },
+  hero: { alignItems: "center", paddingTop: 156 },
   name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: "#FFFFFF", marginTop: 14 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -313,7 +390,7 @@ const s = StyleSheet.create({
 
   errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
 
-  statsRow: { flexDirection: "row", gap: 12, marginHorizontal: 16, marginTop: 22 },
+  statsRow: { flexDirection: "row", gap: 12, marginHorizontal: 16, marginTop: 12 },
   statTile: {
     flex: 1, alignItems: "center", gap: 4, paddingVertical: 18,
     borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
@@ -334,6 +411,22 @@ const s = StyleSheet.create({
   activityThumb: { width: 30, height: 30 },
   activityText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13.5, color: FG, lineHeight: 18 },
   activityDate: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
+
+  trophyRow: { flexDirection: "row", flexWrap: "wrap", gap: 16, paddingHorizontal: 4 },
+  trophyItem: { width: 68, alignItems: "center", gap: 6 },
+  trophyLabel: { fontFamily: "Inter_500Medium", fontSize: 10.5, color: MUTED, textAlign: "center" },
+
+  statRow: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 16, paddingVertical: 13,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)",
+  },
+  statRowIcon: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(197,160,89,0.12)",
+    alignItems: "center", justifyContent: "center",
+  },
+  statRowLabel: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 13.5, color: MUTED },
+  statRowValue: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: FG },
 
   lockedWrap: { flex: 1, marginTop: 6 },
   lockedCard: {
