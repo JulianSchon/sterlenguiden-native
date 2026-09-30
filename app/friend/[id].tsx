@@ -97,26 +97,29 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
+      {/* Sticky igen — okomplicerat nu när det inte längre finns någon foto/toning-bakgrund att
+          krocka med. Ligger utanför scrollytan med egen solid bakgrund, samma mönster som
+          Mitt Österlen och Vänner. */}
+      <View style={[s.header, { paddingTop: insets.top, backgroundColor: BG }]}>
+        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <ArrowLeft size={24} color={FG} strokeWidth={2} />
+        </TouchableOpacity>
+        {isFriend && (
+          <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
+            <UserMinus size={24} color="#B33939" strokeWidth={2} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
-        {/* Headern ligger i scrollflödet, inte sticky */}
-        <View style={[s.header, { paddingTop: insets.top }]}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
-          </TouchableOpacity>
-          {isFriend && (
-            <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-              <UserMinus size={24} color="#B33939" strokeWidth={2} />
-            </TouchableOpacity>
-          )}
-        </View>
-
         <View style={s.hero}>
           <View>
             {/* Samma mjuka glöd som bakom troféerna på Utmaningar (GlowCanvas), färgad efter kortet */}
-            <GlowCanvas size={AVATAR_SIZE} color={glowColor} opacity={0.6} radiusRatio={0.42} blurRatio={0.24} />
+            {/* Samma mått som den framhävda troféns permanenta glöd på Utmaningar — stor, mjuk, diffus */}
+            <GlowCanvas size={AVATAR_SIZE} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
             <Avatar size={AVATAR_SIZE} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
             {/* Elden ersätter en egen "streak"-ruta: syns bara från 1 dag, en 0 är ingen streak värd att visa.
                 Vid 40px är den levande, riktade elden (StreakFlame) för liten och för svajig för att läsas —
@@ -179,7 +182,7 @@ function RealContent({
   return (
     <>
       {stats.activity.length > 0 && (
-        <View style={[s.section, { marginTop: 14 }]}>
+        <View style={[s.section, { marginTop: 32 }]}>
           <Text style={s.sectionTitle}>Senaste aktivitet</Text>
           <View style={s.card}>
             {stats.activity.map((a, i) => (
@@ -314,7 +317,7 @@ function LockedContent({
     <View style={s.lockedWrap}>
       {/* Skelettet: samma form som den riktiga statistiken, men aldrig påhittade siffror */}
       <View style={{ flex: 1 }}>
-        <View style={[s.section, { marginTop: 14 }]}>
+        <View style={[s.section, { marginTop: 32 }]}>
           <View style={s.card}>
             {SKELETON_WIDTHS.map((w, i) => (
               <View key={i} style={[s.activityRow, i > 0 && s.activityRowBorder]}>
