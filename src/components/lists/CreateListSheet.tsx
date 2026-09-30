@@ -1,12 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import Reanimated, {
+  FadeIn, FadeOut, SlideInRight, SlideOutLeft, useAnimatedStyle, useSharedValue, withTiming, interpolateColor,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Check, Plus, ArrowLeft } from "lucide-react-native";
 import { useCreateList } from "@/hooks/useLists";
-import { useFriendships } from "@/hooks/useFriends";
+import { useFriendships, type FriendResult } from "@/hooks/useFriends";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { Avatar } from "@/components/profile/Avatar";
+import { PressableScale } from "@/components/PressableScale";
 import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
 
 const FG = "#F5F1E8";
@@ -71,7 +75,7 @@ export function CreateListSheet({
       onShow={() => { if (step === "form") nameInputRef.current?.focus(); }}
     >
       {step === "form" ? (
-        <View style={{ gap: 14 }}>
+        <Reanimated.View entering={SlideInRight.duration(220)} exiting={SlideOutLeft.duration(160)} style={{ gap: 14 }}>
           <View style={{ gap: 6 }}>
             <Text style={s.label}>Namn</Text>
             <TextInput
@@ -98,33 +102,26 @@ export function CreateListSheet({
           </View>
           <View style={{ gap: 6 }}>
             <Text style={s.label}>Medlemmar</Text>
+            {/* En enda rad överlappande cirklar: min bild, sen tillagda vänner i tur och ordning,
+                sist +. Varje ny cirkel ritas EFTER den förra och ligger därför delvis FRAMFÖR den
+                — + ligger alltså alltid längst fram, och hänger med längst till höger i raden
+                oavsett hur många som läggs till. */}
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {/* + är lika stor som avataren (48px), bara delvis bakom den — inte en liten badge */}
-              <View style={{ width: AVATAR_SIZE + (AVATAR_SIZE - AVATAR_OVERLAP), height: AVATAR_SIZE }}>
-                <TouchableOpacity
-                  style={[s.addCircle, { left: AVATAR_SIZE - AVATAR_OVERLAP }]}
-                  onPress={() => setStep("picker")}
-                  activeOpacity={0.75}
-                >
-                  <Plus size={18} color="#0B0B0D" strokeWidth={3} />
-                </TouchableOpacity>
-                <View style={{ position: "absolute", left: 0, top: 0 }}>
-                  <Avatar
-                    size={AVATAR_SIZE}
-                    uri={avatarUrl}
-                    name={profile?.display_name ?? "?"}
-                    color={profile?.circle_color ?? "#2A2A2A"}
-                    ring={profile?.avatar_ring}
-                  />
-                </View>
+              <View style={s.stackRing}>
+                <Avatar size={AVATAR_SIZE} uri={avatarUrl} name={profile?.display_name ?? "?"} color={profile?.circle_color ?? "#2A2A2A"} ring={profile?.avatar_ring} />
               </View>
-              {selectedFriends.length > 0 && (
-                <View style={{ flexDirection: "row", marginLeft: 8, gap: 8 }}>
-                  {selectedFriends.map((f) => (
-                    <Avatar key={f.userId} size={40} uri={null} name={f.displayName ?? f.username ?? "?"} color={f.circleColor ?? "#2A2A2A"} ring={f.avatarRing} />
-                  ))}
+              {selectedFriends.map((f) => (
+                <View key={f.userId} style={[s.stackRing, { marginLeft: -AVATAR_OVERLAP }]}>
+                  <Avatar size={AVATAR_SIZE} uri={null} name={f.displayName ?? f.username ?? "?"} color={f.circleColor ?? "#2A2A2A"} ring={f.avatarRing} />
                 </View>
-              )}
+              ))}
+              <TouchableOpacity
+                style={[s.addCircle, { marginLeft: -AVATAR_OVERLAP }]}
+                onPress={() => setStep("picker")}
+                activeOpacity={0.75}
+              >
+                <Plus size={18} color={GOLD} strokeWidth={2.4} />
+              </TouchableOpacity>
             </View>
           </View>
           {create.isError && (
@@ -133,9 +130,9 @@ export function CreateListSheet({
             </Text>
           )}
           <PrimaryButton label="Skapa lista" onPress={submit} disabled={!name.trim()} loading={create.isPending} />
-        </View>
+        </Reanimated.View>
       ) : (
-        <View style={{ gap: 12 }}>
+        <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={{ gap: 12 }}>
           <TouchableOpacity style={s.backRow} onPress={() => setStep("form")} hitSlop={8}>
             <ArrowLeft size={16} color={MUTED} strokeWidth={2.2} />
             <Text style={s.backText}>Tillbaka</Text>
@@ -147,40 +144,62 @@ export function CreateListSheet({
           ) : (
             <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
               <View style={{ gap: 4 }}>
-                {friends.map((f) => {
-                  const selected = friendIds.has(f.userId);
-                  return (
-                    <TouchableOpacity
-                      key={f.userId}
-                      style={[s.friendRow, selected && { backgroundColor: "rgba(197,160,89,0.12)" }]}
-                      onPress={() => toggleFriend(f.userId)}
-                      activeOpacity={0.7}
-                    >
-                      <Avatar size={36} uri={null} name={f.displayName ?? f.username ?? "?"} color={f.circleColor ?? "#2A2A2A"} ring={f.avatarRing} />
-                      <Text style={s.friendName} numberOfLines={1}>{f.displayName || f.username}</Text>
-                      <View style={[s.checkCircle, selected && { backgroundColor: GOLD, borderWidth: 0 }]}>
-                        {selected && <Check size={13} color="#0B0B0D" strokeWidth={3} />}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                {friends.map((f) => (
+                  <FriendPickerRow key={f.userId} friend={f} selected={friendIds.has(f.userId)} onToggle={() => toggleFriend(f.userId)} />
+                ))}
               </View>
             </ScrollView>
           )}
           <PrimaryButton label="Klar" onPress={() => setStep("form")} />
-        </View>
+        </Reanimated.View>
       )}
     </Sheet>
   );
 }
 
+/** Egen komponent så varje rad kan ha sin egen animerade övergång (inte bara ett hårt style-byte,
+ * som kändes som en synlig fördröjning snarare än en riktig animation). */
+function FriendPickerRow({ friend, selected, onToggle }: { friend: FriendResult; selected: boolean; onToggle: () => void }) {
+  const progress = useSharedValue(selected ? 1 : 0);
+  useEffect(() => {
+    progress.value = withTiming(selected ? 1 : 0, { duration: 180 });
+  }, [selected]);
+
+  const rowStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0)", "rgba(197,160,89,0.12)"]),
+  }));
+  const checkStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0)", GOLD]),
+    borderColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0.25)", GOLD]),
+  }));
+  const checkIconStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+
+  return (
+    <PressableScale style={[s.friendRow, rowStyle]} scale={0.98} onPress={onToggle}>
+      <Avatar size={36} uri={null} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
+      <Text style={s.friendName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
+      <Reanimated.View style={[s.checkCircle, checkStyle]}>
+        <Reanimated.View style={checkIconStyle}>
+          <Check size={13} color="#0B0B0D" strokeWidth={3} />
+        </Reanimated.View>
+      </Reanimated.View>
+    </PressableScale>
+  );
+}
+
 const s = StyleSheet.create({
   label: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
-  // Samma storlek som avataren (inte en liten badge) — ligger bakom den, bara delvis synlig
+  // Bakgrundsfärgad ring runt varje cirkel i stacken (samma färg som popupens botten) så
+  // överlappen läses som separata cirklar i stället för att bara smälta ihop.
+  stackRing: {
+    width: AVATAR_SIZE + 4, height: AVATAR_SIZE + 4, borderRadius: (AVATAR_SIZE + 4) / 2,
+    backgroundColor: CARD, alignItems: "center", justifyContent: "center",
+  },
+  // Outline i stället för helt guldfylld — bara linjer i guld, som referensbilden
   addCircle: {
-    position: "absolute", top: 0, width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: GOLD, alignItems: "center", justifyContent: "center",
-    borderWidth: 2, borderColor: CARD,
+    width: AVATAR_SIZE + 4, height: AVATAR_SIZE + 4, borderRadius: (AVATAR_SIZE + 4) / 2,
+    backgroundColor: "rgba(197,160,89,0.12)", alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: GOLD,
   },
   backRow: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
   backText: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
@@ -191,6 +210,6 @@ const s = StyleSheet.create({
   friendName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
   checkCircle: {
     width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1.5,
   },
 });

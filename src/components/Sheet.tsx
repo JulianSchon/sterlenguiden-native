@@ -7,6 +7,7 @@ import {
   Modal, View, Text, Pressable, TouchableOpacity, KeyboardAvoidingView, ActivityIndicator,
   Platform, StyleSheet, Keyboard,
 } from "react-native";
+import Reanimated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -44,7 +45,10 @@ export function Sheet({
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           pointerEvents="box-none"
         >
-          <View
+          {/* layout animerar höjdändringar mjukt (t.ex. när innehållet byts ut i ett steg-baserat
+              formulär) i stället för att rutan hoppar direkt till sin nya storlek. */}
+          <Reanimated.View
+            layout={LinearTransition.duration(220)}
             style={[
               centered ? s.centerSheet : s.sheet,
               tall && !centered && { height: "85%" },
@@ -58,7 +62,7 @@ export function Sheet({
               </TouchableOpacity>
             </View>
             {children}
-          </View>
+          </Reanimated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
