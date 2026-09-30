@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
-import { Canvas, Rect, LinearGradient, vec } from "@shopify/react-native-skia";
+import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { ArrowLeft, MapPin, Heart, Sparkles, Flame, Ticket, UserMinus, UserPlus, Check, X } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -40,7 +40,7 @@ const FG    = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const CARD  = "#1A1A1D";
 const GOLD  = "#C5A059";
-const HERO_H = 300;
+const HERO_H = 340;
 
 /** Grå stapel i skelettet — aldrig text, bara form, så den aldrig kan tas för en riktig siffra */
 function SkelBar({ w, h }: { w: number; h: number }) {
@@ -88,21 +88,23 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      {/* Bakgrund: kortets egen bild (eller en tyst mörk ton utan pass), med en toning ner mot sidans botten */}
+      {/* Bakgrund: kortets egen bild (eller en tyst mörk ton utan pass), med en lång, mjuk toning ner mot sidans botten */}
       <View style={[StyleSheet.absoluteFill, { height: HERO_H, backgroundColor: heroBg }]} pointerEvents="none">
         {variant?.bgImage && (
           <Image source={variant.bgImage} style={StyleSheet.absoluteFill} resizeMode="cover" />
         )}
-        <Canvas style={StyleSheet.absoluteFill}>
-          <Rect x={0} y={0} width={2000} height={HERO_H}>
-            <LinearGradient
-              start={vec(0, 0)}
-              end={vec(0, HERO_H)}
-              colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.35)", BG]}
-              positions={[0, 0.55, 1]}
-            />
-          </Rect>
-        </Canvas>
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+          <Defs>
+            <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%"   stopColor={BG} stopOpacity={0.05} />
+              <Stop offset="35%"  stopColor={BG} stopOpacity={0.15} />
+              <Stop offset="65%"  stopColor={BG} stopOpacity={0.55} />
+              <Stop offset="88%"  stopColor={BG} stopOpacity={0.94} />
+              <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
+            </SvgGrad>
+          </Defs>
+          <SvgRect width="100%" height="100%" fill="url(#heroFade)" />
+        </Svg>
       </View>
 
       {/* Headern flyter ovanpå bilden — inget namn här, det står bara en gång, i heron */}
