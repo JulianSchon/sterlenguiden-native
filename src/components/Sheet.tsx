@@ -5,7 +5,7 @@
 import type { ReactNode } from "react";
 import {
   Modal, View, Text, Pressable, TouchableOpacity, KeyboardAvoidingView, ActivityIndicator,
-  Platform, StyleSheet,
+  Platform, StyleSheet, Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
@@ -13,17 +13,32 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 export function Sheet({
-  visible, onClose, title, tall = false, centered = false, children,
-}: { visible: boolean; onClose: () => void; title: string; tall?: boolean; centered?: boolean; children: ReactNode }) {
+  visible, onClose, title, tall = false, centered = false, onShow, children,
+}: {
+  visible: boolean; onClose: () => void; title: string; tall?: boolean; centered?: boolean;
+  /** Körs exakt när modalen är klar (Modals onShow) — bättre än en gissad setTimeout-fördröjning
+   * för att t.ex. fokusera ett fält: tangentbordet hinner då glida upp SAMTIDIGT som modalen
+   * tonar in i stället för som ett synligt andra steg en stund efter. */
+  onShow?: () => void;
+  children: ReactNode;
+}) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+
+  // Tangentbordet ska stänga SAMTIDIGT som modalen börjar tonas bort, inte snärta undan efteråt
+  // (vilket såg ut som att rutan "hackade" tillbaka till mitten när man stängde).
+  function handleClose() {
+    Keyboard.dismiss();
+    onClose();
+  }
+
   return (
-    <Modal visible={visible} transparent animationType={centered ? "fade" : "slide"} onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={centered ? "fade" : "slide"} onShow={onShow} onRequestClose={handleClose}>
       {/* Bakgrunden ligger som en egen helskärmslager under allt, så den täcker skärmen i båda
           lägena oavsett var innehållet hamnar (nederkant eller mitten). */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         <KeyboardAvoidingView
           style={centered ? s.centerWrap : { flex: 1, justifyContent: "flex-end" }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -38,7 +53,7 @@ export function Sheet({
           >
             <View style={s.head}>
               <Text style={s.title}>{title}</Text>
-              <TouchableOpacity onPress={onClose} hitSlop={12}>
+              <TouchableOpacity onPress={handleClose} hitSlop={12}>
                 <X size={22} color={colors.muted} strokeWidth={2} />
               </TouchableOpacity>
             </View>
