@@ -416,7 +416,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  hero: { alignItems: "center", paddingTop: 8 },
+  hero: { alignItems: "center", paddingTop: 56 },
   streakBadge: {
     position: "absolute", right: -8, bottom: -6,
     flexDirection: "row", alignItems: "center", gap: 3,
@@ -426,7 +426,7 @@ const s = StyleSheet.create({
   streakBadgeNumber: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#FFFFFF" },
   // Playfair bort härifrån också — samma sans-serif (Inter) som resten av sidan, bara större och
   // fetare, som en riktig rubrik i stället för en bruten skrivstil.
-  name: { fontFamily: "Inter_700Bold", fontSize: 23, letterSpacing: -0.3, color: "#FFFFFF", marginTop: 14 },
+  name: { fontFamily: "Inter_400Regular", fontSize: 22, color: "#FFFFFF", marginTop: 14 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
