@@ -124,7 +124,10 @@ export function useList(id: string | undefined) {
       // fråga täcker båda, ett unikt set av user_id. En rå profiles-fråga visade bara den egna
       // raden (RLS), precis som i Vänner-grunden — rpc_list_profiles_public löser samma sak här.
       const ids = [...new Set([...data.list_members.map((m) => m.user_id), ...data.list_places.map((p) => p.added_by)])];
-      const { data: profiles } = await supabase.rpc("rpc_list_profiles_public", { target_user_ids: ids });
+      const { data: profiles, error: profilesError } = await supabase.rpc("rpc_list_profiles_public", { target_user_ids: ids });
+      // Om detta felar (t.ex. migration 015 inte körd i Supabase än) faller alla namn tillbaka
+      // till "Medlem" nedan — inte fel i sig, men annars ett osynligt fel att felsöka.
+      if (profilesError) console.error("rpc_list_profiles_public misslyckades:", profilesError);
       const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
 
       const places = data.list_places

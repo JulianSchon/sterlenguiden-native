@@ -63,7 +63,7 @@ export function CreateListSheet({
     <Sheet
       visible={visible}
       onClose={handleClose}
-      title={step === "picker" ? "Bjud in medlemmar" : "Ny lista"}
+      title={step === "picker" ? "Medlemmar" : "Ny lista"}
       centered
       onShow={() => { if (step === "form") nameInputRef.current?.focus(); }}
     >

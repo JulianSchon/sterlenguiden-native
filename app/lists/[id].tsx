@@ -9,6 +9,8 @@
  * Platslistan är en DraggableFlatList (inte en vanlig ScrollView) så håll-och-dra på greppikonen
  * funkar — sidans övriga innehåll (omslag, titel, medlemmar, "Platser"-rubriken) ligger i dess
  * ListHeaderComponent, annars går det inte att nästla en egen scrollyta i en ScrollView.
+ * containerStyle={{ flex: 1 }} krävs på DraggableFlatList självt (annars ärver dess interna
+ * FlatList ingen bestämd höjd av sin flex-förälder och man kan inte scrolla hela vägen ner).
  */
 import { useState } from "react";
 import {
@@ -18,7 +20,7 @@ import {
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, MoreHorizontal, X, Plus, Ticket, GripVertical } from "lucide-react-native";
+import { ArrowLeft, MoreHorizontal, Minus, Plus, Ticket, GripVertical } from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useDuplicateList,
@@ -26,13 +28,12 @@ import {
 } from "@/hooks/useLists";
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
-import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { usePhotoMenu } from "@/hooks/usePhotoMenu";
 import { Avatar } from "@/components/profile/Avatar";
 import { ListCover } from "@/components/lists/ListCover";
 import { AddPlaceSheet } from "@/components/lists/AddPlaceSheet";
-import { InviteMembersSheet } from "@/components/lists/InviteMembersSheet";
+import { MembersSheet } from "@/components/lists/MembersSheet";
 import { ListOptionsSheet } from "@/components/lists/ListOptionsSheet";
 import { EditListSheet } from "@/components/lists/EditListSheet";
 import { MemberAvatarStack } from "@/components/lists/MemberAvatarStack";
@@ -44,7 +45,7 @@ const GOLD = "#C5A059";
 const CARD = "#1A1A1D";
 // Spotify-omslaget ligger INTE kant till kant (det gjorde Lovable-versionen, som Viktor
 // uttryckligen inte ville ha) — en stor kvadrat med luft runt om i stället.
-const HERO_MARGIN = 28;
+const HERO_MARGIN = 36;
 
 export default function ListDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,7 +55,6 @@ export default function ListDetailScreen() {
   const { user } = useAuth();
   const { data: list, isLoading } = useList(id);
   const { data: offers = [] } = useOffers();
-  const { data: profile } = useProfile();
   const avatarUrl = useAvatarUrl();
   const removePlace = useRemovePlaceFromList();
   const removeMember = useRemoveMember();
@@ -64,7 +64,7 @@ export default function ListDetailScreen() {
   const reorderPlaces = useReorderListPlaces();
 
   const [addOpen, setAddOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -134,6 +134,7 @@ export default function ListDetailScreen() {
         <Text style={s.notFound}>Listan finns inte längre.</Text>
       ) : (
         <DraggableFlatList
+          containerStyle={{ flex: 1 }}
           data={list.places}
           keyExtractor={(lp) => lp.rowId}
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 32 }}
@@ -159,12 +160,11 @@ export default function ListDetailScreen() {
 
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={s.title}>{list.name}</Text>
-                {list.description ? <Text style={s.description}>{list.description}</Text> : null}
 
                 <View style={{ marginTop: 16 }}>
                   <MemberAvatarStack
                     ringColor={BG}
-                    onAddPress={() => setInviteOpen(true)}
+                    onAddPress={() => setMembersOpen(true)}
                     members={list.members.map((m) => ({
                       userId: m.userId,
                       name: m.name,
@@ -174,6 +174,9 @@ export default function ListDetailScreen() {
                     }))}
                   />
                 </View>
+
+                {/* Beskrivning: en riktig text om listan, tydligt skild från statistikraden nedanför */}
+                {list.description ? <Text style={s.description}>{list.description}</Text> : null}
 
                 <Text style={s.meta}>
                   Senast uppdaterad {formatShortDate(list.lastUpdatedAt)} · {list.places.length} {list.places.length === 1 ? "plats" : "platser"}
@@ -218,11 +221,12 @@ export default function ListDetailScreen() {
             listId={list.id}
             existingPlaceIds={list.places.map((p) => p.place.id)}
           />
-          <InviteMembersSheet
-            visible={inviteOpen}
-            onClose={() => setInviteOpen(false)}
+          <MembersSheet
+            visible={membersOpen}
+            onClose={() => setMembersOpen(false)}
             listId={list.id}
-            existingMemberIds={list.members.map((m) => m.userId)}
+            isOwner={isOwner}
+            members={list.members}
           />
           <ListOptionsSheet
             visible={optionsOpen}
@@ -268,12 +272,13 @@ function PlaceRow({
       disabled={isActive}
     >
       {place.image_url ? <Image source={{ uri: place.image_url }} style={s.thumb} /> : <View style={s.thumb} />}
-      <View style={{ flex: 1, gap: 6 }}>
+      <View style={{ flex: 1, gap: 4 }}>
         <View style={s.addedByRow}>
           <Avatar size={16} uri={addedBy.isMe ? avatarUrl : null} name={addedBy.name} color={addedBy.circleColor ?? "#2A2A2A"} ring={addedBy.avatarRing} />
           <Text style={s.addedByText} numberOfLines={1}>{addedBy.name}</Text>
         </View>
-        <Text style={s.placeName} numberOfLines={1}>{place.name}</Text>
+        <Text style={s.placeName} numberOfLines={2}>{place.name}</Text>
+        {place.nearest_town && <Text style={s.townText} numberOfLines={1}>{place.nearest_town}</Text>}
         <View style={s.badgeRow}>
           {place.opening_hours && (
             <View style={s.statusBadge}>
@@ -289,14 +294,13 @@ function PlaceRow({
           )}
         </View>
       </View>
-      <View style={{ alignItems: "center", gap: 14 }}>
-        <TouchableOpacity hitSlop={12} onPress={onRemove}>
-          <X size={20} color={MUTED} strokeWidth={2} />
-        </TouchableOpacity>
-        <TouchableOpacity hitSlop={12} onLongPress={onDrag} delayLongPress={150}>
-          <GripVertical size={20} color={MUTED} strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity hitSlop={12} onLongPress={onDrag} delayLongPress={150} style={s.dragHandle}>
+        <GripVertical size={20} color={MUTED} strokeWidth={2} />
+      </TouchableOpacity>
+
+      <TouchableOpacity hitSlop={10} onPress={onRemove} style={s.removeBadge}>
+        <Minus size={14} color="#fff" strokeWidth={3} />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 }
@@ -313,8 +317,10 @@ const s = StyleSheet.create({
   notFound: { fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED, textAlign: "center", marginTop: 40 },
 
   title: { fontFamily: "Montserrat_700Bold", fontSize: 26, letterSpacing: -0.3, color: FG, marginTop: 20 },
-  description: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 8, lineHeight: 21 },
-  meta: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 12 },
+  // Klart större och ljusare än meta-raden nedanför — beskrivningen är text om listan,
+  // meta-raden är bara statistik, de ska inte läsas som samma sorts information.
+  description: { fontFamily: "Inter_500Medium", fontSize: 15.5, color: FG, marginTop: 16, lineHeight: 22 },
+  meta: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 10 },
 
   sectionHead: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -327,8 +333,10 @@ const s = StyleSheet.create({
 
   // Större, mer lyxig känsla: tydligare bild, mer luft, en guldton i kanten i stället för en
   // ren grå ram — samma sorts detalj som resten av appens "premium"-kort (Förmåner, Österlenpasset)
+  // alignItems: flex-start (inte center) så namn/avatar hamnar högst upp i raden, i linje med bildens topp
   placeRow: {
-    flexDirection: "row", alignItems: "center", gap: 14, marginHorizontal: 16, marginBottom: 12,
+    position: "relative",
+    flexDirection: "row", alignItems: "flex-start", gap: 14, marginHorizontal: 16, marginBottom: 14,
     padding: 14, borderRadius: 20, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(197,160,89,0.16)",
     shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 3,
   },
@@ -336,7 +344,8 @@ const s = StyleSheet.create({
   thumb: { width: 92, height: 92, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.06)" },
   addedByRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   addedByText: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
-  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG },
+  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 16, lineHeight: 19, letterSpacing: -0.2, color: FG },
+  townText: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
   badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 4 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
@@ -346,4 +355,12 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.3)",
   },
   offerText: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: GOLD },
+
+  dragHandle: { alignSelf: "center", paddingLeft: 2 },
+  // Röd "ta bort"-badge som hänger i övre högra hörnet av kortet, i stället för ett krysspar mitt i raden
+  removeBadge: {
+    position: "absolute", top: -8, right: -8, width: 24, height: 24, borderRadius: 12,
+    backgroundColor: "#E5484D", alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: BG,
+  },
 });
