@@ -26,18 +26,19 @@ import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import {
-  ArrowLeft, MapPin, Heart, Sparkles, Flame, Ticket, Compass, UserMinus, UserPlus, Check, X,
+  ArrowLeft, MapPin, Heart, Sparkles, Ticket, Compass, UserMinus, UserPlus, Check, X,
 } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
+import { StreakFlame } from "@/components/streak/StreakFlame";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
   type FriendActivity, type FriendResult, type FriendStats,
 } from "@/hooks/useFriends";
 import { stickerImageUrl } from "@/hooks/useCollectibles";
-import { usePlaces } from "@/hooks/usePlaces";
+import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
 import { GROUP_INFO } from "@/lib/achievements";
 import { TrophyMedal } from "@/components/trophies/TrophyMedal";
@@ -141,7 +142,16 @@ export default function FriendProfileScreen() {
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
         <View style={s.hero}>
-          <Avatar size={92} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
+          <View>
+            <Avatar size={92} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
+            {/* Elden ersätter en egen "streak"-ruta: syns bara från 1 dag, en 0 är ingen streak värd att visa */}
+            {!!streak && streak.current >= 1 && (
+              <View style={s.streakBadge} pointerEvents="none">
+                <StreakFlame compact size={40} />
+                <Text style={s.streakBadgeNumber}>{streak.current}</Text>
+              </View>
+            )}
+          </View>
           <Text style={[s.name, { color: heroText }]}>{who}</Text>
           <View style={s.metaRow}>
             {friend?.username && <Text style={[s.meta, { color: heroMuted }]}>@{friend.username}</Text>}
@@ -202,13 +212,11 @@ function RealContent({
         </View>
       )}
 
-      <View style={[s.statsRow, { marginTop: stats.activity.length > 0 ? 22 : 22 }]}>
-        <StatTile icon={<Flame size={18} color={GOLD} strokeWidth={2} />} value={String(streak.current)} label={streak.current === 1 ? "Dags streak" : "Dagars streak"} />
+      {/* Streaken ligger redan som eld på profilringen ovanför — de tre andra som en rad */}
+      <View style={[s.statsRow, { marginTop: 22 }]}>
         <StatTile value={String(stats.visitsTotal)} label={stats.visitsTotal === 1 ? "Besökt plats" : "Besökta platser"} />
-      </View>
-      <View style={s.statsRow}>
-        <StatTile icon={<Heart size={18} color={GOLD} strokeWidth={2} />} value={String(stats.favoritesTotal)} label={stats.favoritesTotal === 1 ? "Favorit" : "Favoriter"} />
-        <StatTile icon={<Ticket size={18} color={GOLD} strokeWidth={2} />} value={String(stats.stickersTotal)} label="Samlarobjekt" />
+        <StatTile icon={<Heart size={16} color={GOLD} strokeWidth={2} />} value={String(stats.favoritesTotal)} label={stats.favoritesTotal === 1 ? "Favorit" : "Favoriter"} />
+        <StatTile icon={<Ticket size={16} color={GOLD} strokeWidth={2} />} value={String(stats.stickersTotal)} label="Samlarobjekt" />
       </View>
 
       {stats.trophies.length > 0 && (
@@ -271,13 +279,24 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
     activity.kind === "favorite" ? `${who} lade till ${activity.label} i favoriter` :
     `${who} samlade in ${activity.label}`;
 
+  // Stickerns bild ligger i stickerbucketen (kräver stickerImageUrl); platsens/eventets image_url
+  // är redan en öppen adress och används som den är. Saknas en bild visas kategorins egen ikon.
+  const photoUri =
+    activity.kind === "sticker"
+      ? (activity.imagePath ? stickerImageUrl(activity.imagePath) : null)
+      : firstImageUrl(activity.imagePath);
+
   return (
     <View style={[s.activityRow, bordered && s.activityRowBorder]}>
-      {activity.kind === "sticker" && activity.imagePath ? (
-        <Image source={{ uri: stickerImageUrl(activity.imagePath) }} style={s.activityThumb} resizeMode="contain" />
+      {photoUri ? (
+        <Image
+          source={{ uri: photoUri }}
+          style={s.activityThumb}
+          resizeMode={activity.kind === "sticker" ? "contain" : "cover"}
+        />
       ) : (
         <View style={s.activityIcon}>
-          {activity.kind === "visit" ? <MapPin size={15} color={GOLD} strokeWidth={2} /> : activity.kind === "favorite" ? <Heart size={15} color={GOLD} strokeWidth={2} /> : <Sparkles size={15} color={GOLD} strokeWidth={2} />}
+          {activity.kind === "visit" ? <MapPin size={18} color={GOLD} strokeWidth={2} /> : activity.kind === "favorite" ? <Heart size={18} color={GOLD} strokeWidth={2} /> : <Sparkles size={18} color={GOLD} strokeWidth={2} />}
         </View>
       )}
       <Text style={s.activityText} numberOfLines={2}>{text}</Text>
@@ -382,6 +401,14 @@ const s = StyleSheet.create({
   },
 
   hero: { alignItems: "center", paddingTop: 156 },
+  streakBadge: {
+    position: "absolute", right: -6, bottom: -8, width: 40, height: 40,
+    alignItems: "center", justifyContent: "center",
+  },
+  streakBadgeNumber: {
+    position: "absolute", fontFamily: "Inter_700Bold", fontSize: 14, color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+  },
   name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: "#FFFFFF", marginTop: 14 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -402,14 +429,15 @@ const s = StyleSheet.create({
   sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, marginBottom: 12 },
   card: { borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
 
-  activityRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
+  activityRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 16 },
   activityRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)" },
   activityIcon: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(197,160,89,0.12)",
+    width: 48, height: 48, borderRadius: 12, backgroundColor: "rgba(197,160,89,0.12)",
     alignItems: "center", justifyContent: "center",
   },
-  activityThumb: { width: 30, height: 30 },
-  activityText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13.5, color: FG, lineHeight: 18 },
+  // Ett riktigt foto (plats/event) fyller rutan; en sticker ligger fri (contain) på samma mörka platta
+  activityThumb: { width: 48, height: 48, borderRadius: 12, backgroundColor: CARD },
+  activityText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG, lineHeight: 19 },
   activityDate: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
   trophyRow: { flexDirection: "row", flexWrap: "wrap", gap: 16, paddingHorizontal: 4 },
