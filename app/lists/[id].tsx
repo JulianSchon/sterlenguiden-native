@@ -1,23 +1,28 @@
 /**
- * En gemensam lista: platser (alla medlemmar kan lägga till och ta bort), medlemmar (bjuds in via
- * vänlistan eller en kod), ägaren kan byta omslag/redigera/duplicera/radera.
+ * En gemensam lista: platser (alla medlemmar kan lägga till, ta bort och dra om ordningen på),
+ * medlemmar (bjuds in via vänlistan eller en kod), ägaren kan byta omslag/redigera/duplicera/radera.
  *
- * Stor Spotify-liknande header (kant till kant, tonar ner mot bakgrunden) i stället för den gamla
- * lilla fyrkantiga ListCover-rutan mitt på sidan — resten av sidans alternativ (byt omslag, dela,
- * duplicera, radera/lämna) ligger nu i ⋮-menyn i stället för utspridda knappar på sidan.
+ * Stor Spotify-liknande omslagsbild (kvadrat, med luft runt om — INTE kant till kant, det gjorde
+ * Lovable-versionen) i stället för den gamla lilla fyrkantiga ListCover-rutan mitt på sidan —
+ * resten av sidans alternativ (byt omslag, dela, duplicera, radera/lämna) ligger i ⋮-menyn.
+ *
+ * Platslistan är en DraggableFlatList (inte en vanlig ScrollView) så håll-och-dra på greppikonen
+ * funkar — sidans övriga innehåll (omslag, titel, medlemmar, "Platser"-rubriken) ligger i dess
+ * ListHeaderComponent, annars går det inte att nästla en egen scrollyta i en ScrollView.
  */
 import { useState } from "react";
 import {
-  View, Text, Image, ScrollView, TouchableOpacity, Alert, Share, ActivityIndicator, StyleSheet,
+  View, Text, Image, TouchableOpacity, Alert, Share, ActivityIndicator, StyleSheet,
   useWindowDimensions,
 } from "react-native";
-import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
+import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, MoreHorizontal, X, Plus, Ticket } from "lucide-react-native";
+import { ArrowLeft, MoreHorizontal, X, Plus, Ticket, GripVertical } from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useDuplicateList,
+  useReorderListPlaces, type ListPlace,
 } from "@/hooks/useLists";
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
@@ -25,7 +30,6 @@ import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { usePhotoMenu } from "@/hooks/usePhotoMenu";
 import { Avatar } from "@/components/profile/Avatar";
-import { PressableScale } from "@/components/PressableScale";
 import { ListCover } from "@/components/lists/ListCover";
 import { AddPlaceSheet } from "@/components/lists/AddPlaceSheet";
 import { InviteMembersSheet } from "@/components/lists/InviteMembersSheet";
@@ -38,7 +42,9 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 const CARD = "#1A1A1D";
-const HERO_H = 280;
+// Spotify-omslaget ligger INTE kant till kant (det gjorde Lovable-versionen, som Viktor
+// uttryckligen inte ville ha) — en stor kvadrat med luft runt om i stället.
+const HERO_MARGIN = 28;
 
 export default function ListDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -55,6 +61,7 @@ export default function ListDetailScreen() {
   const deleteList = useDeleteList();
   const changeCover = useChangeListCover();
   const duplicateList = useDuplicateList();
+  const reorderPlaces = useReorderListPlaces();
 
   const [addOpen, setAddOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -126,107 +133,85 @@ export default function ListDetailScreen() {
       ) : !list ? (
         <Text style={s.notFound}>Listan finns inte längre.</Text>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 32 }}>
-          {/* ── Header: stor bild kant till kant, tonar ner mot bakgrunden ── */}
-          <View style={{ width: winW, height: HERO_H }}>
-            {list.coverImageUrl ? (
-              <Image source={{ uri: list.coverImageUrl }} style={{ width: winW, height: HERO_H }} resizeMode="cover" />
-            ) : (
-              <ListCover
-                images={list.places.map((p) => p.place.image_url).filter((u): u is string => !!u).slice(0, 4)}
-                width={winW}
-                height={HERO_H}
-                radius={0}
-              />
-            )}
-            <Svg width={winW} height={HERO_H * 0.55} style={{ position: "absolute", left: 0, bottom: 0 }} pointerEvents="none">
-              <Defs>
-                <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0%" stopColor={BG} stopOpacity={0} />
-                  <Stop offset="100%" stopColor={BG} stopOpacity={1} />
-                </SvgGrad>
-              </Defs>
-              <SvgRect x="0" y="0" width={winW} height={HERO_H * 0.55} fill="url(#heroFade)" />
-            </Svg>
-          </View>
+        <DraggableFlatList
+          data={list.places}
+          keyExtractor={(lp) => lp.rowId}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 32 }}
+          onDragEnd={({ data }) => reorderPlaces.mutate({ listId: list.id, orderedRowIds: data.map((lp) => lp.rowId) })}
+          ListHeaderComponent={
+            <>
+              {/* ── Omslag: stor kvadrat med luft runt om (som Spotifys spellista) ── */}
+              <View style={{ alignItems: "center", paddingTop: 8 }}>
+                {list.coverImageUrl ? (
+                  <Image
+                    source={{ uri: list.coverImageUrl }}
+                    style={{ width: winW - HERO_MARGIN * 2, height: winW - HERO_MARGIN * 2, borderRadius: 20 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <ListCover
+                    images={list.places.map((p) => p.place.image_url).filter((u): u is string => !!u).slice(0, 4)}
+                    size={winW - HERO_MARGIN * 2}
+                    radius={20}
+                  />
+                )}
+              </View>
 
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={s.title}>{list.name}</Text>
-            {list.description ? <Text style={s.description}>{list.description}</Text> : null}
+              <View style={{ paddingHorizontal: 16 }}>
+                <Text style={s.title}>{list.name}</Text>
+                {list.description ? <Text style={s.description}>{list.description}</Text> : null}
 
-            <View style={{ marginTop: 16 }}>
-              <MemberAvatarStack
-                ringColor={BG}
-                onAddPress={() => setInviteOpen(true)}
-                members={list.members.map((m) => ({
-                  userId: m.userId,
-                  name: m.name,
-                  avatarUri: m.userId === user?.id ? avatarUrl : null,
-                  circleColor: m.circleColor,
-                  avatarRing: m.avatarRing,
-                }))}
-              />
-            </View>
+                <View style={{ marginTop: 16 }}>
+                  <MemberAvatarStack
+                    ringColor={BG}
+                    onAddPress={() => setInviteOpen(true)}
+                    members={list.members.map((m) => ({
+                      userId: m.userId,
+                      name: m.name,
+                      avatarUri: m.userId === user?.id ? avatarUrl : null,
+                      circleColor: m.circleColor,
+                      avatarRing: m.avatarRing,
+                    }))}
+                  />
+                </View>
 
-            <Text style={s.meta}>
-              Senast uppdaterad {formatShortDate(list.lastUpdatedAt)} · {list.places.length} {list.places.length === 1 ? "plats" : "platser"}
-              {offersInListCount > 0 ? ` · ${offersInListCount} med Österlenpass` : ""}
-            </Text>
-          </View>
+                <Text style={s.meta}>
+                  Senast uppdaterad {formatShortDate(list.lastUpdatedAt)} · {list.places.length} {list.places.length === 1 ? "plats" : "platser"}
+                  {offersInListCount > 0 ? ` · ${offersInListCount} med Österlenpass` : ""}
+                </Text>
+              </View>
 
-          {/* Platser */}
-          <View style={s.sectionHead}>
-            <Text style={s.sectionTitle}>Platser · {list.places.length}</Text>
-            <TouchableOpacity style={s.addBtn} onPress={() => setAddOpen(true)}>
-              <Plus size={16} color={GOLD} strokeWidth={2.5} />
-              <Text style={s.addText}>Lägg till plats</Text>
-            </TouchableOpacity>
-          </View>
-
-          {list.places.length === 0 ? (
-            <Text style={s.empty}>Inga platser än. Lägg till den första!</Text>
-          ) : (
-            list.places.map((lp) => (
+              <View style={s.sectionHead}>
+                <Text style={s.sectionTitle}>Platser · {list.places.length}</Text>
+                <TouchableOpacity style={s.addBtn} onPress={() => setAddOpen(true)}>
+                  <Plus size={16} color={GOLD} strokeWidth={2.5} />
+                  <Text style={s.addText}>Lägg till plats</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          }
+          ListEmptyComponent={<Text style={s.empty}>Inga platser än. Lägg till den första!</Text>}
+          renderItem={({ item, drag, isActive }: RenderItemParams<ListPlace>) => (
+            <ScaleDecorator>
               <PlaceRow
-                key={lp.rowId}
-                listPlace={lp}
-                hasOffer={offerPlaceIds.has(lp.place.id)}
-                onPress={() => router.push(`/place/${lp.place.id}` as any)}
+                listPlace={item}
+                hasOffer={offerPlaceIds.has(item.place.id)}
+                isActive={isActive}
+                onPress={() => router.push(`/place/${item.place.id}` as any)}
+                onDrag={drag}
                 onRemove={() =>
-                  confirm("Ta bort plats", `Ta bort ${lp.place.name} från listan? Det gäller alla medlemmar.`, "Ta bort", () =>
-                    removePlace.mutate(lp.rowId)
+                  confirm("Ta bort plats", `Ta bort ${item.place.name} från listan? Det gäller alla medlemmar.`, "Ta bort", () =>
+                    removePlace.mutate(item.rowId)
                   )
                 }
               />
-            ))
+            </ScaleDecorator>
           )}
+        />
+      )}
 
-          {/* Medlemmar */}
-          <View style={s.sectionHead}>
-            <Text style={s.sectionTitle}>Medlemmar · {list.members.length}</Text>
-          </View>
-          {list.members.map((m) => (
-            <View key={m.userId} style={s.memberRow}>
-              <Text style={s.memberName}>
-                {m.name}
-                {m.userId === user?.id ? " (du)" : ""}
-              </Text>
-              {m.role === "owner" ? (
-                <Text style={s.memberRole}>Ägare</Text>
-              ) : isOwner ? (
-                <TouchableOpacity
-                  onPress={() =>
-                    confirm("Ta bort medlem", `Ta bort ${m.name} från listan?`, "Ta bort", () =>
-                      removeMember.mutate({ listId: list.id, userId: m.userId })
-                    )
-                  }
-                >
-                  <Text style={s.dangerSmall}>Ta bort</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          ))}
-
+      {list && (
+        <>
           <AddPlaceSheet
             visible={addOpen}
             onClose={() => setAddOpen(false)}
@@ -250,7 +235,7 @@ export default function ListDetailScreen() {
             onDeleteOrLeave={() => { setOptionsOpen(false); handleDeleteOrLeave(); }}
           />
           <EditListSheet visible={editOpen} onClose={() => setEditOpen(false)} list={list} />
-        </ScrollView>
+        </>
       )}
     </View>
   );
@@ -262,11 +247,13 @@ function formatShortDate(iso: string): string {
 }
 
 function PlaceRow({
-  listPlace, hasOffer, onPress, onRemove,
+  listPlace, hasOffer, isActive, onPress, onDrag, onRemove,
 }: {
-  listPlace: { rowId: string; addedBy: { name: string; isMe: boolean; circleColor: string | null; avatarRing: string | null }; place: { id: number; name: string; image_url: string | null; opening_hours: Record<string, string> | null } };
+  listPlace: ListPlace;
   hasOffer: boolean;
+  isActive: boolean;
   onPress: () => void;
+  onDrag: () => void;
   onRemove: () => void;
 }) {
   const { place, addedBy } = listPlace;
@@ -274,9 +261,14 @@ function PlaceRow({
   const open = isPlaceOpen(place.opening_hours);
 
   return (
-    <PressableScale style={s.placeRow} scale={0.985} onPress={onPress}>
+    <TouchableOpacity
+      style={[s.placeRow, isActive && s.placeRowActive]}
+      activeOpacity={0.9}
+      onPress={onPress}
+      disabled={isActive}
+    >
       {place.image_url ? <Image source={{ uri: place.image_url }} style={s.thumb} /> : <View style={s.thumb} />}
-      <View style={{ flex: 1, gap: 5 }}>
+      <View style={{ flex: 1, gap: 6 }}>
         <View style={s.addedByRow}>
           <Avatar size={16} uri={addedBy.isMe ? avatarUrl : null} name={addedBy.name} color={addedBy.circleColor ?? "#2A2A2A"} ring={addedBy.avatarRing} />
           <Text style={s.addedByText} numberOfLines={1}>{addedBy.name}</Text>
@@ -297,10 +289,15 @@ function PlaceRow({
           )}
         </View>
       </View>
-      <TouchableOpacity hitSlop={12} onPress={onRemove}>
-        <X size={20} color={MUTED} strokeWidth={2} />
-      </TouchableOpacity>
-    </PressableScale>
+      <View style={{ alignItems: "center", gap: 14 }}>
+        <TouchableOpacity hitSlop={12} onPress={onRemove}>
+          <X size={20} color={MUTED} strokeWidth={2} />
+        </TouchableOpacity>
+        <TouchableOpacity hitSlop={12} onLongPress={onDrag} delayLongPress={150}>
+          <GripVertical size={20} color={MUTED} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -315,7 +312,7 @@ const s = StyleSheet.create({
   headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
   notFound: { fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED, textAlign: "center", marginTop: 40 },
 
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 26, letterSpacing: -0.3, color: FG, marginTop: 16 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 26, letterSpacing: -0.3, color: FG, marginTop: 20 },
   description: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 8, lineHeight: 21 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 12 },
 
@@ -328,15 +325,19 @@ const s = StyleSheet.create({
   addText: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, paddingHorizontal: 16 },
 
+  // Större, mer lyxig känsla: tydligare bild, mer luft, en guldton i kanten i stället för en
+  // ren grå ram — samma sorts detalj som resten av appens "premium"-kort (Förmåner, Österlenpasset)
   placeRow: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 16, marginBottom: 10,
-    padding: 10, borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    flexDirection: "row", alignItems: "center", gap: 14, marginHorizontal: 16, marginBottom: 12,
+    padding: 14, borderRadius: 20, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(197,160,89,0.16)",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 3,
   },
-  thumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
-  addedByRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  addedByText: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED },
-  placeName: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
-  badgeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  placeRowActive: { borderColor: "rgba(197,160,89,0.5)", shadowOpacity: 0.4 },
+  thumb: { width: 92, height: 92, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.06)" },
+  addedByRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  addedByText: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
+  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 4 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: MUTED },
@@ -345,12 +346,4 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.3)",
   },
   offerText: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: GOLD },
-
-  memberRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 10,
-  },
-  memberName: { fontFamily: "Inter_500Medium", fontSize: 15, color: FG },
-  memberRole: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
-  dangerSmall: { fontFamily: "Inter_500Medium", fontSize: 13, color: "#E57373" },
 });

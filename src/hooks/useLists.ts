@@ -31,6 +31,8 @@ export interface ListPlace {
   /** Radens id i list_places (inte platsens id) */
   rowId: string;
   addedAt: string;
+  /** Dra-och-släpp-ordning */
+  position: number;
   addedBy: { userId: string; name: string; isMe: boolean; circleColor: string | null; avatarRing: string | null };
   place: {
     id: number;
@@ -111,7 +113,7 @@ export function useList(id: string | undefined) {
       const { data, error } = await supabase
         .from("lists")
         .select(
-          "*, list_members(user_id, role), list_places(id, created_at, added_by, places(id, name, image_url, nearest_town, categories, opening_hours))"
+          "*, list_members(user_id, role), list_places(id, created_at, added_by, position, places(id, name, image_url, nearest_town, categories, opening_hours))"
         )
         .eq("id", id!)
         .maybeSingle();
@@ -119,10 +121,10 @@ export function useList(id: string | undefined) {
       if (!data) return null;
 
       // Namn (+ avatarfärg/ring) till medlemmarna OCH till alla som lagt till en plats — samma
-      // fråga täcker båda, ett unikt set av user_id. Om profiles inte får läsas av andra faller vi
-      // tillbaka på "Medlem".
+      // fråga täcker båda, ett unikt set av user_id. En rå profiles-fråga visade bara den egna
+      // raden (RLS), precis som i Vänner-grunden — rpc_list_profiles_public löser samma sak här.
       const ids = [...new Set([...data.list_members.map((m) => m.user_id), ...data.list_places.map((p) => p.added_by)])];
-      const { data: profiles } = await supabase.from("profiles").select("id, display_name, circle_color, avatar_ring").in("id", ids);
+      const { data: profiles } = await supabase.rpc("rpc_list_profiles_public", { target_user_ids: ids });
       const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
 
       const places = data.list_places
@@ -130,6 +132,7 @@ export function useList(id: string | undefined) {
         .map((lp) => ({
           rowId: lp.id,
           addedAt: lp.created_at,
+          position: lp.position,
           addedBy: {
             userId: lp.added_by,
             name: byId.get(lp.added_by)?.display_name || "Medlem",
@@ -139,7 +142,9 @@ export function useList(id: string | undefined) {
           },
           place: { ...lp.places!, image_url: firstImageUrl(lp.places!.image_url), opening_hours: lp.places!.opening_hours as Record<string, string> | null },
         }))
-        .sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+        // Dra-och-släpp-ordning, inte senast tillagd först — om två har samma position
+        // (borde bara hända för äldre rader innan migrationen) faller vi tillbaka på nyast först.
+        .sort((a, b) => a.position - b.position || b.addedAt.localeCompare(a.addedAt));
 
       const lastUpdatedAt = places.length > 0
         ? places.reduce((latest, p) => (p.addedAt > latest ? p.addedAt : latest), data.created_at)
@@ -340,11 +345,26 @@ export function useAddPlaceToList() {
   return useMutation({
     mutationFn: async ({ listId, placeId }: { listId: string; placeId: number }) => {
       const userId = await requireUserId();
+      // Ny plats ska hamna sist i dra-och-släpp-ordningen, inte längst fram (position 0 är förvalt)
+      const { count } = await supabase.from("list_places").select("id", { count: "exact", head: true }).eq("list_id", listId);
       const { error } = await supabase
         .from("list_places")
-        .insert({ list_id: listId, place_id: placeId, added_by: userId });
+        .insert({ list_id: listId, place_id: placeId, added_by: userId, position: count ?? 0 });
       // 23505 = platsen ligger redan i listan, det är inte ett fel
       if (error && error.code !== "23505") throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/** Sparar den nya ordningen efter drag & drop — ett RPC-anrop med hela listan av rad-id i
+ * önskad ordning, i stället för en uppdatering per rad. */
+export function useReorderListPlaces() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, orderedRowIds }: { listId: string; orderedRowIds: string[] }) => {
+      const { error } = await supabase.rpc("reorder_list_places", { target_list_id: listId, ordered_row_ids: orderedRowIds });
+      if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });

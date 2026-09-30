@@ -449,6 +449,7 @@ export type Database = {
           id: string
           list_id: string
           place_id: number
+          position: number
         }
         Insert: {
           added_by: string
@@ -456,6 +457,7 @@ export type Database = {
           id?: string
           list_id: string
           place_id: number
+          position?: number
         }
         Update: {
           added_by?: string
@@ -463,6 +465,7 @@ export type Database = {
           id?: string
           list_id?: string
           place_id?: number
+          position?: number
         }
         Relationships: [
           {
@@ -1177,6 +1180,11 @@ export type Database = {
         Args: never
         Returns: { list_id: string; list_name: string; owner_name: string }[]
       }
+      rpc_list_profiles_public: {
+        Args: { target_user_ids: string[] }
+        Returns: { id: string; display_name: string | null; circle_color: string | null; avatar_ring: string | null }[]
+      }
+      reorder_list_places: { Args: { target_list_id: string; ordered_row_ids: string[] }; Returns: undefined }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }
       get_place_favorites_count: {
         Args: { p_place_id: number }
