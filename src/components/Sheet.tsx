@@ -13,25 +13,39 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 export function Sheet({
-  visible, onClose, title, tall = false, children,
-}: { visible: boolean; onClose: () => void; title: string; tall?: boolean; children: ReactNode }) {
+  visible, onClose, title, tall = false, centered = false, children,
+}: { visible: boolean; onClose: () => void; title: string; tall?: boolean; centered?: boolean; children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <Pressable style={s.backdrop} onPress={onClose} />
-        <View style={[s.sheet, tall && { height: "85%" }, { paddingBottom: insets.bottom + 16 }]}>
-          <View style={s.head}>
-            <Text style={s.title}>{title}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={12}>
-              <X size={22} color={colors.muted} strokeWidth={2} />
-            </TouchableOpacity>
+    <Modal visible={visible} transparent animationType={centered ? "fade" : "slide"} onRequestClose={onClose}>
+      {/* Bakgrunden ligger som en egen helskärmslager under allt, så den täcker skärmen i båda
+          lägena oavsett var innehållet hamnar (nederkant eller mitten). */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <KeyboardAvoidingView
+          style={centered ? s.centerWrap : { flex: 1, justifyContent: "flex-end" }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          pointerEvents="box-none"
+        >
+          <View
+            style={[
+              centered ? s.centerSheet : s.sheet,
+              tall && !centered && { height: "85%" },
+              !centered && { paddingBottom: insets.bottom + 16 },
+            ]}
+          >
+            <View style={s.head}>
+              <Text style={s.title}>{title}</Text>
+              <TouchableOpacity onPress={onClose} hitSlop={12}>
+                <X size={22} color={colors.muted} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+            {children}
           </View>
-          {children}
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -72,13 +86,19 @@ export const sheetInput = {
 } as const;
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: c.overlay },
   sheet: {
     backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: 20, paddingTop: 20,
   },
+  // Poppar upp i mitten i stället för att åka upp från botten — Ny lista/Gå med i lista
+  centerWrap: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 },
+  centerSheet: {
+    width: "100%", maxWidth: 420,
+    backgroundColor: c.card, borderRadius: 24, padding: 20,
+  },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: c.text },
+  // Playfair bort — bara för personnamn i appen numera
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: c.text },
   button: { backgroundColor: c.gold, borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 8 },
   buttonText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: c.onGold },
 });

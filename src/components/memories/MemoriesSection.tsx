@@ -70,7 +70,8 @@ export function MemoriesSection() {
 const s = StyleSheet.create({
   section: { marginTop: 32 },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: 16 },
-  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: FG },
+  // Playfair bort — bara för personnamn i appen numera, sektionsrubriker delar Montserrat
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: FG },
   actions: { flexDirection: "row", gap: 16 },
   action: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, lineHeight: 21, paddingHorizontal: 16, marginTop: 10 },

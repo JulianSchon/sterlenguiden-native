@@ -22,7 +22,7 @@ export function JoinListSheet({
   const notFound = join.isError && join.error.message === "list_not_found";
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Gå med i lista">
+    <Sheet visible={visible} onClose={onClose} title="Gå med i lista" centered>
       <View style={{ gap: 12 }}>
         <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.6)" }}>
           Skriv in koden du fått av den som äger listan.

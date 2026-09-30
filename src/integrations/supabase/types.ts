@@ -1165,6 +1165,7 @@ export type Database = {
         Returns: string
       }
       join_list: { Args: { code: string }; Returns: string }
+      add_list_members: { Args: { target_list_id: string; target_user_ids: string[] }; Returns: undefined }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }
       get_place_favorites_count: {
         Args: { p_place_id: number }

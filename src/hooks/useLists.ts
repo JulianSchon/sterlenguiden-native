@@ -129,11 +129,14 @@ export function useList(id: string | undefined) {
   });
 }
 
-/** Skapar en lista och returnerar dess id. Skaparen blir ägare (görs av en trigger i databasen). */
+/** Skapar en lista och returnerar dess id. Skaparen blir ägare (görs av en trigger i databasen).
+ * friendIds läggs till som medlemmar direkt (rpc_add_list_members), inget krävs av dem. */
 export function useCreateList() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, description }: { name: string; description: string }) => {
+    mutationFn: async (
+      { name, description, friendIds = [] }: { name: string; description: string; friendIds?: string[] }
+    ) => {
       const userId = await requireUserId();
       const { data, error } = await supabase
         .from("lists")
@@ -141,7 +144,27 @@ export function useCreateList() {
         .select("id")
         .single();
       if (error) throw error;
+      if (friendIds.length > 0) {
+        const { error: memberError } = await supabase.rpc("add_list_members", {
+          target_list_id: data.id, target_user_ids: friendIds,
+        });
+        if (memberError) throw memberError;
+      }
       return data.id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/** Lägger till vänner som medlemmar i en redan existerande lista. */
+export function useAddListMembers() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, friendIds }: { listId: string; friendIds: string[] }) => {
+      const { error } = await supabase.rpc("add_list_members", {
+        target_list_id: listId, target_user_ids: friendIds,
+      });
+      if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });
