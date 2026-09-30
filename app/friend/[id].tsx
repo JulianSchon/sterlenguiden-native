@@ -101,6 +101,11 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
+      {/* Gömd ovanför skärmen, i gradientens toppfärg: drar man ner förbi toppen (iOS-studsen)
+          glider hela scrollytan tillfälligt nedåt och blottar det tomrum som annars visat sidans
+          svarta botten. Den här lappen ligger bakom scrollytan och kikar fram i studsen i stället. */}
+      <View style={{ position: "absolute", top: -200, left: 0, right: 0, height: 200, backgroundColor: heroFrom }} pointerEvents="none" />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
@@ -204,7 +209,7 @@ function RealContent({
   return (
     <>
       {stats.activity.length > 0 && (
-        <View style={[s.section, { marginTop: 22 }]}>
+        <View style={[s.section, { marginTop: 14 }]}>
           <Text style={s.sectionTitle}>Senaste aktivitet</Text>
           <View style={s.card}>
             {stats.activity.map((a, i) => (
@@ -334,7 +339,7 @@ function LockedContent({
     <View style={s.lockedWrap}>
       {/* Skelettet: samma form som den riktiga statistiken, men aldrig påhittade siffror */}
       <View style={{ flex: 1 }}>
-        <View style={[s.section, { marginTop: 22 }]}>
+        <View style={[s.section, { marginTop: 14 }]}>
           <View style={s.card}>
             {SKELETON_WIDTHS.map((w, i) => (
               <View key={i} style={[s.activityRow, i > 0 && s.activityRowBorder]}>
