@@ -41,7 +41,7 @@ import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
 import { GROUP_INFO } from "@/lib/achievements";
 import { TrophyMedal } from "@/components/trophies/TrophyMedal";
-import { getVariant, cardColors } from "@/lib/cardVariants";
+import { getVariant } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
 const BG    = "#121212";
@@ -82,14 +82,10 @@ export default function FriendProfileScreen() {
   }, [places, stats]);
 
   // Samma två toner som personens eget Österlenpass-kort — fritt valda oavsett medlemskap, bara
-  // kosmetik. Bara NAMNET (som sitter mot kortets egen färg, högst upp) byter ton för ljusa kort
-  // (Sand, Rapsfält) — användarnamn/ort/medlem-sedan ligger alltid nere i den mörka toningen, långt
-  // ner mot sidans bakgrund, och ska därför alltid vara ljusa oavsett kortval.
+  // kosmetik. All text är vit (läses bäst mot alla kortfärger, även ljusa som Sand/Rapsfält).
   const variant = friend ? getVariant(friend.cardColor) : null;
-  const heroColors = variant ? cardColors(variant) : null;
   const heroFrom = variant?.bg ?? "#171310";
   const heroTo = variant?.bg2 ?? "#0E0B08";
-  const heroText = heroColors?.text ?? "#FFFFFF";
 
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;
@@ -105,45 +101,45 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      {/* Bakgrund: kortets egna två toner, med en lång, mjuk toning ner mot sidans botten */}
-      <View style={[StyleSheet.absoluteFill, { height: HERO_H }]} pointerEvents="none">
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
-          <Defs>
-            <SvgGrad id="heroBase" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={heroFrom} />
-              <Stop offset="100%" stopColor={heroTo} />
-            </SvgGrad>
-            <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={BG} stopOpacity={0}    />
-              <Stop offset="20%"  stopColor={BG} stopOpacity={0.04} />
-              <Stop offset="40%"  stopColor={BG} stopOpacity={0.15} />
-              <Stop offset="60%"  stopColor={BG} stopOpacity={0.38} />
-              <Stop offset="80%"  stopColor={BG} stopOpacity={0.72} />
-              <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#heroBase)" />
-          <SvgRect width="100%" height="100%" fill="url(#heroFade)" />
-        </Svg>
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
-        {/* Ligger i scrollflödet med resten, inte fast ovanpå — rullar bort med sidan i stället för att stanna kvar */}
-        <View style={[s.header, { paddingTop: insets.top }]}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
-          </TouchableOpacity>
-          {isFriend && (
-            <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-              <UserMinus size={24} color="#B33939" strokeWidth={2} />
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Bakgrund + header + hero i ett och samma block, i scrollflödet — rullar bort med resten av
+            sidan i stället för att ligga fast bakom den. Kortets egna två toner, med en lång, mjuk
+            toning ner mot sidans botten. */}
+        <View style={{ height: HERO_H }}>
+          <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Defs>
+              <SvgGrad id="heroBase" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor={heroFrom} />
+                <Stop offset="100%" stopColor={heroTo} />
+              </SvgGrad>
+              <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%"   stopColor={BG} stopOpacity={0}    />
+                <Stop offset="20%"  stopColor={BG} stopOpacity={0.04} />
+                <Stop offset="40%"  stopColor={BG} stopOpacity={0.15} />
+                <Stop offset="60%"  stopColor={BG} stopOpacity={0.38} />
+                <Stop offset="80%"  stopColor={BG} stopOpacity={0.72} />
+                <Stop offset="100%" stopColor={BG} stopOpacity={1}    />
+              </SvgGrad>
+            </Defs>
+            <SvgRect width="100%" height="100%" fill="url(#heroBase)" />
+            <SvgRect width="100%" height="100%" fill="url(#heroFade)" />
+          </Svg>
 
-        <View style={s.hero}>
+          <View style={[s.header, { paddingTop: insets.top }]}>
+            <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+              <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            </TouchableOpacity>
+            {isFriend && (
+              <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
+                <UserMinus size={24} color="#B33939" strokeWidth={2} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={s.hero}>
           <View>
             <Avatar size={92} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
             {/* Elden ersätter en egen "streak"-ruta: syns bara från 1 dag, en 0 är ingen streak värd att visa.
@@ -157,7 +153,7 @@ export default function FriendProfileScreen() {
               </View>
             )}
           </View>
-          <Text style={[s.name, { color: heroText }]}>{who}</Text>
+          <Text style={s.name}>{who}</Text>
           <View style={s.metaRow}>
             {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
             {friend?.city && (
@@ -170,6 +166,7 @@ export default function FriendProfileScreen() {
           {friend?.memberSince && (
             <Text style={s.since}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
           )}
+          </View>
         </View>
 
         {profileLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />}
@@ -432,18 +429,20 @@ const s = StyleSheet.create({
   statLabel: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
   section: { marginTop: 26, paddingHorizontal: 16 },
-  sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, marginBottom: 12 },
+  // Playfair är bara för namn (personnamn) — sidans/hub-rubriker (Mitt Österlen, Vänner, Förmåner)
+  // och sektionsrubriker som den här delar alla samma Montserrat i stället.
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG, marginBottom: 12 },
   card: { borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
 
-  activityRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  activityBody: { flex: 1, minHeight: 40, justifyContent: "space-between" },
+  activityRow: { flexDirection: "row", alignItems: "flex-start", gap: 13, paddingHorizontal: 16, paddingVertical: 14 },
+  activityBody: { flex: 1, minHeight: 44, justifyContent: "space-between" },
   activityRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)" },
   activityIcon: {
-    width: 40, height: 40, borderRadius: 10, backgroundColor: "rgba(197,160,89,0.12)",
+    width: 44, height: 44, borderRadius: 11, backgroundColor: "rgba(197,160,89,0.12)",
     alignItems: "center", justifyContent: "center",
   },
   // Ett riktigt foto (plats/event) fyller rutan; en sticker ligger fri (contain) på samma mörka platta
-  activityThumb: { width: 40, height: 40, borderRadius: 10, backgroundColor: CARD },
+  activityThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: CARD },
   activityText: { fontFamily: "Inter_500Medium", fontSize: 14, color: FG, lineHeight: 19 },
   activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
