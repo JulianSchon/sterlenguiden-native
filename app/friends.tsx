@@ -228,7 +228,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
 function RowButton({ icon, gold, disabled, onPress }: { icon: React.ReactNode; gold?: boolean; disabled?: boolean; onPress: (e: any) => void }) {
   return (
     <View style={{ width: 34, height: 34 }}>
-      {gold && <RadialGlow size={34} color={GOLD} opacity={0.22} radiusRatio={1.1} />}
+      {gold && <RadialGlow size={34} color={GOLD} opacity={0.12} radiusRatio={1.1} />}
       <PressableScale
         style={[s.rowBtn, gold ? s.rowBtnGold : s.rowBtnGhost]}
         onPress={onPress}
