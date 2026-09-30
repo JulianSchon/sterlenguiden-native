@@ -282,6 +282,12 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
 
   const meta = selected ? getTrophyMeta(selected.achievementType, selected.level) : null;
 
+  // Varje medaljs egen glöd (TrophyMedal, inbyggd) bleder ~0.57×medalSize uppåt — utan marginal där
+  // klipper den horisontella ScrollViewen av den rakt vid sin egen kant (samma sorts problem som
+  // avatarens glöd hade mot headern). Negativ marginTop + lika stor paddingTop tar ut varandra
+  // visuellt (medaljerna hamnar exakt där de låg) men ger klippkanten gott om plats att fasa ut i.
+  const glowPad = Math.ceil(medalSize * 0.6);
+
   return (
     <View style={s.section}>
       <Text style={s.sectionTitle}>Troféer</Text>
@@ -290,7 +296,8 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
         snapToInterval={itemWidth + gap}
-        contentContainerStyle={{ gap }}
+        style={{ marginTop: -glowPad }}
+        contentContainerStyle={{ gap, paddingTop: glowPad }}
       >
         {ordered.map((t, i) => {
           const info = getTrophyMeta(t.achievementType, t.level);
@@ -483,11 +490,13 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
   if (!target) {
     return <View style={[s.activityRow, bordered && s.activityRowBorder]}>{content}</View>;
   }
+  // Liten fördröjning innan navigeringen — annars hinner man aldrig SE ihoptryckningen; skärmen
+  // byts ut i samma ögonblick fingret lyfts.
   return (
     <PressableScale
       style={[s.activityRow, bordered && s.activityRowBorder]}
       scale={0.97}
-      onPress={() => router.push(target as any)}
+      onPress={() => setTimeout(() => router.push(target as any), 150)}
     >
       {content}
     </PressableScale>

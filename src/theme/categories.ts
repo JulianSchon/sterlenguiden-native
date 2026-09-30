@@ -68,12 +68,15 @@ export function shade(hex: string, amount: number): string {
 /** Blandar färgen mot vitt (0 = oförändrad, 1 = vitt) — shade()s motsats. En mörk, dov bottenfärg
  * (t.ex. Skog eller Hav bland Österlenpassets kortvarianter) ser knappt ut att glöda alls som en
  * halvgenomskinlig fläck av sin egen färg mot en nästan svart bakgrund, oavsett opacitet — en
- * bländning behöver lyftas MOT vitt för att faktiskt läsas som ljus. */
+ * bländning behöver lyftas MOT vitt för att faktiskt läsas som ljus.
+ * Returnerar HEX (till skillnad från shade()) — måste kunna gå rakt in i withAlpha(), som bara
+ * förstår "#rrggbb" (en "rgb(...)"-sträng parsar den tyst till NaN → osynligt svart). */
 export function tint(hex: string, amount: number): string {
   const n = parseInt(hex.slice(1), 16);
   const ch = (shift: number) => {
     const c = (n >> shift) & 255;
     return Math.round(c + (255 - c) * amount);
   };
-  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+  const toHex = (v: number) => v.toString(16).padStart(2, "0");
+  return `#${toHex(ch(16))}${toHex(ch(8))}${toHex(ch(0))}`;
 }
