@@ -33,11 +33,20 @@ export interface FriendActivity {
   label: string;
   imagePath: string | null;
   happenedAt: string;
+  /** Bara satt för "visit"/"favorite" — dit raden länkar. Stickers länkar ingenstans (se ActivityRow). */
+  placeId: number | null;
+  eventId: number | null;
 }
 
 export interface FriendTrophy {
   achievementType: string;
   level: "bronze" | "silver" | "gold";
+}
+
+export interface FriendCollectible {
+  id: string;
+  name: string;
+  imagePath: string | null;
 }
 
 export interface FriendStats {
@@ -47,6 +56,7 @@ export interface FriendStats {
   favoritesTotal: number;
   visitedPlaceIds: number[];
   trophies: FriendTrophy[];
+  collectibles: FriendCollectible[];
   activity: FriendActivity[];
 }
 
@@ -183,11 +193,14 @@ export function useFriendStats(targetUserId: string | null) {
         favoritesTotal: j?.favorites_total ?? 0,
         visitedPlaceIds: j?.visited_place_ids ?? [],
         trophies: (j?.trophies ?? []).map((t: any) => ({ achievementType: t.achievement_type, level: t.level })),
+        collectibles: (j?.collectibles ?? []).map((c: any) => ({ id: c.id, name: c.name, imagePath: c.image_path })),
         activity: (j?.activity ?? []).map((a: any) => ({
           kind: a.kind,
           label: a.label,
           imagePath: a.image_path,
           happenedAt: a.happened_at,
+          placeId: a.place_id ?? null,
+          eventId: a.event_id ?? null,
         })),
       };
     },

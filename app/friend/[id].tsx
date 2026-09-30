@@ -17,17 +17,18 @@
  * integritetsbeslut. Att visa en väns riktiga foto kräver att den privata bild-mappens
  * åtkomstregler öppnas för vänner, vilket är en egen, medveten säkerhetsändring.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, Image, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, ActivityIndicator, Alert,
-  useWindowDimensions,
+  Animated, Easing, useWindowDimensions,
 } from "react-native";
+import Svg, { Circle as SvgCircle, Text as SvgText } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import {
-  ArrowLeft, MapPin, Heart, Ticket, Compass, UserMinus, UserPlus, Check, X,
+  ArrowLeft, MapPin, Heart, Compass, UserMinus, UserPlus, Check, X,
 } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -42,6 +43,7 @@ import {
 import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
 import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
+import { CATEGORIES } from "@/theme/categories";
 import { TrophyMedal, GlowCanvas } from "@/components/trophies/TrophyMedal";
 import { getVariant } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
@@ -237,17 +239,13 @@ function RealContent({
       )}
 
       {stats.trophies.length > 0 && <TrophySection trophies={stats.trophies} />}
+      {stats.collectibles.length > 0 && <CollectiblesSection collectibles={stats.collectibles} />}
 
       <View style={s.section}>
         <Text style={s.sectionTitle}>Statistik</Text>
-        <View style={s.card}>
-          {topCategory && (
-            <StatRow first icon={<topCategory.Icon size={15} color={GOLD} strokeWidth={2} />} label="Mest besökta kategori" value={topCategory.label} />
-          )}
-          <StatRow first={!topCategory} icon={<Ticket size={15} color={GOLD} strokeWidth={2} />} label="Samlarobjekt" value={String(stats.stickersTotal)} />
-          {totalPlaces > 0 && (
-            <StatRow icon={<Compass size={15} color={GOLD} strokeWidth={2} />} label="Utforskat av Österlen" value={`${stats.visitsTotal} av ${totalPlaces}`} />
-          )}
+        <View style={s.statBoxRow}>
+          <TopCategoryBox topCategory={topCategory} />
+          <VisitedRingBox visitsTotal={stats.visitsTotal} totalPlaces={totalPlaces} />
         </View>
       </View>
     </>
@@ -319,7 +317,104 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
   );
 }
 
+// Samma sorts horisontella rad som troféerna, fast i en box i stället för direkt på bakgrunden —
+// och inte klickbar: stickers hör hemma på kartan, som inte har en tillbaka-pil (samma resonemang
+// som aktivitetsradens "samlade in"-rader). Senast insamlad först (rpc_friend_stats sorterar redan så).
+function CollectiblesSection({ collectibles }: { collectibles: FriendStats["collectibles"] }) {
+  const { width: winW } = useWindowDimensions();
+  const pageW = winW - 32 - 32; // s.section-marginal (16+16) + boxens egen padding (16+16)
+  const gap = 16;
+  const itemWidth = (pageW - gap * 2) / 3;
+  const artSize = Math.round(itemWidth * 0.6);
+
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>Samlarobjekt</Text>
+      <View style={[s.card, { padding: 16 }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={itemWidth + gap}
+          contentContainerStyle={{ gap }}
+        >
+          {collectibles.map((c) => (
+            <View key={c.id} style={{ width: itemWidth, alignItems: "center" }}>
+              <StickerArt imagePath={c.imagePath} size={artSize} silhouette={false} />
+              <Text style={s.trophyLabel} numberOfLines={2}>{c.name}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    </View>
+  );
+}
+
+// ─── Statistik: två boxar bredvid varandra ───────────────────────────────────
+
+function TopCategoryBox({ topCategory }: { topCategory: ReturnType<typeof computeCategoryStats>[number] | null }) {
+  const color = topCategory ? CATEGORIES.find((c) => c.id === topCategory.id)?.screen : null;
+  return (
+    <View style={s.statBox}>
+      <View style={[s.categoryCircle, { backgroundColor: color ?? "rgba(255,255,255,0.06)" }]}>
+        {topCategory ? (
+          <topCategory.Icon size={30} color="#FFFFFF" strokeWidth={2} />
+        ) : (
+          <Compass size={28} color={MUTED} strokeWidth={2} />
+        )}
+      </View>
+      <Text style={s.statBoxLabel} numberOfLines={1}>{topCategory ? topCategory.label : "Inga besök än"}</Text>
+      <Text style={s.statBoxCaption}>Mest besökta kategori</Text>
+    </View>
+  );
+}
+
+function VisitedRingBox({ visitsTotal, totalPlaces }: { visitsTotal: number; totalPlaces: number }) {
+  const percent = totalPlaces > 0 ? Math.round((visitsTotal / totalPlaces) * 100) : 0;
+  return (
+    <View style={s.statBox}>
+      <ProgressRing percent={percent} centerValue={visitsTotal} />
+      <Text style={s.statBoxLabel}>{visitsTotal} av {totalPlaces}</Text>
+      <Text style={s.statBoxCaption}>upptäckta platser</Text>
+    </View>
+  );
+}
+
+// Samma ringdiagram som Statistik-sidans Översikt (app/stats.tsx), fast mindre och med Montserrat
+// i stället för Playfair på siffran (Playfair är bara för personnamn i den här filen).
+const RING_SIZE = 84, RING_CENTER = 42, RING_R = 35, RING_STROKE = 6;
+const RING_CIRC = 2 * Math.PI * RING_R;
+const AnimatedSvgCircle = Animated.createAnimatedComponent(SvgCircle);
+
+function ProgressRing({ percent, centerValue }: { percent: number; centerValue: number }) {
+  const anim = useRef(new Animated.Value(RING_CIRC)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: RING_CIRC * (1 - percent / 100),
+      duration: 1000,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [percent]);
+
+  return (
+    <Svg width={RING_SIZE} height={RING_SIZE}>
+      <SvgCircle cx={RING_CENTER} cy={RING_CENTER} r={RING_R} stroke="rgba(197,160,89,0.12)" strokeWidth={RING_STROKE} fill="none" />
+      <AnimatedSvgCircle
+        cx={RING_CENTER} cy={RING_CENTER} r={RING_R}
+        stroke={GOLD} strokeWidth={RING_STROKE} fill="none" strokeLinecap="round"
+        strokeDasharray={RING_CIRC} strokeDashoffset={anim}
+        transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
+      />
+      <SvgText x={RING_CENTER} y={RING_CENTER + 7} textAnchor="middle" fontSize={20} fontFamily="Montserrat_700Bold" fill={FG}>
+        {centerValue}
+      </SvgText>
+    </Svg>
+  );
+}
+
 function ActivityRow({ who, activity, bordered }: { who: string; activity: FriendActivity; bordered: boolean }) {
+  const router = useRouter();
   const date = format(new Date(activity.happenedAt), "HH:mm, d MMM", { locale: sv });
   // Bara namnet ska vara fetstilt — resten av meningen vanlig text, så det inte ser ut som att
   // hela raden skriker. Byggd som två Text-delar (RN slår ihop dem till en rad ändå).
@@ -333,8 +428,20 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
   // platshållare som resten av appen (Utmaningar, kartan) tills konstfilen finns i Supabase.
   const photoUri = activity.kind === "sticker" ? null : firstImageUrl(activity.imagePath);
 
+  // Besök/favoriter leder till platsens/eventets egen sida (med en riktig tillbaka-pil hit igen).
+  // Stickers leder ingenstans — de hör hemma på kartan, som inte har en tillbaka-pil att ta sig
+  // därifrån igen.
+  const target =
+    activity.placeId ? `/place/${activity.placeId}` :
+    activity.eventId ? `/event/${activity.eventId}` :
+    null;
+
+  const Row = target ? TouchableOpacity : View;
   return (
-    <View style={[s.activityRow, bordered && s.activityRowBorder]}>
+    <Row
+      style={[s.activityRow, bordered && s.activityRowBorder]}
+      {...(target ? { activeOpacity: 0.7, onPress: () => router.push(target as any) } : {})}
+    >
       {activity.kind === "sticker" ? (
         // Ingen fyrkantig CARD-platta bakom — StickerArt är redan en egen cirkel, precis som
         // i Samlarobjekt-rutnätet och på kartan.
@@ -353,17 +460,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
         </Text>
         <Text style={s.activityDate}>{date}</Text>
       </View>
-    </View>
-  );
-}
-
-function StatRow({ icon, label, value, first }: { icon: React.ReactNode; label: string; value: string; first?: boolean }) {
-  return (
-    <View style={[s.statRow, first && { borderTopWidth: 0 }]}>
-      <View style={s.statRowIcon}>{icon}</View>
-      <Text style={s.statRowLabel}>{label}</Text>
-      <Text style={s.statRowValue} numberOfLines={1}>{value}</Text>
-    </View>
+    </Row>
   );
 }
 
@@ -525,17 +622,15 @@ const s = StyleSheet.create({
   modalDivider: { width: 64, height: 1, backgroundColor: "rgba(197,160,89,0.35)", marginVertical: 20 },
   modalReq: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.55)", textAlign: "center" },
 
-  statRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 16, paddingVertical: 13,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)",
+  // Statistik: två boxar sida vid sida (mest besökta kategori / upptäckta platser)
+  statBoxRow: { flexDirection: "row", gap: 12 },
+  statBox: {
+    flex: 1, alignItems: "center", gap: 4, paddingVertical: 20, paddingHorizontal: 12,
+    borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
   },
-  statRowIcon: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(197,160,89,0.12)",
-    alignItems: "center", justifyContent: "center",
-  },
-  statRowLabel: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 13.5, color: MUTED },
-  statRowValue: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: FG },
+  categoryCircle: { width: 84, height: 84, borderRadius: 42, alignItems: "center", justifyContent: "center" },
+  statBoxLabel: { fontFamily: "Inter_700Bold", fontSize: 14, color: FG, marginTop: 10, textAlign: "center" },
+  statBoxCaption: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED, textAlign: "center" },
 
   lockedWrap: { flex: 1, marginTop: 6 },
   lockedCard: {
