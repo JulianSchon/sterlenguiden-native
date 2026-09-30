@@ -75,7 +75,12 @@ export function GlowCanvas({
 // urblekt skiva som lästes som en tydlig RING i stället för ett sken som faktiskt tonar bort. Med
 // (1-p)² håller kurvan sig ljusare längre och faller sedan snabbare mot slutet — ser ut som riktigt
 // ljus, oavsett hur stor andel som är gömd.
-const GLOW_STOPS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+//
+// Skia interpolerar LINJÄRT mellan varandra stopp, så få stopp (bara 6 innan) gav synliga knäckar
+// i den kvadratiska kurvan — svaga men riktiga ringar om man tittade noga, särskilt i stora glödar.
+// 33 jämnt fördelade stopp gör varje liten linjesegment så kort att kurvan upplevs helt mjuk.
+const GLOW_STOP_COUNT = 32;
+const GLOW_STOPS = Array.from({ length: GLOW_STOP_COUNT + 1 }, (_, i) => i / GLOW_STOP_COUNT);
 
 export function RadialGlow({
   size, color, opacity = 0.3, radiusRatio = 1.1,
