@@ -22,6 +22,8 @@ export interface FriendResult {
   isMember: boolean;
   cardColor: string | null;
   memberSince: string | null;
+  /** Bara satt av rpc_get_profile (useFriendProfile) när ni faktiskt är vänner — inte av sök-/listfunktionerna */
+  friendsSince: string | null;
   friendshipId: string | null;
   friendStatus: FriendStatus;
 }
@@ -70,6 +72,7 @@ function toFriendResult(r: {
   user_id: string; username: string | null; display_name: string | null; city: string | null;
   circle_color: string | null; avatar_ring: string | null; is_member: boolean; card_color: string | null;
   member_since: string; friendship_id: string | null; status: string | null; direction: string | null;
+  friends_since?: string | null;
 }): FriendResult {
   return {
     userId: r.user_id,
@@ -81,6 +84,7 @@ function toFriendResult(r: {
     isMember: r.is_member,
     cardColor: r.card_color,
     memberSince: r.member_since,
+    friendsSince: r.friends_since ?? null,
     friendshipId: r.friendship_id,
     friendStatus: toStatus(r.status, r.direction),
   };

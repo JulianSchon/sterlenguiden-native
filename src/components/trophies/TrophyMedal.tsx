@@ -70,24 +70,27 @@ export function GlowCanvas({
 // en svag men verklig kant där svansen huggs av. En radial gradient med en sista stopp på HELT
 // transparent har ingen svans: bortom sin egen radie är den matematiskt noll, garanterat sömlös
 // oavsett hur nära den klipps. Används där GlowCanvas riskerar synas mot en sådan gräns.
+// Kvadratisk avtoning, inte linjär — det mesta av kurvan (0 till ~0.45) ligger ändå dold bakom det
+// som ritas ovanpå (t.ex. avataren), så bara SVANSEN av en linjär ramp syntes: en jämntjock, svagt
+// urblekt skiva som lästes som en tydlig RING i stället för ett sken som faktiskt tonar bort. Med
+// (1-p)² håller kurvan sig ljusare längre och faller sedan snabbare mot slutet — ser ut som riktigt
+// ljus, oavsett hur stor andel som är gömd.
+const GLOW_STOPS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+
 export function RadialGlow({
   size, color, opacity = 0.3, radiusRatio = 1.1,
 }: { size: number; color: string; opacity?: number; radiusRatio?: number }) {
   const r = size * radiusRatio;
   const canvasSize = r * 2;
   const pad = (canvasSize - size) / 2;
+  const colors = GLOW_STOPS.map((p) => withAlpha(color, opacity * (1 - p) ** 2));
   return (
     <Canvas
       style={{ position: "absolute", width: canvasSize, height: canvasSize, left: -pad, top: -pad }}
       pointerEvents="none"
     >
       <Circle cx={r} cy={r} r={r}>
-        <RadialGradient
-          c={vec(r, r)}
-          r={r}
-          colors={[withAlpha(color, opacity), withAlpha(color, opacity * 0.5), withAlpha(color, 0)]}
-          positions={[0, 0.45, 1]}
-        />
+        <RadialGradient c={vec(r, r)} r={r} colors={colors} positions={GLOW_STOPS} />
       </Circle>
     </Canvas>
   );

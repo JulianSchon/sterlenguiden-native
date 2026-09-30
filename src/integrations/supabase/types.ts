@@ -1212,6 +1212,7 @@ export type Database = {
           friendship_id: string | null
           status: string | null
           direction: string | null
+          friends_since: string | null
         }[]
       }
       rpc_list_friendships: {

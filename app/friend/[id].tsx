@@ -167,19 +167,19 @@ export default function FriendProfileScreen() {
                 Etikett ovanför, ifylld symbol + siffra i en rad under, precis som referensbilden. */}
             <View style={s.identityStats}>
               <IdentityStat
-                icon={<StreakFlame compact size={15} />}
+                icon={<StreakFlame compact size={19} />}
                 value={isFriend && streak ? streak.current : null}
                 label="Streak"
               />
               <View style={s.identityColDivider} />
               <IdentityStat
-                icon={<MapPin size={16} color="#FFFFFF" fill={GREEN} strokeWidth={1.5} />}
+                icon={<MapPin size={19} color="#FFFFFF" fill={GREEN} strokeWidth={1.5} />}
                 value={isFriend && stats ? stats.visitsTotal : null}
                 label="Besök"
               />
               <View style={s.identityColDivider} />
               <IdentityStat
-                icon={<Heart size={16} color={RED} fill={RED} strokeWidth={1.5} />}
+                icon={<Heart size={19} color={RED} fill={RED} strokeWidth={1.5} />}
                 value={isFriend && stats ? stats.favoritesTotal : null}
                 label="Favoriter"
               />
@@ -211,6 +211,12 @@ export default function FriendProfileScreen() {
         {friend?.memberSince && (
           <Text style={s.memberSince}>
             Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}
+          </Text>
+        )}
+        {/* Bara satt när ni faktiskt är vänner (rpc_get_profile), se friendsSince i useFriends.ts */}
+        {isFriend && friend?.friendsSince && (
+          <Text style={[s.memberSince, { marginTop: 4 }]}>
+            Vänner sedan {format(new Date(friend.friendsSince), "MMMM yyyy", { locale: sv })}
           </Text>
         )}
       </ScrollView>
@@ -577,11 +583,11 @@ const s = StyleSheet.create({
   identityDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginTop: 18 },
   identityStats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginTop: 16 },
   identityCol: { flex: 1, alignItems: "center", gap: 6 },
-  identityColDivider: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: "rgba(255,255,255,0.12)" },
-  identityLabel: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED },
+  identityColDivider: { width: StyleSheet.hairlineWidth, height: 34, backgroundColor: "rgba(255,255,255,0.12)" },
+  identityLabel: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
   // Ifylld symbol till vänster, siffra till höger — samma rad för Streak (lågan), Besök och Favoriter
   identityRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  identityValue: { fontFamily: "Inter_700Bold", fontSize: 15, color: FG },
+  identityValue: { fontFamily: "Inter_700Bold", fontSize: 17, color: FG },
 
   errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
   // "Medlem sedan ..." längst ner på sidan, efter allt annat innehåll
