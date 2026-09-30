@@ -127,22 +127,22 @@ export default function FriendProfileScreen() {
         </Svg>
       </View>
 
-      {/* Headern flyter ovanpå bakgrunden — inget namn här, det står bara en gång, i heron */}
-      <View style={[s.header, { top: insets.top }]}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
-          <ArrowLeft size={22} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
-        {isFriend && (
-          <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-            <UserMinus size={19} color={FG} strokeWidth={2} />
-          </TouchableOpacity>
-        )}
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
+        {/* Ligger i scrollflödet med resten, inte fast ovanpå — rullar bort med sidan i stället för att stanna kvar */}
+        <View style={[s.header, { paddingTop: insets.top }]}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+          </TouchableOpacity>
+          {isFriend && (
+            <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
+              <UserMinus size={24} color="#8B2B2B" strokeWidth={2} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={s.hero}>
           <View>
             <Avatar size={92} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
@@ -396,18 +396,18 @@ function LockedContent({
 
 const s = StyleSheet.create({
   header: {
-    position: "absolute", left: 0, right: 0, zIndex: 2,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 16, paddingBottom: 12,
   },
+  // Samma storlek och form som tillbaka-knappen på Vänner-sidan och resten av appen
   headerBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 48, height: 48, borderRadius: 24,
     backgroundColor: "rgba(0,0,0,0.30)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
     alignItems: "center", justifyContent: "center",
   },
 
-  hero: { alignItems: "center", paddingTop: 156 },
+  hero: { alignItems: "center", paddingTop: 24 },
   streakBadge: {
     position: "absolute", right: -8, bottom: -6,
     flexDirection: "row", alignItems: "center", gap: 3,
