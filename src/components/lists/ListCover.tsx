@@ -5,13 +5,19 @@
 import { View, Image, StyleSheet } from "react-native";
 import { MapPin } from "lucide-react-native";
 
-export function ListCover({ images, size, radius = 16 }: { images: string[]; size: number; radius?: number }) {
-  const box = { width: size, height: size, borderRadius: radius };
+/** width/height för en rektangulär yta (t.ex. listans stora Spotify-liknande header) — annars
+ * en kvadrat på size×size, som i listöversikten och den gamla "Ny lista"-panelen. */
+export function ListCover({
+  images, size, width, height, radius = 16,
+}: { images: string[]; size?: number; width?: number; height?: number; radius?: number }) {
+  const w = width ?? size ?? 0;
+  const h = height ?? size ?? 0;
+  const box = { width: w, height: h, borderRadius: radius };
 
   if (images.length === 0) {
     return (
       <View style={[s.empty, box]}>
-        <MapPin size={size * 0.16} color="#C5A059" strokeWidth={1.8} />
+        <MapPin size={Math.min(w, h) * 0.16} color="#C5A059" strokeWidth={1.8} />
       </View>
     );
   }
@@ -20,11 +26,12 @@ export function ListCover({ images, size, radius = 16 }: { images: string[]; siz
     return <Image source={{ uri: images[0] }} style={box} resizeMode="cover" />;
   }
 
-  const cell = (size - 1) / 2;
+  const cellW = (w - 1) / 2;
+  const cellH = (h - 1) / 2;
   return (
     <View style={[s.grid, box]}>
       {images.slice(0, 4).map((uri, i) => (
-        <Image key={i} source={{ uri }} style={{ width: cell, height: cell }} resizeMode="cover" />
+        <Image key={i} source={{ uri }} style={{ width: cellW, height: cellH }} resizeMode="cover" />
       ))}
     </View>
   );

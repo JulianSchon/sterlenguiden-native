@@ -483,6 +483,7 @@ export type Database = {
       }
       lists: {
         Row: {
+          cover_image_url: string | null
           created_at: string
           description: string | null
           id: string
@@ -491,6 +492,7 @@ export type Database = {
           owner_id: string
         }
         Insert: {
+          cover_image_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -499,6 +501,7 @@ export type Database = {
           owner_id: string
         }
         Update: {
+          cover_image_url?: string | null
           created_at?: string
           description?: string | null
           id?: string

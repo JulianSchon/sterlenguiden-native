@@ -1,24 +1,17 @@
-import { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
-import Reanimated, {
-  FadeIn, FadeOut, SlideInRight, SlideOutLeft, useAnimatedStyle, useSharedValue, withTiming, interpolateColor,
-} from "react-native-reanimated";
+import { useRef, useState } from "react";
+import { View, Text, TextInput, ScrollView, StyleSheet } from "react-native";
+import Reanimated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { Check, Plus } from "lucide-react-native";
 import { useCreateList } from "@/hooks/useLists";
-import { useFriendships, type FriendResult } from "@/hooks/useFriends";
+import { useFriendships } from "@/hooks/useFriends";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
-import { Avatar } from "@/components/profile/Avatar";
-import { PressableScale } from "@/components/PressableScale";
+import { MemberAvatarStack } from "@/components/lists/MemberAvatarStack";
+import { FriendPickerRow } from "@/components/lists/FriendPickerRow";
 import { Sheet, PrimaryButton, SecondaryButton, useSheetInput } from "@/components/Sheet";
 
-const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 const CARD = "#1A1A1D";
-const AVATAR_SIZE = 40;
-const AVATAR_OVERLAP = 16;
 
 export function CreateListSheet({
   visible, onClose, onCreated,
@@ -102,27 +95,14 @@ export function CreateListSheet({
           </View>
           <View style={{ gap: 6 }}>
             <Text style={s.label}>Medlemmar</Text>
-            {/* En enda rad överlappande cirklar: min bild, sen tillagda vänner i tur och ordning,
-                sist +. Varje ny cirkel ritas EFTER den förra och ligger därför delvis FRAMFÖR den
-                — + ligger alltså alltid längst fram, och hänger med längst till höger i raden
-                oavsett hur många som läggs till. */}
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View style={s.stackRing}>
-                <Avatar size={AVATAR_SIZE} uri={avatarUrl} name={profile?.display_name ?? "?"} color={profile?.circle_color ?? "#2A2A2A"} ring={profile?.avatar_ring} />
-              </View>
-              {selectedFriends.map((f) => (
-                <View key={f.userId} style={[s.stackRing, { marginLeft: -AVATAR_OVERLAP }]}>
-                  <Avatar size={AVATAR_SIZE} uri={null} name={f.displayName ?? f.username ?? "?"} color={f.circleColor ?? "#2A2A2A"} ring={f.avatarRing} />
-                </View>
-              ))}
-              <TouchableOpacity
-                style={[s.addCircle, { marginLeft: -AVATAR_OVERLAP }]}
-                onPress={() => setStep("picker")}
-                activeOpacity={0.75}
-              >
-                <Plus size={18} color={GOLD} strokeWidth={2.4} />
-              </TouchableOpacity>
-            </View>
+            <MemberAvatarStack
+              ringColor={CARD}
+              onAddPress={() => setStep("picker")}
+              members={[
+                { userId: "me", name: profile?.display_name ?? "?", avatarUri: avatarUrl, circleColor: profile?.circle_color ?? null, avatarRing: profile?.avatar_ring ?? null },
+                ...selectedFriends.map((f) => ({ userId: f.userId, name: f.displayName ?? f.username ?? "?", circleColor: f.circleColor, avatarRing: f.avatarRing })),
+              ]}
+            />
           </View>
           {create.isError && (
             <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: "#E57373" }}>
@@ -153,57 +133,6 @@ export function CreateListSheet({
   );
 }
 
-/** Egen komponent så varje rad kan ha sin egen animerade övergång (inte bara ett hårt style-byte,
- * som kändes som en synlig fördröjning snarare än en riktig animation). */
-function FriendPickerRow({ friend, selected, onToggle }: { friend: FriendResult; selected: boolean; onToggle: () => void }) {
-  const progress = useSharedValue(selected ? 1 : 0);
-  useEffect(() => {
-    progress.value = withTiming(selected ? 1 : 0, { duration: 180 });
-  }, [selected]);
-
-  const rowStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0)", "rgba(197,160,89,0.12)"]),
-  }));
-  const checkStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0)", GOLD]),
-    borderColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0.25)", GOLD]),
-  }));
-  const checkIconStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
-
-  return (
-    <PressableScale style={[s.friendRow, rowStyle]} scale={0.98} onPress={onToggle}>
-      <Avatar size={36} uri={null} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
-      <Text style={s.friendName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
-      <Reanimated.View style={[s.checkCircle, checkStyle]}>
-        <Reanimated.View style={checkIconStyle}>
-          <Check size={13} color="#0B0B0D" strokeWidth={3} />
-        </Reanimated.View>
-      </Reanimated.View>
-    </PressableScale>
-  );
-}
-
 const s = StyleSheet.create({
   label: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
-  // Bakgrundsfärgad ring runt varje cirkel i stacken (samma färg som popupens botten) så
-  // överlappen läses som separata cirklar i stället för att bara smälta ihop.
-  stackRing: {
-    width: AVATAR_SIZE + 4, height: AVATAR_SIZE + 4, borderRadius: (AVATAR_SIZE + 4) / 2,
-    backgroundColor: CARD, alignItems: "center", justifyContent: "center",
-  },
-  // Outline i stället för helt guldfylld — bara linjer i guld, som referensbilden
-  addCircle: {
-    width: AVATAR_SIZE + 4, height: AVATAR_SIZE + 4, borderRadius: (AVATAR_SIZE + 4) / 2,
-    backgroundColor: "rgba(197,160,89,0.12)", alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5, borderColor: GOLD,
-  },
-  friendRow: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12,
-  },
-  friendName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
-  checkCircle: {
-    width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5,
-  },
 });

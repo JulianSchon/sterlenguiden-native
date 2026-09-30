@@ -9,6 +9,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { firstImageUrl } from "@/hooks/usePlaces";
+import { preparePhoto } from "@/lib/photos";
+import { pickSquarePhoto, type PhotoSource } from "@/hooks/useAccount";
+
+const COVER_BUCKET = "list-covers";
 
 export interface ListSummary {
   id: string;
@@ -16,9 +20,10 @@ export interface ListSummary {
   description: string | null;
   ownerId: string;
   inviteCode: string;
+  coverImageUrl: string | null;
   placeIds: number[];
   memberCount: number;
-  /** Upp till fyra bilder från listans platser, äldst först — till kollaget */
+  /** Upp till fyra bilder från listans platser, äldst först — till kollaget (fallback när ingen egen omslagsbild är vald) */
   images: string[];
 }
 
@@ -26,12 +31,14 @@ export interface ListPlace {
   /** Radens id i list_places (inte platsens id) */
   rowId: string;
   addedAt: string;
+  addedBy: { userId: string; name: string; isMe: boolean; circleColor: string | null; avatarRing: string | null };
   place: {
     id: number;
     name: string;
     image_url: string | null;
     nearest_town: string | null;
     categories: string | null;
+    opening_hours: Record<string, string> | null;
   };
 }
 
@@ -39,6 +46,8 @@ export interface ListMember {
   userId: string;
   role: "owner" | "member";
   name: string;
+  circleColor: string | null;
+  avatarRing: string | null;
 }
 
 export interface ListDetail {
@@ -47,6 +56,9 @@ export interface ListDetail {
   description: string | null;
   ownerId: string;
   inviteCode: string;
+  coverImageUrl: string | null;
+  /** Senaste av att listan skapades eller att en plats lades till — "Senast uppdaterad" */
+  lastUpdatedAt: string;
   places: ListPlace[];
   members: ListMember[];
 }
@@ -80,6 +92,7 @@ export function useLists() {
             description: l.description,
             ownerId: l.owner_id,
             inviteCode: l.invite_code,
+            coverImageUrl: l.cover_image_url,
             placeIds: l.list_places.map((p) => p.place_id),
             memberCount: acceptedMembers.length,
             images: byAge.map((p) => firstImageUrl(p.places?.image_url)).filter((u): u is string => !!u).slice(0, 4),
@@ -94,21 +107,43 @@ export function useList(id: string | undefined) {
     queryKey: ["lists", "detail", id],
     enabled: !!id,
     queryFn: async (): Promise<ListDetail | null> => {
+      const userId = await requireUserId();
       const { data, error } = await supabase
         .from("lists")
         .select(
-          "*, list_members(user_id, role), list_places(id, created_at, places(id, name, image_url, nearest_town, categories))"
+          "*, list_members(user_id, role), list_places(id, created_at, added_by, places(id, name, image_url, nearest_town, categories, opening_hours))"
         )
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
 
-      // Namn till medlemmarna. Om profiles inte får läsas av andra faller vi
+      // Namn (+ avatarfärg/ring) till medlemmarna OCH till alla som lagt till en plats — samma
+      // fråga täcker båda, ett unikt set av user_id. Om profiles inte får läsas av andra faller vi
       // tillbaka på "Medlem".
-      const ids = data.list_members.map((m) => m.user_id);
-      const { data: profiles } = await supabase.from("profiles").select("id, display_name").in("id", ids);
-      const names = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
+      const ids = [...new Set([...data.list_members.map((m) => m.user_id), ...data.list_places.map((p) => p.added_by)])];
+      const { data: profiles } = await supabase.from("profiles").select("id, display_name, circle_color, avatar_ring").in("id", ids);
+      const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+      const places = data.list_places
+        .filter((lp) => lp.places)
+        .map((lp) => ({
+          rowId: lp.id,
+          addedAt: lp.created_at,
+          addedBy: {
+            userId: lp.added_by,
+            name: byId.get(lp.added_by)?.display_name || "Medlem",
+            isMe: lp.added_by === userId,
+            circleColor: byId.get(lp.added_by)?.circle_color ?? null,
+            avatarRing: byId.get(lp.added_by)?.avatar_ring ?? null,
+          },
+          place: { ...lp.places!, image_url: firstImageUrl(lp.places!.image_url), opening_hours: lp.places!.opening_hours as Record<string, string> | null },
+        }))
+        .sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+
+      const lastUpdatedAt = places.length > 0
+        ? places.reduce((latest, p) => (p.addedAt > latest ? p.addedAt : latest), data.created_at)
+        : data.created_at;
 
       return {
         id: data.id,
@@ -116,21 +151,91 @@ export function useList(id: string | undefined) {
         description: data.description,
         ownerId: data.owner_id,
         inviteCode: data.invite_code,
-        places: data.list_places
-          .filter((lp) => lp.places)
-          .map((lp) => ({
-            rowId: lp.id,
-            addedAt: lp.created_at,
-            place: { ...lp.places!, image_url: firstImageUrl(lp.places!.image_url) },
-          }))
-          .sort((a, b) => b.addedAt.localeCompare(a.addedAt)),
+        coverImageUrl: data.cover_image_url,
+        lastUpdatedAt,
+        places,
         members: data.list_members.map((m) => ({
           userId: m.user_id,
           role: m.role as "owner" | "member",
-          name: names.get(m.user_id) || "Medlem",
+          name: byId.get(m.user_id)?.display_name || "Medlem",
+          circleColor: byId.get(m.user_id)?.circle_color ?? null,
+          avatarRing: byId.get(m.user_id)?.avatar_ring ?? null,
         })),
       };
     },
+  });
+}
+
+/** Ändrar namn/beskrivning på en redan skapad lista ("Redigera lista" i alternativ-menyn). */
+export function useUpdateList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, name, description }: { listId: string; name: string; description: string }) => {
+      const { error } = await supabase
+        .from("lists")
+        .update({ name: name.trim(), description: description.trim() || null })
+        .eq("id", listId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/** Väljer en bild, laddar upp den och sätter den som listans omslag. Returnerar false om man avbröt. */
+export function useChangeListCover() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, source }: { listId: string; source: PhotoSource }): Promise<boolean> => {
+      const photo = await pickSquarePhoto(source);
+      if (!photo) return false;
+
+      const uri = await preparePhoto(photo, 1024);
+      const bytes = await (await fetch(uri)).arrayBuffer();
+      const path = `${listId}/cover-${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from(COVER_BUCKET).upload(path, bytes, { contentType: "image/jpeg" });
+      if (uploadError) throw uploadError;
+
+      const { data: pub } = supabase.storage.from(COVER_BUCKET).getPublicUrl(path);
+      const { data: previous } = await supabase.from("lists").select("cover_image_url").eq("id", listId).maybeSingle();
+      const { error } = await supabase.from("lists").update({ cover_image_url: pub.publicUrl }).eq("id", listId);
+      if (error) throw error;
+
+      // Rensa den gamla bilden ur bucketen om det fanns en (samma bucket-egna sökväg, inte en
+      // adress utanför den, annars skulle vi kunna radera någon annans fil av misstag)
+      const previousPath = previous?.cover_image_url?.includes(`/${COVER_BUCKET}/`)
+        ? previous.cover_image_url.split(`/${COVER_BUCKET}/`)[1]
+        : null;
+      if (previousPath) await supabase.storage.from(COVER_BUCKET).remove([previousPath]);
+
+      return true;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/** Skapar en ny lista med samma namn (+ "(kopia)"), beskrivning och platser. Inte medlemmarna —
+ * en kopia är ett nytt eget rum, inte samma delade grupp. */
+export function useDuplicateList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (list: ListDetail): Promise<string> => {
+      const userId = await requireUserId();
+      const { data: created, error } = await supabase
+        .from("lists")
+        .insert({ name: `${list.name} (kopia)`, description: list.description, owner_id: userId, cover_image_url: list.coverImageUrl })
+        .select("id")
+        .single();
+      if (error) throw error;
+
+      if (list.places.length > 0) {
+        const { error: placesError } = await supabase.from("list_places").insert(
+          list.places.map((p) => ({ list_id: created.id, place_id: p.place.id, added_by: userId }))
+        );
+        if (placesError) throw placesError;
+      }
+      return created.id;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });
 }
 
