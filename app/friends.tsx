@@ -12,9 +12,10 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Activi
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { ArrowLeft, Search, UserPlus, Check, X, Users } from "lucide-react-native";
+import { ArrowLeft, Search, UserPlus, Check, X, Users, ChevronRight } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
+import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { useProfile } from "@/hooks/useProfile";
 import {
   useSearchUsers, useFriendships, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
@@ -79,11 +80,11 @@ export default function FriendsScreen() {
         </View>
 
         {!profile?.username && (
-          <TouchableOpacity style={s.usernameHint} onPress={() => router.push("/settings/account")}>
+          <PressableScale style={s.usernameHint} scale={0.98} onPress={() => router.push("/settings/account")}>
             <Text style={s.usernameHintText}>
               Du har inget användarnamn än — andra kan inte hitta dig förrän du väljer ett i Konto.
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         )}
 
         {searching ? (
@@ -171,7 +172,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
 
       {friend.friendStatus === "none" && (
         <RowButton
-          icon={<UserPlus size={16} color={"#0B0B0D"} strokeWidth={2.2} />}
+          icon={<UserPlus size={16} color={GOLD} strokeWidth={2.2} />}
           gold
           disabled={busy}
           onPress={(e) => {
@@ -200,7 +201,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
             onPress={(e) => { e.stopPropagation(); remove.mutate(friend.friendshipId!); }}
           />
           <RowButton
-            icon={<Check size={16} color={"#0B0B0D"} strokeWidth={2.4} />}
+            icon={<Check size={16} color={GOLD} strokeWidth={2.4} />}
             gold
             disabled={busy}
             onPress={(e) => {
@@ -213,7 +214,10 @@ function FriendRow({ friend }: { friend: FriendResult }) {
       )}
 
       {friend.friendStatus === "accepted" && (
-        <Text style={s.friendsLabel}>Vänner</Text>
+        <View style={s.friendsLabelRow}>
+          <Text style={s.friendsLabel}>Vänner</Text>
+          <ChevronRight size={16} color={GOLD_LT} strokeWidth={2} />
+        </View>
       )}
     </PressableScale>
   );
@@ -221,14 +225,17 @@ function FriendRow({ friend }: { friend: FriendResult }) {
 
 function RowButton({ icon, gold, disabled, onPress }: { icon: React.ReactNode; gold?: boolean; disabled?: boolean; onPress: (e: any) => void }) {
   return (
-    <PressableScale
-      style={[s.rowBtn, gold ? s.rowBtnGold : s.rowBtnGhost]}
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={6}
-    >
-      {icon}
-    </PressableScale>
+    <View style={{ width: 34, height: 34 }}>
+      {gold && <RadialGlow size={34} color={GOLD} opacity={0.5} radiusRatio={1.3} />}
+      <PressableScale
+        style={[s.rowBtn, gold ? s.rowBtnGold : s.rowBtnGhost]}
+        onPress={onPress}
+        disabled={disabled}
+        hitSlop={6}
+      >
+        {icon}
+      </PressableScale>
+    </View>
   );
 }
 
@@ -255,8 +262,11 @@ const s = StyleSheet.create({
   },
   usernameHintText: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: GOLD_LT },
 
-  section: { marginTop: 28, paddingHorizontal: 16 },
-  sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG },
+  // Mindre yta ner mot sökfältet ovanför (var 28, kändes för stort både för "X resultat" och
+  // för "1 vän" när listan är kort)
+  section: { marginTop: 16, paddingHorizontal: 16 },
+  // Playfair bort — bara för personnamn i appen numera, sektionsrubriker delar Montserrat
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: FG },
   resultCount: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED, marginTop: 4 },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, lineHeight: 21, marginTop: 10 },
   emptyState: { alignItems: "center", gap: 10, marginTop: 24, paddingHorizontal: 10 },
@@ -265,12 +275,14 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 12,
     padding: 12, borderRadius: 14,
     backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    overflow: "hidden", // rymmer Lägg till vän-knappens glöd (RadialGlow) inom kortets rundade form
   },
   rowName: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 1 },
 
   rowBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  rowBtnGold: { backgroundColor: GOLD },
+  // Ytterkanten i guld i stället för en helt guldfylld knapp, plus en glöd bakom (se RowButton)
+  rowBtnGold: { backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1.5, borderColor: GOLD },
   rowBtnGhost: { backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   cancelBtn: {
     height: 34, paddingHorizontal: 14, borderRadius: 17,
@@ -278,5 +290,7 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
   },
   cancelBtnText: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
+  // "Vänner" + en pil, så det syns att raden går att trycka på (i stället för text ensam mot högerkanten)
+  friendsLabelRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   friendsLabel: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD_LT },
 });
