@@ -119,7 +119,10 @@ export default function FriendProfileScreen() {
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
+      >
         <View style={s.hero}>
           <Avatar size={92} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
           <Text style={[s.name, { color: heroText }]}>{who}</Text>
@@ -233,6 +236,7 @@ function LockedContent({
   return (
     <View style={s.lockedWrap}>
       {/* Skelettet: samma form som den riktiga statistiken, men aldrig påhittade siffror */}
+      <View style={{ flex: 1 }}>
       <View style={s.statsRow}>
         <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={60} h={10} /></View>
         <View style={s.statTile}><SkelBar w={30} h={22} /><SkelBar w={70} h={10} /></View>
@@ -246,6 +250,8 @@ function LockedContent({
             </View>
           ))}
         </View>
+      </View>
+
       </View>
 
       <BlurView intensity={38} tint="dark" style={StyleSheet.absoluteFill} />
@@ -329,9 +335,9 @@ const s = StyleSheet.create({
   activityText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13.5, color: FG, lineHeight: 18 },
   activityDate: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
 
-  lockedWrap: { marginTop: 6 },
+  lockedWrap: { flex: 1, marginTop: 6 },
   lockedCard: {
-    position: "absolute", left: 16, right: 16, top: "50%", transform: [{ translateY: -60 }],
+    position: "absolute", left: 16, right: 16, top: "45%", transform: [{ translateY: -60 }],
     padding: 16, borderRadius: 18, gap: 12, alignItems: "stretch",
     backgroundColor: "rgba(26,26,29,0.75)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
   },
