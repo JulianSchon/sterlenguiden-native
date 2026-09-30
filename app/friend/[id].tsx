@@ -55,31 +55,17 @@ function SkelBar({ w, h }: { w: number; h: number }) {
   return <View style={{ width: w, height: h, borderRadius: h / 2, backgroundColor: "rgba(255,255,255,0.10)" }} />;
 }
 
-/** Besök/Favoriter-kolumnen i identitetsboxen — grå stapel i stället för siffra innan ni är vänner. */
-function IdentityStat({ value, label }: { value: number | null; label: string }) {
+/** Streak/Besök/Favoriter-kolumnen i identitetsboxen: etikett ovanför, ifylld symbol + siffra i en
+ * rad under — samma mönster för alla tre (streak-lågan är bara en annan "ikon"). Grå stapel i
+ * stället för siffra innan ni är vänner; symbolen är ren dekoration och visas alltid. */
+function IdentityStat({ icon, value, label }: { icon: React.ReactNode; value: number | null; label: string }) {
   return (
     <View style={s.identityCol}>
-      {value === null ? <SkelBar w={26} h={20} /> : <Text style={s.identityValue}>{value}</Text>}
       <Text style={s.identityLabel}>{label}</Text>
-    </View>
-  );
-}
-
-/** Streak-kolumnen — exakt samma eld (Skia, kompakt) som veckoraden och siffran på Mitt Österlen,
- * bara i miniatyr. Lågan själv är ren dekoration (ingen persondata) och animeras alltid; bara
- * siffran ovanpå döljs innan ni är vänner. */
-function StreakColumn({ value }: { value: number | null }) {
-  return (
-    <View style={s.identityCol}>
-      <View style={s.streakFlame}>
-        <StreakFlame compact size={32} />
-        {value !== null && (
-          <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]} pointerEvents="none">
-            <Text style={s.streakFlameNumber}>{value}</Text>
-          </View>
-        )}
+      <View style={s.identityRow}>
+        {icon}
+        {value === null ? <SkelBar w={20} h={14} /> : <Text style={s.identityValue}>{value}</Text>}
       </View>
-      <Text style={s.identityLabel}>Streak</Text>
     </View>
   );
 }
@@ -130,20 +116,20 @@ export default function FriendProfileScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       {/* Sticky igen — okomplicerat nu när det inte längre finns någon foto/toning-bakgrund att
           krocka med. Ligger utanför scrollytan med egen solid bakgrund, samma mönster som
-          Mitt Österlen och Vänner. */}
-      <View style={[s.header, { paddingTop: insets.top, backgroundColor: BG }]}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
-          <ArrowLeft size={24} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle} numberOfLines={1}>{who}</Text>
-        {isFriend ? (
-          <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-            <UserMinus size={24} color="#B33939" strokeWidth={2} />
+          Mitt Österlen och Vänner — namnet vänsterställt och i versaler precis som "VÄNNER"/
+          "MITT ÖSTERLEN", i stället för centrerat. */}
+      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-        ) : (
-          // Osynlig platshållare i samma storlek, så namnet ändå hamnar mitt i raden
-          <View style={[s.headerBtn, { opacity: 0 }]} pointerEvents="none" />
-        )}
+          <Text style={s.headerTitle} numberOfLines={1}>{who}</Text>
+          {isFriend && (
+            <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
+              <UserMinus size={24} color="#B33939" strokeWidth={2} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -169,19 +155,28 @@ export default function FriendProfileScreen() {
                 </View>
               )}
             </View>
-            {friend?.memberSince && (
-              <Text style={s.since}>Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}</Text>
-            )}
-
             <View style={s.identityDivider} />
 
-            {/* Streak/besök/favoriter — bara riktiga siffror när ni är vänner, annars platshållare */}
+            {/* Streak/besök/favoriter — bara riktiga siffror när ni är vänner, annars platshållare.
+                Etikett ovanför, ifylld symbol + siffra i en rad under, precis som referensbilden. */}
             <View style={s.identityStats}>
-              <StreakColumn value={isFriend && streak ? streak.current : null} />
+              <IdentityStat
+                icon={<StreakFlame compact size={20} />}
+                value={isFriend && streak ? streak.current : null}
+                label="Streak"
+              />
               <View style={s.identityColDivider} />
-              <IdentityStat value={isFriend && stats ? stats.visitsTotal : null} label="Besök" />
+              <IdentityStat
+                icon={<MapPin size={16} color={GOLD} fill={GOLD} strokeWidth={1.5} />}
+                value={isFriend && stats ? stats.visitsTotal : null}
+                label="Besök"
+              />
               <View style={s.identityColDivider} />
-              <IdentityStat value={isFriend && stats ? stats.favoritesTotal : null} label="Favoriter" />
+              <IdentityStat
+                icon={<Heart size={16} color={GOLD} fill={GOLD} strokeWidth={1.5} />}
+                value={isFriend && stats ? stats.favoritesTotal : null}
+                label="Favoriter"
+              />
             </View>
           </View>
         </View>
@@ -205,6 +200,13 @@ export default function FriendProfileScreen() {
             accept.mutate(friend.friendshipId!);
           }} />
         ) : null}
+
+        {/* Flyttad hit från under namnet — offentlig info oavsett vänskapsstatus */}
+        {friend?.memberSince && (
+          <Text style={s.memberSince}>
+            Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}
+          </Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -387,10 +389,8 @@ function LockedContent({
 }
 
 const s = StyleSheet.create({
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingBottom: 12,
-  },
+  // Samma mönster som Vänner/Mitt Österlen: fast höjd, vänsterställd rubrik i versaler
+  header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   // Samma storlek, form och färg som tillbaka-knappen på Vänner-sidan och resten av appen
   headerBtn: {
     width: 48, height: 48, borderRadius: 24,
@@ -398,9 +398,14 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { flex: 1, marginHorizontal: 8, textAlign: "center", fontFamily: "Montserrat_700Bold", fontSize: 17, color: FG },
+  headerTitle: {
+    flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG,
+    textTransform: "uppercase",
+  },
 
-  hero: { alignItems: "center", paddingTop: 24 },
+  // Mer luft under den sticky headern än förut — glödens mjuka oskärpa (se GlowCanvas) sträcker
+  // sig långt över avataren, och satt för nära headern skars den av mot dess raka kant.
+  hero: { alignItems: "center", paddingTop: 56 },
 
   // Kortet identitetsboxen ligger på — profilbilden (92px, zIndex 2) sticker upp genom det övre
   // hålet (negativ marginTop = halva avatarstorleken), samma överlapp som referensbilden.
@@ -415,24 +420,23 @@ const s = StyleSheet.create({
   // Samma typsnitt som "Senaste aktivitet" och de andra sektionsrubrikerna (s.sectionTitle),
   // fast utan versaler/spårning — det är ett namn, inte en rubrik.
   name: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.2, color: "#FFFFFF" },
+  // Ersätter den gamla "Medlem sedan"-raden här — nål + ort i stället, datumet flyttat längst ner på sidan
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
-  since: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 8 },
 
   identityDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginTop: 18 },
-  identityStats: { flexDirection: "row", alignItems: "flex-end", alignSelf: "stretch", marginTop: 16 },
-  identityCol: { flex: 1, alignItems: "center", gap: 4 },
-  identityColDivider: { width: StyleSheet.hairlineWidth, height: 32, backgroundColor: "rgba(255,255,255,0.12)" },
-  identityValue: { fontFamily: "Inter_700Bold", fontSize: 20, color: FG },
+  identityStats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginTop: 16 },
+  identityCol: { flex: 1, alignItems: "center", gap: 6 },
+  identityColDivider: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: "rgba(255,255,255,0.12)" },
   identityLabel: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED },
-  streakFlame: { width: 32, height: 43, alignItems: "center", justifyContent: "center" },
-  streakFlameNumber: {
-    fontFamily: "Inter_700Bold", fontSize: 13, color: "#FFFFFF", textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
-  },
+  // Ifylld symbol till vänster, siffra till höger — samma rad för Streak (lågan), Besök och Favoriter
+  identityRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  identityValue: { fontFamily: "Inter_700Bold", fontSize: 15, color: FG },
 
   errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
+  // "Medlem sedan ..." längst ner på sidan, efter allt annat innehåll
+  memberSince: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, textAlign: "center", marginTop: 32, paddingHorizontal: 30 },
 
   section: { marginTop: 26, paddingHorizontal: 16 },
   // Playfair är bara för namn (personnamn) — sidans/hub-rubriker (Mitt Österlen, Vänner, Förmåner)
