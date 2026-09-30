@@ -26,13 +26,12 @@ import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import {
-  ArrowLeft, MapPin, Heart, Sparkles, Ticket, Compass, UserMinus, UserPlus, Check, X,
+  ArrowLeft, MapPin, Heart, Sparkles, Ticket, Compass, Flame, UserMinus, UserPlus, Check, X,
 } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
-import { StreakFlame } from "@/components/streak/StreakFlame";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
   type FriendActivity, type FriendResult, type FriendStats,
@@ -144,10 +143,13 @@ export default function FriendProfileScreen() {
         <View style={s.hero}>
           <View>
             <Avatar size={92} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
-            {/* Elden ersätter en egen "streak"-ruta: syns bara från 1 dag, en 0 är ingen streak värd att visa */}
+            {/* Elden ersätter en egen "streak"-ruta: syns bara från 1 dag, en 0 är ingen streak värd att visa.
+                Vid 40px är den levande, riktade elden (StreakFlame) för liten och för svajig för att läsas —
+                siffran hamnade bakom lågan och rörde sig med den. En liten, stilla pill med ikon + siffra
+                bredvid varandra går att läsa direkt i stället. */}
             {!!streak && streak.current >= 1 && (
               <View style={s.streakBadge} pointerEvents="none">
-                <StreakFlame compact size={40} />
+                <Flame size={13} color={GOLD} fill={GOLD} strokeWidth={1.5} />
                 <Text style={s.streakBadgeNumber}>{streak.current}</Text>
               </View>
             )}
@@ -273,7 +275,7 @@ function TrophyRow({ trophies }: { trophies: FriendStats["trophies"] }) {
 }
 
 function ActivityRow({ who, activity, bordered }: { who: string; activity: FriendActivity; bordered: boolean }) {
-  const date = format(new Date(activity.happenedAt), "d MMM", { locale: sv });
+  const date = format(new Date(activity.happenedAt), "HH:mm, d MMM", { locale: sv });
   const text =
     activity.kind === "visit" ? `${who} besökte ${activity.label}` :
     activity.kind === "favorite" ? `${who} lade till ${activity.label} i favoriter` :
@@ -402,13 +404,12 @@ const s = StyleSheet.create({
 
   hero: { alignItems: "center", paddingTop: 156 },
   streakBadge: {
-    position: "absolute", right: -6, bottom: -8, width: 40, height: 40,
-    alignItems: "center", justifyContent: "center",
+    position: "absolute", right: -8, bottom: -6,
+    flexDirection: "row", alignItems: "center", gap: 3,
+    paddingHorizontal: 8, height: 24, borderRadius: 12,
+    backgroundColor: "#1A1A1D", borderWidth: 1.5, borderColor: BG,
   },
-  streakBadgeNumber: {
-    position: "absolute", fontFamily: "Inter_700Bold", fontSize: 14, color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
-  },
+  streakBadgeNumber: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#FFFFFF" },
   name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: "#FFFFFF", marginTop: 14 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
