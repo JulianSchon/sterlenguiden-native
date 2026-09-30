@@ -101,18 +101,27 @@ export default function FriendProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      {/* Gömd ovanför skärmen, i gradientens toppfärg: drar man ner förbi toppen (iOS-studsen)
-          glider hela scrollytan tillfälligt nedåt och blottar det tomrum som annars visat sidans
-          svarta botten. Den här lappen ligger bakom scrollytan och kikar fram i studsen i stället. */}
-      <View style={{ position: "absolute", top: -200, left: 0, right: 0, height: 200, backgroundColor: heroFrom }} pointerEvents="none" />
+      {/* Fast header, samma mönster som Mitt Österlen och Vänner: ligger UTANFÖR scrollytan med egen
+          solid bakgrund, så den alltid täcker toppen av skärmen — även under iOS "gummibandet" när
+          man drar ner förbi kanten. Det var det som saknades när headern låg i scrollflödet: det
+          tomrum studsen tillfälligt blottar ovanför innehållet visade sidans svarta botten rakt av. */}
+      <View style={[s.header, { paddingTop: insets.top, backgroundColor: BG }]}>
+        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <ArrowLeft size={24} color={FG} strokeWidth={2} />
+        </TouchableOpacity>
+        {isFriend && (
+          <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
+            <UserMinus size={24} color="#B33939" strokeWidth={2} />
+          </TouchableOpacity>
+        )}
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
-        {/* Bakgrund + header + hero i ett och samma block, i scrollflödet — rullar bort med resten av
-            sidan i stället för att ligga fast bakom den. Kortets egna två toner, med en lång, mjuk
-            toning ner mot sidans botten. */}
+        {/* Bakgrund + hero i ett och samma block, i scrollflödet — rullar bort med resten av sidan.
+            Kortets egna två toner, med en lång, mjuk toning ner mot sidans botten. */}
         <View style={{ height: HERO_H }}>
           <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
             <Defs>
@@ -132,17 +141,6 @@ export default function FriendProfileScreen() {
             <SvgRect width="100%" height="100%" fill="url(#heroBase)" />
             <SvgRect width="100%" height="100%" fill="url(#heroFade)" />
           </Svg>
-
-          <View style={[s.header, { paddingTop: insets.top }]}>
-            <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
-              <ArrowLeft size={24} color={FG} strokeWidth={2} />
-            </TouchableOpacity>
-            {isFriend && (
-              <TouchableOpacity style={s.headerBtn} onPress={confirmRemove} hitSlop={8}>
-                <UserMinus size={24} color="#B33939" strokeWidth={2} />
-              </TouchableOpacity>
-            )}
-          </View>
 
           <View style={s.hero}>
           <View>
