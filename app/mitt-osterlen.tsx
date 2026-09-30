@@ -65,11 +65,11 @@ export default function MittOsterlenScreen() {
           {/* Fast storlek (elden själv är alltid 215×238) i stället för auto — annars är
               flameGlowAnchors procentbaserade left/top odefinierade mot en förälder utan egen
               höjd, vilket var därför glöden inte satt centrerad. */}
-          <View style={{ width: 215, height: 238, alignItems: "center" }}>
+          <View style={{ width: 210, height: 238, alignItems: "center" }}>
             {/* Varm glöd bakom elden plus en mjuk skugga vid dess fot, så den känns som att den
                 svävar en liten bit ovanför bakgrunden i stället för att ligga platt mot den. */}
             <View style={s.flameGlowAnchor} pointerEvents="none">
-              <RadialGlow size={230} color="#FF9A1F" opacity={0.38} radiusRatio={0.8} />
+              <RadialGlow size={210} color="#FF9A1F" opacity={0.38} radiusRatio={0.67} />
             </View>
             <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
               <Group origin={vec(107.5, 216)} transform={[{ scaleY: 0.22 }]}>
@@ -206,10 +206,11 @@ const s = StyleSheet.create({
   // stor den vill utan att någonsin synas krocka med headern: allt ovanför klipps helt enkelt bort,
   // och eftersom headern redan är samma solida bakgrundsfärg syns klippningen aldrig som en kant.
   hero: { alignItems: "center", paddingTop: 20, overflow: "hidden" },
-  // 260×260-ankare centrerat i pixlar (inte %) över eldens 215×238-yta — samma knep som Vänner-
-  // plattans gradientring, RadialGlow förutsätter en kvadratisk förälder och elden är inte
-  // kvadratisk. Procent gav en odefinierad position mot en förälder utan egen fast höjd.
-  flameGlowAnchor: { position: "absolute", left: (215 - 230) / 2, top: (238 - 230) / 2, width: 230, height: 230 },
+  // Ankaret måste vara exakt lika stort som RadialGlows egen size-prop (210) — annars centrerar
+  // RadialGlows inbyggda -pad-matte fel, samma bugg som gjorde att glöden inte satt centrerad
+  // förut. Samma knep som Vänner-plattans gradientring: RadialGlow förutsätter en kvadratisk
+  // förälder och elden är inte kvadratisk, så vi ger den ett eget kvadratiskt ankare i stället.
+  flameGlowAnchor: { position: "absolute", left: (210 - 210) / 2, top: (238 - 210) / 2, width: 210, height: 210 },
   // Siffran sitter över eldens nedre del, som på Whoop
   numberWrap: { marginTop: -69, width: 340, height: 100, alignItems: "center", justifyContent: "center" },
   scrim: { position: "absolute", left: 0, top: -60, width: 340, height: 220 },
