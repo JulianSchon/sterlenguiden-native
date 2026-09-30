@@ -11,7 +11,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
-import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
+import { Sheet, PrimaryButton, SecondaryButton, useSheetInput } from "@/components/Sheet";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -146,7 +146,7 @@ export function CreateListSheet({
               </View>
             </ScrollView>
           )}
-          <PrimaryButton label="Klar" onPress={() => setStep("form")} />
+          <SecondaryButton label="Klar" onPress={() => setStep("form")} />
         </Reanimated.View>
       )}
     </Sheet>

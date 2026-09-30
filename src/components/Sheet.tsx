@@ -86,6 +86,17 @@ export function PrimaryButton({
   );
 }
 
+/** Ghost-knapp för ett sekundärt steg (t.ex. "Klar" på ett delval, inte huvudhandlingen i
+ * popupen) — helt guldfylld såg fel ut för något som inte är huvudknappen. */
+export function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const s = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity style={s.secondaryButton} activeOpacity={0.8} onPress={onPress}>
+      <Text style={s.secondaryButtonText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 /** Textfältens stil i paneler. fontSize 16 hindrar iOS från att zooma in vid fokus. */
 export function useSheetInput() {
   const { colors } = useTheme();
@@ -120,4 +131,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: c.text },
   button: { backgroundColor: c.gold, borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 8 },
   buttonText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: c.onGold },
+  secondaryButton: {
+    backgroundColor: c.raised, borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 8,
+    borderWidth: 1, borderColor: c.borderStrong,
+  },
+  secondaryButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: c.text },
 });
