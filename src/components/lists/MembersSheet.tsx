@@ -43,13 +43,14 @@ export function MembersSheet({
 
   function openMember(member: ListMember) {
     const isMe = member.userId === user?.id;
+    // Sig själv ska inte gå att trycka på här — ledde tidigare till vänprofilen (fel sida, man
+    // är ju inte sin egen vän) eller studsade runt mellan flikar. Egen rad gör nu ingenting.
+    if (isMe) return;
     const viewProfile = () => {
       onClose();
-      // Sig själv öppnar man i sin egen Profil-flik, inte vänprofilen (som visar "Lägg till vän")
-      if (isMe) router.push("/(tabs)/profile" as any);
-      else router.push({ pathname: "/friend/[id]", params: { id: member.userId } });
+      router.push({ pathname: "/friend/[id]", params: { id: member.userId } });
     };
-    if (isOwner && !isMe) {
+    if (isOwner) {
       Alert.alert(member.name, undefined, [
         { text: "Visa profil", onPress: viewProfile },
         {
@@ -82,7 +83,7 @@ export function MembersSheet({
               </View>
               <Text style={[s.memberName, m.pending && { color: MUTED }]} numberOfLines={1}>{m.name}</Text>
               {m.pending && <Text style={s.pendingPill}>Väntar</Text>}
-              <ChevronRight size={18} color={MUTED} strokeWidth={2} />
+              {m.userId !== user?.id && <ChevronRight size={18} color={MUTED} strokeWidth={2} />}
             </PressableScale>
           ))}
         </View>
