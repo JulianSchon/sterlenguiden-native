@@ -57,6 +57,9 @@ export default function RootLayout() {
           router.replace("/(auth)/login");
         }
       } else if (event === "SIGNED_OUT") {
+        // Utan detta visades förra kontots cachade data (favoriter, listor, profil...) tills
+        // en manuell refetch hann hämta det nya kontots — queries är inte user-id-namngivna.
+        queryClient.clear();
         router.replace("/(auth)/login");
       }
     });
