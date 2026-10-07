@@ -35,7 +35,7 @@ export function SaveToListSheet({
                   add.mutate({ listId: l.id, placeId });
                 }}
               >
-                <ListCover images={l.images} size={52} radius={10} />
+                <ListCover coverImageUrl={l.coverImageUrl} images={l.images} size={52} radius={10} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.name} numberOfLines={1}>{l.name}</Text>
                   <Text style={s.sub}>{l.placeIds.length} platser</Text>

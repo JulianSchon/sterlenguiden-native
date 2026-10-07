@@ -14,8 +14,8 @@
  */
 import { useState } from "react";
 import {
-  View, Text, Image, TouchableOpacity, Alert, Share, ActivityIndicator, StyleSheet,
-  useWindowDimensions,
+  View, Text, Image, TouchableOpacity, Alert, ActionSheetIOS, Platform, Share, ActivityIndicator, StyleSheet,
+  Linking, useWindowDimensions,
 } from "react-native";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,13 +23,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical } from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useDuplicateList,
-  useReorderListPlaces, type ListPlace,
+  useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useResetListCover,
+  useDuplicateList, useReorderListPlaces, type ListPlace,
 } from "@/hooks/useLists";
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
-import { usePhotoMenu } from "@/hooks/usePhotoMenu";
 import { Avatar } from "@/components/profile/Avatar";
 import { ListCover } from "@/components/lists/ListCover";
 import { AddPlaceSheet } from "@/components/lists/AddPlaceSheet";
@@ -60,6 +59,7 @@ export default function ListDetailScreen() {
   const removeMember = useRemoveMember();
   const deleteList = useDeleteList();
   const changeCover = useChangeListCover();
+  const resetCover = useResetListCover();
   const duplicateList = useDuplicateList();
   const reorderPlaces = useReorderListPlaces();
 
@@ -71,10 +71,48 @@ export default function ListDetailScreen() {
   const isOwner = !!list && list.ownerId === user?.id;
   const offerPlaceIds = new Set(offers.map((o) => o.place_id));
 
-  const openCoverMenu = usePhotoMenu(
-    (source) => list ? changeCover.mutateAsync({ listId: list.id, source }) : Promise.resolve(),
-    "Byt omslagsbild"
-  );
+  // Egen meny i stället för delade usePhotoMenu — den har bara Välj bild/Ta foto, men en lista
+  // behöver ett tredje alternativ ("Återställ") som inte betyder något för de andra ställena
+  // usePhotoMenu används (konto-avatar, passkortet): det finns inget "automatiskt collage" att
+  // gå tillbaka till där.
+  async function runCoverPick(source: "library" | "camera") {
+    if (!list) return;
+    try {
+      await changeCover.mutateAsync({ listId: list.id, source });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "";
+      if (message === "camera_denied") {
+        Alert.alert("Kameran är avstängd", "Tillåt kameran för appen i telefonens inställningar för att kunna ta ett foto.", [
+          { text: "Avbryt", style: "cancel" },
+          { text: "Öppna inställningar", onPress: () => Linking.openSettings() },
+        ]);
+      } else {
+        Alert.alert("Något gick fel", __DEV__ && message ? `Det gick inte att byta omslagsbild.\n\n${message}` : "Det gick inte att byta omslagsbild.");
+      }
+    }
+  }
+
+  function openCoverMenu() {
+    if (!list) return;
+    const hasCustomCover = !!list.coverImageUrl;
+    const options = hasCustomCover
+      ? ["Välj bild", "Ta foto", "Återställ collage", "Avbryt"]
+      : ["Välj bild", "Ta foto", "Avbryt"];
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (index) => {
+        if (index === 0) runCoverPick("library");
+        if (index === 1) runCoverPick("camera");
+        if (hasCustomCover && index === 2) resetCover.mutate(list.id);
+      });
+    } else {
+      Alert.alert("Byt omslagsbild", undefined, [
+        { text: "Välj bild", onPress: () => runCoverPick("library") },
+        { text: "Ta foto", onPress: () => runCoverPick("camera") },
+        ...(hasCustomCover ? [{ text: "Återställ collage", onPress: () => resetCover.mutate(list.id) }] : []),
+        { text: "Avbryt", style: "cancel" as const },
+      ]);
+    }
+  }
 
   // Stänga ⋮-menyn och i SAMMA anrop öppna nästa (ActionSheetIOS/Alert/Share, eller ett eget
   // Sheet) frös appen — två modaler som tävlar om att presenteras/stängas samtidigt är ett känt
@@ -152,19 +190,12 @@ export default function ListDetailScreen() {
             <>
               {/* ── Omslag: stor kvadrat med luft runt om (som Spotifys spellista) ── */}
               <View style={{ alignItems: "center", paddingTop: 8 }}>
-                {list.coverImageUrl ? (
-                  <Image
-                    source={{ uri: list.coverImageUrl }}
-                    style={{ width: winW - HERO_MARGIN * 2, height: winW - HERO_MARGIN * 2, borderRadius: 20 }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <ListCover
-                    images={list.places.map((p) => p.place.image_url).filter((u): u is string => !!u).slice(0, 4)}
-                    size={winW - HERO_MARGIN * 2}
-                    radius={20}
-                  />
-                )}
+                <ListCover
+                  coverImageUrl={list.coverImageUrl}
+                  images={list.places.map((p) => p.place.image_url).filter((u): u is string => !!u).slice(0, 4)}
+                  size={winW - HERO_MARGIN * 2}
+                  radius={20}
+                />
               </View>
 
               <View style={{ paddingHorizontal: 16 }}>

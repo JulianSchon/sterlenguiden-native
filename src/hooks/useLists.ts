@@ -191,6 +191,14 @@ export function useUpdateList() {
   });
 }
 
+/** Rensar den gamla omslagsbilden ur bucketen om det fanns en (samma bucket-egna sökväg, inte en
+ * adress utanför den, annars skulle vi kunna radera någon annans fil av misstag). Delad av både
+ * byte och återställning — båda ersätter en ev. tidigare uppladdad bild. */
+async function deletePreviousCoverIfOwned(previousUrl: string | null | undefined) {
+  const path = previousUrl?.includes(`/${COVER_BUCKET}/`) ? previousUrl.split(`/${COVER_BUCKET}/`)[1] : null;
+  if (path) await supabase.storage.from(COVER_BUCKET).remove([path]);
+}
+
 /** Väljer en bild, laddar upp den och sätter den som listans omslag. Returnerar false om man avbröt. */
 export function useChangeListCover() {
   const queryClient = useQueryClient();
@@ -210,14 +218,23 @@ export function useChangeListCover() {
       const { error } = await supabase.from("lists").update({ cover_image_url: pub.publicUrl }).eq("id", listId);
       if (error) throw error;
 
-      // Rensa den gamla bilden ur bucketen om det fanns en (samma bucket-egna sökväg, inte en
-      // adress utanför den, annars skulle vi kunna radera någon annans fil av misstag)
-      const previousPath = previous?.cover_image_url?.includes(`/${COVER_BUCKET}/`)
-        ? previous.cover_image_url.split(`/${COVER_BUCKET}/`)[1]
-        : null;
-      if (previousPath) await supabase.storage.from(COVER_BUCKET).remove([previousPath]);
-
+      await deletePreviousCoverIfOwned(previous?.cover_image_url);
       return true;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/** "Återställ" — tar bort en vald omslagsbild och går tillbaka till det automatiska collaget av
+ * listans platsbilder (cover_image_url = null). */
+export function useResetListCover() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (listId: string) => {
+      const { data: previous } = await supabase.from("lists").select("cover_image_url").eq("id", listId).maybeSingle();
+      const { error } = await supabase.from("lists").update({ cover_image_url: null }).eq("id", listId);
+      if (error) throw error;
+      await deletePreviousCoverIfOwned(previous?.cover_image_url);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });

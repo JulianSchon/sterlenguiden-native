@@ -48,7 +48,7 @@ export function ListsSection() {
                 openList(l.id);
               }}
             >
-              <ListCover images={l.images} size={140} />
+              <ListCover coverImageUrl={l.coverImageUrl} images={l.images} size={140} />
               <Text style={s.name} numberOfLines={1}>{l.name}</Text>
               <Text style={s.sub}>
                 {l.placeIds.length} platser{l.memberCount > 1 ? ` · ${l.memberCount} medlemmar` : ""}
