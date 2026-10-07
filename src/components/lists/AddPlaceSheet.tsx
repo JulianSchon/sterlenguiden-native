@@ -32,8 +32,9 @@ import {
   ActivityIndicator, StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, {
-  FadeIn, FadeInUp, FadeOutDown, cancelAnimation, runOnJS, useAnimatedScrollHandler, useAnimatedStyle,
-  useReducedMotion, useSharedValue, withSequence, withSpring, withTiming, Easing,
+  FadeIn, FadeInUp, FadeOutDown, cancelAnimation, runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef,
+  useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withSpring,
+  withTiming, Easing,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -46,7 +47,7 @@ import { Check, ChevronLeft, ChevronRight, MapPin, Plus, Search, X } from "lucid
 import { usePlaces, firstImageUrl, getTierScore, type Place } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
-import { useAddPlaceToList } from "@/hooks/useLists";
+import { useAddPlaceToList, useRemovePlaceFromListByPlace } from "@/hooks/useLists";
 import { distanceMeters } from "@/lib/checkin";
 import { CATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
 import { PressableScale } from "@/components/PressableScale";
@@ -110,6 +111,7 @@ export function AddPlaceSheet({
   const { data: favorites = [] } = useFavorites();
   const { data: visits = [] } = useVisits();
   const addPlace = useAddPlaceToList();
+  const removePlace = useRemovePlaceFromListByPlace();
 
   const [mounted, setMounted] = useState(visible);
   const [ready, setReady] = useState(false);
@@ -136,7 +138,15 @@ export function AddPlaceSheet({
   const dragOffset = useSharedValue(0);
 
   // ── Sidsvep (kategorisidor) ──
-  const scrollRef = useRef<any>(null);
+  // scrollDrive körs genom en egen withTiming i stället för ScrollView.scrollTo({animated:true}),
+  // vars inbyggda animation blev snabbare ju längre ner man scrollat — kändes som att kastas upp.
+  // Med en egen shared value blir glidet till toppen alltid samma mjuka 340 ms, oavsett avstånd.
+  const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
+  const scrollDrive = useSharedValue(0);
+  useAnimatedReaction(
+    () => scrollDrive.value,
+    (val, prev) => { if (val !== prev) scrollTo(scrollRef, 0, val, false); }
+  );
   const [active, setActive] = useState(0);
   const offsetX = useSharedValue(0);
   const startX = useSharedValue(0);
@@ -242,7 +252,13 @@ export function AddPlaceSheet({
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
 
   // ── Gester: sidsvep (vågrätt) — exakt samma modell som Förmåner-flikens kategorisidor ──
-  const settleScroll = () => { if (scrollY.value > 0.5) scrollRef.current?.scrollTo({ y: 0, animated: true }); };
+  const settleScroll = () => {
+    "worklet";
+    if (scrollY.value > 0.5) {
+      scrollDrive.value = scrollY.value;
+      scrollDrive.value = withTiming(0, { duration: 340, easing: Easing.out(Easing.cubic) });
+    }
+  };
   const arrived = (index: number) => setActive(index);
   const slideTo = (target: number) => {
     if (target < 0 || target >= PAGE_IDS.length) return;
@@ -278,7 +294,7 @@ export function AddPlaceSheet({
           target = Math.min(last, Math.max(0, startIdx + (e.translationX < 0 ? 1 : -1)));
         }
       }
-      if (target !== startIdx) runOnJS(settleScroll)();
+      if (target !== startIdx) settleScroll();
       const pagesAway = Math.max(1, Math.abs(Math.round(-offsetX.value / step) - target));
       offsetX.value = withTiming(-target * step, { duration: 150 + 40 * (pagesAway - 1) }, (done) => {
         if (done) runOnJS(arrived)(target);
@@ -366,19 +382,30 @@ export function AddPlaceSheet({
     bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
   }, []);
 
-  const handleAdd = useCallback(async (place: Place) => {
-    if (justAddedRef.current.has(place.id)) return;
-    setJustAdded((prev) => new Set(prev).add(place.id));
+  // Ett andra tryck på en nyss tillagd plats ångrar tillägget i stället för att ignoreras — bocken
+  // går tillbaka till ett guldplus. Optimistiskt åt båda hållen, rullas tillbaka vid fel.
+  const handleToggle = useCallback(async (place: Place) => {
+    const wasAdded = justAddedRef.current.has(place.id);
+    setJustAdded((prev) => {
+      const next = new Set(prev);
+      if (wasAdded) next.delete(place.id); else next.add(place.id);
+      return next;
+    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    showBubble(t("addPlace.added", { name: place.name }));
+    if (!wasAdded) showBubble(t("addPlace.added", { name: place.name }));
     try {
-      await addPlace.mutateAsync({ listId, placeId: place.id });
+      if (wasAdded) await removePlace.mutateAsync({ listId, placeId: place.id });
+      else await addPlace.mutateAsync({ listId, placeId: place.id });
     } catch {
-      setJustAdded((prev) => { const next = new Set(prev); next.delete(place.id); return next; });
+      setJustAdded((prev) => {
+        const next = new Set(prev);
+        if (wasAdded) next.add(place.id); else next.delete(place.id);
+        return next;
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       showBubble(t("addPlace.failed", { name: place.name }), true);
     }
-  }, [listId, t, showBubble, addPlace.mutateAsync]);
+  }, [listId, t, showBubble, addPlace.mutateAsync, removePlace.mutateAsync]);
 
   const savedCount = existingPlaceIds.length;
   const remaining = (places?.length ?? 0) - savedCount;
@@ -463,7 +490,7 @@ export function AddPlaceSheet({
                             visibleCount={searchVisible}
                             onShowMore={() => setSearchVisible((v) => Math.min(v + PAGE_SIZE, searchMatches.length))}
                             justAdded={justAdded}
-                            onAdd={handleAdd}
+                            onAdd={handleToggle}
                             emptyText={t("addPlace.noMatches")}
                           />
                         </>
@@ -491,14 +518,14 @@ export function AddPlaceSheet({
                                   >
                                     {Math.abs(i - active) <= 1 ? (
                                       id === "home" ? (
-                                        <HomePage data={homeData} justAdded={justAdded} onAdd={handleAdd} />
+                                        <HomePage data={homeData} justAdded={justAdded} onAdd={handleToggle} />
                                       ) : (
                                         <PlaceRows
                                           places={categoryMatches.get(id) ?? []}
                                           visibleCount={catVisible[id] ?? PAGE_SIZE}
                                           onShowMore={() => bumpCatVisible(id)}
                                           justAdded={justAdded}
-                                          onAdd={handleAdd}
+                                          onAdd={handleToggle}
                                           emptyText={t("addPlace.noMatches")}
                                         />
                                       )

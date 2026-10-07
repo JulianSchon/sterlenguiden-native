@@ -362,6 +362,21 @@ export function useAddPlaceToList() {
   });
 }
 
+/** Tar bort en plats ur listan via (listId, placeId) i stället för radens eget id — Lägg till
+ * plats-arket känner bara till placeId, inte list_places-radens id, eftersom useAddPlaceToList
+ * inte returnerar den. Gör det möjligt att trycka en andra gång på en nyss tillagd plats för att
+ * ångra tillägget, inte bara ta bort den från listsidans egen platsrad. */
+export function useRemovePlaceFromListByPlace() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, placeId }: { listId: string; placeId: number }) => {
+      const { error } = await supabase.from("list_places").delete().eq("list_id", listId).eq("place_id", placeId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
 /** Sparar den nya ordningen efter drag & drop — ett RPC-anrop med hela listan av rad-id i
  * önskad ordning, i stället för en uppdatering per rad. */
 export function useReorderListPlaces() {
