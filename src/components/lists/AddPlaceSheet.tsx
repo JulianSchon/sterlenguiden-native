@@ -140,6 +140,10 @@ export function AddPlaceSheet({
   // ── Sidsvep (kategorisidor) ──
   const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
   const [active, setActive] = useState(0);
+  // Rubriken (och prickarna) byter namn DIREKT när man släpper/trycker pilen — `active` själv
+  // uppdateras först när sidglidningen är klar (den styr fönstret för vad som får ha innehåll
+  // monterat, se nedan), vilket annars visade förra kategorins namn kvar hela glidningen igenom.
+  const [headerIndex, setHeaderIndex] = useState(0);
   const offsetX = useSharedValue(0);
   const startX = useSharedValue(0);
   const fromEdge = useSharedValue(false);
@@ -177,6 +181,7 @@ export function AddPlaceSheet({
     resetTimer.current = setTimeout(() => {
       setQuery("");
       setActive(0);
+      setHeaderIndex(0);
       offsetX.value = 0;
       setHeights([]);
       setCatVisible(Object.fromEntries(CATEGORIES.map((c) => [c.id, PAGE_SIZE])) as Record<CategoryId, number>);
@@ -256,6 +261,7 @@ export function AddPlaceSheet({
   const slideTo = (target: number) => {
     if (target < 0 || target >= PAGE_IDS.length) return;
     settleScroll();
+    setHeaderIndex(target);
     offsetX.value = withTiming(-target * step, { duration: 220 }, (done) => {
       if (done) runOnJS(arrived)(target);
     });
@@ -288,6 +294,7 @@ export function AddPlaceSheet({
         }
       }
       if (target !== startIdx) settleScroll();
+      runOnJS(setHeaderIndex)(target);
       const pagesAway = Math.max(1, Math.abs(Math.round(-offsetX.value / step) - target));
       offsetX.value = withTiming(-target * step, { duration: 150 + 40 * (pagesAway - 1) }, (done) => {
         if (done) runOnJS(arrived)(target);
@@ -489,7 +496,7 @@ export function AddPlaceSheet({
                         </>
                       ) : (
                         <>
-                          <CategoryHeader index={active} labels={pageLabels} onStep={(dir) => slideTo(active + dir)} />
+                          <CategoryHeader index={headerIndex} labels={pageLabels} onStep={(dir) => slideTo(headerIndex + dir)} />
                           <GestureDetector gesture={catSwipe}>
                             <Reanimated.View style={[{ height: areaH }, slideStyle]}>
                               {PAGE_IDS.map((id, i) => (
