@@ -256,7 +256,7 @@ export function AddPlaceSheet({
     "worklet";
     if (scrollY.value > 0.5) {
       scrollDrive.value = scrollY.value;
-      scrollDrive.value = withTiming(0, { duration: 340, easing: Easing.out(Easing.cubic) });
+      scrollDrive.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.cubic) });
     }
   };
   const arrived = (index: number) => setActive(index);
@@ -668,12 +668,11 @@ const PlaceCard = memo(function PlaceCard({
 }: { place: Place; note?: string; added: boolean; onAdd: (p: Place) => void }) {
   const [failed, setFailed] = useState(false);
   const uri = imageOf(place);
-  const bounce = useBounce(added, 1.04);
   const add = () => onAdd(place);
 
   return (
     <PressableScale scale={0.97} onPress={add}>
-      <Reanimated.View style={[s.card, bounce]}>
+      <View style={s.card}>
         {uri && !failed ? (
           <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setFailed(true)} />
         ) : (
@@ -693,7 +692,7 @@ const PlaceCard = memo(function PlaceCard({
           {note ? <Text style={s.cardNote} numberOfLines={1}>{note}</Text> : null}
         </View>
         <View style={s.cardPlus}><AddButton added={added} onPress={add} /></View>
-      </Reanimated.View>
+      </View>
     </PressableScale>
   );
 });
@@ -702,13 +701,12 @@ const PlaceCard = memo(function PlaceCard({
 const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place; added: boolean; onAdd: (p: Place) => void }) {
   const [failed, setFailed] = useState(false);
   const uri = imageOf(place);
-  const bounce = useBounce(added, 1.015);
   const meta = [firstCat(place), place.nearest_town].filter(Boolean).join(" · ");
   const add = () => onAdd(place);
 
   return (
     <Pressable onPress={add}>
-      <Reanimated.View style={[s.row, bounce]}>
+      <View style={s.row}>
         {uri && !failed ? (
           <Image source={{ uri }} style={s.rowImg} resizeMode="cover" onError={() => setFailed(true)} />
         ) : (
@@ -719,44 +717,47 @@ const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place;
           {meta ? <Text style={s.rowMeta} numberOfLines={1}>{meta}</Text> : null}
         </View>
         <AddButton added={added} onPress={add} />
-      </Reanimated.View>
+      </View>
     </Pressable>
   );
 });
 
+/** Knappen själv studsar vid tillägg, inte hela raden/kortet — mindre yta som animerar håller
+ * nere risken för att texturer (gradient, skugga) blir suddiga medan de skalas. En snabb dipp
+ * NED följt av samma nästan kritiska fjäder som PressableScale, inte en studs som svänger förbi
+ * och vaggar — det var den gamla underdämpade fjädern (damping:14) som såg risig ut. */
 function AddButton({ added, onPress }: { added: boolean; onPress: () => void }) {
   const { t } = useTranslation();
-  return (
-    <PressableScale
-      scale={0.88}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={added ? t("addPlace.addedLabel") : t("addPlace.add")}
-      style={s.addShadow}
-    >
-      {added ? (
-        <View style={[s.addBtn, { backgroundColor: "rgba(34,197,94,0.95)" }]}>
-          <Check size={16} color="#FFFFFF" strokeWidth={2.8} />
-        </View>
-      ) : (
-        <LinearGradient colors={["#D4B574", "#C5A059"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.addBtn}>
-          <Plus size={16} color="#121212" strokeWidth={2.8} />
-        </LinearGradient>
-      )}
-    </PressableScale>
-  );
-}
-
-/** Kort studs (1 → peak → 1) när en plats precis lagts till. */
-function useBounce(active: boolean, peak: number) {
   const scale = useSharedValue(1);
   const reduceMotion = useReducedMotion();
   useEffect(() => {
-    if (active && !reduceMotion) {
-      scale.value = withSequence(withTiming(peak, { duration: 140 }), withSpring(1, { damping: 14, stiffness: 220 }));
+    if (added && !reduceMotion) {
+      scale.value = withSequence(withTiming(0.8, { duration: 90 }), withSpring(1, { damping: 34, stiffness: 320 }));
     }
-  }, [active]);
-  return useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  }, [added]);
+  const bounce = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  return (
+    <Reanimated.View style={bounce}>
+      <PressableScale
+        scale={0.88}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={added ? t("addPlace.addedLabel") : t("addPlace.add")}
+        style={s.addShadow}
+      >
+        {added ? (
+          <View style={[s.addBtn, { backgroundColor: "rgba(34,197,94,0.95)" }]}>
+            <Check size={16} color="#FFFFFF" strokeWidth={2.8} />
+          </View>
+        ) : (
+          <LinearGradient colors={["#D4B574", "#C5A059"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.addBtn}>
+            <Plus size={16} color="#121212" strokeWidth={2.8} />
+          </LinearGradient>
+        )}
+      </PressableScale>
+    </Reanimated.View>
+  );
 }
 
 const s = StyleSheet.create({
