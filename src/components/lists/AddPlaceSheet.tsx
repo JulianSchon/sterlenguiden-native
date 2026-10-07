@@ -1,37 +1,36 @@
 /**
  * "Lägg till plats" på en lista — ett mörkt ark, något lägre än skärmen (en skymt av listan
  * bakom syns alltid upptill, till skillnad från Kalenderns evenemangsark som går ända upp).
- * Fast huvud (grepp, listnamn, rubrik, sökfält); bara innehållet under scrollar.
+ * Fast huvud (grepp, listnamn, rubrik, sökfält, kategoriväljaren) — bara innehållet UNDER det
+ * scrollar.
  *
  * Hemsidan ("Rekommenderat", sida 0) visar tre små karuseller som ska inspirera: Rekommenderat
- * för listan, Nära dig, Från dina favoriter. Inga kategori-piller längre — i stället bläddrar
- * man sida för sida genom kategorierna, precis som Förmåner-fliken: en rubrik i mitten med
- * pilar, svep i sidled mellan sidorna, prickar som visar var man är. Kategoriernas ordning och
- * namn kommer från CATEGORIES i theme/categories.ts, appens enda källa för det.
+ * för listan, Nära dig, Från dina favoriter. Inga kategori-piller — i stället bläddrar man sida
+ * för sida genom kategorierna med en rubrik i mitten + pilar + prickar (samma utseende som
+ * Förmåner-fliken), men BARA via pilarna — inget fingersvep. Ett levande fingerdrag gav hackig
+ * fps trots att det animerade exakt samma innehåll som pilarnas programmerade övergång (som
+ * alltid varit mjuk); efter flera försök att få svepet smidigt (rastrering, mindre innehåll
+ * monterat, m.m.) utan att lösa det ordentligt var slutsatsen att lita på det som redan fungerar
+ * i stället för att fortsätta jaga ett gest-problem. Rubriken/pilarna ligger därför i det FASTA
+ * huvudet (inte i det som scrollar) så de alltid går att nå utan att behöva scrolla upp först.
+ * Kategoriernas ordning och namn kommer från CATEGORIES i theme/categories.ts, appens enda källa.
  *
- * Prestanda (det som laggade i tidigare versioner, flera gånger): BARA den aktiva sidan har sitt
- * innehåll monterat — övriga åtta sidors behållare finns kvar (bara för att svepets geometri ska
- * stämma) men är helt tomma. Att även förmontera grannsidorna såg bättre ut rent visuellt (man
- * skymtade riktigt innehåll glida in) men var både långsammare — upp mot tre hela kategorisidor
- * samtidigt är fortfarande för mycket att rita medan sidbytet animerar — och orsakade en egen bugg:
- * en karusell man scrollat i på en sida som sedan blev en granne behöll sitt scrollade läge och
- * kunde synas kant-i-kant in i nästa sida. Enda sättet att vara säker på båda är att en inaktiv
- * sida inte finns alls förrän den blir aktiv (React avmonterar den helt, så dess ev. egna scroll-
- * läge nollställs automatiskt). Varje kategorisida visar dessutom bara de första `PAGE_SIZE`
- * träffarna, med en "Visa fler"-knapp i stället för att rendera allt på en gång. Sökning (oberoende
- * av vald sida) fungerar likadant. Övrigt: gradienterna är expo-linear-gradient i stället för SVG
- * per kort, inga skuggor på platsraderna (en skugga per rad × upp mot 20 rader som kan animera
- * samtidigt var också mätbart dyrt), innehållet byggs först när arket glidit upp, söktexten
- * filtreras via useDeferredValue.
+ * Prestanda i övrigt: BARA den aktiva sidan har sitt innehåll monterat — övriga åtta sidors
+ * behållare finns kvar (bara för att sidbytets geometri ska stämma) men är helt tomma; en inaktiv
+ * sida avmonteras helt (inte bara göms), så en karusell man scrollat i där nollställs automatiskt
+ * i stället för att kunna synas läcka in i nästa sida. Varje kategorisida visar dessutom bara de
+ * första `PAGE_SIZE` träffarna, med en "Visa fler"-knapp i stället för att rendera allt på en
+ * gång. Sökning (oberoende av vald sida) fungerar likadant. Övrigt: gradienterna är
+ * expo-linear-gradient i stället för SVG per kort, inga skuggor på platsraderna (en skugga per
+ * rad × upp mot 20 rader som kan animera samtidigt var mätbart dyrt), innehållet byggs först när
+ * arket glidit upp, söktexten filtreras via useDeferredValue.
  *
  * Urvalet fryses när arket öppnas (vilka som redan fanns + en slumpfrö), så det som lagts till
  * ligger kvar med grön bock och karusellerna inte hoppar runt medan man lägger till flera.
  * Den gröna bocken visas direkt men rullas tillbaka med ett felmeddelande om sparandet misslyckas.
  *
  * Egen Modal + egna gester (inte Sheet.tsx): dra nedåt i huvudet stänger alltid; dra nedåt i
- * innehållet stänger bara när det redan är scrollat högst upp. Sidsvepet (vågrätt) och
- * stäng-draget/scrollen (lodrätt) stör inte varandra eftersom de reagerar på olika axlar — samma
- * uppsättning gester som Förmåner-fliken redan bevisat fungerar.
+ * innehållet stänger bara när det redan är scrollat högst upp.
  */
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -39,7 +38,7 @@ import {
   ActivityIndicator, StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, {
-  FadeIn, FadeInUp, FadeOutDown, cancelAnimation, runOnJS, scrollTo, useAnimatedRef,
+  FadeIn, FadeInUp, FadeOutDown, runOnJS, scrollTo, useAnimatedRef,
   useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withSpring,
   withTiming, Easing,
 } from "react-native-reanimated";
@@ -69,15 +68,11 @@ const CARD_H = 220;
 const CARD_GAP = 12;
 const PAGE_SIZE = 20;
 
-// Sidorna att svepa mellan: "home" (de tre inspirationskarusellerna) + en per officiell kategori
+// Sidorna att bläddra mellan: "home" (de tre inspirationskarusellerna) + en per officiell kategori
 const PAGE_IDS: ("home" | CategoryId)[] = ["home", ...CATEGORIES.map((c) => c.id)];
-const CAT_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 
 const SIDE_MARGIN = 20;    // samma sidmarginal som resten av arkets huvud
 const PAGE_GAP = 16;
-const EDGE_ZONE = 24;      // px från kanten där svepet inte tar över (iOS "tillbaka")
-const SWIPE_DISTANCE = 70;
-const SWIPE_SPEED = 600;
 
 type Bubble = { key: number; text: string; error: boolean };
 type Card = { place: Place; note?: string };
@@ -152,8 +147,6 @@ export function AddPlaceSheet({
   // monterat, se nedan), vilket annars visade förra kategorins namn kvar hela glidningen igenom.
   const [headerIndex, setHeaderIndex] = useState(0);
   const offsetX = useSharedValue(0);
-  const startX = useSharedValue(0);
-  const fromEdge = useSharedValue(false);
   const [heights, setHeights] = useState<number[]>([]);
   const pageW = winW - SIDE_MARGIN * 2;
   const step = pageW + PAGE_GAP;
@@ -255,11 +248,14 @@ export function AddPlaceSheet({
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
 
-  // ── Gester: sidsvep (vågrätt) — exakt samma modell som Förmåner-flikens kategorisidor ──
-  // Ett ANIMERAT scrollglid (withTiming + scrollTo varje bildruta) kostade för mycket när det
-  // körde SAMTIDIGT som det vågräta sidbytet — två animationer som delade på samma bildrutebudget
-  // gav hackig fps, bara märkbart när man väl var nedscrollad. Ett direkt hopp utan animation har
-  // ingen sådan kostnad alls.
+  // ── Sidbyte (bara pilar/prickar nu, inget svep) ──
+  // Svepet (ett fingerdrag som rör raden direkt) gav hackig fps trots att EXAKT samma innehåll
+  // animerades smidigt av pilarna — ett levande drag tvingar om-komponering på ett sätt en
+  // programmerad animation inte gör, och det gick inte att lösa tillräckligt bra. Pilarna var
+  // redan bekräftat smidiga, så vi bytte till att bara lita på dem: rubriken är sticky (ligger i
+  // det fasta huvudet, inte i det som scrollar) så den alltid går att nå, och sidan glider
+  // fortfarande in med samma mjuka withTiming-animation som innan — bara ingen gest kvar som kan
+  // bli hackig.
   const settleScroll = () => {
     "worklet";
     if (scrollY.value > 0.5) scrollTo(scrollRef, 0, 0, false);
@@ -273,42 +269,6 @@ export function AddPlaceSheet({
       if (done) runOnJS(arrived)(target);
     });
   };
-
-  const catSwipe = Gesture.Pan()
-    .activeOffsetX([-20, 20])
-    .failOffsetY([-14, 14])
-    .onStart((e) => {
-      cancelAnimation(offsetX);
-      startX.value = offsetX.value;
-      fromEdge.value = e.absoluteX - e.translationX < EDGE_ZONE;
-    })
-    .onUpdate((e) => {
-      if (fromEdge.value) return;
-      const min = -(PAGE_IDS.length - 1) * step;
-      const raw = startX.value + e.translationX;
-      offsetX.value = raw > 0 ? raw * 0.2 : raw < min ? min + (raw - min) * 0.2 : raw;
-    })
-    .onEnd((e) => {
-      const last = PAGE_IDS.length - 1;
-      const startIdx = Math.round(-startX.value / step);
-      let target = startIdx;
-      if (!fromEdge.value) {
-        // Samma justering som Förmåner-fliken: 0.18 hoppade 2 sidor vid ett bara måttligt snabbt
-        // svep, sänkt så det krävs ett genuint snabbt kast för att hoppa mer än en sida.
-        const projected = offsetX.value + e.velocityX * 0.1;
-        target = Math.min(last, Math.max(0, Math.round(-projected / step)));
-        const intent = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
-        if (target === startIdx && intent) {
-          target = Math.min(last, Math.max(0, startIdx + (e.translationX < 0 ? 1 : -1)));
-        }
-      }
-      if (target !== startIdx) settleScroll();
-      runOnJS(setHeaderIndex)(target);
-      const pagesAway = Math.max(1, Math.abs(Math.round(-offsetX.value / step) - target));
-      offsetX.value = withTiming(-target * step, { duration: 150 + 40 * (pagesAway - 1) }, (done) => {
-        if (done) runOnJS(arrived)(target);
-      });
-    });
 
   const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: offsetX.value }] }));
 
@@ -467,6 +427,11 @@ export function AddPlaceSheet({
                   </Pressable>
                 )}
               </View>
+              {/* Sticky: ligger i det fasta huvudet, inte i det som scrollar, så pilarna alltid
+                  går att nå utan att behöva scrolla upp först. */}
+              {ready && !isLoading && !isError && !searching && (
+                <CategoryHeader index={headerIndex} labels={pageLabels} onStep={(dir) => slideTo(headerIndex + dir)} />
+              )}
             </View>
           </GestureDetector>
 
@@ -504,57 +469,42 @@ export function AddPlaceSheet({
                           />
                         </>
                       ) : (
-                        <>
-                          <CategoryHeader index={headerIndex} labels={pageLabels} onStep={(dir) => slideTo(headerIndex + dir)} />
-                          <GestureDetector gesture={catSwipe}>
-                            {/* Pilarna (en engångsanimation) var mjuka men själva fingerdraget var hackigt trots
-                                att det är EXAKT samma innehåll som animerar — skillnaden är att ett levande drag
-                                tvingar om-komponering av allt som ligger under varje pekrörelse, en engångsanimation
-                                gör det inte på samma sätt. renderToHardwareTextureAndroid/shouldRasterizeIOS säger åt
-                                motorn att rita raden till EN textur och bara flytta den texturen under draget, i
-                                stället för att om-komponera varje rad/bild för varje pekrörelse. */}
-                            <Reanimated.View
-                              style={[{ height: areaH }, slideStyle]}
-                              renderToHardwareTextureAndroid
-                              shouldRasterizeIOS
+                        <Reanimated.View style={[{ height: areaH }, slideStyle]}>
+                          {PAGE_IDS.map((id, i) => (
+                            <View
+                              key={id}
+                              pointerEvents={i === active ? "auto" : "none"}
+                              style={[s.page, { left: i * step, width: pageW, height: areaH }]}
                             >
-                              {PAGE_IDS.map((id, i) => (
-                                <View
-                                  key={id}
-                                  pointerEvents={i === active ? "auto" : "none"}
-                                  style={[s.page, { left: i * step, width: pageW, height: areaH }]}
-                                >
-                                  <View
-                                    onLayout={(e) => {
-                                      const h = e.nativeEvent.layout.height;
-                                      setHeights((prev) => {
-                                        if (prev[i] === h) return prev;
-                                        const next = [...prev];
-                                        next[i] = h;
-                                        return next;
-                                      });
-                                    }}
-                                  >
-                                    {i === active ? (
-                                      id === "home" ? (
-                                        <HomePage data={homeData} justAdded={justAdded} onAdd={handleToggle} />
-                                      ) : (
-                                        <PlaceRows
-                                          places={categoryMatches.get(id) ?? []}
-                                          visibleCount={catVisible[id] ?? PAGE_SIZE}
-                                          onShowMore={() => bumpCatVisible(id)}
-                                          justAdded={justAdded}
-                                          onAdd={handleToggle}
-                                          emptyText={t("addPlace.noMatches")}
-                                        />
-                                      )
-                                    ) : null}
-                                  </View>
-                                </View>
-                              ))}
-                            </Reanimated.View>
-                          </GestureDetector>
-                        </>
+                              <View
+                                onLayout={(e) => {
+                                  const h = e.nativeEvent.layout.height;
+                                  setHeights((prev) => {
+                                    if (prev[i] === h) return prev;
+                                    const next = [...prev];
+                                    next[i] = h;
+                                    return next;
+                                  });
+                                }}
+                              >
+                                {i === active ? (
+                                  id === "home" ? (
+                                    <HomePage data={homeData} justAdded={justAdded} onAdd={handleToggle} />
+                                  ) : (
+                                    <PlaceRows
+                                      places={categoryMatches.get(id) ?? []}
+                                      visibleCount={catVisible[id] ?? PAGE_SIZE}
+                                      onShowMore={() => bumpCatVisible(id)}
+                                      justAdded={justAdded}
+                                      onAdd={handleToggle}
+                                      emptyText={t("addPlace.noMatches")}
+                                    />
+                                  )
+                                ) : null}
+                              </View>
+                            </View>
+                          ))}
+                        </Reanimated.View>
                       )}
                     </Reanimated.ScrollView>
                   </GestureDetector>
@@ -812,7 +762,9 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center",
   },
 
-  catHeader: { alignItems: "center", gap: 10, paddingTop: 14, paddingBottom: 14 },
+  // paddingHorizontal krävs nu uttryckligen — innan ärvde den ScrollViewens inset automatiskt,
+  // men ligger sen flytten till det fasta huvudet inte längre inuti den.
+  catHeader: { alignItems: "center", gap: 10, paddingTop: 14, paddingBottom: 14, paddingHorizontal: SIDE_MARGIN },
   catRow: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
   catMiddle: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 6 },
   arrow: { width: 32, alignItems: "center" },

@@ -20,7 +20,9 @@ import {
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical } from "lucide-react-native";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical, Copy, Check } from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useDuplicateList,
@@ -75,6 +77,15 @@ export default function ListDetailScreen() {
     (source) => list ? changeCover.mutateAsync({ listId: list.id, source }) : Promise.resolve(),
     "Byt omslagsbild"
   );
+
+  // Stänga ⋮-menyn och i SAMMA anrop öppna nästa (ActionSheetIOS/Alert/Share, eller ett eget
+  // Sheet) frös appen — två modaler som tävlar om att presenteras/stängas samtidigt är ett känt
+  // sätt att låsa sig på både iOS och Android. Vänta tills stängningen (vår egen 200 ms
+  // avtoningsanimation i Sheet.tsx) faktiskt hunnit klart innan nästa får öppna.
+  function afterOptionsClose(action: () => void) {
+    setOptionsOpen(false);
+    setTimeout(action, 260);
+  }
 
   function confirm(title: string, message: string, action: string, onConfirm: () => void) {
     Alert.alert(title, message, [
@@ -182,6 +193,8 @@ export default function ListDetailScreen() {
                 <Text style={s.meta}>
                   Senast uppdaterad {formatShortDate(list.lastUpdatedAt)} · {list.places.length} {list.places.length === 1 ? "plats" : "platser"}
                 </Text>
+
+                <InviteCodeRow code={list.inviteCode} />
               </View>
 
               <View style={s.sectionHead}>
@@ -233,11 +246,11 @@ export default function ListDetailScreen() {
             visible={optionsOpen}
             onClose={() => setOptionsOpen(false)}
             isOwner={isOwner}
-            onChangeCover={() => { setOptionsOpen(false); openCoverMenu(); }}
-            onEdit={() => { setOptionsOpen(false); setEditOpen(true); }}
-            onShare={() => { setOptionsOpen(false); shareList(); }}
-            onDuplicate={() => { setOptionsOpen(false); handleDuplicate(); }}
-            onDeleteOrLeave={() => { setOptionsOpen(false); handleDeleteOrLeave(); }}
+            onChangeCover={() => afterOptionsClose(openCoverMenu)}
+            onEdit={() => afterOptionsClose(() => setEditOpen(true))}
+            onShare={() => afterOptionsClose(shareList)}
+            onDuplicate={() => afterOptionsClose(handleDuplicate)}
+            onDeleteOrLeave={() => afterOptionsClose(handleDeleteOrLeave)}
           />
           <EditListSheet visible={editOpen} onClose={() => setEditOpen(false)} list={list} />
         </>
@@ -249,6 +262,31 @@ export default function ListDetailScreen() {
 function formatShortDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("sv-SE", { day: "numeric", month: "long" });
+}
+
+/** Koden man skriver in i "Gå med" för att bli medlem — en egen rad så den går att hitta och
+ * kopiera snabbt, i stället för att gräva fram den via Dela lista varje gång. */
+function InviteCodeRow({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    await Clipboard.setStringAsync(code);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <TouchableOpacity style={s.codeRow} activeOpacity={0.8} onPress={copy}>
+      <Text style={s.codeLabel}>Kod</Text>
+      <Text style={s.codeValue}>{code}</Text>
+      {copied ? (
+        <Check size={15} color="#4ADE80" strokeWidth={2.4} />
+      ) : (
+        <Copy size={15} color={GOLD} strokeWidth={2.2} />
+      )}
+    </TouchableOpacity>
+  );
 }
 
 function PlaceRow({
@@ -326,6 +364,14 @@ const s = StyleSheet.create({
   // meta-raden är bara statistik, de ska inte läsas som samma sorts information.
   description: { fontFamily: "Inter_500Medium", fontSize: 15.5, color: FG, marginTop: 16, lineHeight: 22 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 10 },
+
+  codeRow: {
+    flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12,
+    alignSelf: "flex-start", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: "rgba(197,160,89,0.08)", borderWidth: 1, borderColor: "rgba(197,160,89,0.2)",
+  },
+  codeLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: MUTED },
+  codeValue: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 1, color: FG },
 
   sectionHead: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
