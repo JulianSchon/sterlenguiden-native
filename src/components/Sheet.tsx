@@ -2,12 +2,12 @@
  * Bottenpanel som listdialogerna delar, plus huvudknappen och textfältens
  * stil. Färgerna kommer från temat.
  */
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Modal, View, Text, Pressable, TouchableOpacity, KeyboardAvoidingView, ActivityIndicator,
-  Platform, StyleSheet, Keyboard,
+  Platform, StyleSheet, Keyboard, useWindowDimensions,
 } from "react-native";
-import Reanimated, { LinearTransition } from "react-native-reanimated";
+import Reanimated, { LinearTransition, runOnJS, useAnimatedStyle, useSharedValue, withTiming, Easing } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -26,6 +26,28 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  const { height: winH } = useWindowDimensions();
+
+  // Modalens egen animationType="slide" animerar HELA innehållet (bakgrund + ruta) som en enda
+  // skjutande yta — bakgrunden såg därför ut att "skickas upp från botten" i stället för att
+  // bara tona mörkare på plats. Styr i stället bakgrund och ruta separat: bakgrunden tonar in,
+  // rutan glider upp — samma mönster som Lägg till plats-arket redan använder.
+  const [mounted, setMounted] = useState(visible);
+  const backdrop = useSharedValue(0);
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      backdrop.value = withTiming(1, { duration: 220 });
+      progress.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
+    } else if (mounted) {
+      backdrop.value = withTiming(0, { duration: 180 });
+      progress.value = withTiming(0, { duration: 200 }, (done) => {
+        if (done) runOnJS(setMounted)(false);
+      });
+    }
+  }, [visible]);
 
   // Tangentbordet ska stänga SAMTIDIGT som modalen börjar tonas bort, inte snärta undan efteråt
   // (vilket såg ut som att rutan "hackade" tillbaka till mitten när man stängde).
@@ -34,37 +56,45 @@ export function Sheet({
     onClose();
   }
 
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
+  const contentStyle = useAnimatedStyle(() =>
+    centered
+      ? { opacity: progress.value }
+      : { transform: [{ translateY: (1 - progress.value) * winH }] }
+  );
+
   return (
-    <Modal visible={visible} transparent animationType={centered ? "fade" : "slide"} onShow={onShow} onRequestClose={handleClose}>
+    <Modal visible={mounted} transparent animationType="none" onShow={onShow} onRequestClose={handleClose}>
       {/* Bakgrunden ligger som en egen helskärmslager under allt, så den täcker skärmen i båda
           lägena oavsett var innehållet hamnar (nederkant eller mitten). */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}>
+      <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }, backdropStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <KeyboardAvoidingView
-          style={centered ? s.centerWrap : { flex: 1, justifyContent: "flex-end" }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          pointerEvents="box-none"
+      </Reanimated.View>
+      <KeyboardAvoidingView
+        style={centered ? s.centerWrap : { flex: 1, justifyContent: "flex-end" }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        pointerEvents="box-none"
+      >
+        {/* layout animerar höjdändringar mjukt (t.ex. när innehållet byts ut i ett steg-baserat
+            formulär) i stället för att rutan hoppar direkt till sin nya storlek. */}
+        <Reanimated.View
+          layout={LinearTransition.duration(220)}
+          style={[
+            centered ? s.centerSheet : s.sheet,
+            tall && !centered && { height: "85%" },
+            !centered && { paddingBottom: insets.bottom + 16 },
+            contentStyle,
+          ]}
         >
-          {/* layout animerar höjdändringar mjukt (t.ex. när innehållet byts ut i ett steg-baserat
-              formulär) i stället för att rutan hoppar direkt till sin nya storlek. */}
-          <Reanimated.View
-            layout={LinearTransition.duration(220)}
-            style={[
-              centered ? s.centerSheet : s.sheet,
-              tall && !centered && { height: "85%" },
-              !centered && { paddingBottom: insets.bottom + 16 },
-            ]}
-          >
-            <View style={s.head}>
-              <Text style={s.title}>{title}</Text>
-              <TouchableOpacity onPress={handleClose} hitSlop={12}>
-                <X size={22} color={colors.muted} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-            {children}
-          </Reanimated.View>
-        </KeyboardAvoidingView>
-      </View>
+          <View style={s.head}>
+            <Text style={s.title}>{title}</Text>
+            <TouchableOpacity onPress={handleClose} hitSlop={12}>
+              <X size={22} color={colors.muted} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+          {children}
+        </Reanimated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

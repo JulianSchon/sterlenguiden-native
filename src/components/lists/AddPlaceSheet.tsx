@@ -507,7 +507,17 @@ export function AddPlaceSheet({
                         <>
                           <CategoryHeader index={headerIndex} labels={pageLabels} onStep={(dir) => slideTo(headerIndex + dir)} />
                           <GestureDetector gesture={catSwipe}>
-                            <Reanimated.View style={[{ height: areaH }, slideStyle]}>
+                            {/* Pilarna (en engångsanimation) var mjuka men själva fingerdraget var hackigt trots
+                                att det är EXAKT samma innehåll som animerar — skillnaden är att ett levande drag
+                                tvingar om-komponering av allt som ligger under varje pekrörelse, en engångsanimation
+                                gör det inte på samma sätt. renderToHardwareTextureAndroid/shouldRasterizeIOS säger åt
+                                motorn att rita raden till EN textur och bara flytta den texturen under draget, i
+                                stället för att om-komponera varje rad/bild för varje pekrörelse. */}
+                            <Reanimated.View
+                              style={[{ height: areaH }, slideStyle]}
+                              renderToHardwareTextureAndroid
+                              shouldRasterizeIOS
+                            >
                               {PAGE_IDS.map((id, i) => (
                                 <View
                                   key={id}
