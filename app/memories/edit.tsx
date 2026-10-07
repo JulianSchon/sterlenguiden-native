@@ -250,7 +250,8 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { flex: 1, fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG },
+  // Playfair bort, versaler in — samma mönster som Vänner/Mitt Österlen/Listor
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
   label: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 1.2, color: MUTED, marginBottom: 8 },
   error: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "#E57373", marginTop: 6 },
 
