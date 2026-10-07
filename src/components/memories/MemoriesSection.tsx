@@ -7,11 +7,12 @@
  * den nedre remsan i Caveat (appens enda handstilston, medvetet reserverad hit) i stället för
  * som vanlig text under kortet.
  *
- * Två detaljer till: korten ligger med en lätt, växlande lutning — som om de slängts ut på ett
- * bord, inte maskinellt uppradade — och ramens kant är sicksackad som på gamla framkallade foton
- * (klippta med en taggsax, inte en rak kant). Sicksacken ritas som en SVG-polygon bakom
- * foto+text i stället för att försöka klippa själva kortet, eftersom React Native inte har något
- * CSS-liknande clip-path att tillgå rakt av.
+ * Tre detaljer till: korten ligger med en lätt, växlande lutning — som om de slängts ut på ett
+ * bord, inte maskinellt uppradade; pappersramens EGEN kant (inte fotot i den) är sicksackad som
+ * på gamla framkallade foton (klippta med en taggsax); och en halvgenomskinlig tejpbit (egen
+ * lutning, egna rivna kortsidor) sitter ovanpå kortets överkant som om den klistrat fast det vid
+ * bakgrunden. Alla taggiga/rivna kanter ritas som SVG-polygoner i stället för att försöka klippa
+ * själva vyn, eftersom React Native inte har något CSS-liknande clip-path att tillgå rakt av.
  */
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import Svg, { Polygon } from "react-native-svg";
@@ -36,13 +37,21 @@ const PAPER = "#F0E9D8";
 // Lutningen växlar per kort (efter index) i stället för att vara slumpad — annars hoppar
 // vinkeln vid varje omritning. Några mjuka, aldrig extrema vinklar.
 const TILTS = [-3, 2, -4, 3, -2, 4];
+// Tejpbiten lutar lite ANNORLUNDA än kortet den sitter på (men ärver kortets egen lutning också,
+// den är ett barn i samma roterade yta) — annars ser den maskinellt centrerad ut i stället för
+// som snabbt fasttejpad.
+const TAPE_TILTS = [4, -3, 5, -4, 3, -5];
 
-/** Sicksackad rektangel som en SVG-polygon: vandrar runt alla fyra kanter och växlar mellan
- * den yttre linjen och en punkt indragen `tooth` px, så det blir en kontinuerlig taggig linje
- * (som en taggsax-klippt fotokant), inte bara hack i var och varannan sida. */
-function zigzagRectPoints(w: number, h: number, tooth: number, segment: number): string {
+/** En rektangel som en SVG-polygon, med valfria kanter sicksackade (taggsax-klippta) och
+ * resten raka. `edges` = [topp, höger, botten, vänster]. Vandrar runt alla fyra kanterna och
+ * växlar — när en kant är taggig — mellan ytterlinjen och en punkt indragen `tooth` px, så det
+ * blir en kontinuerlig taggig linje, inte bara hack i var och varannan punkt. Används både för
+ * fotots egen kant (alla fyra sicksackade, som ett gammalt framkallat foto) och tejpbitens
+ * kortsidor (bara kortsidorna rivna, långsidorna raka — som på riktig tejp). */
+function tornRectPoints(w: number, h: number, tooth: number, segment: number, edges: [boolean, boolean, boolean, boolean]): string {
   const pts: string[] = [];
-  const walk = (x1: number, y1: number, x2: number, y2: number, nx: number, ny: number) => {
+  const walk = (x1: number, y1: number, x2: number, y2: number, nx: number, ny: number, jagged: boolean) => {
+    if (!jagged) { pts.push(`${x2.toFixed(1)},${y2.toFixed(1)}`); return; }
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.hypot(dx, dy);
@@ -55,16 +64,21 @@ function zigzagRectPoints(w: number, h: number, tooth: number, segment: number):
       pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
     }
   };
-  walk(0, 0, w, 0, 0, 1);   // övre kanten, inåt = nedåt
-  walk(w, 0, w, h, -1, 0);  // högra kanten, inåt = vänster
-  walk(w, h, 0, h, 0, -1);  // nedre kanten, inåt = uppåt
-  walk(0, h, 0, 0, 1, 0);   // vänstra kanten, inåt = höger
+  walk(0, 0, w, 0, 0, 1, edges[0]);   // övre kanten, inåt = nedåt
+  walk(w, 0, w, h, -1, 0, edges[1]);  // högra kanten, inåt = vänster
+  walk(w, h, 0, h, 0, -1, edges[2]);  // nedre kanten, inåt = uppåt
+  walk(0, h, 0, 0, 1, 0, edges[3]);   // vänstra kanten, inåt = höger
   return pts.join(" ");
 }
 
 // Samma mönster för alla kort (som en riktig taggsax ger ett jämnt, upprepat mönster) —
 // beräknat en gång, inte per kort.
-const ZIGZAG_POINTS = zigzagRectPoints(CARD_W, CARD_H, 3.5, 8);
+const ZIGZAG_POINTS = tornRectPoints(CARD_W, CARD_H, 3.5, 8, [true, true, true, true]);
+
+// Tejpbiten: bara kortsidorna (vänster/höger) rivna, över- och underkant raka.
+const TAPE_W = 72;
+const TAPE_H = 26;
+const TAPE_POINTS = tornRectPoints(TAPE_W, TAPE_H, 2.5, 6, [false, true, false, true]);
 
 export function MemoriesSection() {
   const router = useRouter();
@@ -95,6 +109,7 @@ export function MemoriesSection() {
           {recent.map((m, i) => {
             const cover = urls[m.photoPaths[0]];
             const tilt = TILTS[i % TILTS.length];
+            const tapeTilt = TAPE_TILTS[i % TAPE_TILTS.length];
             return (
               <TouchableOpacity
                 key={m.id}
@@ -121,6 +136,13 @@ export function MemoriesSection() {
                   <Text style={s.captionTitle} numberOfLines={1}>{m.title}</Text>
                   <Text style={s.captionDate} numberOfLines={1}>{formatMemoryDate(m.memoryDate)}</Text>
                 </View>
+
+                {/* Tejpbiten: sist i JSX = ovanpå allt annat, som om den klistrats fast efteråt. */}
+                <View style={[s.tape, { transform: [{ rotate: `${tapeTilt}deg` }] }]}>
+                  <Svg width={TAPE_W} height={TAPE_H}>
+                    <Polygon points={TAPE_POINTS} fill="rgba(216,194,156,0.62)" />
+                  </Svg>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -138,9 +160,9 @@ const s = StyleSheet.create({
   actions: { flexDirection: "row", gap: 16 },
   action: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, lineHeight: 21, paddingHorizontal: 16, marginTop: 10 },
-  // Extra luft runt om (padding, inte bara gap) så de lutande/sicksackade korten aldrig klipps
-  // av radens egna kanter när de roterar lite utanför sin egen rektangel.
-  row: { paddingHorizontal: 20, paddingVertical: 10, gap: 20, marginTop: 10 },
+  // Extra luft runt om (padding, inte bara gap) så de lutande/sicksackade korten — och tejpbiten
+  // som sticker upp ovanför kortets egen kant — aldrig klipps av radens egna kanter.
+  row: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 10, gap: 20, marginTop: 10 },
 
   // Ramen: krämfärgat papper, tjockare nedtill än upptill/sidorna (det är den proportionen som
   // faktiskt läses som "Polaroid") — bakgrundsfärgen sätts här OCH i SVG-polygonen ovanpå, så
@@ -161,4 +183,8 @@ const s = StyleSheet.create({
   },
   captionTitle: { fontFamily: "Caveat_700Bold", fontSize: 21, lineHeight: 22, color: "#2A2419" },
   captionDate: { fontFamily: "Caveat_600SemiBold", fontSize: 15, lineHeight: 16, color: "rgba(42,36,25,0.55)", marginTop: 1 },
+
+  // Centrerad ovanför kortets överkant, halvvägs utanpå — som att den tejpar fast kortet vid
+  // bakgrunden bakom, inte vid något på själva kortet.
+  tape: { position: "absolute", top: -TAPE_H * 0.55, left: (CARD_W - TAPE_W) / 2 },
 });
