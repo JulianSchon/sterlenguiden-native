@@ -13,13 +13,28 @@
  * lutning, egna rivna kortsidor) sitter ovanpå kortets överkant som om den klistrat fast det vid
  * bakgrunden. Alla taggiga/rivna kanter ritas som SVG-polygoner i stället för att försöka klippa
  * själva vyn, eftersom React Native inte har något CSS-liknande clip-path att tillgå rakt av.
+ *
+ * VIKTIGT (bugg rättad): sicksacken syntes inte först, för att kortets EGEN View hade samma
+ * krämfärgade backgroundColor som SVG-polygonen rakt bakom den — polygonens taggiga urtag
+ * avslöjade då bara en identiskt färgad rektangel bakom sig, inte något annorlunda. Kortets View
+ * måste vara genomskinlig; det är ENDAST polygonen som får ge formen färg.
+ *
+ * Trycker man på ett minne svänger det till (som om det hänger i tejpen och knuffas till),
+ * river sig sen loss och trillar/tonar bort innan sidan öppnas — tejpen själv rör sig inte,
+ * bara kortet under den, så det ser ut som att det faktiskt slits loss. Respekterar Reduce
+ * Motion (öppnar direkt utan animation då).
  */
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { useCallback, useState } from "react";
+import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import Reanimated, {
+  Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSequence, withTiming,
+} from "react-native-reanimated";
 import Svg, { Polygon } from "react-native-svg";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { ImageIcon } from "lucide-react-native";
-import { useMemories, useSignedUrls } from "@/hooks/useMemories";
+import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
 
 const FG = "#F5F1E8";
@@ -37,9 +52,8 @@ const PAPER = "#F0E9D8";
 // Lutningen växlar per kort (efter index) i stället för att vara slumpad — annars hoppar
 // vinkeln vid varje omritning. Några mjuka, aldrig extrema vinklar.
 const TILTS = [-3, 2, -4, 3, -2, 4];
-// Tejpbiten lutar lite ANNORLUNDA än kortet den sitter på (men ärver kortets egen lutning också,
-// den är ett barn i samma roterade yta) — annars ser den maskinellt centrerad ut i stället för
-// som snabbt fasttejpad.
+// Tejpbiten lutar lite ANNORLUNDA än kortet den sitter på — annars ser den maskinellt
+// centrerad ut i stället för som snabbt fasttejpad.
 const TAPE_TILTS = [4, -3, 5, -4, 3, -5];
 
 /** En rektangel som en SVG-polygon, med valfria kanter sicksackade (taggsax-klippta) och
@@ -106,49 +120,99 @@ export function MemoriesSection() {
         <Text style={s.empty}>Varje plats du besöker kan bli en del av din egen berättelse.</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
-          {recent.map((m, i) => {
-            const cover = urls[m.photoPaths[0]];
-            const tilt = TILTS[i % TILTS.length];
-            const tapeTilt = TAPE_TILTS[i % TAPE_TILTS.length];
-            return (
-              <TouchableOpacity
-                key={m.id}
-                style={[s.polaroid, { transform: [{ rotate: `${tilt}deg` }] }]}
-                activeOpacity={0.85}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                  router.push(`/memories/${m.id}` as any);
-                }}
-              >
-                <Svg width={CARD_W} height={CARD_H} style={StyleSheet.absoluteFill}>
-                  <Polygon points={ZIGZAG_POINTS} fill={PAPER} />
-                </Svg>
-                <View style={s.photoWrap}>
-                  {cover ? (
-                    <Image source={{ uri: cover }} style={s.photo} resizeMode="cover" />
-                  ) : (
-                    <View style={[s.photo, s.noPhoto]}>
-                      <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />
-                    </View>
-                  )}
-                </View>
-                <View style={s.caption}>
-                  <Text style={s.captionTitle} numberOfLines={1}>{m.title}</Text>
-                  <Text style={s.captionDate} numberOfLines={1}>{formatMemoryDate(m.memoryDate)}</Text>
-                </View>
-
-                {/* Tejpbiten: sist i JSX = ovanpå allt annat, som om den klistrats fast efteråt. */}
-                <View style={[s.tape, { transform: [{ rotate: `${tapeTilt}deg` }] }]}>
-                  <Svg width={TAPE_W} height={TAPE_H}>
-                    <Polygon points={TAPE_POINTS} fill="rgba(216,194,156,0.62)" />
-                  </Svg>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+          {recent.map((m, i) => (
+            <MemoryPolaroid
+              key={m.id}
+              memory={m}
+              cover={urls[m.photoPaths[0]]}
+              tilt={TILTS[i % TILTS.length]}
+              tapeTilt={TAPE_TILTS[i % TAPE_TILTS.length]}
+              onOpen={() => router.push(`/memories/${m.id}` as any)}
+            />
+          ))}
         </ScrollView>
       )}
     </View>
+  );
+}
+
+function MemoryPolaroid({
+  memory, cover, tilt, tapeTilt, onOpen,
+}: { memory: Memory; cover: string | undefined; tilt: number; tapeTilt: number; onOpen: () => void }) {
+  const reduceMotion = useReducedMotion();
+  const [opening, setOpening] = useState(false);
+  const rotate = useSharedValue(tilt);
+  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(1);
+
+  // Mitt Österlen stannar monterad bakom minnessidan (vanligt navigationsbeteende) — utan det
+  // här skulle kortet komma tillbaka hopsvängt, nedfallet och genomskinligt efter att man gått
+  // tillbaka, kvar i precis det läge det hade när animationen körde klart. Nollställ i stället
+  // varje gång sidan får fokus igen.
+  useFocusEffect(
+    useCallback(() => {
+      rotate.value = tilt;
+      translateY.value = 0;
+      opacity.value = 1;
+      setOpening(false);
+    }, [tilt])
+  );
+
+  function handlePress() {
+    if (opening) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (reduceMotion) { onOpen(); return; }
+    setOpening(true);
+
+    // Svänger till (som om det hänger i tejpen och knuffas till) — ett par dämpade utslag.
+    rotate.value = withSequence(
+      withTiming(tilt + 9, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(tilt - 6, { duration: 110 }),
+      withTiming(tilt + 3, { duration: 100 }),
+      withTiming(tilt + 1, { duration: 70 }),
+      // ...river sig loss och fortsätter rotera ner i fallet
+      withTiming(tilt + 60, { duration: 300, easing: Easing.in(Easing.cubic) })
+    );
+    const SWING_MS = 90 + 110 + 100 + 70;
+    translateY.value = withDelay(SWING_MS, withTiming(90, { duration: 300, easing: Easing.in(Easing.cubic) }, (done) => {
+      if (done) runOnJS(onOpen)();
+    }));
+    opacity.value = withDelay(SWING_MS + 40, withTiming(0, { duration: 260 }));
+  }
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }, { rotate: `${rotate.value}deg` }],
+  }));
+
+  return (
+    <Pressable onPress={handlePress} style={s.cardTouchable}>
+      {/* Tejpen rör sig inte — det är kortet som sliter sig loss FRÅN den, inte tvärtom. */}
+      <View style={[s.tape, { transform: [{ rotate: `${tapeTilt}deg` }] }]}>
+        <Svg width={TAPE_W} height={TAPE_H}>
+          <Polygon points={TAPE_POINTS} fill="rgba(216,194,156,0.62)" />
+        </Svg>
+      </View>
+
+      <Reanimated.View style={[s.polaroid, cardStyle]}>
+        <Svg width={CARD_W} height={CARD_H} style={StyleSheet.absoluteFill}>
+          <Polygon points={ZIGZAG_POINTS} fill={PAPER} />
+        </Svg>
+        <View style={s.photoWrap}>
+          {cover ? (
+            <Image source={{ uri: cover }} style={s.photo} resizeMode="cover" />
+          ) : (
+            <View style={[s.photo, s.noPhoto]}>
+              <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />
+            </View>
+          )}
+        </View>
+        <View style={s.caption}>
+          <Text style={s.captionTitle} numberOfLines={1}>{memory.title}</Text>
+          <Text style={s.captionDate} numberOfLines={1}>{formatMemoryDate(memory.memoryDate)}</Text>
+        </View>
+      </Reanimated.View>
+    </Pressable>
   );
 }
 
@@ -164,11 +228,14 @@ const s = StyleSheet.create({
   // som sticker upp ovanför kortets egen kant — aldrig klipps av radens egna kanter.
   row: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 10, gap: 20, marginTop: 10 },
 
+  cardTouchable: { width: CARD_W, height: CARD_H },
+
   // Ramen: krämfärgat papper, tjockare nedtill än upptill/sidorna (det är den proportionen som
-  // faktiskt läses som "Polaroid") — bakgrundsfärgen sätts här OCH i SVG-polygonen ovanpå, så
-  // skuggan (som följer rektangeln, inte sicksacken) aldrig visar fel färg i springorna.
+  // faktiskt läses som "Polaroid"). INGEN backgroundColor här — det är ENDAST SVG-polygonen
+  // ovanpå som får ge formen färg, annars döljer en identiskt färgad rektangel bakom
+  // polygonens taggiga urtag helt (se kommentaren högst upp — det var precis det som hände).
   polaroid: {
-    width: CARD_W, height: CARD_H, backgroundColor: PAPER,
+    width: CARD_W, height: CARD_H,
     shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   photoWrap: {
@@ -186,5 +253,5 @@ const s = StyleSheet.create({
 
   // Centrerad ovanför kortets överkant, halvvägs utanpå — som att den tejpar fast kortet vid
   // bakgrunden bakom, inte vid något på själva kortet.
-  tape: { position: "absolute", top: -TAPE_H * 0.55, left: (CARD_W - TAPE_W) / 2 },
+  tape: { position: "absolute", top: -TAPE_H * 0.55, left: (CARD_W - TAPE_W) / 2, zIndex: 1 },
 });
