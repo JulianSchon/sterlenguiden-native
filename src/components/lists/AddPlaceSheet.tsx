@@ -9,13 +9,20 @@
  * pilar, svep i sidled mellan sidorna, prickar som visar var man är. Kategoriernas ordning och
  * namn kommer från CATEGORIES i theme/categories.ts, appens enda källa för det.
  *
- * Prestanda (det som laggade i en tidigare version): bara den AKTIVA sidan ± en granne har sitt
- * innehåll monterat (övriga sidors behållare finns kvar tomma, bara för att svepet ska se rätt ut
- * geometriskt) — aldrig alla ~300 platser samtidigt. Varje kategorisida visar dessutom bara de
- * första `PAGE_SIZE` träffarna, med en "Visa fler"-knapp i stället för att rendera allt på en
- * gång. Sökning (oberoende av vald sida) fungerar likadant. Övrigt: gradienterna är
- * expo-linear-gradient i stället för SVG per kort, innehållet byggs först när arket glidit upp,
- * söktexten filtreras via useDeferredValue.
+ * Prestanda (det som laggade i tidigare versioner, flera gånger): BARA den aktiva sidan har sitt
+ * innehåll monterat — övriga åtta sidors behållare finns kvar (bara för att svepets geometri ska
+ * stämma) men är helt tomma. Att även förmontera grannsidorna såg bättre ut rent visuellt (man
+ * skymtade riktigt innehåll glida in) men var både långsammare — upp mot tre hela kategorisidor
+ * samtidigt är fortfarande för mycket att rita medan sidbytet animerar — och orsakade en egen bugg:
+ * en karusell man scrollat i på en sida som sedan blev en granne behöll sitt scrollade läge och
+ * kunde synas kant-i-kant in i nästa sida. Enda sättet att vara säker på båda är att en inaktiv
+ * sida inte finns alls förrän den blir aktiv (React avmonterar den helt, så dess ev. egna scroll-
+ * läge nollställs automatiskt). Varje kategorisida visar dessutom bara de första `PAGE_SIZE`
+ * träffarna, med en "Visa fler"-knapp i stället för att rendera allt på en gång. Sökning (oberoende
+ * av vald sida) fungerar likadant. Övrigt: gradienterna är expo-linear-gradient i stället för SVG
+ * per kort, inga skuggor på platsraderna (en skugga per rad × upp mot 20 rader som kan animera
+ * samtidigt var också mätbart dyrt), innehållet byggs först när arket glidit upp, söktexten
+ * filtreras via useDeferredValue.
  *
  * Urvalet fryses när arket öppnas (vilka som redan fanns + en slumpfrö), så det som lagts till
  * ligger kvar med grön bock och karusellerna inte hoppar runt medan man lägger till flera.
@@ -61,9 +68,6 @@ const CARD_W = 168;
 const CARD_H = 220;
 const CARD_GAP = 12;
 const PAGE_SIZE = 20;
-// Hur mycket en GRANNSIDA (inte den aktiva) visar medan den är förmonterad för svepet — bara
-// en föraning, inte hela sidan, så svepet inte behöver dra runt upp mot 60 rader samtidigt.
-const PREVIEW_SIZE = 6;
 
 // Sidorna att svepa mellan: "home" (de tre inspirationskarusellerna) + en per officiell kategori
 const PAGE_IDS: ("home" | CategoryId)[] = ["home", ...CATEGORIES.map((c) => c.id)];
@@ -521,21 +525,17 @@ export function AddPlaceSheet({
                                       });
                                     }}
                                   >
-                                    {Math.abs(i - active) <= 1 ? (
+                                    {i === active ? (
                                       id === "home" ? (
                                         <HomePage data={homeData} justAdded={justAdded} onAdd={handleToggle} />
                                       ) : (
-                                        // Grannsidorna (inte den aktiva) visar bara en liten föraning, inte hela
-                                        // listan — annars var det upp mot tre hela kategorisidor (~60 rader) monterade
-                                        // samtidigt under själva svepet, vilket var vad som gjorde det hackigt.
                                         <PlaceRows
                                           places={categoryMatches.get(id) ?? []}
-                                          visibleCount={i === active ? (catVisible[id] ?? PAGE_SIZE) : PREVIEW_SIZE}
+                                          visibleCount={catVisible[id] ?? PAGE_SIZE}
                                           onShowMore={() => bumpCatVisible(id)}
                                           justAdded={justAdded}
                                           onAdd={handleToggle}
                                           emptyText={t("addPlace.noMatches")}
-                                          showMoreButton={i === active}
                                         />
                                       )
                                     ) : null}
@@ -627,18 +627,15 @@ const HomePage = memo(function HomePage({
 
 /** En kategoris (eller sökningens) träfflista — kapad till `visibleCount`, "Visa fler" i stället för allt på en gång. */
 const PlaceRows = memo(function PlaceRows({
-  places, visibleCount, onShowMore, justAdded, onAdd, emptyText, showMoreButton = true,
-}: {
-  places: Place[]; visibleCount: number; onShowMore: () => void; justAdded: Set<number>; onAdd: (p: Place) => void;
-  emptyText: string; showMoreButton?: boolean;
-}) {
+  places, visibleCount, onShowMore, justAdded, onAdd, emptyText,
+}: { places: Place[]; visibleCount: number; onShowMore: () => void; justAdded: Set<number>; onAdd: (p: Place) => void; emptyText: string }) {
   const { t } = useTranslation();
   if (places.length === 0) return <Text style={s.emptyText}>{emptyText}</Text>;
   const shown = places.slice(0, visibleCount);
   return (
     <View>
       {shown.map((p) => <PlaceRow key={p.id} place={p} added={justAdded.has(p.id)} onAdd={onAdd} />)}
-      {showMoreButton && visibleCount < places.length && (
+      {visibleCount < places.length && (
         <Pressable onPress={onShowMore} style={s.showMoreBtn}>
           <Text style={s.showMoreText}>{t("addPlace.showMore")}</Text>
         </Pressable>
@@ -838,12 +835,13 @@ const s = StyleSheet.create({
   showMoreBtn: { alignItems: "center", paddingVertical: 14 },
   showMoreText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: GOLD },
 
-  // Skuggan på ett yttre lager — overflow:hidden klipper annars bort den på iOS
-  addShadow: {
-    width: 36, height: 36, borderRadius: 18,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.6, shadowRadius: 9, elevation: 4,
+  // Ingen skugga längre — upp mot 20 samtidiga skuggor som alla kan animera (tryck, tillägg) var
+  // dyrt nog att synas som hack i fps. En tunn kant ger fortfarande avgränsning, nästan gratis.
+  addShadow: { width: 36, height: 36, borderRadius: 18 },
+  addBtn: {
+    width: 36, height: 36, borderRadius: 18, overflow: "hidden", alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(0,0,0,0.25)",
   },
-  addBtn: { width: 36, height: 36, borderRadius: 18, overflow: "hidden", alignItems: "center", justifyContent: "center" },
 
   emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.55)", textAlign: "center", marginVertical: 40 },
 
