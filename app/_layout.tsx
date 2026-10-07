@@ -22,6 +22,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { ShareTechMono_400Regular } from "@expo-google-fonts/share-tech-mono";
 import { Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
+import { Caveat_600SemiBold, Caveat_700Bold } from "@expo-google-fonts/caveat";
 import { supabase } from "@/integrations/supabase/client";
 import { loadSavedLanguage } from "@/i18n";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
@@ -41,6 +42,10 @@ export default function RootLayout() {
     Montserrat_500Medium,
     Montserrat_600SemiBold,
     Montserrat_700Bold,
+    // Bara för texten skriven "för hand" på minnenas Polaroid-kort — appens enda handstilston,
+    // medvetet reserverad dit så den inte sprids ut och tappar sin betydelse.
+    Caveat_600SemiBold,
+    Caveat_700Bold,
   });
 
   // INITIAL_SESSION är Supabase-klientens signal att sessionen

@@ -1,4 +1,14 @@
-/** "Dina minnen" på Mitt Österlen: rad med senaste minnena, till boken och skapa nytt. */
+/**
+ * "Dina minnen" på Mitt Österlen: rad med senaste minnena, till boken och skapa nytt.
+ *
+ * Korten är Polaroidfoton, inte en kvadratisk bild+text-platta som Listor och platser redan
+ * använder — ett minne ska läsas som en annan SORTS sak vid första ögonkastet, inte en till
+ * variant av samma kort. Vit/krämfärgad ram, tjockare nedtill, titel+datum skrivet direkt på
+ * den nedre remsan i Caveat (appens enda handstilston, medvetet reserverad hit) i stället för
+ * som vanlig text under kortet. Ingen tilt/spridning i den här raden — den ska gå lätt att
+ * scanna i en horisontell rad; en spridd, lite snedvriden layout passar bättre inne i själva
+ * "boken" (hela minnesarkivet), en separat sak för en annan gång.
+ */
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -10,6 +20,11 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 const RECENT = 10;
+
+const CARD_W = 150;
+const FRAME_PAD = 8;
+const CAPTION_H = 52;
+const PHOTO_SIZE = CARD_W - FRAME_PAD * 2;
 
 export function MemoriesSection() {
   const router = useRouter();
@@ -42,22 +57,26 @@ export function MemoriesSection() {
             return (
               <TouchableOpacity
                 key={m.id}
-                style={s.card}
-                activeOpacity={0.8}
+                style={s.polaroid}
+                activeOpacity={0.85}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                   router.push(`/memories/${m.id}` as any);
                 }}
               >
-                {cover ? (
-                  <Image source={{ uri: cover }} style={s.photo} resizeMode="cover" />
-                ) : (
-                  <View style={[s.photo, s.noPhoto]}>
-                    <ImageIcon size={26} color="rgba(255,255,255,0.25)" strokeWidth={1.5} />
-                  </View>
-                )}
-                <Text style={s.name} numberOfLines={1}>{m.title}</Text>
-                <Text style={s.sub}>{formatMemoryDate(m.memoryDate)}</Text>
+                <View style={s.photoWrap}>
+                  {cover ? (
+                    <Image source={{ uri: cover }} style={s.photo} resizeMode="cover" />
+                  ) : (
+                    <View style={[s.photo, s.noPhoto]}>
+                      <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />
+                    </View>
+                  )}
+                </View>
+                <View style={s.caption}>
+                  <Text style={s.captionTitle} numberOfLines={1}>{m.title}</Text>
+                  <Text style={s.captionDate} numberOfLines={1}>{formatMemoryDate(m.memoryDate)}</Text>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -75,10 +94,19 @@ const s = StyleSheet.create({
   actions: { flexDirection: "row", gap: 16 },
   action: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, lineHeight: 21, paddingHorizontal: 16, marginTop: 10 },
-  row: { paddingHorizontal: 16, gap: 12, marginTop: 14 },
-  card: { width: 150 },
-  photo: { width: 150, height: 150, borderRadius: 16 },
-  noPhoto: { backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
-  name: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG, marginTop: 8 },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 1 },
+  row: { paddingHorizontal: 16, gap: 16, marginTop: 14 },
+
+  // Polaroidramen: krämfärgat papper, tjockare nedtill än upptill/sidorna — den proportionen är
+  // det som faktiskt läses som "Polaroid", inte bara en vit kant runt om.
+  polaroid: {
+    width: CARD_W, backgroundColor: "#F0E9D8", borderRadius: 3,
+    paddingHorizontal: FRAME_PAD, paddingTop: FRAME_PAD,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+  },
+  photoWrap: { width: PHOTO_SIZE, height: PHOTO_SIZE, borderRadius: 2, overflow: "hidden", backgroundColor: "#000" },
+  photo: { width: "100%", height: "100%" },
+  noPhoto: { backgroundColor: "rgba(0,0,0,0.08)", alignItems: "center", justifyContent: "center" },
+  caption: { height: CAPTION_H, justifyContent: "center", paddingHorizontal: 2 },
+  captionTitle: { fontFamily: "Caveat_700Bold", fontSize: 21, lineHeight: 22, color: "#2A2419" },
+  captionDate: { fontFamily: "Caveat_600SemiBold", fontSize: 15, lineHeight: 16, color: "rgba(42,36,25,0.55)", marginTop: 1 },
 });
