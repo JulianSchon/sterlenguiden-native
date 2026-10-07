@@ -32,7 +32,7 @@ import {
   ActivityIndicator, StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, {
-  FadeIn, FadeInUp, FadeOutDown, cancelAnimation, runOnJS, scrollTo, useAnimatedReaction, useAnimatedRef,
+  FadeIn, FadeInUp, FadeOutDown, cancelAnimation, runOnJS, scrollTo, useAnimatedRef,
   useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withSpring,
   withTiming, Easing,
 } from "react-native-reanimated";
@@ -138,15 +138,7 @@ export function AddPlaceSheet({
   const dragOffset = useSharedValue(0);
 
   // ── Sidsvep (kategorisidor) ──
-  // scrollDrive körs genom en egen withTiming i stället för ScrollView.scrollTo({animated:true}),
-  // vars inbyggda animation blev snabbare ju längre ner man scrollat — kändes som att kastas upp.
-  // Med en egen shared value blir glidet till toppen alltid samma mjuka 340 ms, oavsett avstånd.
   const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
-  const scrollDrive = useSharedValue(0);
-  useAnimatedReaction(
-    () => scrollDrive.value,
-    (val, prev) => { if (val !== prev) scrollTo(scrollRef, 0, val, false); }
-  );
   const [active, setActive] = useState(0);
   const offsetX = useSharedValue(0);
   const startX = useSharedValue(0);
@@ -252,12 +244,13 @@ export function AddPlaceSheet({
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
 
   // ── Gester: sidsvep (vågrätt) — exakt samma modell som Förmåner-flikens kategorisidor ──
+  // Ett ANIMERAT scrollglid (withTiming + scrollTo varje bildruta) kostade för mycket när det
+  // körde SAMTIDIGT som det vågräta sidbytet — två animationer som delade på samma bildrutebudget
+  // gav hackig fps, bara märkbart när man väl var nedscrollad. Ett direkt hopp utan animation har
+  // ingen sådan kostnad alls.
   const settleScroll = () => {
     "worklet";
-    if (scrollY.value > 0.5) {
-      scrollDrive.value = scrollY.value;
-      scrollDrive.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.cubic) });
-    }
+    if (scrollY.value > 0.5) scrollTo(scrollRef, 0, 0, false);
   };
   const arrived = (index: number) => setActive(index);
   const slideTo = (target: number) => {
@@ -722,30 +715,32 @@ const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place;
   );
 });
 
-/** Knappen själv studsar vid tillägg, inte hela raden/kortet — mindre yta som animerar håller
- * nere risken för att texturer (gradient, skugga) blir suddiga medan de skalas. En snabb dipp
- * NED följt av samma nästan kritiska fjäder som PressableScale, inte en studs som svänger förbi
- * och vaggar — det var den gamla underdämpade fjädern (damping:14) som såg risig ut. */
+/** En enda delad scale-värde för BÅDE tryck-ihop och tillagd-kvittensen, i stället för PressableScale
+ * (egen fjäder) nästlad inuti en till fjäder-driven bounce här — två oberoende fjädrar som sköt
+ * igång efter varandra var precis det som lästes som att den "gungade". withTiming överallt, aldrig
+ * withSpring, så den aldrig kan svänga förbi 1 — bara dippa och gå raka vägen tillbaka. */
 function AddButton({ added, onPress }: { added: boolean; onPress: () => void }) {
   const { t } = useTranslation();
   const scale = useSharedValue(1);
   const reduceMotion = useReducedMotion();
+
   useEffect(() => {
     if (added && !reduceMotion) {
-      scale.value = withSequence(withTiming(0.8, { duration: 90 }), withSpring(1, { damping: 34, stiffness: 320 }));
+      scale.value = withSequence(withTiming(0.86, { duration: 90 }), withTiming(1, { duration: 150, easing: Easing.out(Easing.quad) }));
     }
   }, [added]);
-  const bounce = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
-    <Reanimated.View style={bounce}>
-      <PressableScale
-        scale={0.88}
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={added ? t("addPlace.addedLabel") : t("addPlace.add")}
-        style={s.addShadow}
-      >
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => { if (!reduceMotion) scale.value = withTiming(0.88, { duration: 70 }); }}
+      onPressOut={() => { if (!reduceMotion) scale.value = withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) }); }}
+      accessibilityRole="button"
+      accessibilityLabel={added ? t("addPlace.addedLabel") : t("addPlace.add")}
+    >
+      <Reanimated.View style={[s.addShadow, style]}>
         {added ? (
           <View style={[s.addBtn, { backgroundColor: "rgba(34,197,94,0.95)" }]}>
             <Check size={16} color="#FFFFFF" strokeWidth={2.8} />
@@ -755,8 +750,8 @@ function AddButton({ added, onPress }: { added: boolean; onPress: () => void }) 
             <Plus size={16} color="#121212" strokeWidth={2.8} />
           </LinearGradient>
         )}
-      </PressableScale>
-    </Reanimated.View>
+      </Reanimated.View>
+    </Pressable>
   );
 }
 
