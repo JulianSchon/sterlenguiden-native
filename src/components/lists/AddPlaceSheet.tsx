@@ -1,37 +1,39 @@
 /**
- * "Lägg till plats" på en lista — ett mörkt ark, samma höjdandel som evenemangsarket på Kalender
- * (93 % av skärmen). Fast huvud (grepp, listnamn, rubrik, sökfält, kategorichips); bara
- * innehållet under scrollar.
+ * "Lägg till plats" på en lista — ett mörkt ark, något lägre än skärmen (en skymt av listan
+ * bakom syns alltid upptill, till skillnad från Kalenderns evenemangsark som går ända upp).
+ * Fast huvud (grepp, listnamn, rubrik, sökfält); bara innehållet under scrollar.
  *
- * Hemvyn (ingen kategori vald, inget sökt) visar bara tre små karuseller som ska inspirera:
- * Rekommenderat för listan, Nära dig, Från dina favoriter — inget A–Ö-golv med alla platser.
- * Trycker man på en kategoripill (eller söker) bläddrar man i stället en sida i taget:
- * `matches` räknar ut ALLA träffar, men bara de första `visibleCount` blir till rader — fler
- * sidor laddas in när man scrollar nära botten (onEndReached), i stället för att alla ~300
- * platser renderas på en gång (det var detta som laggade i den förra versionen).
+ * Hemsidan ("Rekommenderat", sida 0) visar tre små karuseller som ska inspirera: Rekommenderat
+ * för listan, Nära dig, Från dina favoriter. Inga kategori-piller längre — i stället bläddrar
+ * man sida för sida genom kategorierna, precis som Förmåner-fliken: en rubrik i mitten med
+ * pilar, svep i sidled mellan sidorna, prickar som visar var man är. Kategoriernas ordning och
+ * namn kommer från CATEGORIES i theme/categories.ts, appens enda källa för det.
  *
- * Övrig prestanda: allt ligger i EN virtualiserad FlatList (även karusellerna är virtualiserade);
- * korten/raderna är memo:ade så ett tillägg bara ritar om det kort som ändrades; gradienterna är
- * expo-linear-gradient (en native-vy) i stället för en SVG per kort; innehållet byggs först NÄR
- * arket glidit upp, inte under animationen; söktexten filtreras via useDeferredValue så
- * tangentbordet aldrig väntar på listan.
+ * Prestanda (det som laggade i en tidigare version): bara den AKTIVA sidan ± en granne har sitt
+ * innehåll monterat (övriga sidors behållare finns kvar tomma, bara för att svepet ska se rätt ut
+ * geometriskt) — aldrig alla ~300 platser samtidigt. Varje kategorisida visar dessutom bara de
+ * första `PAGE_SIZE` träffarna, med en "Visa fler"-knapp i stället för att rendera allt på en
+ * gång. Sökning (oberoende av vald sida) fungerar likadant. Övrigt: gradienterna är
+ * expo-linear-gradient i stället för SVG per kort, innehållet byggs först när arket glidit upp,
+ * söktexten filtreras via useDeferredValue.
  *
  * Urvalet fryses när arket öppnas (vilka som redan fanns + en slumpfrö), så det som lagts till
  * ligger kvar med grön bock och karusellerna inte hoppar runt medan man lägger till flera.
  * Den gröna bocken visas direkt men rullas tillbaka med ett felmeddelande om sparandet misslyckas.
  *
  * Egen Modal + egna gester (inte Sheet.tsx): dra nedåt i huvudet stänger alltid; dra nedåt i
- * innehållet stänger bara när listan redan är högst upp. Karusellerna sveps i sidled utan att
- * arket rör sig (failOffsetX).
+ * innehållet stänger bara när det redan är scrollat högst upp. Sidsvepet (vågrätt) och
+ * stäng-draget/scrollen (lodrätt) stör inte varandra eftersom de reagerar på olika axlar — samma
+ * uppsättning gester som Förmåner-fliken redan bevisat fungerar.
  */
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Modal, View, Text, TextInput, Image, FlatList, ScrollView, Pressable, Keyboard, Platform,
+  Modal, View, Text, TextInput, Image, FlatList, Pressable, Keyboard, Platform,
   ActivityIndicator, StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, {
-  FadeIn, FadeInUp, FadeOutDown, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion,
-  useSharedValue, withSequence, withSpring, withTiming, Easing,
+  FadeIn, FadeInUp, FadeOutDown, cancelAnimation, runOnJS, useAnimatedScrollHandler, useAnimatedStyle,
+  useReducedMotion, useSharedValue, withSequence, withSpring, withTiming, Easing,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,12 +42,13 @@ import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
-import { Check, MapPin, Plus, Search, X } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, MapPin, Plus, Search, X } from "lucide-react-native";
 import { usePlaces, firstImageUrl, getTierScore, type Place } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
 import { useAddPlaceToList } from "@/hooks/useLists";
 import { distanceMeters } from "@/lib/checkin";
+import { CATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
 import { PressableScale } from "@/components/PressableScale";
 
 const GOLD = "#C5A059";
@@ -56,23 +59,27 @@ const BUBBLE_MS = 1600;
 const CARD_W = 168;
 const CARD_H = 220;
 const CARD_GAP = 12;
-const MAX_CHIPS = 10;
-const PAGE_SIZE = 30;
-/** Chip-värde för "bläddra alla kategorier" — skiljs från en riktig kategori så rubriken kan visa "Alla platser" i stället för sentinel-strängen. */
-const ALL_SENTINEL = "\0all";
+const PAGE_SIZE = 20;
+
+// Sidorna att svepa mellan: "home" (de tre inspirationskarusellerna) + en per officiell kategori
+const PAGE_IDS: ("home" | CategoryId)[] = ["home", ...CATEGORIES.map((c) => c.id)];
+const CAT_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
+
+const SIDE_MARGIN = 20;    // samma sidmarginal som resten av arkets huvud
+const PAGE_GAP = 16;
+const EDGE_ZONE = 24;      // px från kanten där svepet inte tar över (iOS "tillbaka")
+const SWIPE_DISTANCE = 70;
+const SWIPE_SPEED = 600;
 
 type Bubble = { key: number; text: string; error: boolean };
 type Card = { place: Place; note?: string };
-type Block =
-  | { kind: "carousel"; key: string; title: string; cards: Card[] }
-  | { kind: "title"; key: string; title: string }
-  | { kind: "row"; key: string; place: Place }
-  | { kind: "empty"; key: string; text: string };
 
 const splitCategories = (c: string | null | undefined) =>
   (c ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 const imageOf = (p: Place) => firstImageUrl(p.image_url) || p.logo_url || null;
 const tier = (p: Place) => getTierScore(p.business_tier);
+const firstCat = (p: Place) => splitCategories(p.categories)[0];
+const byTierThenName = (a: Place, b: Place) => tier(b) - tier(a) || a.name.localeCompare(b.name, "sv");
 
 /** Deterministisk slump (mulberry32) — samma ordning hela tiden arket är öppet, ny nästa gång. */
 function seededRandom(seed: number) {
@@ -94,11 +101,9 @@ export function AddPlaceSheet({
 }: { visible: boolean; onClose: () => void; listId: string; listName?: string; existingPlaceIds: number[] }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { height: winH } = useWindowDimensions();
-  // Samma andel som evenemangsarket på Kalender (SHEET_HEIGHT = SH * 0.93) — det här arket gick
-  // hela vägen upp i skärmen tidigare, dels av att vara 1 % högre, dels av statusBarTranslucent
-  // (som Kalenderarket inte har) vilket på Android räknar in statusfältet i skärmhöjden.
-  const sheetH = Math.round(winH * 0.93);
+  const { width: winW, height: winH } = useWindowDimensions();
+  // Lägre än Kalenderns evenemangsark med avsikt — en skymt av listan ska synas bakom upptill.
+  const sheetH = Math.round(winH * 0.88);
   const reduceMotion = useReducedMotion();
 
   const { data: places, isLoading, isError } = usePlaces();
@@ -112,9 +117,11 @@ export function AddPlaceSheet({
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
-  const [category, setCategory] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const inListMode = category !== null || deferredQuery.trim().length > 0;
+  const searching = deferredQuery.trim().length > 0;
+  const [searchVisible, setSearchVisible] = useState(PAGE_SIZE);
+  const [catVisible, setCatVisible] = useState<Record<CategoryId, number>>(() =>
+    Object.fromEntries(CATEGORIES.map((c) => [c.id, PAGE_SIZE])) as Record<CategoryId, number>
+  );
   const [justAdded, setJustAdded] = useState<Set<number>>(new Set());
   const justAddedRef = useRef(justAdded);
   justAddedRef.current = justAdded;
@@ -127,6 +134,17 @@ export function AddPlaceSheet({
   const backdrop = useSharedValue(0);
   const scrollY = useSharedValue(0);
   const dragOffset = useSharedValue(0);
+
+  // ── Sidsvep (kategorisidor) ──
+  const scrollRef = useRef<any>(null);
+  const [active, setActive] = useState(0);
+  const offsetX = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const fromEdge = useSharedValue(false);
+  const [heights, setHeights] = useState<number[]>([]);
+  const pageW = winW - SIDE_MARGIN * 2;
+  const step = pageW + PAGE_GAP;
+  const areaH = Math.max(heights[active] ?? 0, 220);
 
   // ── Öppna ──
   useEffect(() => {
@@ -156,7 +174,10 @@ export function AddPlaceSheet({
     // Rensa efter att utgångsanimationen hunnit klart, så inget blinkar till på vägen ut
     resetTimer.current = setTimeout(() => {
       setQuery("");
-      setCategory(null);
+      setActive(0);
+      offsetX.value = 0;
+      setHeights([]);
+      setCatVisible(Object.fromEntries(CATEGORIES.map((c) => [c.id, PAGE_SIZE])) as Record<CategoryId, number>);
       setJustAdded(new Set());
       setBubble(null);
     }, 300);
@@ -172,9 +193,8 @@ export function AddPlaceSheet({
 
   useEffect(() => () => { clearTimeout(bubbleTimer.current); clearTimeout(resetTimer.current); }, []);
 
-  // Varje kategoripill och varje ny sökning börjar om på en första sida — annars växer listan
-  // bara neråt och man laddar kvar gamla sidor från en helt annan kategori
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [category, deferredQuery]);
+  // En ny sökning börjar om på en första sida
+  useEffect(() => { setSearchVisible(PAGE_SIZE); }, [deferredQuery]);
 
   // ── Tangentbord: flytta upp innehållets botten och bubblan, arket självt står still ──
   useEffect(() => {
@@ -185,7 +205,7 @@ export function AddPlaceSheet({
     return () => { a.remove(); b.remove(); };
   }, []);
 
-  // ── Gester ──
+  // ── Gester: stäng/scroll (lodrätt) ──
   const settle = (velocityY: number) => {
     "worklet";
     if (translateY.value > CLOSE_DISTANCE || (velocityY > CLOSE_VELOCITY && translateY.value > 0)) {
@@ -221,101 +241,123 @@ export function AddPlaceSheet({
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
 
-  // ── Kategorichips: de vanligaste kategorierna bland alla platser ──
-  const chips = useMemo(() => {
-    const counts = new Map<string, number>();
-    (places ?? []).forEach((p) => splitCategories(p.categories).forEach((c) => counts.set(c, (counts.get(c) ?? 0) + 1)));
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, MAX_CHIPS).map(([c]) => c);
-  }, [places]);
+  // ── Gester: sidsvep (vågrätt) — exakt samma modell som Förmåner-flikens kategorisidor ──
+  const settleScroll = () => { if (scrollY.value > 0.5) scrollRef.current?.scrollTo({ y: 0, animated: true }); };
+  const arrived = (index: number) => setActive(index);
+  const slideTo = (target: number) => {
+    if (target < 0 || target >= PAGE_IDS.length) return;
+    settleScroll();
+    offsetX.value = withTiming(-target * step, { duration: 220 }, (done) => {
+      if (done) runOnJS(arrived)(target);
+    });
+  };
 
-  // ── Lista: alla träffar för vald kategori/sökning, A–Ö. Beräknas separat från sidindelningen
-  // så att "ladda fler" (som bara ändrar visibleCount) inte kör om filter+sortering i onödan. ──
-  const matches = useMemo((): Place[] => {
-    if (!places || !inListMode) return [];
-    const { existing } = snapshot;
-    const available = places.filter((p) => !existing.has(p.id));
-    const cat = category && category !== ALL_SENTINEL ? category.toLowerCase() : null;
-    const q = deferredQuery.trim().toLowerCase();
-    return available
-      .filter((p) => !cat || splitCategories(p.categories).some((c) => c.toLowerCase() === cat))
-      .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.categories ?? "").toLowerCase().includes(q))
-      .sort((a, b) => {
-        if (q) {
-          const as = a.name.toLowerCase().startsWith(q) ? 1 : 0;
-          const bs = b.name.toLowerCase().startsWith(q) ? 1 : 0;
-          if (as !== bs) return bs - as;
+  const catSwipe = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-14, 14])
+    .onStart((e) => {
+      cancelAnimation(offsetX);
+      startX.value = offsetX.value;
+      fromEdge.value = e.absoluteX - e.translationX < EDGE_ZONE;
+    })
+    .onUpdate((e) => {
+      if (fromEdge.value) return;
+      const min = -(PAGE_IDS.length - 1) * step;
+      const raw = startX.value + e.translationX;
+      offsetX.value = raw > 0 ? raw * 0.2 : raw < min ? min + (raw - min) * 0.2 : raw;
+    })
+    .onEnd((e) => {
+      const last = PAGE_IDS.length - 1;
+      const startIdx = Math.round(-startX.value / step);
+      let target = startIdx;
+      if (!fromEdge.value) {
+        const projected = offsetX.value + e.velocityX * 0.18;
+        target = Math.min(last, Math.max(0, Math.round(-projected / step)));
+        const intent = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
+        if (target === startIdx && intent) {
+          target = Math.min(last, Math.max(0, startIdx + (e.translationX < 0 ? 1 : -1)));
         }
-        return tier(b) - tier(a) || a.name.localeCompare(b.name, "sv");
+      }
+      if (target !== startIdx) runOnJS(settleScroll)();
+      const pagesAway = Math.max(1, Math.abs(Math.round(-offsetX.value / step) - target));
+      offsetX.value = withTiming(-target * step, { duration: 150 + 40 * (pagesAway - 1) }, (done) => {
+        if (done) runOnJS(arrived)(target);
       });
-  }, [places, snapshot, inListMode, category, deferredQuery]);
+    });
 
-  // ── Hemvy: bara de tre karuseller som ska inspirera (inget "Alla platser"-golv) ──
-  const homeBlocks = useMemo((): Block[] => {
-    if (!places || inListMode) return [];
+  const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: offsetX.value }] }));
+
+  // ── Hemsidan: tre karuseller som ska inspirera ──
+  const homeData = useMemo(() => {
+    if (!places) return { recommended: [] as Card[], nearby: [] as Card[], favorites: [] as Card[], emptyText: "" };
     const { existing, seed } = snapshot;
     const available = places.filter((p) => !existing.has(p.id));
     const rand = seededRandom(seed);
     const jitter = new Map(available.map((p) => [p.id, rand()]));
-    const firstCat = (p: Place) => splitCategories(p.categories)[0];
 
-    const out: Block[] = [];
-    const carousel = (key: string, title: string, cards: Card[]) => {
-      if (cards.length > 0) out.push({ kind: "carousel", key, title, cards });
-    };
-
-    // Rekommenderat: de fyra vanligaste kategorierna bland listans platser
     const counts = new Map<string, number>();
     places.filter((p) => existing.has(p.id)).forEach((p) =>
       splitCategories(p.categories).forEach((c) => counts.set(c.toLowerCase(), (counts.get(c.toLowerCase()) ?? 0) + 1))
     );
     const topCats = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c]) => c);
-    const recommended = topCats.length === 0 ? [] : available
+    const recommended: Card[] = (topCats.length === 0 ? [] : available
       .filter((p) => splitCategories(p.categories).some((c) => topCats.includes(c.toLowerCase())))
       .sort((a, b) => tier(b) - tier(a) || jitter.get(a.id)! - jitter.get(b.id)!)
-      .slice(0, 12);
-    carousel("recommended", t("addPlace.recommended"), recommended.map((place) => ({ place, note: firstCat(place) })));
+      .slice(0, 12)).map((place) => ({ place, note: firstCat(place) }));
 
-    if (here) {
-      const nearby = available
-        .filter((p) => p.lat != null && p.lng != null)
-        .map((p) => ({ place: p, m: distanceMeters(here.lat, here.lng, p.lat!, p.lng!) }))
-        .sort((a, b) => a.m - b.m)
-        .slice(0, 12);
-      carousel("nearby", t("addPlace.nearby"), nearby.map(({ place, m }) => ({ place, note: formatDistance(m) })));
-    }
+    const nearby: Card[] = here
+      ? available
+          .filter((p) => p.lat != null && p.lng != null)
+          .map((p) => ({ place: p, m: distanceMeters(here.lat, here.lng, p.lat!, p.lng!) }))
+          .sort((a, b) => a.m - b.m)
+          .slice(0, 12)
+          .map(({ place, m }) => ({ place, note: formatDistance(m) }))
+      : [];
 
     const mine = new Set<number>([
       ...favorites.map((f) => f.place_id).filter((id): id is number => id != null),
       ...visits.map((v) => v.place_id),
     ]);
-    carousel("favorites", t("addPlace.favorites"), available.filter((p) => mine.has(p.id)).slice(0, 14).map((place) => ({ place, note: firstCat(place) })));
+    const favoriteCards: Card[] = available.filter((p) => mine.has(p.id)).slice(0, 14).map((place) => ({ place, note: firstCat(place) }));
 
-    // Inget att inspireras av (ny lista, ingen platsbehörighet, inga favoriter) — hänvisa till
-    // kategorierna/sökningen ovanför i stället för att lämna ett tomt ark
-    if (out.length === 0) out.push({ kind: "empty", key: "empty", text: available.length === 0 ? t("addPlace.noMore") : t("addPlace.browseHint") });
-    return out;
-  }, [places, snapshot, inListMode, here, favorites, visits, t]);
+    const hasAny = recommended.length > 0 || nearby.length > 0 || favoriteCards.length > 0;
+    const emptyText = hasAny ? "" : available.length === 0 ? t("addPlace.noMore") : t("addPlace.browseHint");
 
-  // ── Lista-sidan: bara de första `visibleCount` träffarna blir till rader — resten laddas in
-  // när man scrollar nära botten (onEndReached), i stället för att alla hundra renderas direkt ──
-  const listBlocks = useMemo((): Block[] => {
-    if (!inListMode) return [];
-    if (matches.length === 0) return [{ kind: "empty", key: "empty", text: t("addPlace.noMatches") }];
-    const headingLabel = category === ALL_SENTINEL ? t("addPlace.all") : category;
-    const heading = [headingLabel, t("addPlace.count", { count: matches.length })].filter(Boolean).join(" · ");
-    const page = matches.slice(0, visibleCount);
-    return [
-      { kind: "title", key: "t-filter", title: heading },
-      ...page.map((p): Block => ({ kind: "row", key: `r${p.id}`, place: p })),
-    ];
-  }, [inListMode, matches, visibleCount, category, t]);
+    return { recommended, nearby, favorites: favoriteCards, emptyText };
+  }, [places, snapshot, here, favorites, visits, t]);
 
-  const blocks = inListMode ? listBlocks : homeBlocks;
+  // ── Varje kategoris träfflista, A–Ö/tier-sorterad — billigt (ren filter+sort), beräknas för
+  // alla kategorier på en gång så sidbyte inte kräver ny filtrering ──
+  const categoryMatches = useMemo(() => {
+    const map = new Map<CategoryId, Place[]>();
+    if (!places) return map;
+    const available = places.filter((p) => !snapshot.existing.has(p.id));
+    for (const cat of CATEGORIES) {
+      map.set(cat.id, available.filter((p) => findCategory(p.categories)?.id === cat.id).sort(byTierThenName));
+    }
+    return map;
+  }, [places, snapshot]);
 
-  const handleEndReached = useCallback(() => {
-    if (!inListMode) return;
-    setVisibleCount((v) => Math.min(v + PAGE_SIZE, matches.length));
-  }, [inListMode, matches.length]);
+  // ── Sökning: global, oberoende av vilken sida man står på ──
+  const searchMatches = useMemo((): Place[] => {
+    if (!places || !searching) return [];
+    const available = places.filter((p) => !snapshot.existing.has(p.id));
+    const q = deferredQuery.trim().toLowerCase();
+    return available
+      .filter((p) => p.name.toLowerCase().includes(q) || (p.categories ?? "").toLowerCase().includes(q))
+      .sort((a, b) => {
+        const as = a.name.toLowerCase().startsWith(q) ? 1 : 0;
+        const bs = b.name.toLowerCase().startsWith(q) ? 1 : 0;
+        return as !== bs ? bs - as : byTierThenName(a, b);
+      });
+  }, [places, snapshot, searching, deferredQuery]);
+
+  const bumpCatVisible = useCallback((id: CategoryId) => {
+    setCatVisible((prev) => ({
+      ...prev,
+      [id]: Math.min((prev[id] ?? PAGE_SIZE) + PAGE_SIZE, categoryMatches.get(id)?.length ?? 0),
+    }));
+  }, [categoryMatches]);
 
   // ── Lägg till ──
   const showBubble = useCallback((text: string, error = false) => {
@@ -346,19 +388,7 @@ export function AddPlaceSheet({
   ].filter(Boolean).join(" · ");
 
   const bottomSpace = keyboardH > 0 ? keyboardH : insets.bottom;
-
-  const renderBlock = ({ item }: { item: Block }) => {
-    switch (item.kind) {
-      case "carousel":
-        return <Carousel title={item.title} cards={item.cards} justAdded={justAdded} onAdd={handleAdd} />;
-      case "title":
-        return <Text style={[s.sectionTitle, { marginTop: 4 }]}>{item.title}</Text>;
-      case "row":
-        return <PlaceRow place={item.place} added={justAdded.has(item.place.id)} onAdd={handleAdd} />;
-      case "empty":
-        return <Text style={s.emptyText}>{item.text}</Text>;
-    }
-  };
+  const pageLabels = useMemo(() => [t("addPlace.recommendedShort"), ...CATEGORIES.map((c) => c.label)], [t]);
 
   return (
     <Modal visible={mounted} transparent animationType="none" onRequestClose={requestClose}>
@@ -401,17 +431,6 @@ export function AddPlaceSheet({
                   </Pressable>
                 )}
               </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={s.chips}
-              >
-                <Chip label={t("addPlace.chipAll")} active={category === ALL_SENTINEL} onPress={() => setCategory(category === ALL_SENTINEL ? null : ALL_SENTINEL)} />
-                {chips.map((c) => (
-                  <Chip key={c} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />
-                ))}
-              </ScrollView>
             </View>
           </GestureDetector>
 
@@ -425,26 +444,73 @@ export function AddPlaceSheet({
               ) : (
                 <Reanimated.View entering={reduceMotion ? undefined : FadeIn.duration(180)} style={{ flex: 1 }}>
                   <GestureDetector gesture={nativeScroll}>
-                    <Reanimated.FlatList
-                      data={blocks}
-                      keyExtractor={(b) => b.key}
-                      renderItem={renderBlock}
-                      extraData={justAdded}
+                    <Reanimated.ScrollView
+                      ref={scrollRef}
                       onScroll={onScroll}
                       scrollEventThrottle={16}
-                      onEndReached={handleEndReached}
-                      onEndReachedThreshold={0.6}
                       bounces={false}
                       overScrollMode="never"
                       showsVerticalScrollIndicator={false}
                       keyboardShouldPersistTaps="handled"
                       keyboardDismissMode="on-drag"
-                      initialNumToRender={inListMode ? 10 : 5}
-                      maxToRenderPerBatch={8}
-                      windowSize={7}
-                      removeClippedSubviews={Platform.OS === "android"}
-                      contentContainerStyle={{ paddingTop: 6, paddingBottom: bottomSpace + 24 }}
-                    />
+                      contentContainerStyle={{ paddingTop: 10, paddingHorizontal: SIDE_MARGIN, paddingBottom: bottomSpace + 24 }}
+                    >
+                      {searching ? (
+                        <>
+                          <Text style={[s.sectionTitle, { marginHorizontal: 0 }]}>{t("addPlace.count", { count: searchMatches.length })}</Text>
+                          <PlaceRows
+                            places={searchMatches}
+                            visibleCount={searchVisible}
+                            onShowMore={() => setSearchVisible((v) => Math.min(v + PAGE_SIZE, searchMatches.length))}
+                            justAdded={justAdded}
+                            onAdd={handleAdd}
+                            emptyText={t("addPlace.noMatches")}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <CategoryHeader index={active} labels={pageLabels} onStep={(dir) => slideTo(active + dir)} />
+                          <GestureDetector gesture={catSwipe}>
+                            <Reanimated.View style={[{ height: areaH }, slideStyle]}>
+                              {PAGE_IDS.map((id, i) => (
+                                <View
+                                  key={id}
+                                  pointerEvents={i === active ? "auto" : "none"}
+                                  style={[s.page, { left: i * step, width: pageW, height: areaH }]}
+                                >
+                                  <View
+                                    onLayout={(e) => {
+                                      const h = e.nativeEvent.layout.height;
+                                      setHeights((prev) => {
+                                        if (prev[i] === h) return prev;
+                                        const next = [...prev];
+                                        next[i] = h;
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    {Math.abs(i - active) <= 1 ? (
+                                      id === "home" ? (
+                                        <HomePage data={homeData} justAdded={justAdded} onAdd={handleAdd} />
+                                      ) : (
+                                        <PlaceRows
+                                          places={categoryMatches.get(id) ?? []}
+                                          visibleCount={catVisible[id] ?? PAGE_SIZE}
+                                          onShowMore={() => bumpCatVisible(id)}
+                                          justAdded={justAdded}
+                                          onAdd={handleAdd}
+                                          emptyText={t("addPlace.noMatches")}
+                                        />
+                                      )
+                                    ) : null}
+                                  </View>
+                                </View>
+                              ))}
+                            </Reanimated.View>
+                          </GestureDetector>
+                        </>
+                      )}
+                    </Reanimated.ScrollView>
                   </GestureDetector>
                 </Reanimated.View>
               )}
@@ -477,13 +543,70 @@ export function AddPlaceSheet({
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+/** Rubrik i mitten med pilar vänster/höger + prickar — samma komponent-mönster som Förmåner-fliken. */
+function CategoryHeader({ index, labels, onStep }: { index: number; labels: string[]; onStep: (dir: 1 | -1) => void }) {
+  const arrow = (dir: 1 | -1) => {
+    const hidden = index + dir < 0 || index + dir >= labels.length;
+    const Icon = dir === 1 ? ChevronRight : ChevronLeft;
+    return (
+      <Pressable onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
+        <Icon size={20} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+      </Pressable>
+    );
+  };
   return (
-    <Pressable onPress={onPress} style={[s.chip, active && s.chipActive]}>
-      <Text style={[s.chipText, active && s.chipTextActive]}>{label}</Text>
-    </Pressable>
+    <View style={s.catHeader}>
+      <View style={s.catRow}>
+        {arrow(-1)}
+        <View style={s.catMiddle}>
+          <View style={s.rule} />
+          <Text style={s.catTitle} numberOfLines={1}>{labels[index].toUpperCase()}</Text>
+          <View style={s.rule} />
+        </View>
+        {arrow(1)}
+      </View>
+      <View style={s.dots}>
+        {labels.map((label, i) => (
+          <View key={label} style={[s.dot, i === index && s.dotActive]} />
+        ))}
+      </View>
+    </View>
   );
 }
+
+/** Hemsidans tre inspirationskarseller, eller ett hänvisningsmeddelande om listan/platsen inte ger något. */
+const HomePage = memo(function HomePage({
+  data, justAdded, onAdd,
+}: { data: { recommended: Card[]; nearby: Card[]; favorites: Card[]; emptyText: string }; justAdded: Set<number>; onAdd: (p: Place) => void }) {
+  const { t } = useTranslation();
+  if (data.emptyText) return <Text style={s.emptyText}>{data.emptyText}</Text>;
+  return (
+    <View>
+      {data.recommended.length > 0 && <Carousel title={t("addPlace.recommended")} cards={data.recommended} justAdded={justAdded} onAdd={onAdd} />}
+      {data.nearby.length > 0 && <Carousel title={t("addPlace.nearby")} cards={data.nearby} justAdded={justAdded} onAdd={onAdd} />}
+      {data.favorites.length > 0 && <Carousel title={t("addPlace.favorites")} cards={data.favorites} justAdded={justAdded} onAdd={onAdd} />}
+    </View>
+  );
+});
+
+/** En kategoris (eller sökningens) träfflista — kapad till `visibleCount`, "Visa fler" i stället för allt på en gång. */
+const PlaceRows = memo(function PlaceRows({
+  places, visibleCount, onShowMore, justAdded, onAdd, emptyText,
+}: { places: Place[]; visibleCount: number; onShowMore: () => void; justAdded: Set<number>; onAdd: (p: Place) => void; emptyText: string }) {
+  const { t } = useTranslation();
+  if (places.length === 0) return <Text style={s.emptyText}>{emptyText}</Text>;
+  const shown = places.slice(0, visibleCount);
+  return (
+    <View>
+      {shown.map((p) => <PlaceRow key={p.id} place={p} added={justAdded.has(p.id)} onAdd={onAdd} />)}
+      {visibleCount < places.length && (
+        <Pressable onPress={onShowMore} style={s.showMoreBtn}>
+          <Text style={s.showMoreText}>{t("addPlace.showMore")}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+});
 
 // ── Karusell: egen virtualiserad FlatList i sidled ──
 const Carousel = memo(function Carousel({
@@ -491,14 +614,13 @@ const Carousel = memo(function Carousel({
 }: { title: string; cards: Card[]; justAdded: Set<number>; onAdd: (p: Place) => void }) {
   return (
     <View style={{ marginBottom: 26 }}>
-      <Text style={s.sectionTitle}>{title}</Text>
+      <Text style={[s.sectionTitle, { marginHorizontal: 0 }]}>{title}</Text>
       <FlatList
         horizontal
         data={cards}
         keyExtractor={(c) => String(c.place.id)}
         extraData={justAdded}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20 }}
         ItemSeparatorComponent={CardGap}
         initialNumToRender={3}
         maxToRenderPerBatch={4}
@@ -549,13 +671,12 @@ const PlaceCard = memo(function PlaceCard({
   );
 });
 
-// ── Rad i Alla platser / kategori / sök ──
+// ── Rad i en kategorisida / sökresultat ──
 const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place; added: boolean; onAdd: (p: Place) => void }) {
   const [failed, setFailed] = useState(false);
   const uri = imageOf(place);
   const bounce = useBounce(added, 1.015);
-  const category = splitCategories(place.categories)[0];
-  const meta = [category, place.nearest_town].filter(Boolean).join(" · ");
+  const meta = [firstCat(place), place.nearest_town].filter(Boolean).join(" · ");
   const add = () => onAdd(place);
 
   return (
@@ -591,7 +712,7 @@ function AddButton({ added, onPress }: { added: boolean; onPress: () => void }) 
           <Check size={16} color="#FFFFFF" strokeWidth={2.8} />
         </View>
       ) : (
-        <LinearGradient colors={["#D4B574", "#C5A059"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.addBtn}>
+        <LinearGradient colors={["#D4B574", "#C5A059"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.addBtn}>
           <Plus size={16} color="#121212" strokeWidth={2.8} />
         </LinearGradient>
       )}
@@ -630,7 +751,7 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
 
-  searchWrap: { marginHorizontal: 20, height: 48, justifyContent: "center" },
+  searchWrap: { marginHorizontal: 20, marginBottom: 6, height: 48, justifyContent: "center" },
   searchIcon: { position: "absolute", left: 14, zIndex: 1 },
   searchInput: {
     height: 48, borderRadius: 24, paddingLeft: 40, paddingRight: 40,
@@ -642,14 +763,17 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center",
   },
 
-  chips: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14, gap: 8 },
-  chip: {
-    paddingHorizontal: 14, height: 32, borderRadius: 16, justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
-  },
-  chipActive: { backgroundColor: "rgba(197,160,89,0.16)", borderColor: GOLD },
-  chipText: { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(255,255,255,0.75)" },
-  chipTextActive: { color: GOLD },
+  catHeader: { alignItems: "center", gap: 10, paddingTop: 14, paddingBottom: 14 },
+  catRow: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
+  catMiddle: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 6 },
+  arrow: { width: 32, alignItems: "center" },
+  rule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(197,160,89,0.3)" },
+  catTitle: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3, color: FG },
+  dots: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "center" },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.18)" },
+  dotActive: { width: 18, backgroundColor: GOLD },
+
+  page: { position: "absolute", top: 0, overflow: "hidden" },
 
   sectionTitle: {
     fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: GOLD,
@@ -663,11 +787,14 @@ const s = StyleSheet.create({
   cardNote: { fontFamily: "Inter_500Medium", fontSize: 10.5, letterSpacing: 0.4, textTransform: "uppercase", color: "rgba(255,255,255,0.65)" },
   cardPlus: { position: "absolute", right: 12, bottom: 12 },
 
-  row: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 12, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 16 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 16 },
   rowImg: { width: 64, height: 64, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.04)" },
   rowImgFallback: { alignItems: "center", justifyContent: "center" },
   rowName: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: -0.2, color: FG },
   rowMeta: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 3 },
+
+  showMoreBtn: { alignItems: "center", paddingVertical: 14 },
+  showMoreText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: GOLD },
 
   // Skuggan på ett yttre lager — overflow:hidden klipper annars bort den på iOS
   addShadow: {
