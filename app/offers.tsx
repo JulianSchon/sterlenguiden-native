@@ -157,7 +157,9 @@ export default function OffersScreen() {
       const startIdx = Math.round(-startX.value / step);
       let target = startIdx;
       if (!fromEdge.value) {
-        const projected = offsetX.value + e.velocityX * 0.18;
+        // 0.18 gjorde att ett bara måttligt snabbt svep redan projicerades förbi grannsidan och
+        // hoppade 2 sidor i stället för 1 — sänkt så det krävs ett genuint snabbt kast för det.
+        const projected = offsetX.value + e.velocityX * 0.1;
         target = Math.min(last, Math.max(0, Math.round(-projected / step)));
         const intent = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
         if (target === startIdx && intent) {

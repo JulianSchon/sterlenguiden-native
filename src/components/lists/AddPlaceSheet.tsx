@@ -61,6 +61,9 @@ const CARD_W = 168;
 const CARD_H = 220;
 const CARD_GAP = 12;
 const PAGE_SIZE = 20;
+// Hur mycket en GRANNSIDA (inte den aktiva) visar medan den är förmonterad för svepet — bara
+// en föraning, inte hela sidan, så svepet inte behöver dra runt upp mot 60 rader samtidigt.
+const PREVIEW_SIZE = 6;
 
 // Sidorna att svepa mellan: "home" (de tre inspirationskarusellerna) + en per officiell kategori
 const PAGE_IDS: ("home" | CategoryId)[] = ["home", ...CATEGORIES.map((c) => c.id)];
@@ -286,7 +289,9 @@ export function AddPlaceSheet({
       const startIdx = Math.round(-startX.value / step);
       let target = startIdx;
       if (!fromEdge.value) {
-        const projected = offsetX.value + e.velocityX * 0.18;
+        // Samma justering som Förmåner-fliken: 0.18 hoppade 2 sidor vid ett bara måttligt snabbt
+        // svep, sänkt så det krävs ett genuint snabbt kast för att hoppa mer än en sida.
+        const projected = offsetX.value + e.velocityX * 0.1;
         target = Math.min(last, Math.max(0, Math.round(-projected / step)));
         const intent = Math.abs(e.translationX) > SWIPE_DISTANCE || Math.abs(e.velocityX) > SWIPE_SPEED;
         if (target === startIdx && intent) {
@@ -520,13 +525,17 @@ export function AddPlaceSheet({
                                       id === "home" ? (
                                         <HomePage data={homeData} justAdded={justAdded} onAdd={handleToggle} />
                                       ) : (
+                                        // Grannsidorna (inte den aktiva) visar bara en liten föraning, inte hela
+                                        // listan — annars var det upp mot tre hela kategorisidor (~60 rader) monterade
+                                        // samtidigt under själva svepet, vilket var vad som gjorde det hackigt.
                                         <PlaceRows
                                           places={categoryMatches.get(id) ?? []}
-                                          visibleCount={catVisible[id] ?? PAGE_SIZE}
+                                          visibleCount={i === active ? (catVisible[id] ?? PAGE_SIZE) : PREVIEW_SIZE}
                                           onShowMore={() => bumpCatVisible(id)}
                                           justAdded={justAdded}
                                           onAdd={handleToggle}
                                           emptyText={t("addPlace.noMatches")}
+                                          showMoreButton={i === active}
                                         />
                                       )
                                     ) : null}
@@ -618,15 +627,18 @@ const HomePage = memo(function HomePage({
 
 /** En kategoris (eller sökningens) träfflista — kapad till `visibleCount`, "Visa fler" i stället för allt på en gång. */
 const PlaceRows = memo(function PlaceRows({
-  places, visibleCount, onShowMore, justAdded, onAdd, emptyText,
-}: { places: Place[]; visibleCount: number; onShowMore: () => void; justAdded: Set<number>; onAdd: (p: Place) => void; emptyText: string }) {
+  places, visibleCount, onShowMore, justAdded, onAdd, emptyText, showMoreButton = true,
+}: {
+  places: Place[]; visibleCount: number; onShowMore: () => void; justAdded: Set<number>; onAdd: (p: Place) => void;
+  emptyText: string; showMoreButton?: boolean;
+}) {
   const { t } = useTranslation();
   if (places.length === 0) return <Text style={s.emptyText}>{emptyText}</Text>;
   const shown = places.slice(0, visibleCount);
   return (
     <View>
       {shown.map((p) => <PlaceRow key={p.id} place={p} added={justAdded.has(p.id)} onAdd={onAdd} />)}
-      {visibleCount < places.length && (
+      {showMoreButton && visibleCount < places.length && (
         <Pressable onPress={onShowMore} style={s.showMoreBtn}>
           <Text style={s.showMoreText}>{t("addPlace.showMore")}</Text>
         </Pressable>
