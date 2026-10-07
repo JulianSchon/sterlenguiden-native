@@ -20,7 +20,7 @@ import {
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical } from "lucide-react-native";
+import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical, LogOut } from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useResetListCover,
@@ -167,9 +167,18 @@ export default function ListDetailScreen() {
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{list?.name ?? ""}</Text>
           {list && (
-            <TouchableOpacity style={s.headerBtn} onPress={() => setOptionsOpen(true)}>
-              <MoreHorizontal size={22} color={FG} strokeWidth={2} />
-            </TouchableOpacity>
+            isOwner ? (
+              <TouchableOpacity style={s.headerBtn} onPress={() => setOptionsOpen(true)}>
+                <MoreHorizontal size={22} color={FG} strokeWidth={2} />
+              </TouchableOpacity>
+            ) : (
+              // Inbjuden medlem, inte ägare: ⋮-menyns enda alternativ som gällde dem var ändå
+              // bara "Lämna listan" (Byt omslag/Redigera är redan ägar-låsta) — en direktknapp
+              // i stället för att gömma den enda relevanta handlingen bakom en meny.
+              <TouchableOpacity style={s.headerBtn} onPress={handleDeleteOrLeave}>
+                <LogOut size={20} color={FG} strokeWidth={2} />
+              </TouchableOpacity>
+            )
           )}
         </View>
       </View>
@@ -272,12 +281,11 @@ export default function ListDetailScreen() {
           <ListOptionsSheet
             visible={optionsOpen}
             onClose={() => setOptionsOpen(false)}
-            isOwner={isOwner}
             onChangeCover={() => afterOptionsClose(openCoverMenu)}
             onEdit={() => afterOptionsClose(() => setEditOpen(true))}
             onShare={() => afterOptionsClose(shareList)}
             onDuplicate={() => afterOptionsClose(handleDuplicate)}
-            onDeleteOrLeave={() => afterOptionsClose(handleDeleteOrLeave)}
+            onDelete={() => afterOptionsClose(handleDeleteOrLeave)}
           />
           <EditListSheet visible={editOpen} onClose={() => setEditOpen(false)} list={list} />
         </>
