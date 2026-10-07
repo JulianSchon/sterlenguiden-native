@@ -65,7 +65,8 @@
           "photosPermission": "Österlenappen behöver tillgång till dina bilder för att du ska kunna ladda upp en profilbild eller ett verifieringsfoto till ditt medlemskort.",
           "cameraPermission": "Österlenappen behöver tillgång till kameran för att du ska kunna ta en profilbild eller ett verifieringsfoto till ditt medlemskort."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "scheme": "sterlenguiden",
     "experiments": {
