@@ -31,7 +31,6 @@ import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { useProfile } from "@/hooks/useProfile";
 import { formatMemoryDate } from "@/lib/memories";
 import { getVariant } from "@/lib/cardVariants";
-import { tint } from "@/theme/categories";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { LoadingImage } from "@/components/LoadingImage";
 
@@ -52,17 +51,18 @@ function wobbleX(i: number, amplitude: number): number {
 export default function MemoriesBookScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { data: memories = [], isLoading } = useMemories();
   const { data: profile } = useProfile();
   const { data: urls = {} } = useSignedUrls(memories.map((m) => m.photoPaths[0]).filter(Boolean));
 
-  const glowColor = useMemo(() => tint(getVariant(profile?.card_color).bg, 0.35), [profile?.card_color]);
+  // Exakt samma färg som kortet, ingen toning mot vitt — se samma fix i friend/[id].tsx.
+  const glowColor = useMemo(() => getVariant(profile?.card_color).bg, [profile?.card_color]);
 
   // Storlekarna är satta i förhållande till skärmbredden (den aktiva cirkeln ska dominera ytan,
-  // som i referensen), inte fasta pixelvärden — annars blir den löjligt stor på en liten skärm
-  // eller för liten på en stor.
-  const MAX_SIZE = Math.round(width * 0.56);
+  // som i referensen, men inte så stor att titeln knappt får plats bredvid den), inte fasta
+  // pixelvärden — annars blir den löjligt stor på en liten skärm eller för liten på en stor.
+  const MAX_SIZE = Math.round(width * 0.46);
   const MIN_SIZE = Math.round(MAX_SIZE * 0.38);
   const ITEM_H = Math.round(MAX_SIZE * 1.25);
   const FOCUS_RANGE = ITEM_H * 1.3;
@@ -100,14 +100,19 @@ export default function MemoriesBookScreen() {
         <RadialGlow size={width * 1.7} color={glowColor} opacity={0.55} radiusRatio={1} />
       </View>
 
-      {/* Fast header — ligger UTANFÖR scrollytan, rör sig aldrig. */}
-      <View style={[s.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
-          <ArrowLeft size={22} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit" as any)}>
-          <Plus size={22} color={FG} strokeWidth={2} />
-        </TouchableOpacity>
+      {/* Fast header — ligger UTANFÖR scrollytan, rör sig aldrig. Insets och den fasta
+          64px-raden i TVÅ olika Views (som varje annan header i appen) — på SAMMA View hade
+          paddingTop ätit upp av den redan låsta height:64, klämt ihop knapparna till en smal
+          rand och klippt hela headern mitt i (precis det som syntes i screenshoten). */}
+      <View style={{ paddingTop: insets.top }}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
+            <ArrowLeft size={22} color={FG} strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit" as any)}>
+            <Plus size={22} color={FG} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {isLoading ? (
@@ -119,7 +124,10 @@ export default function MemoriesBookScreen() {
           style={{ flex: 1 }}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingBottom: 260 }}
+          // Hela skärmhöjden som extra utrymme nedanför sista cirkeln — annars går den aldrig
+          // att dra hela vägen upp till fokuszonen (för lite kvar att scrolla), vilket gjorde
+          // sista minnet omöjligt att nå/aktivera.
+          contentContainerStyle={{ paddingBottom: height }}
           showsVerticalScrollIndicator={false}
         >
           <View style={{ height: focusY - ITEM_H / 2 }} />

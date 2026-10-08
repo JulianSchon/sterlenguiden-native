@@ -43,7 +43,7 @@ import {
 import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { computeCategoryStats } from "@/lib/categories";
 import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
-import { CATEGORIES, tint } from "@/theme/categories";
+import { CATEGORIES } from "@/theme/categories";
 import { TrophyMedal, RadialGlow } from "@/components/trophies/TrophyMedal";
 import { getVariant } from "@/lib/cardVariants";
 import { computeStreak, swedishDay } from "@/lib/streak";
@@ -103,10 +103,11 @@ export default function FriendProfileScreen() {
   }, [places, stats]);
 
   // Samma kortfärg som personens eget Österlenpass, fritt valt oavsett medlemskap, bara kosmetik —
-  // används bara som glödens färg bakom profilringen nu. Lyft mot vitt (tint) innan den används —
-  // en mörk kortfärg som Skog eller Hav annars knappt syns glöda alls mot den nästan svarta bakgrunden.
+  // används som glödens färg bakom profilringen. Exakt samma färg som kortet, INGEN toning mot
+  // vitt — Viktor vill att den matchar kortet exakt (en tidigare lyft-mot-vitt-version läste som
+  // en märkbart ljusare, fel färg, inte samma).
   const variant = friend ? getVariant(friend.cardColor) : null;
-  const glowColor = tint(variant?.bg ?? GOLD, 0.35);
+  const glowColor = variant?.bg ?? GOLD;
 
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;

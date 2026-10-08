@@ -41,7 +41,7 @@ const HERO_TAPE_H = 34;
 const HERO_TAPE_TILT = -3;
 
 export default function MemoryDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, viaMap } = useLocalSearchParams<{ id: string; viaMap?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -99,17 +99,19 @@ export default function MemoryDetailScreen() {
             med Radera, i stället för att delas upp på två olika ställen. Titeln är dock kvar
             (annars står man utan ledtext alls längst upp) — en rad, trunkerad med "…" om den
             är för lång för att få plats, precis som vilken app-header som helst hanterar det.
-            Pilen pekar mot Mitt Österlen med dismissTo (inte router.back(), inte heller ett
-            rakt replace): dismissTo stänger skärmar BAKÅT tills den hittar Mitt Österlen i
-            stacken — om den redan ligger där (det vanliga fallet) blir det en riktig
-            tillbaka-navigering med rätt bakåt-animation. Bara i undantagsfallet (kom hit via
-            kartans "Tillbaka till minnet", se map.tsx — det byter bara aktiv flik i en
-            (tabs)-navigator som redan fanns i stacken och tar i praktiken bort Mitt
-            Österlen-steget ur historiken) hittar den den inte, och ersätter då aktuell skärm
-            i stället — map.tsx:s "Tillbaka till minnet" återställer samtidigt profilfliken, så
-            kedjan ändå landar rätt om man fortsätter bakåt därifrån. */}
+            Pilen är VANLIGT router.back() som standard — ett minne kan nås både från Mitt
+            Österlen OCH från "Alla" (Österlenboken, egen scrollposition man inte vill tappa) nu,
+            och back() tar en korrekt dit man faktiskt kom ifrån, vem det än var, med bevarad
+            scrollposition om det var "Alla". Undantaget är viaMap: kom man hit via kartans
+            "Tillbaka till minnet" (map.tsx) finns varken Mitt Österlen eller Alla kvar i
+            stacken — den vägen kollapsade dem när (tabs)-navigatorn bytte flik till kartan — så
+            där används dismissTo mot Mitt Österlen i stället (map.tsx återställer samtidigt
+            profilfliken, så kedjan landar rätt om man fortsätter bakåt därifrån). */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.dismissTo("/mitt-osterlen" as any)}>
+          <TouchableOpacity
+            style={s.backBtn}
+            onPress={() => (viaMap ? router.dismissTo("/mitt-osterlen" as any) : router.back())}
+          >
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           {memory && <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">{memory.title}</Text>}

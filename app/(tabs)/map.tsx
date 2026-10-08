@@ -559,7 +559,11 @@ export default function MapScreen() {
               activeOpacity={0.85}
               onPress={() => {
                 router.push("/(tabs)/profile" as any);
-                router.push(`/memories/${fromMemoryParam}` as any);
+                // viaMap: minnessidans headerpil använder annars ett vanligt router.back() (så
+                // den tar en dit man faktiskt kom ifrån — Mitt Österlen ELLER "Alla", beroende
+                // på var man var) — men just den här vägen hit har inget Mitt Österlen/Alla-steg
+                // kvar i stacken (se kommentaren ovan), så den måste veta att göra undantag.
+                router.push({ pathname: `/memories/${fromMemoryParam}`, params: { viaMap: "1" } } as any);
               }}
             >
               <ArrowLeft size={14} color={FG} strokeWidth={2.2} />
