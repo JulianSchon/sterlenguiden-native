@@ -55,6 +55,14 @@ export default function MemoryDetailScreen() {
     () => (memory ? places.filter((p) => memory.placeIds.includes(p.id)) : []),
     [memory, places]
   );
+  // Äldre minnen (innan "VILKA VAR MED" alltid delades upp vid komma) kan ha hela listan i ETT
+  // enda element, t.ex. people: ["Cornelia, Mamma, Olivia, Pappa, Tilde"] i stället för fem
+  // separata — delar därför upp varje element på komma här också, inte bara vid sparning, så
+  // även gamla minnen visas som separata namn-pills i stället för en enda ruta med kommatecken.
+  const peopleNames = useMemo(
+    () => (memory?.people ?? []).flatMap((p) => p.split(",")).map((n) => n.trim()).filter(Boolean),
+    [memory]
+  );
   // Stora bilder i en vertikal rad (scrolla neråt) i stället för en 3-kolumners rutnät med
   // tummar — samma breddmarginal som textspalten ovanför, så det läses som en sammanhängande
   // sida, inte ett separat bildgalleri.
@@ -89,9 +97,14 @@ export default function MemoryDetailScreen() {
         {/* "Redigera" bort härifrån — ligger nu i åtgärdslistan längst ner på sidan tillsammans
             med Radera, i stället för att delas upp på två olika ställen. Titeln är dock kvar
             (annars står man utan ledtext alls längst upp) — en rad, trunkerad med "…" om den
-            är för lång för att få plats, precis som vilken app-header som helst hanterar det. */}
+            är för lång för att få plats, precis som vilken app-header som helst hanterar det.
+            Pilen går alltid till Mitt Österlen, uttryckligen i stället för router.back() —
+            "Visa plats på kartan" byter bara aktiv flik i (tabs)-navigatorn som redan fanns i
+            stacken (se map.tsx), vilket i praktiken TAR BORT Mitt Österlen-steget ur historiken;
+            kommer man sen hit igen via kartans "Tillbaka till minnet" landar back() då på kartan
+            i stället. Ett fast mål här är enklare och säkrare än att försöka reparera stacken. */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/mitt-osterlen" as any)}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           {memory && <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">{memory.title}</Text>}
@@ -149,12 +162,12 @@ export default function MemoryDetailScreen() {
 
             {/* Varje namn i en egen färgad ruta igen (inte en kommaseparerad rad) — varje namn
                 ska få sin egen visuella tyngd i stället för att läsas som en lång uppräkning. */}
-            {memory.people.length > 0 && (
+            {peopleNames.length > 0 && (
               <View style={{ marginTop: memory.story ? 24 : 0 }}>
                 <Text style={s.sectionLabel}>VILKA VAR MED</Text>
                 <View style={s.peopleRow}>
-                  {memory.people.map((name) => (
-                    <View key={name} style={s.personPill}>
+                  {peopleNames.map((name, i) => (
+                    <View key={`${name}-${i}`} style={s.personPill}>
                       <Text style={s.personPillText}>{name}</Text>
                     </View>
                   ))}
