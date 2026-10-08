@@ -1,17 +1,20 @@
 /**
  * "Jag är här!" som man HÅLLER inne i stället för att trycka på — en liten ritual i stället för
- * ett klick, och inga råkat-tryckta incheckningar. En ljusare guldyta sveper över knappen (långsamt
- * först, sedan allt snabbare) medan
- * man håller, telefonen tickar i takt (lätta vibrationer på vägen, en kraftig när den är full),
- * och släpper man för tidigt glider den snabbt tillbaka. `onStart` körs direkt vid tryck (så
- * positionen kan börja hämtas medan man håller — väntan döljs i ritualen), `onComplete` när den
- * är full.
+ * ett klick, och inga råkat-tryckta incheckningar.
+ *
+ * I vila: mörk knapp med guldig neonkant och glöd. Medan man håller fylls den med en guldgradient
+ * från vänster (långsamt först, sedan allt snabbare), glöden tilltar, och texten byter färg exakt
+ * där guldet passerar (en mörk kopia av texten ligger inuti fyllnaden). Telefonen tickar i takt
+ * (allt tätare och starkare, en kraftig när den är full), och släpper man för tidigt glider den
+ * tillbaka. `onStart` körs direkt vid tryck (positionen kan börja hämtas medan man håller —
+ * väntan döljs i ritualen), `onComplete` när den är full.
  */
 import { useRef, useState } from "react";
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import Reanimated, {
-  Easing, cancelAnimation, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming,
+  Easing, cancelAnimation, interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { playSound } from "@/lib/sounds";
 
@@ -54,8 +57,15 @@ export function HoldToCheckIn({
   );
 
   const fillStyle = useAnimatedStyle(() => ({ width: progress.value * width }));
+  // Neonglöden tilltar medan man håller — knappen "laddas upp"
+  const glowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: interpolate(progress.value, [0, 1], [0.55, 1]),
+    shadowRadius: interpolate(progress.value, [0, 1], [10, 22]),
+  }));
+  const text = holding ? "Håll kvar…" : label;
 
   return (
+    <Reanimated.View style={[s.glow, glowStyle, disabled && { opacity: 0.6 }]}>
     <Pressable
       disabled={disabled}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
@@ -74,22 +84,49 @@ export function HoldToCheckIn({
         setHolding(false);
         progress.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
       }}
-      style={[s.button, disabled && { opacity: 0.6 }]}
+      style={s.button}
     >
-      <Reanimated.View style={[s.fill, fillStyle]} pointerEvents="none" />
+      {/* Guldtext på mörkt i vila */}
       <View style={s.labelWrap} pointerEvents="none">
-        <Text style={s.label}>{holding ? "Håll kvar…" : label}</Text>
+        <Text style={s.label}>{text}</Text>
       </View>
+      {/* Fyllnaden: guldgradient, med en MÖRK kopia av texten i full knappbredd inuti — så texten
+          byter färg exakt där guldet har kommit, i stället för att guldtext försvinner i guld */}
+      <Reanimated.View style={[s.fill, fillStyle]} pointerEvents="none">
+        <Svg width={Math.max(width, 1)} height={HEIGHT} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <LinearGradient id="holdFill" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={GOLD_LT} />
+              <Stop offset="0.55" stopColor={GOLD} />
+              <Stop offset="1" stopColor="#A9822F" />
+            </LinearGradient>
+          </Defs>
+          <Rect x={0} y={0} width={Math.max(width, 1)} height={HEIGHT} fill="url(#holdFill)" />
+        </Svg>
+        <View style={[s.labelWrap, { width: width - BORDER * 2, height: HEIGHT - BORDER * 2 }]}>
+          <Text style={[s.label, s.labelOnGold]}>{text}</Text>
+        </View>
+      </Reanimated.View>
     </Pressable>
+    </Reanimated.View>
   );
 }
 
+const HEIGHT = 54;
+const BORDER = 1.5;
+
 const s = StyleSheet.create({
-  button: {
-    marginTop: 14, height: 54, borderRadius: 14, overflow: "hidden",
-    backgroundColor: GOLD, justifyContent: "center",
+  // Ytterlagret bär glöden (en skugga med guldfärg) — knappen själv klipper fyllnaden
+  glow: {
+    marginTop: 14, borderRadius: 14,
+    shadowColor: "#F0C860", shadowOffset: { width: 0, height: 0 }, elevation: 8,
   },
-  fill: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: GOLD_LT },
-  labelWrap: { alignItems: "center" },
-  label: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: "#121212" },
+  button: {
+    height: HEIGHT, borderRadius: 14, overflow: "hidden", justifyContent: "center",
+    backgroundColor: "#16140F", borderWidth: BORDER, borderColor: "#E9C46A",
+  },
+  fill: { position: "absolute", left: 0, top: 0, bottom: 0, overflow: "hidden" },
+  labelWrap: { alignItems: "center", justifyContent: "center" },
+  label: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: "#F0D48A" },
+  labelOnGold: { color: "#121212" },
 });
