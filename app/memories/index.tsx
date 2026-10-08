@@ -77,8 +77,15 @@ export default function MemoriesBookScreen() {
   // Fokuszonen: var i ytan (räknat från scrollytans egen topp) en cirkel räknas som "aktiv".
   // Måste räknas från ITEM_H (radens höjd), inte MAX_SIZE — annars blir "spacer" nedan negativ
   // (ITEM_H > MAX_SIZE sedan raderna gjordes höga nog att rymma den stora cirkeln utan att
-  // grannraderna krockar).
-  const focusY = ITEM_H / 2 + 24;
+  // grannraderna krockar). +56 (inte bara +24) ger den aktiva cirkeln luft att inte krocka
+  // visuellt med de flytande pil tbx/+-knapparna uppe i hörnen.
+  const focusY = ITEM_H / 2 + 56;
+
+  // Exakt så mycket extra utrymme nedanför sista cirkeln som krävs för att kunna dra den hela
+  // vägen upp till fokuszonen, plus en liten marginal — INTE en hel skärmhöjd (det gick tidigare
+  // att scrolla långt förbi sista minnet in i tomrummet).
+  const viewportH = height - insets.top;
+  const scrollPadBottom = Math.max(40, viewportH - ITEM_H / 2 - focusY + 32);
 
   // Pärlbandets tråd — en enda polyline genom alla cirklars FAKTISKA mittpunkter (samma
   // wobbleX som varje cirkel själv använder, så linjen alltid möter cirkeln exakt i dess mitt).
@@ -100,34 +107,16 @@ export default function MemoriesBookScreen() {
         <RadialGlow size={width * 1.7} color={glowColor} opacity={0.55} radiusRatio={1} />
       </View>
 
-      {/* Fast header — ligger UTANFÖR scrollytan, rör sig aldrig. Insets och den fasta
-          64px-raden i TVÅ olika Views (som varje annan header i appen) — på SAMMA View hade
-          paddingTop ätit upp av den redan låsta height:64, klämt ihop knapparna till en smal
-          rand och klippt hela headern mitt i (precis det som syntes i screenshoten). */}
-      <View style={{ paddingTop: insets.top }}>
-        <View style={s.header}>
-          <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
-            <ArrowLeft size={22} color={FG} strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit" as any)}>
-            <Plus size={22} color={FG} strokeWidth={2} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: 60 }} color={GOLD} />
       ) : memories.length === 0 ? (
         <Text style={s.empty}>Inga minnen än. Tryck på + för att skapa det första.</Text>
       ) : (
         <Animated.ScrollView
-          style={{ flex: 1 }}
+          style={{ flex: 1, paddingTop: insets.top }}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
-          // Hela skärmhöjden som extra utrymme nedanför sista cirkeln — annars går den aldrig
-          // att dra hela vägen upp till fokuszonen (för lite kvar att scrolla), vilket gjorde
-          // sista minnet omöjligt att nå/aktivera.
-          contentContainerStyle={{ paddingBottom: height }}
+          contentContainerStyle={{ paddingBottom: scrollPadBottom }}
           showsVerticalScrollIndicator={false}
         >
           <View style={{ height: focusY - ITEM_H / 2 }} />
@@ -163,6 +152,18 @@ export default function MemoriesBookScreen() {
           </View>
         </Animated.ScrollView>
       )}
+
+      {/* Pil tbx och + flyter fritt ovanpå, inget eget header-fält som tar upp plats och
+          trycker ner innehållet — bara de två runda knapparna, som på kartans flytande
+          knappar. Låter glöden och cirklarna börja högre upp, närmare skärmens egen topp. */}
+      <View style={[s.floatingRow, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
+          <ArrowLeft size={22} color={FG} strokeWidth={2} />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit" as any)}>
+          <Plus size={22} color={FG} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -243,9 +244,9 @@ function MemoryBead({
 }
 
 const s = StyleSheet.create({
-  header: {
+  floatingRow: {
+    position: "absolute", left: 16, right: 16,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    height: 64, paddingHorizontal: 16,
   },
   iconBtn: {
     width: 48, height: 48, borderRadius: 24,
