@@ -25,6 +25,8 @@ export interface Profile {
   dark_mode: boolean;
   card_color: string | null;
   circle_color: string | null;
+  /** Topplistor: null = aldrig tillfrågad, false = har sagt nej, true = deltar (migration 020) */
+  show_in_leaderboard: boolean | null;
   created_at: string;
   updated_at: string;
 }

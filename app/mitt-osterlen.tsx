@@ -22,6 +22,7 @@ import { StickersSection } from "@/components/stickers/StickersSection";
 import { ListsSection } from "@/components/lists/ListsSection";
 import { PendingListInviteModal } from "@/components/lists/PendingListInviteModal";
 import { MemoriesSection } from "@/components/memories/MemoriesSection";
+import { LeaderboardSection } from "@/components/leaderboard/LeaderboardSection";
 import { useAppDays } from "@/hooks/useAppDays";
 import { computeStreak, swedishDay, weekDays } from "@/lib/streak";
 
@@ -176,6 +177,9 @@ export default function MittOsterlenScreen() {
           <ChevronRight size={20} color={MUTED} strokeWidth={2} />
         </PressableScale>
 
+        {/* Direkt under Vänner — det sociala ("jag och andra") samlat överst, före det egna
+            innehållet (listor, minnen, samlarobjekt) */}
+        <LeaderboardSection />
         <ListsSection />
         <MemoriesSection />
         <StickersSection />

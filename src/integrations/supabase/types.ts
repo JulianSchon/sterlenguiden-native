@@ -824,6 +824,7 @@ export type Database = {
           profile_image_url: string | null
           avatar_ring: string | null
           card_photo_changed_at: string | null
+          show_in_leaderboard: boolean | null
           updated_at: string
           user_id: string
           username: string | null
@@ -853,6 +854,7 @@ export type Database = {
           profile_image_url?: string | null
           avatar_ring?: string | null
           card_photo_changed_at?: string | null
+          show_in_leaderboard?: boolean | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -882,6 +884,7 @@ export type Database = {
           profile_image_url?: string | null
           avatar_ring?: string | null
           card_photo_changed_at?: string | null
+          show_in_leaderboard?: boolean | null
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -1211,6 +1214,17 @@ export type Database = {
         Returns: { user_id: string; display_name: string | null; username: string | null; circle_color: string | null; avatar_ring: string | null }[]
       }
       reorder_list_places: { Args: { target_list_id: string; ordered_row_ids: string[] }; Returns: undefined }
+      rpc_leaderboard: {
+        Args: { p_metric: string; p_scope: string; p_period?: string; p_limit?: number }
+        Returns: {
+          user_id: string
+          display_name: string
+          circle_color: string | null
+          metric_value: number
+          placement: number | null
+          self_row: boolean
+        }[]
+      }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }
       get_place_favorites_count: {
         Args: { p_place_id: number }
