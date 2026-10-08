@@ -98,13 +98,17 @@ export default function MemoryDetailScreen() {
             med Radera, i stället för att delas upp på två olika ställen. Titeln är dock kvar
             (annars står man utan ledtext alls längst upp) — en rad, trunkerad med "…" om den
             är för lång för att få plats, precis som vilken app-header som helst hanterar det.
-            Pilen går alltid till Mitt Österlen, uttryckligen i stället för router.back() —
-            "Visa plats på kartan" byter bara aktiv flik i (tabs)-navigatorn som redan fanns i
-            stacken (se map.tsx), vilket i praktiken TAR BORT Mitt Österlen-steget ur historiken;
-            kommer man sen hit igen via kartans "Tillbaka till minnet" landar back() då på kartan
-            i stället. Ett fast mål här är enklare och säkrare än att försöka reparera stacken. */}
+            Pilen pekar mot Mitt Österlen med dismissTo (inte router.back(), inte heller ett
+            rakt replace): dismissTo stänger skärmar BAKÅT tills den hittar Mitt Österlen i
+            stacken — om den redan ligger där (det vanliga fallet) blir det en riktig
+            tillbaka-navigering med rätt bakåt-animation. Bara i undantagsfallet (kom hit via
+            kartans "Tillbaka till minnet", se map.tsx — det byter bara aktiv flik i en
+            (tabs)-navigator som redan fanns i stacken och tar i praktiken bort Mitt
+            Österlen-steget ur historiken) hittar den den inte, och ersätter då aktuell skärm
+            i stället — map.tsx:s "Tillbaka till minnet" återställer samtidigt profilfliken, så
+            kedjan ändå landar rätt om man fortsätter bakåt därifrån. */}
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/mitt-osterlen" as any)}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.dismissTo("/mitt-osterlen" as any)}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           {memory && <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">{memory.title}</Text>}

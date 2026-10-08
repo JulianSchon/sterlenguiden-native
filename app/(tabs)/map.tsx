@@ -520,12 +520,20 @@ export default function MapScreen() {
               finns längre ner i stacken — det byter bara aktiv flik i stället för att lägga till
               ett eget steg, så den vanliga tillbaka-gesten tar en inte tillbaka till minnet.
               En egen, uttrycklig "tillbaka"-genväg i stället, bara för just den platsen man
-              skickades hit för (döljs så fort man trycker på en annan plats/sticker). */}
+              skickades hit för (döljs så fort man trycker på en annan plats/sticker).
+              Växlar FÖRST tillbaka till profilfliken (samma (tabs)-navigator, bara en annan
+              flik — inget nytt steg i stacken), innan minnet pushas ovanpå: annars hade
+              profilfliken stått kvar på "karta" i bakgrunden, och om man sen bläddrar hela vägen
+              tillbaka (minne -> Mitt Österlen -> bakåt) hade man hamnat på kartan igen i stället
+              för profilen man faktiskt startade från. */}
           {fromMemoryParam && String(selectedPlace.id) === placeParam && (
             <TouchableOpacity
               style={s.backToMemoryBtn}
               activeOpacity={0.85}
-              onPress={() => router.push(`/memories/${fromMemoryParam}` as any)}
+              onPress={() => {
+                router.push("/(tabs)/profile" as any);
+                router.push(`/memories/${fromMemoryParam}` as any);
+              }}
             >
               <ArrowLeft size={14} color={FG} strokeWidth={2.2} />
               <Text style={s.backToMemoryText}>Tillbaka till minnet</Text>
