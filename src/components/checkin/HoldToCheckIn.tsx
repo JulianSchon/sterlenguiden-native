@@ -1,6 +1,7 @@
 /**
  * "Jag är här!" som man HÅLLER inne i stället för att trycka på — en liten ritual i stället för
- * ett klick, och inga råkat-tryckta incheckningar. En ljusare guldyta sveper över knappen medan
+ * ett klick, och inga råkat-tryckta incheckningar. En ljusare guldyta sveper över knappen (långsamt
+ * först, sedan allt snabbare) medan
  * man håller, telefonen tickar i takt (lätta vibrationer på vägen, en kraftig när den är full),
  * och släpper man för tidigt glider den snabbt tillbaka. `onStart` körs direkt vid tryck (så
  * positionen kan börja hämtas medan man håller — väntan döljs i ritualen), `onComplete` när den
@@ -16,8 +17,11 @@ import { playSound } from "@/lib/sounds";
 
 const GOLD = "#C9A24C";
 const GOLD_LT = "#F0D48A";
-const HOLD_MS = 650;
-const TICKS = [0.25, 0.5, 0.75];
+// 1,5 s — kortare än så hann man inte bygga upp någon spänning, det var över innan det började
+const HOLD_MS = 1500;
+// Jämnt fördelade i FYLLNAD, men fyllnaden accelererar (ease-in) — så vibrationerna kommer
+// tätare och tätare mot slutet, och blir starkare: ett crescendo som laddar upp till smällen
+const TICKS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 
 export function HoldToCheckIn({
   onStart, onComplete, disabled = false, label = "Håll inne — Jag är här!",
@@ -30,7 +34,8 @@ export function HoldToCheckIn({
   const tick = (step: number) => {
     if (step <= lastTick.current) return;
     lastTick.current = step;
-    Haptics.impactAsync(step === TICKS.length ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
+    const style = step <= 4 ? Haptics.ImpactFeedbackStyle.Soft : step <= 7 ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium;
+    Haptics.impactAsync(style).catch(() => {});
   };
 
   const finish = () => {
@@ -59,7 +64,7 @@ export function HoldToCheckIn({
         setHolding(true);
         Haptics.selectionAsync().catch(() => {});
         onStart?.();
-        progress.value = withTiming(1, { duration: HOLD_MS, easing: Easing.linear }, (done) => {
+        progress.value = withTiming(1, { duration: HOLD_MS, easing: Easing.in(Easing.quad) }, (done) => {
           if (done) runOnJS(finish)();
         });
       }}
