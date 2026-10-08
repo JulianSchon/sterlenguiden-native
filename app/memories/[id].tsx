@@ -24,6 +24,7 @@ import { useMemory, useSignedUrls, useDeleteMemory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
 import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
 import { PressableScale } from "@/components/PressableScale";
+import { LoadingImage } from "@/components/LoadingImage";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -138,7 +139,7 @@ export default function MemoryDetailScreen() {
                     <Polygon points={heroZigzag} fill={POLAROID_PAPER} />
                   </Svg>
                   <View style={[s.heroPhotoWrap, { left: HERO_FRAME_PAD, top: HERO_FRAME_PAD, width: heroPhotoSize, height: heroPhotoSize }]}>
-                    <Image source={{ uri: photos[0] }} style={s.heroPhoto} resizeMode="cover" />
+                    <LoadingImage source={{ uri: photos[0] }} style={s.heroPhoto} resizeMode="cover" />
                   </View>
                   <View style={[s.heroCaption, { left: HERO_FRAME_PAD, right: HERO_FRAME_PAD, top: HERO_FRAME_PAD + heroPhotoSize, height: HERO_CAPTION_H }]}>
                     <Text style={s.heroCaptionTitle} numberOfLines={2}>{memory.title}</Text>
@@ -190,7 +191,7 @@ export default function MemoryDetailScreen() {
               <View style={s.gallery}>
                 {photos.slice(1).map((uri, i) => (
                   <TouchableOpacity key={uri} onPress={() => setLightbox(i + 1)} activeOpacity={0.92}>
-                    <Image source={{ uri }} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} resizeMode="cover" />
+                    <LoadingImage source={{ uri }} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} resizeMode="cover" />
                   </TouchableOpacity>
                 ))}
               </View>

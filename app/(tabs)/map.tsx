@@ -16,6 +16,7 @@ import {
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import {
@@ -146,6 +147,11 @@ export default function MapScreen() {
   const [selectedSticker, setSelectedSticker]     = useState<Collectible | null>(null);
   const [stickersOnly, setStickersOnly]           = useState(false);
   const [userLoc, setUserLoc]                     = useState<{ latitude: number; longitude: number } | null>(null);
+  // Spegling av userLoc i en ref, bara till fokus-återställningen nedan — den ska läsa den
+  // SENASTE positionen när man går in på fliken, utan att behöva ha userLoc (som uppdateras
+  // var 5:e sekund / 10:e meter) i sin beroendelista, annars skulle kartan rycka tillbaka till
+  // "mig" mitt i att man panorerar runt, inte bara när man faktiskt går in på fliken.
+  const userLocRef = useRef<{ latitude: number; longitude: number } | null>(null);
   // Om man kommer hit med ett mål att fokusera (sticker eller plats) ska INTE det första
   // GPS-fixet få centrera om till "mig" ovanpå det en liten stund senare (ett vanligt race —
   // platsens animateToRegion hinner köra först, sen landar GPS-fixet och vinner kampen om
@@ -176,6 +182,7 @@ export default function MapScreen() {
         (loc) => {
           const { latitude, longitude } = loc.coords;
           setUserLoc({ latitude, longitude });
+          userLocRef.current = { latitude, longitude };
           if (!locDone.current) {
             locDone.current = true;
             mapRef.current?.animateToRegion(
@@ -188,6 +195,26 @@ export default function MapScreen() {
     })();
     return () => { sub?.remove(); };
   }, []);
+
+  // Kartan ska alltid nollställas till "var jag är" varje gång man GÅR IN på fliken (inte bara
+  // första gången någonsin, som locDone-logiken ovan) — annars står man kvar där man råkade
+  // panorera/zooma förra besöket. Hoppar över det när man kommer hit med ett specifikt mål
+  // (en plats eller sticker) — då ska DET visas, inte min egen position. Läser userLocRef i
+  // stället för userLoc-statet rakt av, så detta bara kör vid faktiska fokusbyten, inte varje
+  // gång GPS-positionen uppdateras (var 5:e sekund) medan man redan står kvar på fliken.
+  useFocusEffect(
+    useCallback(() => {
+      if (placeParam || stickerParam) return;
+      setSelectedPlace(null);
+      setSelectedSticker(null);
+      if (userLocRef.current) {
+        mapRef.current?.animateToRegion(
+          { latitude: userLocRef.current.latitude, longitude: userLocRef.current.longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 },
+          800,
+        );
+      }
+    }, [placeParam, stickerParam])
+  );
 
   // ── Kort-animation ─────────────────────────────────────────────────────────
   useEffect(() => {
