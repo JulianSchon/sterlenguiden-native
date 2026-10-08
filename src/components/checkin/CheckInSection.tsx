@@ -5,11 +5,12 @@
  * eftersom användaren kan ha gått en bit sen dess). Inget körs i bakgrunden.
  *
  * Lägen: långt bort (>500 m) = inget alls · 100–500 m = grå knapp med avstånd
- * · inom 100 m = aktiv knapp · nyss incheckad = spärrtiden visas.
+ * · inom 100 m = aktiv knapp (håll inne, se HoldToCheckIn) · nyss incheckad = spärrtiden visas.
+ * Efter en lyckad incheckning: stämpelögonblicket (CheckInStamp), sedan belöningsrutan.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking } from "react-native";
-import * as Haptics from "expo-haptics";
+
 import { MapPin, CheckCircle2 } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
 import { useVisits, useCheckIn, CheckInCooldownError } from "@/hooks/useVisits";
@@ -19,6 +20,8 @@ import {
   CHECKIN_RADIUS_M, CHECKIN_NEAR_M, distanceMeters, formatDistance, cooldownEnd, formatClock,
 } from "@/lib/checkin";
 import { CheckInReward } from "./CheckInReward";
+import { CheckInStamp } from "./CheckInStamp";
+import { HoldToCheckIn } from "./HoldToCheckIn";
 
 const GOLD = "#C9A24C";
 const GOLD_LT = "#E6C77A";
@@ -36,6 +39,9 @@ export function CheckInSection({ place }: { place: Place }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [reward, setReward] = useState<{ doneBefore: string[] } | null>(null);
+  const [stamp, setStamp] = useState<{ status: "pending" | "done"; firstVisit: boolean; visitNumber: number; doneBefore: string[] } | null>(null);
+  // Positionen börjar hämtas redan när man trycker ner — väntan döljs i hålla-inne-ritualen
+  const freshLocation = useRef<ReturnType<typeof refresh> | null>(null);
 
   if (!canCheckIn) return null;
 
@@ -49,23 +55,29 @@ export function CheckInSection({ place }: { place: Place }) {
     if (busy) return;
     setBusy(true);
     setMessage(null);
+    const earlier = visits.filter((v) => v.place_id === place.id).length;
+    const doneBefore = trophies.filter((t) => t.done).map((t) => t.key);
+    // Kortet reser sig direkt — stämpeln slår först när servern bekräftat
+    setStamp({ status: "pending", firstVisit: earlier === 0, visitNumber: earlier + 1, doneBefore });
     try {
       // Ny position precis nu — den från sidans öppnande kan vara gammal
-      const fresh = await refresh();
+      const fresh = await (freshLocation.current ?? refresh());
+      freshLocation.current = null;
       if (fresh.status !== "ready") {
+        setStamp(null);
         setMessage("Kunde inte hämta din plats. Försök igen.");
         return;
       }
       const d = distanceMeters(fresh.lat, fresh.lng, place.lat!, place.lng!);
       if (d > CHECKIN_RADIUS_M) {
+        setStamp(null);
         setMessage(`Du verkar vara ${formatDistance(d)} bort. Kom närmare och försök igen.`);
         return;
       }
-      const doneBefore = trophies.filter((t) => t.done).map((t) => t.key);
       await checkIn.mutateAsync({ placeId: place.id });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setReward({ doneBefore });
+      setStamp((cur) => (cur ? { ...cur, status: "done" } : cur));
     } catch (e) {
+      setStamp(null);
       setMessage(
         e instanceof CheckInCooldownError
           ? "Du har redan checkat in här nyligen."
@@ -76,6 +88,14 @@ export function CheckInSection({ place }: { place: Place }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Stämpeln klar → stäng den och öppna belöningsrutan en kort stund senare (två modaler som
+  // byts i samma ögonblick kan låsa sig på iOS)
+  const handleStampFinished = () => {
+    const doneBefore = stamp?.doneBefore ?? [];
+    setStamp(null);
+    setTimeout(() => setReward({ doneBefore }), 280);
   };
 
   const handleRecheck = async () => {
@@ -147,9 +167,11 @@ export function CheckInSection({ place }: { place: Place }) {
             <Text style={s.sub}>Registrera ditt besök här</Text>
           </View>
         </View>
-        <TouchableOpacity style={s.buttonGold} activeOpacity={0.85} onPress={handleCheckIn} disabled={busy}>
-          {busy ? <ActivityIndicator size="small" color="#121212" /> : <Text style={s.buttonGoldText}>Jag är här!</Text>}
-        </TouchableOpacity>
+        <HoldToCheckIn
+          disabled={busy}
+          onStart={() => { freshLocation.current = refresh(); }}
+          onComplete={handleCheckIn}
+        />
         {message && <Text style={s.message}>{message}</Text>}
       </View>
     );
@@ -175,6 +197,15 @@ export function CheckInSection({ place }: { place: Place }) {
   return (
     <>
       {card}
+      {stamp && (
+        <CheckInStamp
+          place={place}
+          status={stamp.status}
+          firstVisit={stamp.firstVisit}
+          visitNumber={stamp.visitNumber}
+          onFinished={handleStampFinished}
+        />
+      )}
       {reward && (
         <CheckInReward place={place} doneBefore={reward.doneBefore} onClose={() => setReward(null)} />
       )}
@@ -194,11 +225,6 @@ const s = StyleSheet.create({
   },
   title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: "#FFFFFF" },
   sub: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.60)", marginTop: 2 },
-  buttonGold: {
-    marginTop: 14, height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center",
-    backgroundColor: GOLD,
-  },
-  buttonGoldText: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: "#121212" },
   buttonGrey: {
     marginTop: 14, height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
