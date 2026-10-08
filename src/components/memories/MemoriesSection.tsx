@@ -20,13 +20,13 @@
  * måste vara genomskinlig; det är ENDAST polygonen som får ge formen färg.
  *
  * Trycker man på ett minne rivs det loss FRÅN BAKGRUNDEN på riktigt — tejp och kort som EN
- * enhet, inte kortet ensamt från en tejp som ligger kvar. Tre faser, inte en symmetrisk
- * pendelgungning: håller emot (ryckigt, häftningen släpper lite i taget NEDÅT, inte fram och
- * tillbaka) → smällen (snabb, bestämd ryckning rakt ner, med en extra tyngre haptik precis då)
- * → fallet (tyngdkraften tar över, accelererar, tonar bort). Rakt ner, ingen sidledes rörelse
- * eller rotation — vid de hastigheterna lästes en lutning/snurr bara som "åker åt sidan", inte
- * som ett riv, så kortets egen vilolutning (TILTS) står still under hela animationen. Respekterar
- * Reduce Motion (öppnar direkt utan animation då).
+ * enhet, inte kortet ensamt från en tejp som ligger kvar. Två faser: smällen (snabb, bestämd
+ * ryckning rakt ner, med en extra tyngre haptik precis då) → fallet (tyngdkraften tar över,
+ * accelererar, tonar bort). Ett tidigare försök hade en "håller emot"-fas med två små ryck innan
+ * smällen — togs bort, den lästes bara som att animationen hackade/laggade, inte som motstånd.
+ * Rakt ner, ingen sidledes rörelse eller rotation — vid de hastigheterna lästes en lutning/snurr
+ * bara som "åker åt sidan", inte som ett riv, så kortets egen vilolutning (TILTS) står still
+ * under hela animationen. Respekterar Reduce Motion (öppnar direkt utan animation då).
  */
 import { useCallback, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
@@ -165,14 +165,11 @@ function MemoryPolaroid({
     }, [tilt])
   );
 
-  // Två ryck med tydlig KONTRAST i styrka (linjär easing — en mekanisk, hackig känsla, inte en
-  // mjuk kurva), sen smällen, sen fallet. Allt rakt NER (translateY), ingen sidledes rörelse och
-  // ingen rotation under själva rivet — det smetade ut sig till "åker åt sidan" vid den
-  // hastigheten i stället för att läsas som ett riv. Hela sekvensen klar på under en halv sekund.
-  //   1. HÅLLER EMOT — två nedåt-ryck, det andra klart kraftigare, samma riktning som smällen
-  //   2. SMÄLLEN — det faktiska rivet: en snabb, bestämd ryckning rakt ner + extra haptik
-  //   3. FALLET — tyngdkraften tar över, accelererar rakt ner, tonar bort
-  const CATCH_MS = 30 + 70;
+  // Bara två faser nu — de två små "håller emot"-rycken innan smällen togs bort, de lästes bara
+  // som att animationen hackade/laggade till, inte som motstånd. Rakt ner (translateY), ingen
+  // sidledes rörelse eller rotation. Hela sekvensen klar på under en halv sekund.
+  //   1. SMÄLLEN — det faktiska rivet: en snabb, bestämd ryckning rakt ner + extra haptik
+  //   2. FALLET — tyngdkraften tar över, accelererar rakt ner, tonar bort
   const RIP_MS = 60;
   const FALL_MS = 220;
 
@@ -187,17 +184,14 @@ function MemoryPolaroid({
     }
 
     translateY.value = withSequence(
-      // 1. håller emot — två hackiga nedåt-ryck, linjära (inte mjukt easade) så de känns mekaniska
-      withTiming(3, { duration: 30, easing: Easing.linear }),
-      withTiming(10, { duration: 70, easing: Easing.linear }),
-      // 2. smällen — det faktiska rivet
+      // 1. smällen — det faktiska rivet
       withTiming(38, { duration: RIP_MS, easing: Easing.out(Easing.quad) }, (done) => { if (done) runOnJS(ripThud)(); }),
-      // 3. fallet — accelererar rakt ner, navigerar när det är klart
+      // 2. fallet — accelererar rakt ner, navigerar när det är klart
       withTiming(170, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
         if (done) runOnJS(onOpen)();
       })
     );
-    opacity.value = withDelay(CATCH_MS + RIP_MS + 40, withTiming(0, { duration: FALL_MS - 40 }));
+    opacity.value = withDelay(RIP_MS + 40, withTiming(0, { duration: FALL_MS - 40 }));
   }
 
   const cardStyle = useAnimatedStyle(() => ({
