@@ -17,10 +17,11 @@
  * kopplat till scrollpositionen (ingen egen timing-animation ovanpå) — det är därför det känns
  * som att MAN SJÄLV drar innehållet förbi en fast punkt, inte att man scrollar en sida.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, useWindowDimensions } from "react-native";
 import Animated, {
   useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation,
+  withDelay, withTiming, Easing,
   type SharedValue,
 } from "react-native-reanimated";
 import Svg, { Polyline } from "react-native-svg";
@@ -33,6 +34,7 @@ import { formatMemoryDate } from "@/lib/memories";
 import { getVariant } from "@/lib/cardVariants";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { LoadingImage } from "@/components/LoadingImage";
+import { PressableScale } from "@/components/PressableScale";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -203,10 +205,28 @@ function MemoryBead({
   const placeCount = memory.placeIds.length;
   const photoSize = maxSize - gap * 2;
 
+  // Inladdningen: cirklarna ska droppa in en i taget i stället för att alla bara finnas där
+  // direkt. En egen shared value, skild från scroll-läget — kör EN gång vid mount, med en
+  // fördröjning som trappas upp per index (de som redan syns först animerar in först).
+  const entrance = useSharedValue(0);
+  useEffect(() => {
+    entrance.value = withDelay(index * 55, withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const entranceStyle = useAnimatedStyle(() => ({
+    opacity: entrance.value,
+    transform: [
+      { translateY: interpolate(entrance.value, [0, 1], [18, 0]) },
+      { scale: interpolate(entrance.value, [0, 1], [0.88, 1]) },
+    ],
+  }));
+
   return (
-    <View style={[s.row, { height: itemH }]}>
-      <TouchableOpacity
-        activeOpacity={0.85}
+    <Animated.View style={[s.row, { height: itemH }, entranceStyle]}>
+      {/* PressableScale — samma tryck-krymper-lite-medan-man-håller-känsla som resten av appen,
+          lagd OVANPÅ (inte i stället för) cirkelns egen scroll-styrda storleksändring: två olika
+          lager, så de aldrig krockar. */}
+      <PressableScale
         onPress={onPress}
         style={[s.circleOuter, { width: maxSize, height: maxSize, borderRadius: maxSize / 2, top: (itemH - maxSize) / 2, left: offsetX }]}
       >
@@ -226,7 +246,7 @@ function MemoryBead({
             )}
           </View>
         </Animated.View>
-      </TouchableOpacity>
+      </PressableScale>
 
       <Animated.View
         style={[s.beadText, { top: (itemH - maxSize) / 2, left: offsetX + maxSize + 16, right: 16 }, textStyle]}
@@ -239,7 +259,7 @@ function MemoryBead({
           {placeCount > 0 ? ` · ${placeCount} ${placeCount === 1 ? "plats" : "platser"}` : ""}
         </Text>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 
