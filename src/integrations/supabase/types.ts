@@ -1215,7 +1215,7 @@ export type Database = {
       }
       reorder_list_places: { Args: { target_list_id: string; ordered_row_ids: string[] }; Returns: undefined }
       rpc_leaderboard: {
-        Args: { p_metric: string; p_scope: string; p_period?: string; p_limit?: number }
+        Args: { p_metric: string; p_scope: string; p_period?: string; p_limit?: number; p_offset?: number }
         Returns: {
           user_id: string
           display_name: string
@@ -1223,6 +1223,7 @@ export type Database = {
           metric_value: number
           placement: number | null
           self_row: boolean
+          row_pos: number | null
         }[]
       }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }

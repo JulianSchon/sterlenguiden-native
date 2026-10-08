@@ -11,6 +11,7 @@ import * as Haptics from "expo-haptics";
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const PAD = 4;
+const BORDER = 0.5;
 
 export function Segmented<T extends string>({
   options, value, onChange, variant = "secondary",
@@ -18,9 +19,7 @@ export function Segmented<T extends string>({
   const primary = variant === "primary";
   const reduceMotion = useReducedMotion();
   const [width, setWidth] = useState(0);
-  // onLayout-bredden räknar med ramen — dra av den så markeringen passar exakt
-  const border = primary ? 1.5 : 0.5;
-  const segW = width > 0 ? (width - PAD * 2 - border * 2) / options.length : 0;
+  const segW = width > 0 ? (width - PAD * 2 - BORDER * 2) / options.length : 0;
   const index = Math.max(0, options.findIndex((o) => o.id === value));
 
   const indicator = useAnimatedStyle(() => ({
@@ -32,8 +31,8 @@ export function Segmented<T extends string>({
   }));
 
   return (
-    <View style={[s.wrap, primary && s.wrapPrimary]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      {segW > 0 && <Reanimated.View style={[s.indicator, { width: segW }, indicator]} />}
+    <View style={s.wrap} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      {segW > 0 && <Reanimated.View style={[s.indicator, primary && s.indicatorPrimary, { width: segW }, indicator]} />}
       {options.map((o) => (
         <TouchableOpacity
           key={o.id}
@@ -54,8 +53,8 @@ export function Segmented<T extends string>({
 
 const s = StyleSheet.create({
   wrap: {
-    flexDirection: "row", padding: PAD, borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    flexDirection: "row", padding: PAD, borderRadius: 14, borderWidth: BORDER,
+    backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)",
   },
   indicator: {
     position: "absolute", top: PAD, bottom: PAD, left: PAD,
@@ -64,10 +63,10 @@ const s = StyleSheet.create({
   item: { flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 4 },
   text: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
   textActive: { color: FG },
-  // Huvudvalet: originalstorleken och en neonlila ytterkant med en svag glöd runt om
-  wrapPrimary: {
+  // Huvudvalet: originalstorleken, och det VALDA segmentet får en neonlila kant med svag glöd
+  indicatorPrimary: {
     borderWidth: 1.5, borderColor: "#B57CFF",
-    shadowColor: "#A855F7", shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 8,
+    shadowColor: "#A855F7", shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 6,
   },
   itemPrimary: { paddingVertical: 10 },
   textPrimary: { fontSize: 14 },
