@@ -20,18 +20,21 @@
  * måste vara genomskinlig; det är ENDAST polygonen som får ge formen färg.
  *
  * Trycker man på ett minne rivs det loss FRÅN BAKGRUNDEN på riktigt — tejp och kort som EN
- * enhet, inte kortet ensamt från en tejp som ligger kvar. Två faser: smällen (snabb, bestämd
- * ryckning rakt ner, med en extra tyngre haptik precis då) → fallet (tyngdkraften tar över,
- * accelererar, tonar bort). Ett tidigare försök hade en "håller emot"-fas med två små ryck innan
- * smällen — togs bort, den lästes bara som att animationen hackade/laggade, inte som motstånd.
- * Rakt ner, ingen sidledes rörelse eller rotation — vid de hastigheterna lästes en lutning/snurr
- * bara som "åker åt sidan", inte som ett riv, så kortets egen vilolutning (TILTS) står still
- * under hela animationen. Respekterar Reduce Motion (öppnar direkt utan animation då).
+ * enhet, inte kortet ensamt från en tejp som ligger kvar. EN sammanhängande fallrörelse rakt
+ * ner (translateY, accelererande hela vägen som på riktigt — tyngdkraften bromsar aldrig in),
+ * med en tyngre haptik på en vanlig JS-timer strax efter att den börjar falla. Tidigare försök
+ * hade flera ihopfogade animationssegment (små "håller emot"-ryck, sen en egen smäll-kurva, sen
+ * en egen fall-kurva) — vid varje skarv mellan två segment med ease-in/ease-out är hastigheten
+ * NOLL på båda sidor, vilket gav ett riktigt, synligt litet stopp mitt i rörelsen. Därför en enda
+ * kurva, ett enda withTiming-anrop. Ingen sidledes rörelse eller rotation heller — vid de
+ * hastigheterna lästes en lutning/snurr bara som "åker åt sidan", inte som ett riv, så kortets
+ * egen vilolutning (TILTS) står still under hela animationen. Respekterar Reduce Motion (öppnar
+ * direkt utan animation då).
  */
 import { useCallback, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import Reanimated, {
-  Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSequence, withTiming,
+  Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming,
 } from "react-native-reanimated";
 import Svg, { Polygon } from "react-native-svg";
 import { useRouter } from "expo-router";
@@ -165,11 +168,14 @@ function MemoryPolaroid({
     }, [tilt])
   );
 
-  // Bara två faser nu — de två små "håller emot"-rycken innan smällen togs bort, de lästes bara
-  // som att animationen hackade/laggade till, inte som motstånd. Rakt ner (translateY), ingen
-  // sidledes rörelse eller rotation. Hela sekvensen klar på under en halv sekund.
-  //   1. SMÄLLEN — det faktiska rivet: en snabb, bestämd ryckning rakt ner + extra haptik
-  //   2. FALLET — tyngdkraften tar över, accelererar rakt ner, tonar bort
+  // EN enda sammanhängande rörelse, inte två ihopfogade withTiming-segment längre. Två segment
+  // (smäll med ease-OUT, sen fall med ease-IN) låter som en bra idé men båda kurvorna har
+  // hastighet NOLL precis vid skarven mellan dem (ease-out bromsar in mot sitt slutvärde, ease-in
+  // startar stilla) — det gav ett riktigt, synligt litet stopp mitt i rörelsen, exakt det Viktor
+  // såg ("lossnar, åker ner lite, stannar till en millisekund, åker resten"). En enda ease-in-kurva
+  // över hela sträckan accelererar hela vägen utan stopp — det är dessutom fysikaliskt rätt för
+  // ett fall (tyngdkraften ökar farten hela vägen, bromsar aldrig in). Den tyngre haptiken, som
+  // förut satt på att det första segmentet blev klart, körs nu på en vanlig JS-timer i stället.
   const RIP_MS = 60;
   const FALL_MS = 220;
 
@@ -179,18 +185,13 @@ function MemoryPolaroid({
     if (reduceMotion) { onOpen(); return; }
     setOpening(true);
 
-    function ripThud() {
+    setTimeout(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-    }
+    }, RIP_MS);
 
-    translateY.value = withSequence(
-      // 1. smällen — det faktiska rivet
-      withTiming(38, { duration: RIP_MS, easing: Easing.out(Easing.quad) }, (done) => { if (done) runOnJS(ripThud)(); }),
-      // 2. fallet — accelererar rakt ner, navigerar när det är klart
-      withTiming(170, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
-        if (done) runOnJS(onOpen)();
-      })
-    );
+    translateY.value = withTiming(170, { duration: RIP_MS + FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
+      if (done) runOnJS(onOpen)();
+    });
     opacity.value = withDelay(RIP_MS + 40, withTiming(0, { duration: FALL_MS - 40 }));
   }
 
