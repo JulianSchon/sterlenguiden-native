@@ -16,9 +16,7 @@ import {
 import Reanimated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, MapPin, Flame, Sparkles } from "lucide-react-native";
-import * as Haptics from "expo-haptics";
-import { PressableScale } from "@/components/PressableScale";
+import { ArrowLeft } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useProfile } from "@/hooks/useProfile";
@@ -36,10 +34,10 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 
-const METRICS: { id: LeaderboardMetric; label: string; icon: typeof MapPin }[] = [
-  { id: "visits", label: "Besök", icon: MapPin },
-  { id: "streak", label: "Streak", icon: Flame },
-  { id: "stickers", label: "Samlarobjekt", icon: Sparkles },
+const METRICS: { id: LeaderboardMetric; label: string }[] = [
+  { id: "visits", label: "Besök" },
+  { id: "streak", label: "Streak" },
+  { id: "stickers", label: "Samlarobjekt" },
 ];
 const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
   { id: "month", label: "Denna månad" },
@@ -110,28 +108,10 @@ export default function LeaderboardsScreen() {
         </View>
       </View>
 
-      {/* Huvudvalet — egna kort med ikon och guldmarkering, så det skiljer sig tydligt från de
-          mindre valen (omfång, tid) under pallen */}
+      {/* Huvudvalet — samma segmentkontroll som valen under pallen, men större och med en
+          neonlila ytterkant, så det skiljer sig tydligt från de mindre valen */}
       <View style={s.metricTabs}>
-        {METRICS.map((m) => {
-          const active = m.id === metric;
-          const Icon = m.icon;
-          return (
-            <PressableScale
-              key={m.id}
-              style={[s.metricTab, active && s.metricTabActive]}
-              scale={0.96}
-              onPress={() => {
-                if (active) return;
-                Haptics.selectionAsync().catch(() => {});
-                setMetric(m.id);
-              }}
-            >
-              <Icon size={20} color={active ? GOLD : MUTED} strokeWidth={2.2} />
-              <Text style={[s.metricLabel, active && s.metricLabelActive]} numberOfLines={1}>{m.label}</Text>
-            </PressableScale>
-          );
-        })}
+        <Segmented options={METRICS} value={metric} onChange={setMetric} variant="primary" />
       </View>
 
       <ScrollView contentContainerStyle={s.body}>
@@ -207,20 +187,13 @@ const s = StyleSheet.create({
   },
   headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
 
-  metricTabs: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  metricTab: {
-    flex: 1, alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.07)",
-  },
-  metricTabActive: { backgroundColor: "rgba(197,160,89,0.14)", borderColor: "rgba(197,160,89,0.55)" },
-  metricLabel: { fontFamily: "Fredoka_600SemiBold", fontSize: 15, color: MUTED },
-  metricLabelActive: { color: FG },
+  metricTabs: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   body: { padding: 16, paddingBottom: 28 },
-  // Topplistornas egen rubrikton — Fredoka, rund och lekfull, bara här
-  title: { fontFamily: "Fredoka_700Bold", fontSize: 30, lineHeight: 36, color: FG, textAlign: "center", marginTop: 8 },
+  // Stor rubrik för vad listan gäller — det är huvudfokuset på sidan
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.4, color: FG, textAlign: "center", marginTop: 8 },
   context: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: GOLD, textAlign: "center", marginTop: 4 },
   // Fast minsta höjd så kontrollerna under inte hoppar upp och ner medan en lista laddar
-  board: { minHeight: 400, justifyContent: "flex-end", marginTop: 24 },
+  board: { minHeight: 330, justifyContent: "flex-end", marginTop: 4 },
   controls: { gap: 10, marginTop: 28 },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 20, lineHeight: 20 },
   rows: { gap: 10, marginTop: 24 },
