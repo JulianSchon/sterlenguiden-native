@@ -43,6 +43,7 @@ import * as Haptics from "expo-haptics";
 import { ImageIcon } from "lucide-react-native";
 import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
+import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -54,7 +55,6 @@ const FRAME_PAD = 8;
 const CAPTION_H = 52;
 const PHOTO_SIZE = CARD_W - FRAME_PAD * 2;
 const CARD_H = FRAME_PAD + PHOTO_SIZE + CAPTION_H;
-const PAPER = "#F0E9D8";
 
 // Lutningen växlar per kort (efter index) i stället för att vara slumpad — annars hoppar
 // vinkeln vid varje omritning. Några mjuka, aldrig extrema vinklar.
@@ -62,35 +62,6 @@ const TILTS = [-3, 2, -4, 3, -2, 4];
 // Tejpbiten lutar lite ANNORLUNDA än kortet den sitter på — annars ser den maskinellt
 // centrerad ut i stället för som snabbt fasttejpad.
 const TAPE_TILTS = [4, -3, 5, -4, 3, -5];
-
-/** En rektangel som en SVG-polygon, med valfria kanter sicksackade (taggsax-klippta) och
- * resten raka. `edges` = [topp, höger, botten, vänster]. Vandrar runt alla fyra kanterna och
- * växlar — när en kant är taggig — mellan ytterlinjen och en punkt indragen `tooth` px, så det
- * blir en kontinuerlig taggig linje, inte bara hack i var och varannan punkt. Används både för
- * fotots egen kant (alla fyra sicksackade, som ett gammalt framkallat foto) och tejpbitens
- * kortsidor (bara kortsidorna rivna, långsidorna raka — som på riktig tejp). */
-function tornRectPoints(w: number, h: number, tooth: number, segment: number, edges: [boolean, boolean, boolean, boolean]): string {
-  const pts: string[] = [];
-  const walk = (x1: number, y1: number, x2: number, y2: number, nx: number, ny: number, jagged: boolean) => {
-    if (!jagged) { pts.push(`${x2.toFixed(1)},${y2.toFixed(1)}`); return; }
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const len = Math.hypot(dx, dy);
-    const n = Math.max(4, Math.round(len / segment));
-    for (let i = 1; i <= n; i++) {
-      const t = i / n;
-      const inward = i % 2 === 1;
-      const x = x1 + dx * t + (inward ? nx * tooth : 0);
-      const y = y1 + dy * t + (inward ? ny * tooth : 0);
-      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-    }
-  };
-  walk(0, 0, w, 0, 0, 1, edges[0]);   // övre kanten, inåt = nedåt
-  walk(w, 0, w, h, -1, 0, edges[1]);  // högra kanten, inåt = vänster
-  walk(w, h, 0, h, 0, -1, edges[2]);  // nedre kanten, inåt = uppåt
-  walk(0, h, 0, 0, 1, 0, edges[3]);   // vänstra kanten, inåt = höger
-  return pts.join(" ");
-}
 
 // Samma mönster för alla kort (som en riktig taggsax ger ett jämnt, upprepat mönster) —
 // beräknat en gång, inte per kort.
@@ -210,7 +181,7 @@ function MemoryPolaroid({
       <Reanimated.View style={[s.unit, cardStyle]}>
         <View style={s.polaroid}>
           <Svg width={CARD_W} height={CARD_H} style={StyleSheet.absoluteFill}>
-            <Polygon points={ZIGZAG_POINTS} fill={PAPER} />
+            <Polygon points={ZIGZAG_POINTS} fill={POLAROID_PAPER} />
           </Svg>
           <View style={s.photoWrap}>
             {cover ? (
@@ -230,7 +201,7 @@ function MemoryPolaroid({
         {/* Sist i JSX = ovanpå kortet, precis som på riktigt. */}
         <View style={[s.tape, { transform: [{ rotate: `${tapeTilt}deg` }] }]}>
           <Svg width={TAPE_W} height={TAPE_H}>
-            <Polygon points={TAPE_POINTS} fill="rgba(216,194,156,0.62)" />
+            <Polygon points={TAPE_POINTS} fill={POLAROID_TAPE} />
           </Svg>
         </View>
       </Reanimated.View>
