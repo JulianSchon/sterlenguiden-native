@@ -14,7 +14,7 @@ import Reanimated, {
   Easing, FadeInUp, cancelAnimation, interpolate, useAnimatedStyle, useReducedMotion, useSharedValue,
   withDelay, withRepeat, withTiming,
 } from "react-native-reanimated";
-import Svg, { ClipPath, Defs, G, LinearGradient, Path, Polygon, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Polygon, Rect, Stop } from "react-native-svg";
 import { MapPin, Flame, Sparkles } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
 import { TIER_PALETTE } from "@/lib/achievements";
@@ -36,34 +36,12 @@ const FLOAT: Record<Place, { duration: number; delay: number }> = {
   3: { duration: 2350, delay: 900 },
 };
 const FLOAT_PX = 3;
-const TOP_FACE = 14;
-const TOP_INSET = 8;
-const CORNER = 8;
+const TOP_FACE = 10;
+const TOP_INSET = 6;
 
 export function MetricIcon({ metric, size = 11, color = GOLD }: { metric: LeaderboardMetric; size?: number; color?: string }) {
   const Icon = metric === "visits" ? MapPin : metric === "streak" ? Flame : Sparkles;
   return <Icon size={size} color={color} strokeWidth={2.4} />;
-}
-
-/** En polygon som SVG-path med rundade hörn — varje hörn ersätts av en kort kurva, med radien
- * krympt där kanterna är korta så två hörn aldrig äter upp samma kant. */
-function roundedPolygonPath(pts: [number, number][], r: number): string {
-  const n = pts.length;
-  let d = "";
-  for (let i = 0; i < n; i++) {
-    const [x, y] = pts[i];
-    const [px, py] = pts[(i - 1 + n) % n];
-    const [nx, ny] = pts[(i + 1) % n];
-    const lenIn = Math.hypot(x - px, y - py);
-    const lenOut = Math.hypot(nx - x, ny - y);
-    const rr = Math.min(r, lenIn / 2, lenOut / 2);
-    const ax = x + ((px - x) / lenIn) * rr;
-    const ay = y + ((py - y) / lenIn) * rr;
-    const bx = x + ((nx - x) / lenOut) * rr;
-    const by = y + ((ny - y) / lenOut) * rr;
-    d += `${i === 0 ? "M" : "L"}${ax.toFixed(2)},${ay.toFixed(2)} Q${x},${y} ${bx.toFixed(2)},${by.toFixed(2)} `;
-  }
-  return `${d}Z`;
 }
 
 export function Podium({
@@ -174,15 +152,11 @@ function RankBadge({ place, size }: { place: Place; size: number }) {
   );
 }
 
-/** Själva blocket: en form med rundade hörn (silhuetten), och ovansidan — den ljusare trapetsen
- * som gör att det läses som ett block — klippt efter samma form, så den följer de rundade
- * hörnen exakt i stället för att sticka ut i dem. */
+/** Själva blocket: en ljusare trapets som ovansida (det är den som ger djupet — läses som ett
+ * block, inte en platt rektangel) ovanpå framsidan med en tonande gradient. Raka hörn — en
+ * version med rundade hörn testades och plattade till ovansidan så djupet försvann. */
 function PodiumBlock({ place, width }: { place: Place; width: number }) {
   const height = BLOCK_H[place];
-  const silhouette = roundedPolygonPath(
-    [[TOP_INSET, 0], [width - TOP_INSET, 0], [width, TOP_FACE], [width, height], [0, height], [0, TOP_FACE]],
-    CORNER,
-  );
   return (
     <View style={{ width, height, marginTop: 10 }}>
       <Svg width={width} height={height}>
@@ -191,18 +165,13 @@ function PodiumBlock({ place, width }: { place: Place; width: number }) {
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.13} />
             <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.015} />
           </LinearGradient>
-          <ClipPath id={`podiumClip${place}`}>
-            <Path d={silhouette} />
-          </ClipPath>
         </Defs>
-        <G clipPath={`url(#podiumClip${place})`}>
-          <Rect x={0} y={0} width={width} height={height} fill={`url(#podiumFace${place})`} />
-          <Polygon
-            points={`${TOP_INSET},0 ${width - TOP_INSET},0 ${width},${TOP_FACE} 0,${TOP_FACE}`}
-            fill="#FFFFFF"
-            fillOpacity={0.2}
-          />
-        </G>
+        <Polygon
+          points={`${TOP_INSET},0 ${width - TOP_INSET},0 ${width},${TOP_FACE} 0,${TOP_FACE}`}
+          fill="#FFFFFF"
+          fillOpacity={0.2}
+        />
+        <Rect x={0} y={TOP_FACE} width={width} height={height - TOP_FACE} fill={`url(#podiumFace${place})`} />
       </Svg>
       <View style={[StyleSheet.absoluteFill, s.numberWrap]} pointerEvents="none">
         <Text style={[s.number, { fontSize: place === 1 ? 44 : 36 }]}>{place}</Text>
