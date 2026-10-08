@@ -442,6 +442,32 @@ export type Database = {
           },
         ]
       }
+      list_opens: {
+        Row: {
+          list_id: string
+          opened_at: string
+          user_id: string
+        }
+        Insert: {
+          list_id: string
+          opened_at?: string
+          user_id: string
+        }
+        Update: {
+          list_id?: string
+          opened_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_opens_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_places: {
         Row: {
           added_by: string

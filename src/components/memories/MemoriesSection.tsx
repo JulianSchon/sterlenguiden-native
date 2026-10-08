@@ -21,10 +21,12 @@
  *
  * Trycker man på ett minne rivs det loss FRÅN BAKGRUNDEN på riktigt — tejp och kort som EN
  * enhet, inte kortet ensamt från en tejp som ligger kvar. Tre faser, inte en symmetrisk
- * pendelgungning: håller emot (ryckigt, häftningen släpper lite i taget åt SAMMA håll, inte
- * fram och tillbaka) → smällen (snabb, bestämd ryckning åt sidan, med en extra tyngre haptik
- * precis då) → fallet (tyngdkraften tar över, accelererar, tonar bort). Respekterar Reduce
- * Motion (öppnar direkt utan animation då).
+ * pendelgungning: håller emot (ryckigt, häftningen släpper lite i taget NEDÅT, inte fram och
+ * tillbaka) → smällen (snabb, bestämd ryckning rakt ner, med en extra tyngre haptik precis då)
+ * → fallet (tyngdkraften tar över, accelererar, tonar bort). Rakt ner, ingen sidledes rörelse
+ * eller rotation — vid de hastigheterna lästes en lutning/snurr bara som "åker åt sidan", inte
+ * som ett riv, så kortets egen vilolutning (TILTS) står still under hela animationen. Respekterar
+ * Reduce Motion (öppnar direkt utan animation då).
  */
 import { useCallback, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
@@ -110,7 +112,7 @@ export function MemoriesSection() {
         <View style={s.actions}>
           {memories.length > 0 && (
             <TouchableOpacity onPress={() => router.push("/memories" as any)} hitSlop={8}>
-              <Text style={s.action}>Till boken</Text>
+              <Text style={s.action}>Alla</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => router.push("/memories/edit" as any)} hitSlop={8}>
@@ -144,34 +146,32 @@ function MemoryPolaroid({
 }: { memory: Memory; cover: string | undefined; tilt: number; tapeTilt: number; onOpen: () => void }) {
   const reduceMotion = useReducedMotion();
   const [opening, setOpening] = useState(false);
+  // Statisk vilolutning — INTE animerad under rivet (se kommentaren högst upp: en lutning som
+  // ändras vid den hastigheten läses som "åker åt sidan", inte som ett riv rakt ner).
   const rotate = useSharedValue(tilt);
-  const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
 
   // Mitt Österlen stannar monterad bakom minnessidan (vanligt navigationsbeteende) — utan det
-  // här skulle kortet komma tillbaka hopsvängt, nedfallet och genomskinligt efter att man gått
-  // tillbaka, kvar i precis det läge det hade när animationen körde klart. Nollställ i stället
-  // varje gång sidan får fokus igen.
+  // här skulle kortet komma tillbaka nedfallet och genomskinligt efter att man gått tillbaka,
+  // kvar i precis det läge det hade när animationen körde klart. Nollställ i stället varje gång
+  // sidan får fokus igen.
   useFocusEffect(
     useCallback(() => {
       rotate.value = tilt;
-      translateX.value = 0;
       translateY.value = 0;
       opacity.value = 1;
       setOpening(false);
     }, [tilt])
   );
 
-  // Förra försöket hade 6 snarlika små rörelser i rad — vid de hastigheterna smälter de ihop
-  // till ett SUDD i ögat i stället för att läsas som separata, distinkta ryck (det är det som
-  // gjorde att det bara "skakade"). Nu: bara TVÅ ryck med tydlig KONTRAST i styrka (linjär
-  // easing — en mekanisk, hackig känsla, inte en mjuk kurva), sen smällen, sen fallet. Hela
-  // sekvensen ska vara klar på under en halv sekund — annars hinner man tänka "vad var det
-  // där", vilket var precis det som hände förut.
-  //   1. HÅLLER EMOT — två ryck, det andra klart kraftigare, samma riktning som smällen
-  //   2. SMÄLLEN — det faktiska rivet: en snabb, bestämd ryckning åt sidan + extra haptik
-  //   3. FALLET — tyngdkraften tar över, accelererar, tonar bort
+  // Två ryck med tydlig KONTRAST i styrka (linjär easing — en mekanisk, hackig känsla, inte en
+  // mjuk kurva), sen smällen, sen fallet. Allt rakt NER (translateY), ingen sidledes rörelse och
+  // ingen rotation under själva rivet — det smetade ut sig till "åker åt sidan" vid den
+  // hastigheten i stället för att läsas som ett riv. Hela sekvensen klar på under en halv sekund.
+  //   1. HÅLLER EMOT — två nedåt-ryck, det andra klart kraftigare, samma riktning som smällen
+  //   2. SMÄLLEN — det faktiska rivet: en snabb, bestämd ryckning rakt ner + extra haptik
+  //   3. FALLET — tyngdkraften tar över, accelererar rakt ner, tonar bort
   const CATCH_MS = 30 + 70;
   const RIP_MS = 60;
   const FALL_MS = 220;
@@ -186,24 +186,14 @@ function MemoryPolaroid({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     }
 
-    rotate.value = withSequence(
-      // 1. håller emot — två hackiga ryck, linjära (inte mjukt easade) så de känns mekaniska
-      withTiming(tilt - 4, { duration: 30, easing: Easing.linear }),
-      withTiming(tilt + 14, { duration: 70, easing: Easing.linear }),
+    translateY.value = withSequence(
+      // 1. håller emot — två hackiga nedåt-ryck, linjära (inte mjukt easade) så de känns mekaniska
+      withTiming(3, { duration: 30, easing: Easing.linear }),
+      withTiming(10, { duration: 70, easing: Easing.linear }),
       // 2. smällen — det faktiska rivet
-      withTiming(tilt + 46, { duration: RIP_MS, easing: Easing.out(Easing.quad) }, (done) => { if (done) runOnJS(ripThud)(); }),
-      // 3. fallet — tumlar vidare medan det drar iväg nedåt
-      withTiming(tilt + 100, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
-    );
-    translateX.value = withSequence(
-      withTiming(1, { duration: 30, easing: Easing.linear }),
-      withTiming(5, { duration: 70, easing: Easing.linear }),
-      withTiming(36, { duration: RIP_MS, easing: Easing.out(Easing.quad) }),
-      withTiming(62, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
-    );
-    translateY.value = withDelay(
-      CATCH_MS + RIP_MS,
-      withTiming(110, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
+      withTiming(38, { duration: RIP_MS, easing: Easing.out(Easing.quad) }, (done) => { if (done) runOnJS(ripThud)(); }),
+      // 3. fallet — accelererar rakt ner, navigerar när det är klart
+      withTiming(170, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
         if (done) runOnJS(onOpen)();
       })
     );
@@ -213,7 +203,6 @@ function MemoryPolaroid({
   const cardStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [
-      { translateX: translateX.value },
       { translateY: translateY.value },
       { rotate: `${rotate.value}deg` },
     ],

@@ -12,7 +12,7 @@
  * containerStyle={{ flex: 1 }} krävs på DraggableFlatList självt (annars ärver dess interna
  * FlatList ingen bestämd höjd av sin flex-förälder och man kan inte scrolla hela vägen ner).
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View, Text, Image, TouchableOpacity, Alert, ActionSheetIOS, Platform, Share, ActivityIndicator, StyleSheet,
   Linking, useWindowDimensions,
@@ -24,7 +24,7 @@ import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical, LogOut } f
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useResetListCover,
-  useDuplicateList, useReorderListPlaces, type ListPlace,
+  useDuplicateList, useReorderListPlaces, useMarkListOpened, type ListPlace,
 } from "@/hooks/useLists";
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
@@ -62,6 +62,14 @@ export default function ListDetailScreen() {
   const resetCover = useResetListCover();
   const duplicateList = useDuplicateList();
   const reorderPlaces = useReorderListPlaces();
+  const markOpened = useMarkListOpened();
+
+  // Styr bara ordningen i Mitt Österlens listrad (senast öppnad längst till vänster) — inget i
+  // den här vyn beror på det.
+  useEffect(() => {
+    if (id) markOpened.mutate(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const [addOpen, setAddOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);

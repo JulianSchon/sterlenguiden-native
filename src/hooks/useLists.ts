@@ -25,6 +25,8 @@ export interface ListSummary {
   memberCount: number;
   /** Upp till fyra bilder från listans platser, äldst först — till kollaget (fallback när ingen egen omslagsbild är vald) */
   images: string[];
+  /** Senast JAG öppnade listan (list_opens) — null om jag aldrig öppnat den. Styr ordningen i Mitt Österlens listrad. */
+  lastOpenedAt: string | null;
 }
 
 export interface ListPlace {
@@ -74,7 +76,10 @@ async function requireUserId(): Promise<string> {
 }
 
 /** Listorna där den inloggade är medlem (RLS filtrerar bort resten) — en lista man bara är
- * PENDING-inbjuden till räknas inte med här förrän man accepterat, se usePendingListInvites(). */
+ * PENDING-inbjuden till räknas inte med här förrän man accepterat, se usePendingListInvites().
+ * Ordning: senast ÖPPNAD (av mig) först, inte senast skapad — listor jag aldrig öppnat (nya,
+ * eller öppnade innan list_opens fanns) hamnar sist, i den redan hämtade created_at-ordningen
+ * (sorteringen nedan är stabil, så den ordningen består som tiebreak). */
 export function useLists() {
   return useQuery({
     queryKey: ["lists", "mine"],
@@ -85,6 +90,14 @@ export function useLists() {
         .select("*, list_places(place_id, created_at, places(image_url)), list_members(user_id, status)")
         .order("created_at", { ascending: false });
       if (error) throw error;
+
+      const { data: opens, error: opensError } = await supabase
+        .from("list_opens")
+        .select("list_id, opened_at")
+        .eq("user_id", userId);
+      if (opensError) console.error("list_opens misslyckades:", opensError);
+      const openedAt = new Map((opens ?? []).map((o) => [o.list_id, o.opened_at as string]));
+
       return (data ?? [])
         .filter((l) => l.owner_id === userId || l.list_members.some((m) => m.user_id === userId && m.status === "accepted"))
         .map((l) => {
@@ -100,9 +113,32 @@ export function useLists() {
             placeIds: l.list_places.map((p) => p.place_id),
             memberCount: acceptedMembers.length,
             images: byAge.map((p) => firstImageUrl(p.places?.image_url)).filter((u): u is string => !!u).slice(0, 4),
+            lastOpenedAt: openedAt.get(l.id) ?? null,
           };
+        })
+        .sort((a, b) => {
+          if (a.lastOpenedAt && b.lastOpenedAt) return b.lastOpenedAt.localeCompare(a.lastOpenedAt);
+          if (a.lastOpenedAt) return -1;
+          if (b.lastOpenedAt) return 1;
+          return 0;
         });
     },
+  });
+}
+
+/** Registrerar att JAG öppnade en lista just nu — anropas när listans detaljsida öppnas, styr
+ * bara sorteringen i Mitt Österlens listrad (se useLists() ovan). */
+export function useMarkListOpened() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (listId: string) => {
+      const userId = await requireUserId();
+      const { error } = await supabase
+        .from("list_opens")
+        .upsert({ user_id: userId, list_id: listId, opened_at: new Date().toISOString() }, { onConflict: "user_id,list_id" });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists", "mine"] }),
   });
 }
 

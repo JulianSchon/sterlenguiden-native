@@ -168,7 +168,7 @@ export default function MittOsterlenScreen() {
             <Text style={s.friendsSub}>
               {pendingFriendRequests > 0
                 ? pendingFriendRequests === 1 ? "1 väntande förfrågan" : `${pendingFriendRequests} väntande förfrågningar`
-                : "Lägg till vänner och se deras statistik"}
+                : "Lägg till vänner och se deras aktivitet"}
             </Text>
           </View>
           {/* Utan den här kunde ringen längst till vänster lätt läsas som "dina vänners avatarer
