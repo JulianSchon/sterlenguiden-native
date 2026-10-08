@@ -19,10 +19,12 @@
  * avslöjade då bara en identiskt färgad rektangel bakom sig, inte något annorlunda. Kortets View
  * måste vara genomskinlig; det är ENDAST polygonen som får ge formen färg.
  *
- * Trycker man på ett minne gör det motstånd ett par gånger (som om tejpen håller emot), river
- * sig sen loss FRÅN BAKGRUNDEN — tejp och kort som EN enhet, inte kortet ensamt från en tejp
- * som ligger kvar — och trillar/tonar bort innan sidan öppnas. Respekterar Reduce Motion
- * (öppnar direkt utan animation då).
+ * Trycker man på ett minne rivs det loss FRÅN BAKGRUNDEN på riktigt — tejp och kort som EN
+ * enhet, inte kortet ensamt från en tejp som ligger kvar. Tre faser, inte en symmetrisk
+ * pendelgungning: håller emot (ryckigt, häftningen släpper lite i taget åt SAMMA håll, inte
+ * fram och tillbaka) → smällen (snabb, bestämd ryckning åt sidan, med en extra tyngre haptik
+ * precis då) → fallet (tyngdkraften tar över, accelererar, tonar bort). Respekterar Reduce
+ * Motion (öppnar direkt utan animation då).
  */
 import { useCallback, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
@@ -143,6 +145,7 @@ function MemoryPolaroid({
   const reduceMotion = useReducedMotion();
   const [opening, setOpening] = useState(false);
   const rotate = useSharedValue(tilt);
+  const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
 
@@ -153,11 +156,24 @@ function MemoryPolaroid({
   useFocusEffect(
     useCallback(() => {
       rotate.value = tilt;
+      translateX.value = 0;
       translateY.value = 0;
       opacity.value = 1;
       setOpening(false);
     }, [tilt])
   );
+
+  // Det förra försöket vaggade symmetriskt fram och tillbaka som en pendel, sen släppte — det
+  // läste som "dingla", inte "rivas av". En riktig tejpbit som rivs loss rycker i EN riktning
+  // i allt större hack (häftningen släpper lite i taget, inte jämnt), och i samma ögonblick
+  // den väl släpper far den ÅT SIDAN i en snabb smäll, inte en mjuk gungning. Tre tydliga
+  // faser, var och en med sin egen känsla:
+  //   1. HÅLLER EMOT (ryckigt, växande utslag åt SAMMA håll — inte fram och tillbaka)
+  //   2. SMÄLLEN (det faktiska rivet: snabbt, bestämt, åt sidan)
+  //   3. FALLET (tyngdkraften tar över, accelererar, tonar bort)
+  const CATCH_MS = 35 + 55 + 40 + 60 + 45 + 65;
+  const RIP_MS = 90;
+  const FALL_MS = 360;
 
   function handlePress() {
     if (opening) return;
@@ -165,26 +181,49 @@ function MemoryPolaroid({
     if (reduceMotion) { onOpen(); return; }
     setOpening(true);
 
-    // Gör motstånd ett par gånger (som om tejpen håller emot innan den släpper)...
+    function ripThud() {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    }
+
     rotate.value = withSequence(
-      withTiming(tilt + 9, { duration: 90, easing: Easing.out(Easing.quad) }),
-      withTiming(tilt - 6, { duration: 110 }),
-      withTiming(tilt + 3, { duration: 100 }),
-      withTiming(tilt + 1, { duration: 70 }),
-      // ...river sig sen loss från bakgrunden, hela biten (tejp+kort) tillsammans, och
-      // fortsätter rotera ner i fallet
-      withTiming(tilt + 60, { duration: 300, easing: Easing.in(Easing.cubic) })
+      // 1. håller emot — häftningen släpper lite i taget, samma håll, ökande utslag
+      withTiming(tilt - 2, { duration: 35 }),
+      withTiming(tilt + 4, { duration: 55 }),
+      withTiming(tilt + 1, { duration: 40 }),
+      withTiming(tilt + 9, { duration: 60 }),
+      withTiming(tilt + 4, { duration: 45 }),
+      withTiming(tilt + 15, { duration: 65 }),
+      // 2. smällen — det faktiska rivet, snabbt och bestämt
+      withTiming(tilt + 42, { duration: RIP_MS, easing: Easing.out(Easing.quad) }, (done) => { if (done) runOnJS(ripThud)(); }),
+      // 3. fallet — tumlar vidare medan det drar iväg nedåt
+      withTiming(tilt + 95, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
     );
-    const SWING_MS = 90 + 110 + 100 + 70;
-    translateY.value = withDelay(SWING_MS, withTiming(90, { duration: 300, easing: Easing.in(Easing.cubic) }, (done) => {
-      if (done) runOnJS(onOpen)();
-    }));
-    opacity.value = withDelay(SWING_MS + 40, withTiming(0, { duration: 260 }));
+    translateX.value = withSequence(
+      withTiming(1, { duration: 35 }),
+      withTiming(-2, { duration: 55 }),
+      withTiming(2, { duration: 40 }),
+      withTiming(-1, { duration: 60 }),
+      withTiming(4, { duration: 45 }),
+      withTiming(2, { duration: 65 }),
+      withTiming(30, { duration: RIP_MS, easing: Easing.out(Easing.quad) }),
+      withTiming(55, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
+    );
+    translateY.value = withDelay(
+      CATCH_MS + RIP_MS,
+      withTiming(120, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
+        if (done) runOnJS(onOpen)();
+      })
+    );
+    opacity.value = withDelay(CATCH_MS + RIP_MS + 70, withTiming(0, { duration: FALL_MS - 70 }));
   }
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ translateY: translateY.value }, { rotate: `${rotate.value}deg` }],
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { rotate: `${rotate.value}deg` },
+    ],
   }));
 
   return (
