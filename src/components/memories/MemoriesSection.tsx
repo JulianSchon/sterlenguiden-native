@@ -163,17 +163,18 @@ function MemoryPolaroid({
     }, [tilt])
   );
 
-  // Det förra försöket vaggade symmetriskt fram och tillbaka som en pendel, sen släppte — det
-  // läste som "dingla", inte "rivas av". En riktig tejpbit som rivs loss rycker i EN riktning
-  // i allt större hack (häftningen släpper lite i taget, inte jämnt), och i samma ögonblick
-  // den väl släpper far den ÅT SIDAN i en snabb smäll, inte en mjuk gungning. Tre tydliga
-  // faser, var och en med sin egen känsla:
-  //   1. HÅLLER EMOT (ryckigt, växande utslag åt SAMMA håll — inte fram och tillbaka)
-  //   2. SMÄLLEN (det faktiska rivet: snabbt, bestämt, åt sidan)
-  //   3. FALLET (tyngdkraften tar över, accelererar, tonar bort)
-  const CATCH_MS = 35 + 55 + 40 + 60 + 45 + 65;
-  const RIP_MS = 90;
-  const FALL_MS = 360;
+  // Förra försöket hade 6 snarlika små rörelser i rad — vid de hastigheterna smälter de ihop
+  // till ett SUDD i ögat i stället för att läsas som separata, distinkta ryck (det är det som
+  // gjorde att det bara "skakade"). Nu: bara TVÅ ryck med tydlig KONTRAST i styrka (linjär
+  // easing — en mekanisk, hackig känsla, inte en mjuk kurva), sen smällen, sen fallet. Hela
+  // sekvensen ska vara klar på under en halv sekund — annars hinner man tänka "vad var det
+  // där", vilket var precis det som hände förut.
+  //   1. HÅLLER EMOT — två ryck, det andra klart kraftigare, samma riktning som smällen
+  //   2. SMÄLLEN — det faktiska rivet: en snabb, bestämd ryckning åt sidan + extra haptik
+  //   3. FALLET — tyngdkraften tar över, accelererar, tonar bort
+  const CATCH_MS = 30 + 70;
+  const RIP_MS = 60;
+  const FALL_MS = 220;
 
   function handlePress() {
     if (opening) return;
@@ -186,35 +187,27 @@ function MemoryPolaroid({
     }
 
     rotate.value = withSequence(
-      // 1. håller emot — häftningen släpper lite i taget, samma håll, ökande utslag
-      withTiming(tilt - 2, { duration: 35 }),
-      withTiming(tilt + 4, { duration: 55 }),
-      withTiming(tilt + 1, { duration: 40 }),
-      withTiming(tilt + 9, { duration: 60 }),
-      withTiming(tilt + 4, { duration: 45 }),
-      withTiming(tilt + 15, { duration: 65 }),
-      // 2. smällen — det faktiska rivet, snabbt och bestämt
-      withTiming(tilt + 42, { duration: RIP_MS, easing: Easing.out(Easing.quad) }, (done) => { if (done) runOnJS(ripThud)(); }),
+      // 1. håller emot — två hackiga ryck, linjära (inte mjukt easade) så de känns mekaniska
+      withTiming(tilt - 4, { duration: 30, easing: Easing.linear }),
+      withTiming(tilt + 14, { duration: 70, easing: Easing.linear }),
+      // 2. smällen — det faktiska rivet
+      withTiming(tilt + 46, { duration: RIP_MS, easing: Easing.out(Easing.quad) }, (done) => { if (done) runOnJS(ripThud)(); }),
       // 3. fallet — tumlar vidare medan det drar iväg nedåt
-      withTiming(tilt + 95, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
+      withTiming(tilt + 100, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
     );
     translateX.value = withSequence(
-      withTiming(1, { duration: 35 }),
-      withTiming(-2, { duration: 55 }),
-      withTiming(2, { duration: 40 }),
-      withTiming(-1, { duration: 60 }),
-      withTiming(4, { duration: 45 }),
-      withTiming(2, { duration: 65 }),
-      withTiming(30, { duration: RIP_MS, easing: Easing.out(Easing.quad) }),
-      withTiming(55, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
+      withTiming(1, { duration: 30, easing: Easing.linear }),
+      withTiming(5, { duration: 70, easing: Easing.linear }),
+      withTiming(36, { duration: RIP_MS, easing: Easing.out(Easing.quad) }),
+      withTiming(62, { duration: FALL_MS, easing: Easing.in(Easing.cubic) })
     );
     translateY.value = withDelay(
       CATCH_MS + RIP_MS,
-      withTiming(120, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
+      withTiming(110, { duration: FALL_MS, easing: Easing.in(Easing.cubic) }, (done) => {
         if (done) runOnJS(onOpen)();
       })
     );
-    opacity.value = withDelay(CATCH_MS + RIP_MS + 70, withTiming(0, { duration: FALL_MS - 70 }));
+    opacity.value = withDelay(CATCH_MS + RIP_MS + 40, withTiming(0, { duration: FALL_MS - 40 }));
   }
 
   const cardStyle = useAnimatedStyle(() => ({
