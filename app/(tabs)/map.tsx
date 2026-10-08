@@ -146,7 +146,11 @@ export default function MapScreen() {
   const [selectedSticker, setSelectedSticker]     = useState<Collectible | null>(null);
   const [stickersOnly, setStickersOnly]           = useState(false);
   const [userLoc, setUserLoc]                     = useState<{ latitude: number; longitude: number } | null>(null);
-  const locDone       = useRef(false);
+  // Om man kommer hit med ett mål att fokusera (sticker eller plats) ska INTE det första
+  // GPS-fixet få centrera om till "mig" ovanpå det en liten stund senare (ett vanligt race —
+  // platsens animateToRegion hinner köra först, sen landar GPS-fixet och vinner kampen om
+  // kartans kamera). Markera den auto-centreringen som redan gjord i det fallet.
+  const locDone       = useRef(Boolean(stickerParam || placeParam));
   // Förhindrar att MapView.onPress nollställer kortet direkt efter marker-press
   const markerJustPressed = useRef(false);
 

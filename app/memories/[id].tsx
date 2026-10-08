@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, X, MapPin, Plus, Pencil, Trash2 } from "lucide-react-native";
-import Svg, { Polygon } from "react-native-svg";
+import Svg, { Polygon, Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { useMemory, useSignedUrls, useDeleteMemory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
@@ -87,11 +87,14 @@ export default function MemoryDetailScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         {/* "Redigera" bort härifrån — ligger nu i åtgärdslistan längst ner på sidan tillsammans
-            med Radera, i stället för att delas upp på två olika ställen. */}
+            med Radera, i stället för att delas upp på två olika ställen. Titeln är dock kvar
+            (annars står man utan ledtext alls längst upp) — en rad, trunkerad med "…" om den
+            är för lång för att få plats, precis som vilken app-header som helst hanterar det. */}
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
+          {memory && <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">{memory.title}</Text>}
         </View>
       </View>
 
@@ -135,51 +138,57 @@ export default function MemoryDetailScreen() {
           )}
 
           <View style={{ padding: 16 }}>
-            {memory.story ? <Text style={s.story}>{memory.story}</Text> : null}
-
-            {/* Platsen är inte längre en liten pill med en ikon — ett eget klickbart kort med
-                platsens egen bild, som faktiskt tar en till platsens sida i appen (inte bara en
-                text-etikett som ser ut att vara tryckbar). */}
-            {memoryPlaces.length > 0 && (
-              <View style={{ marginTop: memory.story ? 24 : 0 }}>
-                <Text style={s.sectionLabel}>PLATSER</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.placesRow}>
-                  {memoryPlaces.map((p) => {
-                    const img = firstImageUrl(p.image_url);
-                    return (
-                      <TouchableOpacity key={p.id} style={s.placeCard} activeOpacity={0.85} onPress={() => router.push(`/place/${p.id}` as any)}>
-                        {img ? (
-                          <Image source={{ uri: img }} style={s.placeImage} resizeMode="cover" />
-                        ) : (
-                          <View style={[s.placeImage, s.placeImageEmpty]}>
-                            <MapPin size={22} color={GOLD} strokeWidth={2} />
-                          </View>
-                        )}
-                        <Text style={s.placeName} numberOfLines={1}>{p.name}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+            {memory.story ? (
+              <View>
+                {/* "Om dagen" hade varit naturligt, men ett minne kan spänna över mer än en
+                    enskild dag — en mer generell rubrik i stället. */}
+                <Text style={s.sectionLabel}>OM MINNET</Text>
+                <Text style={s.story}>{memory.story}</Text>
               </View>
-            )}
+            ) : null}
 
-            {/* Namnen större och tydligare — det här ska kännas som en riktig del av minnet,
-                inte en liten bisats. */}
+            {/* Varje namn i en egen ruta i stället för en kommaseparerad lista — annars läses
+                det bara som en lång uppräkning, inte som att var och en faktiskt var med. */}
             {memory.people.length > 0 && (
-              <View style={{ marginTop: memory.story || memoryPlaces.length > 0 ? 24 : 0 }}>
+              <View style={{ marginTop: memory.story ? 24 : 0 }}>
                 <Text style={s.sectionLabel}>VILKA VAR MED</Text>
-                <Text style={s.peopleNames}>{memory.people.join(", ")}</Text>
+                <View style={s.peopleRow}>
+                  {memory.people.map((name) => (
+                    <View key={name} style={s.personPill}>
+                      <Text style={s.personPillText}>{name}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
           </View>
 
           {photos.length > 1 && (
-            <View style={s.gallery}>
-              {photos.slice(1).map((uri, i) => (
-                <TouchableOpacity key={uri} onPress={() => setLightbox(i + 1)} activeOpacity={0.92}>
-                  <Image source={{ uri }} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} resizeMode="cover" />
-                </TouchableOpacity>
-              ))}
+            <>
+              <View style={{ paddingHorizontal: 16, marginTop: 28 }}>
+                <Text style={s.sectionLabel}>BILDER</Text>
+              </View>
+              <View style={s.gallery}>
+                {photos.slice(1).map((uri, i) => (
+                  <TouchableOpacity key={uri} onPress={() => setLightbox(i + 1)} activeOpacity={0.92}>
+                    <Image source={{ uri }} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} resizeMode="cover" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Platser flyttade hit, under bilderna — stora kort med platsens egen bild och namnet
+              skrivet direkt i bilden (med en mörk fade nedtill så texten alltid går att läsa,
+              oavsett hur ljust fotot är), i stället för en liten textpill ovanför bilderna. */}
+          {memoryPlaces.length > 0 && (
+            <View style={{ paddingHorizontal: 16, marginTop: 28 }}>
+              <Text style={s.sectionLabel}>PLATSER</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.placesRow}>
+                {memoryPlaces.map((p) => (
+                  <MemoryPlaceCard key={p.id} place={p} onPress={() => router.push(`/place/${p.id}` as any)} />
+                ))}
+              </ScrollView>
             </View>
           )}
 
@@ -234,6 +243,41 @@ export default function MemoryDetailScreen() {
   );
 }
 
+/** Ett platskort med platsens egen bild, namnet skrivet direkt i bilden över en mörk fade
+ * nedtill (samma SVG-gradient-mönster som platskorten i app/category/[categoryId].tsx — en
+ * riktig gradient, inte expo-linear-gradient, som inte är kompilerad i dev-clienten än). */
+function MemoryPlaceCard({ place, onPress }: { place: { id: number; name: string; image_url: string | null }; onPress: () => void }) {
+  const img = firstImageUrl(place.image_url);
+  return (
+    <TouchableOpacity style={s.placeCard} activeOpacity={0.85} onPress={onPress}>
+      {img ? (
+        <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, s.placeImageEmpty]}>
+          <MapPin size={26} color={GOLD} strokeWidth={2} />
+        </View>
+      )}
+      {img && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+            <Defs>
+              <SvgGrad id={`mpg${place.id}`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor="#000" stopOpacity={0} />
+                <Stop offset="45%" stopColor="#000" stopOpacity={0.3} />
+                <Stop offset="100%" stopColor="#000" stopOpacity={0.82} />
+              </SvgGrad>
+            </Defs>
+            <SvgRect width="100%" height="100%" fill={`url(#mpg${place.id})`} />
+          </Svg>
+        </View>
+      )}
+      <View style={s.placeNameWrap}>
+        <Text style={s.placeName} numberOfLines={2}>{place.name}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 /** Samma rad-stil som listornas ⋮-meny (ListOptionsSheet) — ikon i en cirkel + etikett — fast
  * inline på sidan i stället för i en sheet. */
 function ActionRow({ icon, label, danger, onPress }: { icon: React.ReactNode; label: string; danger?: boolean; onPress: () => void }) {
@@ -252,6 +296,9 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
+  // Vanlig (inte versal/Montserrat-rubrik-konvention) — det här är minnets EGEN titel, fritext
+  // av varierande längd, inte en kort fast app-etikett som "NYTT MINNE".
+  headerTitle: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 16, color: FG },
   notFound: { fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED, textAlign: "center", marginTop: 40 },
 
   // Försättsfotots egen Polaroid-ram — samma material som förhandsvisningskortet
@@ -282,18 +329,30 @@ const s = StyleSheet.create({
   // dämpad, versal.
   sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 1.2, color: MUTED, marginBottom: 10 },
 
-  // Platser: ett eget klickbart kort med platsens bild, inte en liten textpill.
-  placesRow: { gap: 10 },
-  placeCard: { width: 112 },
-  placeImage: { width: 112, height: 112, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.06)" },
+  // Platser: stora kort (namnet skrivs i bilden, se placeNameWrap/placeName), inte en liten
+  // textpill ovanför bilderna.
+  placesRow: { gap: 12 },
+  placeCard: {
+    width: 160, height: 160, borderRadius: 16, overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
   placeImageEmpty: { alignItems: "center", justifyContent: "center" },
-  placeName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG, marginTop: 6 },
+  placeNameWrap: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 12 },
+  placeName: {
+    fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#fff",
+    textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+  },
 
-  // Namnen ska kännas som en riktig del av minnet — mycket större än den gamla "Med: ..."-raden.
-  peopleNames: { fontFamily: "Inter_600SemiBold", fontSize: 22, lineHeight: 28, color: FG, marginTop: 2 },
+  // Varje namn i en egen ruta i stället för en kommaseparerad lista.
+  peopleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  personPill: {
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.35)",
+  },
+  personPillText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
 
   // Stora bilder i en vertikal rad i stället för ett rutnät av tummar.
-  gallery: { paddingHorizontal: 16, marginTop: 28, gap: 14 },
+  gallery: { paddingHorizontal: 16, marginTop: 4, gap: 14 },
 
   // Åtgärdslistan längst ner — samma rad-stil som listornas ⋮-meny.
   actions: { paddingHorizontal: 16, marginTop: 36 },
