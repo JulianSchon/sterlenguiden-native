@@ -1,6 +1,6 @@
 /**
- * Segmentkontroll med en glidande markering — samma utseende för alla val på topplistesidan
- * (Besök/Streak/Samlarobjekt, omfånget och tidsperioden). Markeringen glider med withTiming,
+ * Segmentkontroll med en glidande markering — för de mindre valen på topplistesidan
+ * (omfånget och tidsperioden). Huvudvalet ovanför har egna kort. Markeringen glider med withTiming,
  * inte en fjäder, så den aldrig studsar.
  */
 import { useState } from "react";
@@ -58,7 +58,7 @@ const s = StyleSheet.create({
     position: "absolute", top: PAD, bottom: PAD, left: PAD,
     borderRadius: 10, backgroundColor: "rgba(255,255,255,0.12)",
   },
-  item: { flex: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 4 },
-  text: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: MUTED },
+  item: { flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 4 },
+  text: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
   textActive: { color: FG },
 });

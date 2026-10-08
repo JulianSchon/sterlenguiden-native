@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type LeaderboardMetric = "visits" | "streak" | "stickers";
 export type LeaderboardScope = "all" | "area" | "friends";
-export type LeaderboardPeriod = "month" | "all";
+export type LeaderboardPeriod = "month" | "year" | "all";
 
 export interface LeaderboardEntry {
   userId: string;

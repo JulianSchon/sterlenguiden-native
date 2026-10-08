@@ -15,7 +15,7 @@ import Reanimated, {
   Easing, FadeInUp, cancelAnimation, interpolate, useAnimatedStyle, useReducedMotion, useSharedValue,
   withDelay, withRepeat, withTiming,
 } from "react-native-reanimated";
-import Svg, { Defs, LinearGradient, Polygon, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Polygon, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { MapPin, Flame, Sparkles } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
@@ -25,7 +25,6 @@ import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric }
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
-const NUMBER_COLOR = "rgba(235,235,240,0.62)";
 
 type Place = 1 | 2 | 3;
 const TIER: Record<Place, keyof typeof TIER_PALETTE> = { 1: "gold", 2: "silver", 3: "bronze" };
@@ -150,30 +149,37 @@ function RankBadge({ place, size }: { place: Place; size: number }) {
   );
 }
 
-/** Själva blocket, belyst som i referensen: en ljus ovansida (det är den som ger djupet), en
- * framsida som är ljusast upptill och tonar mot mörker nedåt, och mörkare sidokanter (ljuset
- * faller mitt på blocket) plus en tunn ljuskant där ovansidan möter framsidan. */
+/** Själva blocket, som i referensen: ogenomskinlig, sval skiffer (inte genomskinligt vitt som
+ * bakgrunden lyste igenom). Ovansidan är bara lite ljusare än framsidans överkant, så de möts i
+ * en mjuk övergång i stället för en hård kant. Framsidan är ljusast upptill och tonar ner i
+ * bakgrundens mörker nedtill, sidokanterna är lätt skuggade och siffran har en egen gradient
+ * från nästan vitt till grått. */
 function PodiumBlock({ place, width }: { place: Place; width: number }) {
   const height = BLOCK_H[place];
   const front = height - TOP_FACE;
+  const fontSize = place === 1 ? 64 : 52;
   return (
     <View style={{ width, height, marginTop: 14 }}>
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id={`podiumTop${place}`} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.46} />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.28} />
+            <Stop offset="0" stopColor="#5E6170" />
+            <Stop offset="1" stopColor="#4A4D5A" />
           </LinearGradient>
           <LinearGradient id={`podiumFront${place}`} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.22} />
-            <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={0.09} />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.015} />
+            <Stop offset="0" stopColor="#434654" />
+            <Stop offset="0.35" stopColor="#30323D" />
+            <Stop offset="1" stopColor="#141418" />
           </LinearGradient>
           <LinearGradient id={`podiumSides${place}`} x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#000000" stopOpacity={0.32} />
-            <Stop offset="0.22" stopColor="#000000" stopOpacity={0} />
-            <Stop offset="0.78" stopColor="#000000" stopOpacity={0} />
-            <Stop offset="1" stopColor="#000000" stopOpacity={0.32} />
+            <Stop offset="0" stopColor="#000000" stopOpacity={0.22} />
+            <Stop offset="0.18" stopColor="#000000" stopOpacity={0} />
+            <Stop offset="0.82" stopColor="#000000" stopOpacity={0} />
+            <Stop offset="1" stopColor="#000000" stopOpacity={0.22} />
+          </LinearGradient>
+          <LinearGradient id={`podiumNumber${place}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#F2F3F7" />
+            <Stop offset="1" stopColor="#8E909C" />
           </LinearGradient>
         </Defs>
         <Polygon
@@ -182,11 +188,17 @@ function PodiumBlock({ place, width }: { place: Place; width: number }) {
         />
         <Rect x={0} y={TOP_FACE} width={width} height={front} fill={`url(#podiumFront${place})`} />
         <Rect x={0} y={TOP_FACE} width={width} height={front} fill={`url(#podiumSides${place})`} />
-        <Rect x={0} y={TOP_FACE} width={width} height={1.5} fill="#FFFFFF" fillOpacity={0.35} />
+        <SvgText
+          x={width / 2}
+          y={TOP_FACE + front * 0.42 + fontSize * 0.36}
+          textAnchor="middle"
+          fontFamily="Montserrat_700Bold"
+          fontSize={fontSize}
+          fill={`url(#podiumNumber${place})`}
+        >
+          {place}
+        </SvgText>
       </Svg>
-      <View style={[StyleSheet.absoluteFill, s.numberWrap]} pointerEvents="none">
-        <Text style={[s.number, { fontSize: place === 1 ? 60 : 48 }]}>{place}</Text>
-      </View>
     </View>
   );
 }
@@ -210,6 +222,4 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
   },
   chipText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: FG },
-  numberWrap: { top: TOP_FACE, alignItems: "center", justifyContent: "center" },
-  number: { fontFamily: "Montserrat_700Bold", color: NUMBER_COLOR },
 });

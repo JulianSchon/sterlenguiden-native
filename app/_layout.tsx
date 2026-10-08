@@ -23,6 +23,7 @@ import {
 import { ShareTechMono_400Regular } from "@expo-google-fonts/share-tech-mono";
 import { Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
 import { Caveat_600SemiBold, Caveat_700Bold } from "@expo-google-fonts/caveat";
+import { Fredoka_600SemiBold, Fredoka_700Bold } from "@expo-google-fonts/fredoka";
 import { supabase } from "@/integrations/supabase/client";
 import { loadSavedLanguage } from "@/i18n";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
@@ -46,6 +47,9 @@ export default function RootLayout() {
     // medvetet reserverad dit så den inte sprids ut och tappar sin betydelse.
     Caveat_600SemiBold,
     Caveat_700Bold,
+    // Bara för topplistorna — rund, lekfull "spel"-ton, reserverad dit
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
   });
 
   // INITIAL_SESSION är Supabase-klientens signal att sessionen
