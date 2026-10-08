@@ -137,7 +137,7 @@ export default function MemoryDetailScreen() {
             </View>
           )}
 
-          <View style={{ padding: 16 }}>
+          <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
             {memory.story ? (
               <View>
                 {/* "Om dagen" hade varit naturligt, men ett minne kan spänna över mer än en
@@ -147,19 +147,27 @@ export default function MemoryDetailScreen() {
               </View>
             ) : null}
 
-            {/* Ett vertikalt streck mellan namnen i stället för kommatecken — läses som
-                avgränsade namn, inte en lång uppräkning. */}
+            {/* Varje namn i en egen färgad ruta igen (inte en kommaseparerad rad) — varje namn
+                ska få sin egen visuella tyngd i stället för att läsas som en lång uppräkning. */}
             {memory.people.length > 0 && (
               <View style={{ marginTop: memory.story ? 24 : 0 }}>
                 <Text style={s.sectionLabel}>VILKA VAR MED</Text>
-                <Text style={s.peopleNames}>{memory.people.join("  |  ")}</Text>
+                <View style={s.peopleRow}>
+                  {memory.people.map((name) => (
+                    <View key={name} style={s.personPill}>
+                      <Text style={s.personPillText}>{name}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
           </View>
 
           {photos.length > 1 && (
             <>
-              <View style={{ paddingHorizontal: 16, marginTop: 28 }}>
+              {/* Samma 24px som ovanför VILKA VAR MED (beskrivning -> VILKA VAR MED) —
+                  symmetriskt i stället för att råka bli mer luft hitåt än ditåt. */}
+              <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
                 <Text style={s.sectionLabel}>BILDER</Text>
               </View>
               <View style={s.gallery}>
@@ -337,8 +345,13 @@ const s = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
 
-  // Namnen större, och ett vertikalt streck mellan dem i stället för kommatecken.
-  peopleNames: { fontFamily: "Inter_600SemiBold", fontSize: 21, lineHeight: 28, color: FG },
+  // Varje namn i en egen färgad ruta.
+  peopleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  personPill: {
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.35)",
+  },
+  personPillText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
 
   // Stora bilder i en vertikal rad i stället för ett rutnät av tummar.
   gallery: { paddingHorizontal: 16, marginTop: 4, gap: 14 },
