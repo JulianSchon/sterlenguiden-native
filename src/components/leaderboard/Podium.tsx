@@ -1,33 +1,69 @@
 /**
  * Prispallen: topp 3 som tre block — tvåan till vänster, ettan i mitten (högst), trean till
  * höger, som en riktig prispall. Initialcirklar i stället för profilbilder (inga profilbilder i
- * topplistor). Deltar färre än tre står blocket kvar som "Ledig plats" — mer inbjudande än en
- * halv prispall.
+ * topplistor), var och en med en taggig bricka i guld/silver/brons och sin placering — ingen
+ * pokal, ingen färgad ring runt cirkeln. Cirklarna flyter sakta upp och ner, i olika takt så de
+ * aldrig rör sig i takt med varandra. Deltar färre än tre står blocket kvar som "Ledig plats".
  *
  * Blocken reser sig i tur och ordning — trean, tvåan, sist ettan — när pallen visas. Byts
  * topplista (annan flik/omfång) remountas pallen via sin key hos föräldern, så det spelas igen.
  */
+import { useEffect, type ReactNode } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import Reanimated, { Easing, FadeInUp, useReducedMotion } from "react-native-reanimated";
-import Svg, { Defs, LinearGradient, Stop, Rect, Polygon } from "react-native-svg";
-import { Trophy, MapPin, Flame, Sparkles } from "lucide-react-native";
+import Reanimated, {
+  Easing, FadeInUp, cancelAnimation, interpolate, useAnimatedStyle, useReducedMotion, useSharedValue,
+  withDelay, withRepeat, withTiming,
+} from "react-native-reanimated";
+import Svg, { ClipPath, Defs, G, LinearGradient, Path, Polygon, Rect, Stop } from "react-native-svg";
+import { MapPin, Flame, Sparkles } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
+import { TIER_PALETTE } from "@/lib/achievements";
 import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric } from "@/hooks/useLeaderboard";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
+const NUMBER_COLOR = "rgba(232,232,232,0.72)";
 
 type Place = 1 | 2 | 3;
-// Siffrornas färg — samma guld/silver/brons-skala som troféerna (TIER_PALETTE i achievements.ts)
-const PLACE_COLOR: Record<Place, string> = { 1: "#D4A740", 2: "#C9C9C9", 3: "#B87A4B" };
+const TIER: Record<Place, keyof typeof TIER_PALETTE> = { 1: "gold", 2: "silver", 3: "bronze" };
 const BLOCK_H: Record<Place, number> = { 1: 112, 2: 84, 3: 66 };
 const REVEAL_DELAY: Record<Place, number> = { 3: 0, 2: 140, 1: 280 };
-const TOP_FACE = 10;
+// Olika takt och startläge per cirkel — rörde de sig i takt såg det mekaniskt ut
+const FLOAT: Record<Place, { duration: number; delay: number }> = {
+  1: { duration: 2200, delay: 0 },
+  2: { duration: 2550, delay: 450 },
+  3: { duration: 2350, delay: 900 },
+};
+const FLOAT_PX = 3;
+const TOP_FACE = 14;
+const TOP_INSET = 8;
+const CORNER = 8;
 
 export function MetricIcon({ metric, size = 11, color = GOLD }: { metric: LeaderboardMetric; size?: number; color?: string }) {
   const Icon = metric === "visits" ? MapPin : metric === "streak" ? Flame : Sparkles;
   return <Icon size={size} color={color} strokeWidth={2.4} />;
+}
+
+/** En polygon som SVG-path med rundade hörn — varje hörn ersätts av en kort kurva, med radien
+ * krympt där kanterna är korta så två hörn aldrig äter upp samma kant. */
+function roundedPolygonPath(pts: [number, number][], r: number): string {
+  const n = pts.length;
+  let d = "";
+  for (let i = 0; i < n; i++) {
+    const [x, y] = pts[i];
+    const [px, py] = pts[(i - 1 + n) % n];
+    const [nx, ny] = pts[(i + 1) % n];
+    const lenIn = Math.hypot(x - px, y - py);
+    const lenOut = Math.hypot(nx - x, ny - y);
+    const rr = Math.min(r, lenIn / 2, lenOut / 2);
+    const ax = x + ((px - x) / lenIn) * rr;
+    const ay = y + ((py - y) / lenIn) * rr;
+    const bx = x + ((nx - x) / lenOut) * rr;
+    const by = y + ((ny - y) / lenOut) * rr;
+    d += `${i === 0 ? "M" : "L"}${ax.toFixed(2)},${ay.toFixed(2)} Q${x},${y} ${bx.toFixed(2)},${by.toFixed(2)} `;
+  }
+  return `${d}Z`;
 }
 
 export function Podium({
@@ -58,25 +94,24 @@ function PodiumColumn({
 }: { place: Place; entry: LeaderboardEntry | undefined; metric: LeaderboardMetric; width: number; isMe: boolean }) {
   const reduceMotion = useReducedMotion();
   const avatar = place === 1 ? 58 : 48;
-  const blockW = width - 4;
-  const blockH = BLOCK_H[place];
 
   return (
     <Reanimated.View
       entering={reduceMotion ? undefined : FadeInUp.delay(REVEAL_DELAY[place]).duration(460).easing(Easing.out(Easing.cubic))}
       style={[s.column, { width }]}
     >
-      {place === 1 && <Trophy size={22} color={GOLD} strokeWidth={2} style={{ marginBottom: 6 }} />}
-
-      {/* Samma ram runt alla avatarer (genomskinlig om det inte är jag) — annars hade min egen
-          kolumn blivit några pixlar högre än de andra. */}
-      <View style={[s.avatarRing, { borderColor: isMe ? GOLD : "transparent" }]}>
-        {entry ? (
-          <Avatar size={avatar} uri={null} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
-        ) : (
-          <View style={[s.emptyAvatar, { width: avatar, height: avatar, borderRadius: avatar / 2 }]} />
-        )}
-      </View>
+      {entry ? (
+        <Floating place={place}>
+          <View style={{ width: avatar, height: avatar }}>
+            <Avatar size={avatar} uri={null} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
+            <View style={[s.badge, { top: -avatar * 0.08, right: -avatar * 0.12 }]}>
+              <RankBadge place={place} size={place === 1 ? 26 : 23} />
+            </View>
+          </View>
+        </Floating>
+      ) : (
+        <View style={[s.emptyAvatar, { width: avatar, height: avatar, borderRadius: avatar / 2 }]} />
+      )}
 
       <Text style={[s.name, isMe && { color: GOLD }, !entry && { color: MUTED }]} numberOfLines={1}>
         {entry ? entry.name : "Ledig plats"}
@@ -86,35 +121,106 @@ function PodiumColumn({
         <Text style={s.chipText}>{entry ? formatLeaderboardValue(metric, entry.value) : "–"}</Text>
       </View>
 
-      <View style={{ width: blockW, height: blockH, marginTop: 10 }}>
-        <Svg width={blockW} height={blockH}>
-          <Defs>
-            <LinearGradient id={`podiumFace${place}`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.13} />
-              <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.015} />
-            </LinearGradient>
-          </Defs>
-          {/* Blockets översida — en smal, ljusare trapets, så det läses som ett block i 3D och
-              inte en platt rektangel */}
-          <Polygon points={`6,0 ${blockW - 6},0 ${blockW},${TOP_FACE} 0,${TOP_FACE}`} fill="#FFFFFF" fillOpacity={0.2} />
-          <Rect x={0} y={TOP_FACE} width={blockW} height={blockH - TOP_FACE} fill={`url(#podiumFace${place})`} />
-        </Svg>
-        <View style={[StyleSheet.absoluteFill, s.numberWrap]} pointerEvents="none">
-          <Text style={[s.number, { color: PLACE_COLOR[place], fontSize: place === 1 ? 44 : 36 }]}>{place}</Text>
-        </View>
-      </View>
+      <PodiumBlock place={place} width={width - 4} />
     </Reanimated.View>
+  );
+}
+
+/** Mjuk, oändlig upp-och-ner-rörelse — sinuskurva fram och tillbaka, aldrig en fjäder som studsar. */
+function Floating({ place, children }: { place: Place; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  // Startar i ena ytterläget (0), inte i mitten — withRepeat pendlar mellan STARTVÄRDET och målet,
+  // så en start i mitten hade gett halva rörelsen, bara åt ena hållet
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion) return;
+    const { duration, delay } = FLOAT[place];
+    t.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }), -1, true));
+    return () => cancelAnimation(t);
+  }, [place, reduceMotion, t]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(t.value, [0, 1], [-FLOAT_PX, FLOAT_PX]) }],
+  }));
+  return <Reanimated.View style={style}>{children}</Reanimated.View>;
+}
+
+/** Taggig bricka (som ett sigill) i guld/silver/brons — samma färgskala som troféerna. */
+function RankBadge({ place, size }: { place: Place; size: number }) {
+  const palette = TIER_PALETTE[TIER[place]];
+  const R = size / 2;
+  const inner = R * 0.84;
+  const spikes = 14;
+  const points = Array.from({ length: spikes * 2 }, (_, i) => {
+    const angle = (Math.PI * i) / spikes - Math.PI / 2;
+    const r = i % 2 === 0 ? R : inner;
+    return `${(R + r * Math.cos(angle)).toFixed(2)},${(R + r * Math.sin(angle)).toFixed(2)}`;
+  }).join(" ");
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <LinearGradient id={`rankBadge${place}`} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={palette.field[0]} />
+            <Stop offset="0.55" stopColor={palette.field[1]} />
+            <Stop offset="1" stopColor={palette.field[2]} />
+          </LinearGradient>
+        </Defs>
+        <Polygon points={points} fill={`url(#rankBadge${place})`} />
+      </Svg>
+      <View style={[StyleSheet.absoluteFill, s.center]}>
+        <Text style={[s.badgeText, { fontSize: size * 0.48, color: palette.ink }]}>{place}</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Själva blocket: en form med rundade hörn (silhuetten), och ovansidan — den ljusare trapetsen
+ * som gör att det läses som ett block — klippt efter samma form, så den följer de rundade
+ * hörnen exakt i stället för att sticka ut i dem. */
+function PodiumBlock({ place, width }: { place: Place; width: number }) {
+  const height = BLOCK_H[place];
+  const silhouette = roundedPolygonPath(
+    [[TOP_INSET, 0], [width - TOP_INSET, 0], [width, TOP_FACE], [width, height], [0, height], [0, TOP_FACE]],
+    CORNER,
+  );
+  return (
+    <View style={{ width, height, marginTop: 10 }}>
+      <Svg width={width} height={height}>
+        <Defs>
+          <LinearGradient id={`podiumFace${place}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.13} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.015} />
+          </LinearGradient>
+          <ClipPath id={`podiumClip${place}`}>
+            <Path d={silhouette} />
+          </ClipPath>
+        </Defs>
+        <G clipPath={`url(#podiumClip${place})`}>
+          <Rect x={0} y={0} width={width} height={height} fill={`url(#podiumFace${place})`} />
+          <Polygon
+            points={`${TOP_INSET},0 ${width - TOP_INSET},0 ${width},${TOP_FACE} 0,${TOP_FACE}`}
+            fill="#FFFFFF"
+            fillOpacity={0.2}
+          />
+        </G>
+      </Svg>
+      <View style={[StyleSheet.absoluteFill, s.numberWrap]} pointerEvents="none">
+        <Text style={[s.number, { fontSize: place === 1 ? 44 : 36 }]}>{place}</Text>
+      </View>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", alignSelf: "center" },
   column: { alignItems: "center" },
-  avatarRing: { padding: 2, borderWidth: 2, borderRadius: 999 },
+  center: { alignItems: "center", justifyContent: "center" },
+  badge: { position: "absolute" },
+  badgeText: { fontFamily: "Montserrat_700Bold", includeFontPadding: false },
   emptyAvatar: { borderWidth: 1.5, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.2)" },
   name: {
     fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG,
-    marginTop: 8, paddingHorizontal: 4, maxWidth: "100%",
+    marginTop: 10, paddingHorizontal: 4, maxWidth: "100%",
   },
   chip: {
     flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6,
@@ -123,5 +229,5 @@ const s = StyleSheet.create({
   },
   chipText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: FG },
   numberWrap: { top: TOP_FACE, alignItems: "center", justifyContent: "center" },
-  number: { fontFamily: "Montserrat_700Bold" },
+  number: { fontFamily: "Montserrat_700Bold", color: NUMBER_COLOR },
 });
