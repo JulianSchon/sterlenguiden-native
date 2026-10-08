@@ -53,7 +53,7 @@ export function LeaderboardSection() {
       ) : (
         <>
           <PressableScale style={s.board} scale={0.98} onPress={open}>
-            <Podium entries={top.slice(0, 3)} metric="visits" width={width - 32} meId={me?.userId} />
+            <Podium entries={top.slice(0, 3)} metric="visits" width={width - 32} />
             {top.length > 3 && (
               <View style={s.rows}>
                 {top.slice(3).map((e) => (
@@ -89,7 +89,7 @@ const s = StyleSheet.create({
   action: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
   sub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 4 },
   error: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 16 },
-  board: { marginTop: 18 },
+  board: { marginTop: 28 },
   rows: { gap: 8, marginTop: 16 },
   meRow: { marginTop: 8 },
   join: { marginTop: 12 },

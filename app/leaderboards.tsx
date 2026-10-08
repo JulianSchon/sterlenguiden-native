@@ -1,8 +1,9 @@
 /**
  * Topplistor: Besök, Streak och Samlarobjekt — var och en i tre omfång (hela appen, min ort,
- * mina vänner), och Besök dessutom för denna månad eller sedan start. Prispall för topp 3, rader
- * under för resten (topp 100), och min egen rad fastnålad längst ner så jag alltid ser var jag
- * ligger.
+ * mina vänner), och Besök dessutom för denna månad eller sedan start. Ordning uppifrån: vilken
+ * topplista (fast överst), prispallen, och under den omfång och tid — samma segmentkontroll för
+ * alla tre val. Sedan raderna för plats 4 och nedåt (topp 100), och min egen rad fastnålad
+ * längst ner så jag alltid ser var jag ligger.
  *
  * Första gången sidan öppnas, innan man tagit ställning, frågar den om man vill synas
  * (LeaderboardConsentSheet) — av som standard, inget förvalt. Själva listorna går att titta på
@@ -12,11 +13,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, useWindowDimensions,
 } from "react-native";
-import Reanimated, { Easing, FadeInDown, useAnimatedStyle, useReducedMotion, withTiming } from "react-native-reanimated";
+import Reanimated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
-import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useProfile } from "@/hooks/useProfile";
@@ -25,6 +25,7 @@ import {
   type LeaderboardMetric, type LeaderboardScope, type LeaderboardPeriod,
 } from "@/hooks/useLeaderboard";
 import { Podium } from "@/components/leaderboard/Podium";
+import { Segmented } from "@/components/leaderboard/Segmented";
 import { LeaderboardRow } from "@/components/leaderboard/LeaderboardRow";
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "@/components/leaderboard/LeaderboardConsentSheet";
 
@@ -38,7 +39,10 @@ const METRICS: { id: LeaderboardMetric; label: string }[] = [
   { id: "streak", label: "Streak" },
   { id: "stickers", label: "Samlarobjekt" },
 ];
-const SEGMENT_PAD = 4;
+const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
+  { id: "month", label: "Denna månad" },
+  { id: "all", label: "Sedan start" },
+];
 
 export default function LeaderboardsScreen() {
   const router = useRouter();
@@ -82,29 +86,12 @@ export default function LeaderboardsScreen() {
       ? period === "month" ? `Flest besökta platser i ${month}` : "Flest besökta platser sedan start"
       : metric === "streak" ? "Flest dagar i rad just nu" : "Flest hittade samlarobjekt";
 
-  function pick<T>(setter: (v: T) => void, value: T, current: T) {
-    if (value === current) return;
-    Haptics.selectionAsync().catch(() => {});
-    setter(value);
-  }
-
   function confirmHide() {
     Alert.alert("Sluta synas i topplistorna?", "Ditt namn och din statistik tas bort ur alla topplistor direkt.", [
       { text: "Avbryt", style: "cancel" },
       { text: "Sluta synas", style: "destructive", onPress: () => setVisibility.mutate(false) },
     ]);
   }
-
-  // Segmentkontrollens glidande markering — withTiming, inte en fjäder, så den aldrig studsar
-  const segmentW = (width - 32 - SEGMENT_PAD * 2) / METRICS.length;
-  const metricIndex = METRICS.findIndex((m) => m.id === metric);
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{
-      translateX: reduceMotion
-        ? metricIndex * segmentW
-        : withTiming(metricIndex * segmentW, { duration: 240, easing: Easing.out(Easing.cubic) }),
-    }],
-  }));
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -117,71 +104,48 @@ export default function LeaderboardsScreen() {
         </View>
       </View>
 
-      <View style={s.controls}>
-        <View style={s.segment}>
-          <Reanimated.View style={[s.segmentIndicator, { width: segmentW }, indicatorStyle]} />
-          {METRICS.map((m) => (
-            <TouchableOpacity key={m.id} style={s.segmentItem} activeOpacity={0.8} onPress={() => pick(setMetric, m.id, metric)}>
-              <Text style={[s.segmentText, metric === m.id && s.segmentTextActive]}>{m.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={s.pills}>
-          {scopes.map((sc) => (
-            <TouchableOpacity
-              key={sc.id}
-              style={[s.pill, scope === sc.id && s.pillActive]}
-              activeOpacity={0.8}
-              onPress={() => pick(setScope, sc.id, scope)}
-            >
-              <Text style={[s.pillText, scope === sc.id && s.pillTextActive]} numberOfLines={1}>{sc.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {metric === "visits" && (
-          <View style={s.periods}>
-            {(["month", "all"] as LeaderboardPeriod[]).map((p) => (
-              <TouchableOpacity key={p} onPress={() => pick(setPeriod, p, period)} hitSlop={8}>
-                <Text style={[s.periodText, period === p && s.periodTextActive]}>
-                  {p === "month" ? "Denna månad" : "Sedan start"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+      <View style={s.topControl}>
+        <Segmented options={METRICS} value={metric} onChange={setMetric} />
       </View>
 
       <ScrollView contentContainerStyle={s.body}>
         <Text style={s.subtitle}>{subtitle}</Text>
 
-        {isLoading ? (
-          <ActivityIndicator style={{ marginTop: 60 }} color={GOLD} />
-        ) : isError ? (
-          <Text style={s.empty}>Topplistan kunde inte hämtas just nu.</Text>
-        ) : noCity ? (
-          <Text style={s.empty}>Vi har ingen ort sparad på din profil, så det finns inget område att jämföra med.</Text>
-        ) : (
-          <View key={boardKey}>
-            <View style={{ marginTop: 20 }}>
-              <Podium entries={entries.slice(0, 3)} metric={metric} width={width - 32} meId={me?.userId} />
+        <View style={s.board}>
+          {isLoading ? (
+            <ActivityIndicator color={GOLD} />
+          ) : isError ? (
+            <Text style={s.empty}>Topplistan kunde inte hämtas just nu.</Text>
+          ) : noCity ? (
+            <Text style={s.empty}>Vi har ingen ort sparad på din profil, så det finns inget område att jämföra med.</Text>
+          ) : (
+            <View key={boardKey}>
+              <Podium entries={entries.slice(0, 3)} metric={metric} width={width - 32} />
+              {entries.length === 0 && (
+                <Text style={s.empty}>
+                  {scope === "friends" ? "Ingen av dina vänner deltar i topplistorna än." : "Ingen deltar i den här topplistan än."}
+                </Text>
+              )}
             </View>
-            {entries.length === 0 && (
-              <Text style={s.empty}>
-                {scope === "friends" ? "Ingen av dina vänner deltar i topplistorna än." : "Ingen deltar i den här topplistan än."}
-              </Text>
-            )}
-            <View style={s.rows}>
-              {entries.slice(3).map((e, i) => (
-                <Reanimated.View
-                  key={e.userId}
-                  entering={reduceMotion ? undefined : FadeInDown.delay(380 + Math.min(i, 12) * 35).duration(320)}
-                >
-                  <LeaderboardRow entry={e} metric={metric} highlight={e.userId === me?.userId} />
-                </Reanimated.View>
-              ))}
-            </View>
+          )}
+        </View>
+
+        {/* Omfång och tid under pallen, samma kontroll som valet av topplista överst */}
+        <View style={s.controls}>
+          <Segmented options={scopes} value={scope} onChange={setScope} />
+          {metric === "visits" && <Segmented options={PERIODS} value={period} onChange={setPeriod} />}
+        </View>
+
+        {!isLoading && !isError && !noCity && (
+          <View key={`rows-${boardKey}`} style={s.rows}>
+            {entries.slice(3).map((e, i) => (
+              <Reanimated.View
+                key={e.userId}
+                entering={reduceMotion ? undefined : FadeInDown.delay(380 + Math.min(i, 12) * 35).duration(320)}
+              >
+                <LeaderboardRow entry={e} metric={metric} highlight={e.userId === me?.userId} />
+              </Reanimated.View>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -216,36 +180,14 @@ const s = StyleSheet.create({
   },
   headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
 
-  controls: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
-  segment: {
-    flexDirection: "row", padding: SEGMENT_PAD, borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
-  },
-  segmentIndicator: {
-    position: "absolute", top: SEGMENT_PAD, bottom: SEGMENT_PAD, left: SEGMENT_PAD,
-    borderRadius: 10, backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  segmentItem: { flex: 1, alignItems: "center", paddingVertical: 10 },
-  segmentText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: MUTED },
-  segmentTextActive: { color: FG },
-
-  pills: { flexDirection: "row", gap: 8 },
-  pill: {
-    flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 8, borderRadius: 999,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
-  },
-  pillActive: { borderColor: "rgba(197,160,89,0.6)", backgroundColor: "rgba(197,160,89,0.10)" },
-  pillText: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
-  pillTextActive: { color: GOLD },
-
-  periods: { flexDirection: "row", gap: 18, justifyContent: "center" },
-  periodText: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED },
-  periodTextActive: { color: FG, textDecorationLine: "underline" },
-
-  body: { padding: 16, paddingBottom: 24 },
+  topControl: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4 },
+  body: { padding: 16, paddingBottom: 28 },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, textAlign: "center" },
-  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 24, lineHeight: 20 },
-  rows: { gap: 8, marginTop: 20 },
+  // Fast minsta höjd så kontrollerna under inte hoppar upp och ner medan en lista laddar
+  board: { minHeight: 360, justifyContent: "flex-end", marginTop: 28 },
+  controls: { gap: 10, marginTop: 28 },
+  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 20, lineHeight: 20 },
+  rows: { gap: 10, marginTop: 24 },
 
   footer: {
     paddingHorizontal: 16, paddingTop: 12, gap: 10,
