@@ -19,10 +19,10 @@
  * avslöjade då bara en identiskt färgad rektangel bakom sig, inte något annorlunda. Kortets View
  * måste vara genomskinlig; det är ENDAST polygonen som får ge formen färg.
  *
- * Trycker man på ett minne svänger det till (som om det hänger i tejpen och knuffas till),
- * river sig sen loss och trillar/tonar bort innan sidan öppnas — tejpen själv rör sig inte,
- * bara kortet under den, så det ser ut som att det faktiskt slits loss. Respekterar Reduce
- * Motion (öppnar direkt utan animation då).
+ * Trycker man på ett minne gör det motstånd ett par gånger (som om tejpen håller emot), river
+ * sig sen loss FRÅN BAKGRUNDEN — tejp och kort som EN enhet, inte kortet ensamt från en tejp
+ * som ligger kvar — och trillar/tonar bort innan sidan öppnas. Respekterar Reduce Motion
+ * (öppnar direkt utan animation då).
  */
 import { useCallback, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
@@ -87,7 +87,8 @@ function tornRectPoints(w: number, h: number, tooth: number, segment: number, ed
 
 // Samma mönster för alla kort (som en riktig taggsax ger ett jämnt, upprepat mönster) —
 // beräknat en gång, inte per kort.
-const ZIGZAG_POINTS = tornRectPoints(CARD_W, CARD_H, 3.5, 8, [true, true, true, true]);
+// Grundare tänder (3.5 -> 2), glesare (8 -> 15px mellan dem) — mindre taggigt, färre kurvor.
+const ZIGZAG_POINTS = tornRectPoints(CARD_W, CARD_H, 2, 15, [true, true, true, true]);
 
 // Tejpbiten: bara kortsidorna (vänster/höger) rivna, över- och underkant raka.
 const TAPE_W = 72;
@@ -164,13 +165,14 @@ function MemoryPolaroid({
     if (reduceMotion) { onOpen(); return; }
     setOpening(true);
 
-    // Svänger till (som om det hänger i tejpen och knuffas till) — ett par dämpade utslag.
+    // Gör motstånd ett par gånger (som om tejpen håller emot innan den släpper)...
     rotate.value = withSequence(
       withTiming(tilt + 9, { duration: 90, easing: Easing.out(Easing.quad) }),
       withTiming(tilt - 6, { duration: 110 }),
       withTiming(tilt + 3, { duration: 100 }),
       withTiming(tilt + 1, { duration: 70 }),
-      // ...river sig loss och fortsätter rotera ner i fallet
+      // ...river sig sen loss från bakgrunden, hela biten (tejp+kort) tillsammans, och
+      // fortsätter rotera ner i fallet
       withTiming(tilt + 60, { duration: 300, easing: Easing.in(Easing.cubic) })
     );
     const SWING_MS = 90 + 110 + 100 + 70;
@@ -187,29 +189,33 @@ function MemoryPolaroid({
 
   return (
     <Pressable onPress={handlePress} style={s.cardTouchable}>
-      {/* Tejpen rör sig inte — det är kortet som sliter sig loss FRÅN den, inte tvärtom. */}
-      <View style={[s.tape, { transform: [{ rotate: `${tapeTilt}deg` }] }]}>
-        <Svg width={TAPE_W} height={TAPE_H}>
-          <Polygon points={TAPE_POINTS} fill="rgba(216,194,156,0.62)" />
-        </Svg>
-      </View>
-
-      <Reanimated.View style={[s.polaroid, cardStyle]}>
-        <Svg width={CARD_W} height={CARD_H} style={StyleSheet.absoluteFill}>
-          <Polygon points={ZIGZAG_POINTS} fill={PAPER} />
-        </Svg>
-        <View style={s.photoWrap}>
-          {cover ? (
-            <Image source={{ uri: cover }} style={s.photo} resizeMode="cover" />
-          ) : (
-            <View style={[s.photo, s.noPhoto]}>
-              <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />
-            </View>
-          )}
+      {/* Tejp och kort i SAMMA animerade enhet nu — river man loss river man loss båda
+          tillsammans, inte kortet ensamt från en tejp som ligger kvar. */}
+      <Reanimated.View style={[s.unit, cardStyle]}>
+        <View style={s.polaroid}>
+          <Svg width={CARD_W} height={CARD_H} style={StyleSheet.absoluteFill}>
+            <Polygon points={ZIGZAG_POINTS} fill={PAPER} />
+          </Svg>
+          <View style={s.photoWrap}>
+            {cover ? (
+              <Image source={{ uri: cover }} style={s.photo} resizeMode="cover" />
+            ) : (
+              <View style={[s.photo, s.noPhoto]}>
+                <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />
+              </View>
+            )}
+          </View>
+          <View style={s.caption}>
+            <Text style={s.captionTitle} numberOfLines={1}>{memory.title}</Text>
+            <Text style={s.captionDate} numberOfLines={1}>{formatMemoryDate(memory.memoryDate)}</Text>
+          </View>
         </View>
-        <View style={s.caption}>
-          <Text style={s.captionTitle} numberOfLines={1}>{memory.title}</Text>
-          <Text style={s.captionDate} numberOfLines={1}>{formatMemoryDate(memory.memoryDate)}</Text>
+
+        {/* Sist i JSX = ovanpå kortet, precis som på riktigt. */}
+        <View style={[s.tape, { transform: [{ rotate: `${tapeTilt}deg` }] }]}>
+          <Svg width={TAPE_W} height={TAPE_H}>
+            <Polygon points={TAPE_POINTS} fill="rgba(216,194,156,0.62)" />
+          </Svg>
         </View>
       </Reanimated.View>
     </Pressable>
@@ -230,14 +236,18 @@ const s = StyleSheet.create({
 
   cardTouchable: { width: CARD_W, height: CARD_H },
 
+  // Hela enheten som animerar: tejp + kort tillsammans, en enda rörelse. Skuggan ligger här,
+  // inte på kortet ensamt — det är pappersbiten SOM HELHET som ska se ut att ligga ovanpå
+  // bakgrunden.
+  unit: {
+    width: CARD_W, height: CARD_H,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+  },
   // Ramen: krämfärgat papper, tjockare nedtill än upptill/sidorna (det är den proportionen som
   // faktiskt läses som "Polaroid"). INGEN backgroundColor här — det är ENDAST SVG-polygonen
   // ovanpå som får ge formen färg, annars döljer en identiskt färgad rektangel bakom
   // polygonens taggiga urtag helt (se kommentaren högst upp — det var precis det som hände).
-  polaroid: {
-    width: CARD_W, height: CARD_H,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
-  },
+  polaroid: { width: CARD_W, height: CARD_H },
   photoWrap: {
     position: "absolute", left: FRAME_PAD, top: FRAME_PAD, width: PHOTO_SIZE, height: PHOTO_SIZE,
     borderRadius: 2, overflow: "hidden", backgroundColor: "#000",
