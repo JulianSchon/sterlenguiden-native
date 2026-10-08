@@ -43,11 +43,25 @@ const GOLD = "#C5A059";
 
 const CIRCLE_BASE_LEFT = 20;
 
-/** Sidledes förskjutning för cirkel `i` — en fast (inte scroll-beroende) sinuskurva, så vägen
- * genom alla minnen slingrar naturligt i stället för att gå i en rak kolumn. 1.7 radianer per
- * steg ger en sekvens som inte känns som ett enkelt vänster-höger-vänster-mönster. */
+/** Sidledes förskjutning för cirkel `i` INOM sin egen sida — en fast (inte scroll-beroende)
+ * sinuskurva, så vägen genom alla minnen slingrar naturligt i stället för att gå i en rak
+ * kolumn. 1.7 radianer per steg ger en sekvens som inte känns som ett enkelt
+ * vänster-höger-vänster-mönster. */
 function wobbleX(i: number, amplitude: number): number {
   return Math.sin(i * 1.7) * amplitude;
+}
+
+/** Varannat minne ligger till vänster (cirkel vänster, text höger om) och varannat till höger
+ * (cirkel höger, text vänster om) — inte bara en liten slingring inom samma sida. Returnerar
+ * cirkelns MITTPUNKT i x-led, oavsett sida, så tråden (polyline) och varje cirkel/text alltid
+ * utgår från samma siffra. */
+function circleCenterX(i: number, width: number, maxSize: number, amplitude: number): number {
+  const onRight = i % 2 === 1;
+  const base = onRight ? width - CIRCLE_BASE_LEFT - maxSize / 2 : CIRCLE_BASE_LEFT + maxSize / 2;
+  // Wobblar "inåt" mot mitten på båda sidor i stället för att riskera köra cirkeln utanför
+  // skärmkanten på höger sida.
+  const wobble = wobbleX(i, amplitude) * (onRight ? -1 : 1);
+  return base + wobble;
 }
 
 export default function MemoriesBookScreen() {
@@ -90,16 +104,17 @@ export default function MemoriesBookScreen() {
   const scrollPadBottom = Math.max(40, viewportH - ITEM_H / 2 - focusY + 32);
 
   // Pärlbandets tråd — en enda polyline genom alla cirklars FAKTISKA mittpunkter (samma
-  // wobbleX som varje cirkel själv använder, så linjen alltid möter cirkeln exakt i dess mitt).
+  // circleCenterX som varje cirkel själv använder, så linjen alltid möter cirkeln exakt i dess
+  // mitt, oavsett vilken sida den ligger på).
   const threadPoints = useMemo(
     () => memories
       .map((_, i) => {
-        const cx = CIRCLE_BASE_LEFT + wobbleX(i, WOBBLE_AMPLITUDE) + MAX_SIZE / 2;
+        const cx = circleCenterX(i, width, MAX_SIZE, WOBBLE_AMPLITUDE);
         const cy = ITEM_H / 2 + i * ITEM_H;
         return `${cx},${cy}`;
       })
       .join(" "),
-    [memories, WOBBLE_AMPLITUDE, MAX_SIZE, ITEM_H]
+    [memories, WOBBLE_AMPLITUDE, MAX_SIZE, ITEM_H, width]
   );
 
   return (
@@ -135,22 +150,27 @@ export default function MemoriesBookScreen() {
                 />
               </Svg>
             )}
-            {memories.map((m, i) => (
-              <MemoryBead
-                key={m.id}
-                memory={m}
-                cover={urls[m.photoPaths[0]]}
-                index={i}
-                scrollY={scrollY}
-                maxSize={MAX_SIZE}
-                minSize={MIN_SIZE}
-                itemH={ITEM_H}
-                focusRange={FOCUS_RANGE}
-                gap={GAP}
-                offsetX={CIRCLE_BASE_LEFT + wobbleX(i, WOBBLE_AMPLITUDE)}
-                onPress={() => router.push(`/memories/${m.id}` as any)}
-              />
-            ))}
+            {memories.map((m, i) => {
+              const cx = circleCenterX(i, width, MAX_SIZE, WOBBLE_AMPLITUDE);
+              return (
+                <MemoryBead
+                  key={m.id}
+                  memory={m}
+                  cover={urls[m.photoPaths[0]]}
+                  index={i}
+                  scrollY={scrollY}
+                  maxSize={MAX_SIZE}
+                  minSize={MIN_SIZE}
+                  itemH={ITEM_H}
+                  focusRange={FOCUS_RANGE}
+                  gap={GAP}
+                  circleLeft={cx - MAX_SIZE / 2}
+                  onRight={i % 2 === 1}
+                  screenWidth={width}
+                  onPress={() => router.push(`/memories/${m.id}` as any)}
+                />
+              );
+            })}
           </View>
         </Animated.ScrollView>
       )}
@@ -171,10 +191,11 @@ export default function MemoriesBookScreen() {
 }
 
 function MemoryBead({
-  memory, cover, index, scrollY, maxSize, minSize, itemH, focusRange, gap, offsetX, onPress,
+  memory, cover, index, scrollY, maxSize, minSize, itemH, focusRange, gap, circleLeft, onRight, screenWidth, onPress,
 }: {
   memory: Memory; cover: string | undefined; index: number; scrollY: SharedValue<number>;
-  maxSize: number; minSize: number; itemH: number; focusRange: number; gap: number; offsetX: number;
+  maxSize: number; minSize: number; itemH: number; focusRange: number; gap: number;
+  circleLeft: number; onRight: boolean; screenWidth: number;
   onPress: () => void;
 }) {
   // Cirkelns egen position i scrollytan är konstant (index * itemH); fokuszonen ligger kvar på
@@ -228,7 +249,7 @@ function MemoryBead({
           lager, så de aldrig krockar. */}
       <PressableScale
         onPress={onPress}
-        style={[s.circleOuter, { width: maxSize, height: maxSize, borderRadius: maxSize / 2, top: (itemH - maxSize) / 2, left: offsetX }]}
+        style={[s.circleOuter, { width: maxSize, height: maxSize, borderRadius: maxSize / 2, top: (itemH - maxSize) / 2, left: circleLeft }]}
       >
         <Animated.View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2 }, circleStyle]}>
           {/* Ringen — tunn, alltid synlig */}
@@ -248,13 +269,24 @@ function MemoryBead({
         </Animated.View>
       </PressableScale>
 
+      {/* Spänner HELA radhöjden + centrerar sitt innehåll (i stället för att bara utgå från
+          cirkelns egen övre kant) — texten hamnade annars ovanför mitten, inte i den, eftersom
+          titel+datum+antal är mycket lägre än själva cirkeln.
+          Höger om cirkeln på vänstersidans minnen, vänster om (höger-justerad) på
+          högersidans — en spegling, inte bara samma layout flyttad. */}
       <Animated.View
-        style={[s.beadText, { top: (itemH - maxSize) / 2, left: offsetX + maxSize + 16, right: 16 }, textStyle]}
+        style={[
+          s.beadText,
+          onRight
+            ? { left: 16, right: screenWidth - circleLeft + 16, alignItems: "flex-end" }
+            : { left: circleLeft + maxSize + 16, right: 16, alignItems: "flex-start" },
+          textStyle,
+        ]}
         pointerEvents="none"
       >
-        <Text style={s.beadTitle} numberOfLines={2}>{memory.title}</Text>
-        <Text style={s.beadDate}>{formatMemoryDate(memory.memoryDate)}</Text>
-        <Text style={s.beadMeta}>
+        <Text style={[s.beadTitle, { textAlign: onRight ? "right" : "left" }]} numberOfLines={2}>{memory.title}</Text>
+        <Text style={[s.beadDate, { textAlign: onRight ? "right" : "left" }]}>{formatMemoryDate(memory.memoryDate)}</Text>
+        <Text style={[s.beadMeta, { textAlign: onRight ? "right" : "left" }]}>
           {photoCount} {photoCount === 1 ? "foto" : "foton"}
           {placeCount > 0 ? ` · ${placeCount} ${placeCount === 1 ? "plats" : "platser"}` : ""}
         </Text>
@@ -281,7 +313,10 @@ const s = StyleSheet.create({
   row: { position: "relative", width: "100%" },
   circleOuter: { position: "absolute" },
   noCover: { flex: 1, alignItems: "center", justifyContent: "center" },
-  beadText: { position: "absolute" },
+  // top/bottom:0 (hela radhöjden) + justifyContent:"center" — centrerar texten mot cirkelns
+  // mittpunkt oavsett hur hög titel+datum+antal faktiskt blir, i stället för att bara utgå från
+  // cirkelns övre kant (som läste som "ovanför mitten", inte i den).
+  beadText: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
   beadTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, color: FG },
   beadDate: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED, marginTop: 4 },
   beadMeta: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 2 },
