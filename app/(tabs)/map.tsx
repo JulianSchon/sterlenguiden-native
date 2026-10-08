@@ -19,7 +19,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import {
-  SlidersHorizontal, X, Navigation, ArrowRight, Locate,
+  SlidersHorizontal, X, Navigation, ArrowRight, ArrowLeft, Locate,
   Clock, MapPin, UtensilsCrossed, Coffee, Trees, Landmark,
   BedDouble, Zap, ShoppingBag, Palette, Layers,
   ParkingSquare, Wifi, Dog, Sun, Accessibility,
@@ -135,7 +135,7 @@ function SelectedPin() {
 // ─── Huvud-komponent ─────────────────────────────────────────────────────────
 export default function MapScreen() {
   const router  = useRouter();
-  const { sticker: stickerParam, place: placeParam } = useLocalSearchParams<{ sticker?: string; place?: string }>();
+  const { sticker: stickerParam, place: placeParam, from: fromMemoryParam } = useLocalSearchParams<{ sticker?: string; place?: string; from?: string }>();
   const insets  = useSafeAreaInsets();
   const mapRef  = useRef<MapView>(null);
 
@@ -516,6 +516,22 @@ export default function MapScreen() {
             },
           ]}
         >
+          {/* "Visa plats på kartan" från ett minne pushar hit via (tabs)-navigatorn, som redan
+              finns längre ner i stacken — det byter bara aktiv flik i stället för att lägga till
+              ett eget steg, så den vanliga tillbaka-gesten tar en inte tillbaka till minnet.
+              En egen, uttrycklig "tillbaka"-genväg i stället, bara för just den platsen man
+              skickades hit för (döljs så fort man trycker på en annan plats/sticker). */}
+          {fromMemoryParam && String(selectedPlace.id) === placeParam && (
+            <TouchableOpacity
+              style={s.backToMemoryBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push(`/memories/${fromMemoryParam}` as any)}
+            >
+              <ArrowLeft size={14} color={FG} strokeWidth={2.2} />
+              <Text style={s.backToMemoryText}>Tillbaka till minnet</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Bild + text */}
           <TouchableOpacity
             activeOpacity={0.9}
@@ -891,6 +907,13 @@ const s = StyleSheet.create({
     shadowRadius: 24,
     elevation: 20,
   },
+  backToMemoryBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderBottomWidth: 0.5, borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  backToMemoryText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG },
   cardImg: {
     height: 190,
     overflow: "hidden",

@@ -147,18 +147,12 @@ export default function MemoryDetailScreen() {
               </View>
             ) : null}
 
-            {/* Varje namn i en egen ruta i stället för en kommaseparerad lista — annars läses
-                det bara som en lång uppräkning, inte som att var och en faktiskt var med. */}
+            {/* Ett vertikalt streck mellan namnen i stället för kommatecken — läses som
+                avgränsade namn, inte en lång uppräkning. */}
             {memory.people.length > 0 && (
               <View style={{ marginTop: memory.story ? 24 : 0 }}>
                 <Text style={s.sectionLabel}>VILKA VAR MED</Text>
-                <View style={s.peopleRow}>
-                  {memory.people.map((name) => (
-                    <View key={name} style={s.personPill}>
-                      <Text style={s.personPillText}>{name}</Text>
-                    </View>
-                  ))}
-                </View>
+                <Text style={s.peopleNames}>{memory.people.join("  |  ")}</Text>
               </View>
             )}
           </View>
@@ -202,7 +196,7 @@ export default function MemoryDetailScreen() {
                 <ActionRow
                   icon={<MapPin size={18} color={FG} strokeWidth={2} />}
                   label="Visa plats på kartan"
-                  onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id) } } as any)}
+                  onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } } as any)}
                 />
               )}
               <ActionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label="Redigera minne" onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } } as any)} />
@@ -296,9 +290,9 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
-  // Vanlig (inte versal/Montserrat-rubrik-konvention) — det här är minnets EGEN titel, fritext
-  // av varierande längd, inte en kort fast app-etikett som "NYTT MINNE".
-  headerTitle: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 16, color: FG },
+  // Samma versal-konvention som alla andra headers i appen (Nytt minne, Vänner, Mitt
+  // Österlen, Listor) — ingen anledning att göra ett undantag här.
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
   notFound: { fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED, textAlign: "center", marginTop: 40 },
 
   // Försättsfotots egen Polaroid-ram — samma material som förhandsvisningskortet
@@ -343,13 +337,8 @@ const s = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
 
-  // Varje namn i en egen ruta i stället för en kommaseparerad lista.
-  peopleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  personPill: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.35)",
-  },
-  personPillText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
+  // Namnen större, och ett vertikalt streck mellan dem i stället för kommatecken.
+  peopleNames: { fontFamily: "Inter_600SemiBold", fontSize: 21, lineHeight: 28, color: FG },
 
   // Stora bilder i en vertikal rad i stället för ett rutnät av tummar.
   gallery: { paddingHorizontal: 16, marginTop: 4, gap: 14 },
