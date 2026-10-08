@@ -10,13 +10,14 @@
  * hämtar (i ett enda anrop) allt fram till min rad och scrollar dit, även om jag ligger på
  * plats 12 000.
  *
- * Synlighet styrs från knappen uppe till höger. Första gången sidan öppnas, innan man tagit
+ * Synlighet (synas + visa profilbild) styrs från knappen uppe till höger. Första gången sidan
+ * öppnas, innan man tagit
  * ställning, frågar den om man vill synas (LeaderboardConsentSheet) — av som standard, inget
  * förvalt. Själva listorna går att titta på oavsett svar; att synas i dem kräver ett ja.
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, useWindowDimensions,
+  View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,13 +27,14 @@ import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useProfile } from "@/hooks/useProfile";
 import {
-  useLeaderboardList, useSetLeaderboardVisibility,
+  useLeaderboardList,
   type LeaderboardEntry, type LeaderboardMetric, type LeaderboardScope, type LeaderboardPeriod,
 } from "@/hooks/useLeaderboard";
 import { Podium } from "@/components/leaderboard/Podium";
 import { Segmented } from "@/components/leaderboard/Segmented";
 import { LeaderboardRow, ROW_H } from "@/components/leaderboard/LeaderboardRow";
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "@/components/leaderboard/LeaderboardConsentSheet";
+import { LeaderboardSettingsSheet } from "@/components/leaderboard/LeaderboardSettingsSheet";
 import { PressableScale } from "@/components/PressableScale";
 
 const BG = "#121212";
@@ -65,7 +67,6 @@ export default function LeaderboardsScreen() {
   const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const { data: profile } = useProfile();
-  const setVisibility = useSetLeaderboardVisibility();
 
   const [metric, setMetric] = useState<LeaderboardMetric>("visits");
   const [scope, setScope] = useState<LeaderboardScope>("all");
@@ -75,6 +76,7 @@ export default function LeaderboardsScreen() {
 
   // Fråga bara en gång per besök på sidan, och bara om man aldrig tagit ställning (null)
   const [consent, setConsent] = useState<null | "first" | "join">(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const asked = useRef(false);
   useEffect(() => {
     if (!asked.current && profile && profile.show_in_leaderboard == null) {
@@ -136,20 +138,6 @@ export default function LeaderboardsScreen() {
     router.push({ pathname: "/friend/[id]", params: { id: entry.userId } });
   }
 
-  function onVisibilityPress() {
-    if (!participating) {
-      setConsent("join");
-      return;
-    }
-    Alert.alert(
-      "Du syns i topplistorna",
-      "Ditt namn och din statistik — besök, streak och samlarobjekt — visas för andra i appen: i hela appen, i ditt område och bland dina vänner. Vill du sluta synas? Då tas du bort ur alla topplistor direkt.",
-      [
-        { text: "Fortsätt synas", style: "cancel" },
-        { text: "Sluta synas", style: "destructive", onPress: () => setVisibility.mutate(false) },
-      ],
-    );
-  }
 
   const header = (
     <View onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
@@ -191,8 +179,8 @@ export default function LeaderboardsScreen() {
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Topplistor</Text>
-          {/* Synlighet: tydlig status (Synlig/Dold), ett tryck förklarar och låter en ändra sig */}
-          <PressableScale style={[s.visibility, participating && s.visibilityOn]} scale={0.95} onPress={onVisibilityPress}>
+          {/* Synlighet: tydlig status (Synlig/Dold), ett tryck öppnar reglagen för att synas och visa profilbild */}
+          <PressableScale style={[s.visibility, participating && s.visibilityOn]} scale={0.95} onPress={() => setSettingsOpen(true)}>
             {participating ? <Eye size={16} color={ON} strokeWidth={2.2} /> : <EyeOff size={16} color={MUTED} strokeWidth={2.2} />}
             <Text style={[s.visibilityText, participating && { color: ON }]}>{participating ? "Synlig" : "Dold"}</Text>
           </PressableScale>
@@ -246,6 +234,7 @@ export default function LeaderboardsScreen() {
         </View>
       )}
 
+      <LeaderboardSettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <LeaderboardConsentSheet
         visible={consent !== null}
         onClose={() => setConsent(null)}
@@ -276,7 +265,7 @@ const s = StyleSheet.create({
   title: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.4, color: FG, textAlign: "center", marginTop: 8 },
   context: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: GOLD, textAlign: "center", marginTop: 4 },
   // Fast minsta höjd så kontrollerna under inte hoppar upp och ner medan en lista laddar
-  board: { minHeight: 330, justifyContent: "flex-end", marginTop: 4 },
+  board: { minHeight: 330, justifyContent: "flex-end", marginTop: 16 },
   controls: { gap: 10, marginTop: 28 },
   empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 20, lineHeight: 20 },
   // Avståndet mellan kontrollerna och första raden — ingår i radernas läge (getItemLayout)

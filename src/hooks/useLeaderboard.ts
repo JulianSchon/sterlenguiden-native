@@ -7,6 +7,7 @@
 import { useRef } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
 
 export const LEADERBOARD_PAGE = 50;
 
@@ -25,6 +26,8 @@ export interface LeaderboardEntry {
   rowPos: number | null;
   username: string | null;
   city: string | null;
+  /** Tillfällig länk till profilbilden — bara om personen valt att visa den i topplistorna */
+  avatarUrl: string | null;
 }
 
 export interface Leaderboard {
@@ -40,7 +43,17 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
   });
   if (error) throw error;
   const rows = data ?? [];
+
+  // Profilbilderna ligger i en privat mapp — signera alla sidans bilder i ett enda anrop
+  const paths = [...new Set(rows.map((r) => storagePath(r.avatar_path)).filter((p): p is string => !!p))];
+  const signed = new Map<string, string>();
+  if (paths.length > 0) {
+    const { data: urls } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrls(paths, 3600);
+    for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+  }
+
   const toEntry = (r: (typeof rows)[number]): LeaderboardEntry => ({
+    avatarUrl: signed.get(storagePath(r.avatar_path) ?? "") ?? null,
     userId: r.user_id,
     name: r.display_name,
     circleColor: r.circle_color,
@@ -111,14 +124,15 @@ export function useLeaderboardList(metric: LeaderboardMetric, scope: Leaderboard
   };
 }
 
-/** Sätter samtycket. false sparas också (inte bara true) så appen vet att den redan frågat. */
-export function useSetLeaderboardVisibility() {
+type LeaderboardSettings = { show_in_leaderboard?: boolean; show_leaderboard_avatar?: boolean };
+
+function useUpdateLeaderboardSettings() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (visible: boolean) => {
+    mutationFn: async (changes: LeaderboardSettings) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("not_authenticated");
-      const { error } = await supabase.from("profiles").update({ show_in_leaderboard: visible }).eq("user_id", user.id);
+      const { error } = await supabase.from("profiles").update(changes).eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -126,6 +140,21 @@ export function useSetLeaderboardVisibility() {
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
+}
+
+/** Sätter samtycket. false sparas också (inte bara true) så appen vet att den redan frågat. */
+export function useSetLeaderboardVisibility() {
+  const update = useUpdateLeaderboardSettings();
+  return { ...update, mutate: (v: boolean) => update.mutate({ show_in_leaderboard: v }), mutateAsync: (v: boolean) => update.mutateAsync({ show_in_leaderboard: v }) };
+}
+
+/** Visa profilbilden i topplistorna (gäller bara när man också syns). */
+export function useSetLeaderboardAvatar() {
+  const update = useUpdateLeaderboardSettings();
+  return {
+    ...update,
+    mutate: (v: boolean, options?: Parameters<typeof update.mutate>[1]) => update.mutate({ show_leaderboard_avatar: v }, options),
+  };
 }
 
 /** "4 besök", "12 dagar", "7 objekt" — samma enhet överallt där ett värde visas. */

@@ -1,7 +1,7 @@
 /**
  * Prispallen: topp 3 som tre block — tvåan till vänster, ettan i mitten (högst), trean till
- * höger, som en riktig prispall. Initialcirklar i stället för profilbilder (inga profilbilder i
- * topplistor), var och en med en taggig bricka i guld/silver/brons och sin placering. Cirklarna
+ * höger, som en riktig prispall. Profilbild bara för den som valt att visa den, annars
+ * initialcirkel, var och en med en taggig bricka i guld/silver/brons och sin placering. Cirklarna
  * flyter sakta upp och ner, i olika takt så de aldrig rör sig i takt med varandra. Ett mjukt
  * strålkastarljus uppifrån ligger bakom ettan. Deltar färre än tre står blocket kvar som
  * "Ledig plats".
@@ -82,7 +82,7 @@ function PodiumColumn({
       {entry ? (
         <Floating place={place}>
           <View style={{ width: avatar, height: avatar }}>
-            <Avatar size={avatar} uri={null} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
+            <Avatar size={avatar} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
             <View style={[s.badge, { top: -avatar * 0.06, right: -avatar * 0.1 }]}>
               <RankBadge place={place} size={place === 1 ? 32 : 28} />
             </View>

@@ -46,8 +46,10 @@ export function LeaderboardConsentSheet({
       centered
     >
       <Text style={s.body}>
-        Ditt namn och din statistik — antal besök, din streak och hur många samlarobjekt du hittat — visas då
-        för andra i appen: i hela appen, i ditt område och bland dina vänner. Ingen profilbild visas.
+        Ditt namn, användarnamn, ort och din statistik — antal besök, din streak och hur många samlarobjekt du
+        hittat — visas då
+        för andra i appen: i hela appen, i ditt område och bland dina vänner. Profilbilden visas bara om du
+        själv slår på det.
       </Text>
       <Text style={s.body}>Du kan ändra dig när som helst.</Text>
       <View style={s.buttons}>

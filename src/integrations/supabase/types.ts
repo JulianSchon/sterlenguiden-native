@@ -825,6 +825,7 @@ export type Database = {
           avatar_ring: string | null
           card_photo_changed_at: string | null
           show_in_leaderboard: boolean | null
+          show_leaderboard_avatar: boolean
           updated_at: string
           user_id: string
           username: string | null
@@ -855,6 +856,7 @@ export type Database = {
           avatar_ring?: string | null
           card_photo_changed_at?: string | null
           show_in_leaderboard?: boolean | null
+          show_leaderboard_avatar?: boolean
           updated_at?: string
           user_id: string
           username?: string | null
@@ -885,6 +887,7 @@ export type Database = {
           avatar_ring?: string | null
           card_photo_changed_at?: string | null
           show_in_leaderboard?: boolean | null
+          show_leaderboard_avatar?: boolean
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -1226,6 +1229,7 @@ export type Database = {
           row_pos: number | null
           username: string | null
           city: string | null
+          avatar_path: string | null
         }[]
       }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }

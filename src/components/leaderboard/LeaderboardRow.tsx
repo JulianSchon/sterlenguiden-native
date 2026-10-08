@@ -1,6 +1,7 @@
 /**
- * En rad i en topplista: placering, initialcirkel (aldrig profilbild), namn med användarnamn och
- * ort under, och värdet. Namnet klipps aldrig av — det krymper hellre lite så hela får plats.
+ * En rad i en topplista: placering, profilbild (bara om personen valt att visa den, annars
+ * initialcirkel), namn med användarnamn och ort under, och värdet. Namnet klipps aldrig av — det
+ * krymper hellre lite så hela får plats.
  * `highlight` = min egen rad (guldtonad). Placering null (man deltar inte) visas som "–".
  * `jumpHint` = den fastnålade egna raden, där ett tryck scrollar ner till mig (pil nedåt).
  *
@@ -30,7 +31,7 @@ export function LeaderboardRow({
       <Text style={[s.rank, highlight && { color: GOLD }]} numberOfLines={1}>
         {entry.placement ?? "–"}
       </Text>
-      <Avatar size={36} uri={null} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
+      <Avatar size={36} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
       <View style={s.who}>
         <Text style={[s.name, highlight && { color: GOLD }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {entry.name}

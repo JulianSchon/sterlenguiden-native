@@ -27,6 +27,8 @@ export interface Profile {
   circle_color: string | null;
   /** Topplistor: null = aldrig tillfrågad, false = har sagt nej, true = deltar (migration 020) */
   show_in_leaderboard: boolean | null;
+  /** Topplistor: visa profilbilden (bara när man också syns), av som standard (migration 024) */
+  show_leaderboard_avatar: boolean;
   created_at: string;
   updated_at: string;
 }
