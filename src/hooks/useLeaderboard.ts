@@ -23,6 +23,8 @@ export interface LeaderboardEntry {
   placement: number | null;
   /** Radens position i listan (1, 2, 3 … även vid delad placering) — null om man inte är med */
   rowPos: number | null;
+  username: string | null;
+  city: string | null;
 }
 
 export interface Leaderboard {
@@ -45,6 +47,8 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
     value: r.metric_value,
     placement: r.placement,
     rowPos: r.row_pos,
+    username: r.username,
+    city: r.city,
   });
   const self = rows.find((r) => r.self_row);
   return { entries: rows.filter((r) => !r.self_row).map(toEntry), me: self ? toEntry(self) : null, offset, limit };

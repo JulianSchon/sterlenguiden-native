@@ -39,6 +39,8 @@ const BG = "#121212";
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
+// Synlig = på, grönt som en påslagen brytare, inte guld
+const ON = "#4ADE80";
 const ROW_GAP = 10;
 const ITEM_H = ROW_H + ROW_GAP;
 // Är jag själv bland de här översta behövs ingen fastnålad rad — då ser jag ju var jag är
@@ -127,6 +129,13 @@ export default function LeaderboardsScreen() {
   const where = scopes.find((sc) => sc.id === scope)?.label ?? "";
   const context = when ? `${when.charAt(0).toUpperCase()}${when.slice(1)} · ${where}` : where;
 
+  // Samma profilsida som från Vänner — där syns aktiviteten om vi är vänner, annars kan man
+  // skicka en vänförfrågan. Min egen rad/plats öppnar ingenting.
+  function openProfile(entry: LeaderboardEntry) {
+    if (entry.userId === me?.userId) return;
+    router.push({ pathname: "/friend/[id]", params: { id: entry.userId } });
+  }
+
   function onVisibilityPress() {
     if (!participating) {
       setConsent("join");
@@ -156,7 +165,7 @@ export default function LeaderboardsScreen() {
           <Text style={s.empty}>Vi har ingen ort sparad på din profil, så det finns inget område att jämföra med.</Text>
         ) : (
           <View key={boardKey}>
-            <Podium entries={entries.slice(0, 3)} metric={metric} width={width - 32} />
+            <Podium entries={entries.slice(0, 3)} metric={metric} width={width - 32} onSelect={openProfile} />
             {entries.length === 0 && (
               <Text style={s.empty}>
                 {scope === "friends" ? "Ingen av dina vänner deltar i topplistorna än." : "Ingen deltar i den här topplistan än."}
@@ -184,8 +193,8 @@ export default function LeaderboardsScreen() {
           <Text style={s.headerTitle}>Topplistor</Text>
           {/* Synlighet: tydlig status (Synlig/Dold), ett tryck förklarar och låter en ändra sig */}
           <PressableScale style={[s.visibility, participating && s.visibilityOn]} scale={0.95} onPress={onVisibilityPress}>
-            {participating ? <Eye size={16} color={GOLD} strokeWidth={2.2} /> : <EyeOff size={16} color={MUTED} strokeWidth={2.2} />}
-            <Text style={[s.visibilityText, participating && { color: GOLD }]}>{participating ? "Synlig" : "Dold"}</Text>
+            {participating ? <Eye size={16} color={ON} strokeWidth={2.2} /> : <EyeOff size={16} color={MUTED} strokeWidth={2.2} />}
+            <Text style={[s.visibilityText, participating && { color: ON }]}>{participating ? "Synlig" : "Dold"}</Text>
           </PressableScale>
         </View>
       </View>
@@ -207,7 +216,12 @@ export default function LeaderboardsScreen() {
             style={s.item}
             entering={reduceMotion || index > 12 ? undefined : FadeInDown.delay(380 + index * 35).duration(320)}
           >
-            <LeaderboardRow entry={item} metric={metric} highlight={item.userId === me?.userId} />
+            <LeaderboardRow
+              entry={item}
+              metric={metric}
+              highlight={item.userId === me?.userId}
+              onPress={item.userId === me?.userId ? undefined : () => openProfile(item)}
+            />
           </Reanimated.View>
         )}
         // Läget räknas ut i förväg (fast radhöjd) — padding + rubrikdelen + avståndet + raderna ovanför
@@ -226,7 +240,7 @@ export default function LeaderboardsScreen() {
         <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) + 4 }]}>
           {/* Min egen rad — ett tryck scrollar ner till mig, var jag än ligger */}
           {showSticky && me && (
-            <LeaderboardRow entry={me} metric={metric} highlight onPress={me.rowPos ? goToMe : undefined} />
+            <LeaderboardRow entry={me} metric={metric} highlight jumpHint={!!me.rowPos} onPress={me.rowPos ? goToMe : undefined} />
           )}
           {!participating && <JoinLeaderboardButton onPress={() => setConsent("join")} />}
         </View>
@@ -253,7 +267,7 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
-  visibilityOn: { backgroundColor: "rgba(197,160,89,0.12)", borderColor: "rgba(197,160,89,0.5)" },
+  visibilityOn: { backgroundColor: "rgba(74,222,128,0.12)", borderColor: "rgba(74,222,128,0.5)" },
   visibilityText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
 
   metricTabs: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },

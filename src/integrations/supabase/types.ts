@@ -1224,6 +1224,8 @@ export type Database = {
           placement: number | null
           self_row: boolean
           row_pos: number | null
+          username: string | null
+          city: string | null
         }[]
       }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }

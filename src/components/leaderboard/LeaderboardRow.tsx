@@ -1,9 +1,11 @@
 /**
- * En rad i en topplista: placering, initialcirkel (aldrig profilbild), namn, värde.
- * `highlight` = min egen rad — guldtonad, så man alltid hittar sig själv, även långt ner.
- * Placering null (man deltar inte) visas som "–". Fast höjd (ROW_H) — topplistan är en
- * virtualiserad lista som räknar ut varje rads läge i förväg, så den kan hoppa direkt till rad
- * 12 000 utan att mäta allt däremellan.
+ * En rad i en topplista: placering, initialcirkel (aldrig profilbild), namn med användarnamn och
+ * ort under, och värdet. Namnet klipps aldrig av — det krymper hellre lite så hela får plats.
+ * `highlight` = min egen rad (guldtonad). Placering null (man deltar inte) visas som "–".
+ * `jumpHint` = den fastnålade egna raden, där ett tryck scrollar ner till mig (pil nedåt).
+ *
+ * Fast höjd (ROW_H) — topplistan är en virtualiserad lista som räknar ut varje rads läge i
+ * förväg, så den kan hoppa direkt till rad 12 000 utan att mäta allt däremellan.
  */
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { ChevronDown } from "lucide-react-native";
@@ -15,20 +17,28 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 const CARD = "#1A1A1D";
-export const ROW_H = 56;
+export const ROW_H = 64;
 
 export function LeaderboardRow({
-  entry, metric, highlight = false, onPress,
-}: { entry: LeaderboardEntry; metric: LeaderboardMetric; highlight?: boolean; onPress?: () => void }) {
+  entry, metric, highlight = false, jumpHint = false, onPress,
+}: {
+  entry: LeaderboardEntry; metric: LeaderboardMetric; highlight?: boolean; jumpHint?: boolean; onPress?: () => void;
+}) {
+  const sub = [entry.username ? `@${entry.username}` : null, entry.city].filter(Boolean).join("  ·  ");
   return (
     <Wrapper onPress={onPress} style={[s.row, highlight && s.rowMe]}>
       <Text style={[s.rank, highlight && { color: GOLD }]} numberOfLines={1}>
         {entry.placement ?? "–"}
       </Text>
-      <Avatar size={34} uri={null} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
-      <Text style={[s.name, highlight && { color: GOLD }]} numberOfLines={1}>{entry.name}</Text>
+      <Avatar size={36} uri={null} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
+      <View style={s.who}>
+        <Text style={[s.name, highlight && { color: GOLD }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          {entry.name}
+        </Text>
+        {sub !== "" && <Text style={s.sub} numberOfLines={1}>{sub}</Text>}
+      </View>
       <Text style={s.value}>{formatLeaderboardValue(metric, entry.value)}</Text>
-      {onPress && <ChevronDown size={16} color={GOLD} strokeWidth={2.4} />}
+      {jumpHint && <ChevronDown size={16} color={GOLD} strokeWidth={2.4} />}
     </Wrapper>
   );
 }
@@ -51,6 +61,8 @@ const s = StyleSheet.create({
     width: 40, textAlign: "center",
     fontFamily: "Montserrat_700Bold", fontSize: 14, color: MUTED, fontVariant: ["tabular-nums"],
   },
-  name: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
+  who: { flex: 1 },
+  name: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 2 },
   value: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG },
 });

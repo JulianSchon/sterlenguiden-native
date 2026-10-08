@@ -16,7 +16,7 @@ import Reanimated, {
   withDelay, withRepeat, withTiming,
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Polygon, Rect, Stop, Text as SvgText } from "react-native-svg";
-import { MapPin, Flame, Sparkles } from "lucide-react-native";
+import { PressableScale } from "@/components/PressableScale";
 import { Avatar } from "@/components/profile/Avatar";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { TIER_PALETTE } from "@/lib/achievements";
@@ -24,7 +24,6 @@ import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric }
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 
 type Place = 1 | 2 | 3;
 const TIER: Record<Place, keyof typeof TIER_PALETTE> = { 1: "gold", 2: "silver", 3: "bronze" };
@@ -41,14 +40,9 @@ const FLOAT_PX = 3;
 const TOP_FACE = 14;
 const TOP_INSET = 9;
 
-export function MetricIcon({ metric, size = 12, color = GOLD }: { metric: LeaderboardMetric; size?: number; color?: string }) {
-  const Icon = metric === "visits" ? MapPin : metric === "streak" ? Flame : Sparkles;
-  return <Icon size={size} color={color} strokeWidth={2.4} />;
-}
-
 export function Podium({
-  entries, metric, width,
-}: { entries: LeaderboardEntry[]; metric: LeaderboardMetric; width: number }) {
+  entries, metric, width, onSelect,
+}: { entries: LeaderboardEntry[]; metric: LeaderboardMetric; width: number; onSelect?: (entry: LeaderboardEntry) => void }) {
   const colW = Math.floor(width / 3);
   const spot = width * 0.95;
   return (
@@ -58,15 +52,18 @@ export function Podium({
         <RadialGlow size={spot} color="#FFFFFF" opacity={0.09} radiusRatio={0.75} />
       </View>
       {([2, 1, 3] as Place[]).map((place) => (
-        <PodiumColumn key={place} place={place} entry={entries[place - 1]} metric={metric} width={colW} />
+        <PodiumColumn key={place} place={place} entry={entries[place - 1]} metric={metric} width={colW} onSelect={onSelect} />
       ))}
     </View>
   );
 }
 
 function PodiumColumn({
-  place, entry, metric, width,
-}: { place: Place; entry: LeaderboardEntry | undefined; metric: LeaderboardMetric; width: number }) {
+  place, entry, metric, width, onSelect,
+}: {
+  place: Place; entry: LeaderboardEntry | undefined; metric: LeaderboardMetric; width: number;
+  onSelect?: (entry: LeaderboardEntry) => void;
+}) {
   const reduceMotion = useReducedMotion();
   const avatar = AVATAR[place];
 
@@ -75,6 +72,13 @@ function PodiumColumn({
       entering={reduceMotion ? undefined : FadeInUp.delay(REVEAL_DELAY[place]).duration(460).easing(Easing.out(Easing.cubic))}
       style={[s.column, { width }]}
     >
+      {/* Cirkel, namn och värde är tryckbara — öppnar personens profil */}
+      <PressableScale
+        style={s.person}
+        scale={0.95}
+        disabled={!entry || !onSelect}
+        onPress={() => entry && onSelect?.(entry)}
+      >
       {entry ? (
         <Floating place={place}>
           <View style={{ width: avatar, height: avatar }}>
@@ -88,13 +92,14 @@ function PodiumColumn({
         <View style={[s.emptyAvatar, { width: avatar, height: avatar, borderRadius: avatar / 2 }]} />
       )}
 
-      <Text style={[s.name, !entry && { color: MUTED }]} numberOfLines={1}>
+      {/* Hela namnet ska alltid synas — två rader och hellre lite mindre text än avklippt */}
+      <Text style={[s.name, !entry && { color: MUTED }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75}>
         {entry ? entry.name : "Ledig plats"}
       </Text>
       <View style={[s.chip, !entry && { opacity: 0 }]}>
         <Text style={s.chipText}>{entry ? formatLeaderboardValue(metric, entry.value) : "–"}</Text>
-        <MetricIcon metric={metric} />
       </View>
+      </PressableScale>
 
       <PodiumBlock place={place} width={width} />
     </Reanimated.View>
@@ -207,13 +212,14 @@ const s = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", alignSelf: "center" },
   spotAnchor: { position: "absolute" },
   column: { alignItems: "center" },
+  person: { alignItems: "center", width: "100%" },
   center: { alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute" },
   badgeText: { fontFamily: "Montserrat_700Bold", includeFontPadding: false },
   emptyAvatar: { borderWidth: 1.5, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.2)" },
   name: {
     fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG,
-    marginTop: 12, paddingHorizontal: 4, maxWidth: "100%",
+    marginTop: 12, paddingHorizontal: 4, maxWidth: "100%", textAlign: "center",
   },
   // Rektangulär med lätt rundade hörn, inte en rund pill — som i referensen
   chip: {
