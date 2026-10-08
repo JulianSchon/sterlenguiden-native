@@ -135,7 +135,7 @@ function SelectedPin() {
 // ─── Huvud-komponent ─────────────────────────────────────────────────────────
 export default function MapScreen() {
   const router  = useRouter();
-  const { sticker: stickerParam } = useLocalSearchParams<{ sticker?: string }>();
+  const { sticker: stickerParam, place: placeParam } = useLocalSearchParams<{ sticker?: string; place?: string }>();
   const insets  = useSafeAreaInsets();
   const mapRef  = useRef<MapView>(null);
 
@@ -275,6 +275,13 @@ export default function MapScreen() {
     const c = collectibles.find((x) => x.id === stickerParam);
     if (c) handleStickerPress(c);
   }, [stickerParam, collectibles, handleStickerPress]);
+
+  // Från ett minne ("Visa plats på kartan"): samma idé som stickerParam ovan, fast för en vanlig plats
+  useEffect(() => {
+    if (!placeParam) return;
+    const p = places.find((x) => String(x.id) === placeParam);
+    if (p) handleMarkerPress(p);
+  }, [placeParam, places, handleMarkerPress]);
 
   const handleMapPress = useCallback(() => {
     if (markerJustPressed.current) return; // ignorera tap som hörde till marker
