@@ -58,6 +58,6 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(212,168,79,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.40)",
   },
   small: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(255,255,255,0.60)" },
-  name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: "#FFFFFF", marginTop: 1 },
+  name: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: "#FFFFFF", marginTop: 1 },
   sub: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: GOLD_LT, marginTop: 2 },
 });

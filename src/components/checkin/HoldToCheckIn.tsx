@@ -59,8 +59,8 @@ export function HoldToCheckIn({
   const fillStyle = useAnimatedStyle(() => ({ width: progress.value * width }));
   // Neonglöden tilltar medan man håller — knappen "laddas upp"
   const glowStyle = useAnimatedStyle(() => ({
-    shadowOpacity: interpolate(progress.value, [0, 1], [0.55, 1]),
-    shadowRadius: interpolate(progress.value, [0, 1], [10, 22]),
+    shadowOpacity: interpolate(progress.value, [0, 1], [0.32, 0.7]),
+    shadowRadius: interpolate(progress.value, [0, 1], [7, 15]),
   }));
   const text = holding ? "Håll kvar…" : label;
 
@@ -103,10 +103,13 @@ export function HoldToCheckIn({
           </Defs>
           <Rect x={0} y={0} width={Math.max(width, 1)} height={HEIGHT} fill="url(#holdFill)" />
         </Svg>
-        <View style={[s.labelWrap, { width: width - BORDER * 2, height: HEIGHT - BORDER * 2 }]}>
+        <View style={[s.labelWrap, { width, height: HEIGHT }]}>
           <Text style={[s.label, s.labelOnGold]}>{text}</Text>
         </View>
       </Reanimated.View>
+      {/* Neonkanten ritas OVANPÅ fyllnaden i stället för som knappens egen ram — annars syntes en
+          tunn mörk springa mellan ramen och guldet (vänster och upptill) */}
+      <View style={s.border} pointerEvents="none" />
     </Pressable>
     </Reanimated.View>
   );
@@ -123,9 +126,10 @@ const s = StyleSheet.create({
   },
   button: {
     height: HEIGHT, borderRadius: 14, overflow: "hidden", justifyContent: "center",
-    backgroundColor: "#16140F", borderWidth: BORDER, borderColor: "#E9C46A",
+    backgroundColor: "#16140F",
   },
   fill: { position: "absolute", left: 0, top: 0, bottom: 0, overflow: "hidden" },
+  border: { ...StyleSheet.absoluteFillObject, borderRadius: 14, borderWidth: BORDER, borderColor: "#E9C46A" },
   labelWrap: { alignItems: "center", justifyContent: "center" },
   label: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: "#F0D48A" },
   labelOnGold: { color: "#121212" },

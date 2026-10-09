@@ -223,7 +223,7 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(212,168,79,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.40)",
   },
-  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: "#FFFFFF" },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: "#FFFFFF" },
   sub: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.60)", marginTop: 2 },
   buttonGrey: {
     marginTop: 14, height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center",

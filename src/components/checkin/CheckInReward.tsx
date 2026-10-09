@@ -188,7 +188,7 @@ const s = StyleSheet.create({
   pillText: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, color: GOLD_LT, letterSpacing: 1.8 },
   visitCard: { borderRadius: 18, overflow: "hidden", justifyContent: "flex-end", backgroundColor: "#242424" },
   visitText: { padding: 14 },
-  placeName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 21, color: "#fff" },
+  placeName: { fontFamily: "Montserrat_700Bold", fontSize: 21, color: "#fff" },
   placeMeta: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.72)", marginTop: 3 },
   repeat: {
     fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.65)",
@@ -201,7 +201,7 @@ const s = StyleSheet.create({
   },
   medalRow: { flexDirection: "row", justifyContent: "center", gap: 8 },
   medalItem: { alignItems: "center", flex: 1 },
-  medalName: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: FG, marginTop: 10, textAlign: "center" },
+  medalName: { fontFamily: "Montserrat_700Bold", fontSize: 16, color: FG, marginTop: 10, textAlign: "center" },
   medalLevel: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(255,255,255,0.6)", marginTop: 2, textAlign: "center" },
   goalRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   goalName: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: FG },
