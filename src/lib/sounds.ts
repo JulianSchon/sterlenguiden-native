@@ -8,7 +8,12 @@
  * pending_eas_build_features). Alla anrop finns redan på rätt ställen; vid nästa build fylls
  * bara den här funktionen i med expo-audio och ljudfilerna, ingenting annat behöver ändras.
  */
-export type SoundName = "holdComplete" | "stamp" | "tick" | "milestone" | "welcomeBack";
+export type SoundName =
+  | "holdComplete" | "stamp" | "tick" | "milestone" | "welcomeBack"
+  /** En stapel som fylls (stigande ton) */
+  | "fill"
+  /** Man går om någon i topplistan */
+  | "climb";
 
 export function playSound(_name: SoundName): void {
   // Medvetet tom tills expo-audio finns i dev-clienten (nästa EAS-build).

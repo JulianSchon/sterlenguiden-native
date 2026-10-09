@@ -37,11 +37,22 @@ export interface CategoryStat extends StatCategory {
 
 export function placeMatchesCategory(place: Place, dbValues: string[]): boolean {
   if (!place.categories) return false;
-  const parts = place.categories.split(",").map((s) => s.trim().toLowerCase());
+  return place.categories.split(",").some((part) => partMatches(part, dbValues));
+}
+
+function partMatches(part: string, dbValues: string[]): boolean {
+  const p = part.trim().toLowerCase();
   return dbValues.some((v) => {
     const t = v.toLowerCase();
-    return parts.some((p) => p === t || p.includes(t) || t.includes(p));
+    return p === t || p.includes(t) || t.includes(p);
   });
+}
+
+/** Platsens egen kategori — den som matchar dess FÖRSTA kategori (en plats kan ha flera). */
+export function primaryStatCategory(place: Place): StatCategory | undefined {
+  const first = place.categories?.split(",")[0];
+  return (first ? STAT_CATEGORIES.find((c) => partMatches(first, c.dbValues)) : undefined)
+    ?? STAT_CATEGORIES.find((c) => placeMatchesCategory(place, c.dbValues));
 }
 
 /** Alla kategorier med hur mycket användaren besökt, mest besökta först. */

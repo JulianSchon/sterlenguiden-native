@@ -17,12 +17,11 @@ import type { Place } from "@/hooks/usePlaces";
 import { useVisits, useCheckIn, CheckInCooldownError } from "@/hooks/useVisits";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useTrophies, useGrantNewTrophies } from "@/hooks/useTrophies";
-import { fetchMyMonthlyVisits } from "@/hooks/useLeaderboard";
+import { fetchMyMonthStanding, type LeaderboardEntry } from "@/hooks/useLeaderboard";
 import {
   CHECKIN_RADIUS_M, CHECKIN_NEAR_M, distanceMeters, formatDistance, cooldownEnd, formatClock,
 } from "@/lib/checkin";
-import { CheckInCelebration, type CelebrationState } from "./CheckInCelebration";
-import type { MonthStat } from "./ProgressScene";
+import { CheckInCelebration, type CelebrationExit, type CelebrationState } from "./CheckInCelebration";
 import { HoldToCheckIn } from "./HoldToCheckIn";
 
 const GOLD = "#C9A24C";
@@ -42,10 +41,10 @@ export function CheckInSection({ place }: { place: Place }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<CelebrationState | null>(null);
-  // Positionen och min månadsplacering börjar hämtas redan när man trycker ner — väntan döljs i
-  // hålla-inne-ritualen
+  // Positionen och min rad i månadens topplista börjar hämtas redan när man trycker ner — väntan
+  // döljs i hålla-inne-ritualen
   const freshLocation = useRef<ReturnType<typeof refresh> | null>(null);
-  const monthBefore = useRef<Promise<MonthStat | null> | null>(null);
+  const monthBefore = useRef<Promise<LeaderboardEntry | null> | null>(null);
 
   if (!canCheckIn) return null;
 
@@ -69,7 +68,7 @@ export function CheckInSection({ place }: { place: Place }) {
       lastVisitAt: here[0]?.visited_at ?? null,
       trophiesBefore: trophies,
       uniqueBefore: stats.uniqueVisits,
-      monthBefore: monthBefore.current ?? fetchMyMonthlyVisits().catch(() => null),
+      monthBefore: monthBefore.current ?? fetchMyMonthStanding().catch(() => null),
       visitId: null,
     });
     monthBefore.current = null;
@@ -106,12 +105,13 @@ export function CheckInSection({ place }: { place: Place }) {
 
   // Belöningen stängs först, navigeringen sker en kort stund senare — att byta sida medan en
   // modal håller på att stängas kan låsa sig på iOS
-  const handleCelebrationClose = (next?: "memory" | "offers") => {
+  const handleCelebrationClose = (exit?: CelebrationExit) => {
     setCelebration(null);
-    if (!next) return;
+    if (!exit) return;
     setTimeout(() => {
-      if (next === "offers") router.push("/offers" as any);
-      else router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } } as any);
+      if (exit === "offers") router.push("/offers" as any);
+      else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } } as any);
+      else router.push(`/place/${exit.placeId}` as any);
     }, 300);
   };
 
@@ -188,7 +188,7 @@ export function CheckInSection({ place }: { place: Place }) {
           disabled={busy}
           onStart={() => {
             freshLocation.current = refresh();
-            monthBefore.current = fetchMyMonthlyVisits().catch(() => null);
+            monthBefore.current = fetchMyMonthStanding().catch(() => null);
           }}
           onComplete={handleCheckIn}
         />

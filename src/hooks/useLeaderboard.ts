@@ -70,11 +70,19 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
 // Perioden betyder bara något för besök — streak och samlarobjekt delar cache oavsett vad den står på
 const periodFor = (metric: LeaderboardMetric, period: Period): Period => (metric === "visits" ? period : "all");
 
-/** Min egen siffra i "flest besök denna månad, hela appen" — antal och placering (null om jag
- * inte syns i topplistorna). Hämtas före och efter en incheckning, för att visa klättringen. */
-export async function fetchMyMonthlyVisits(): Promise<{ value: number; placement: number | null } | null> {
+/** Min egen rad i "flest besök denna månad, hela appen" — antal, placering och radnummer
+ * (placering och rad är null om jag inte syns i topplistorna, eller inte besökt något än i
+ * månaden). Hämtas före och efter en incheckning, för att visa klättringen. */
+export async function fetchMyMonthStanding(): Promise<LeaderboardEntry | null> {
   const page = await fetchPage("visits", "all", "month", 0, 1);
-  return page.me ? { value: page.me.value, placement: page.me.placement } : null;
+  return page.me;
+}
+
+/** Raderna `fromRow` till `fromRow + count - 1` i samma topplista — grannarna runt mig efter en
+ * incheckning (den jag nu jagar och de jag nyss gick om). */
+export async function fetchMonthRows(fromRow: number, count: number): Promise<LeaderboardEntry[]> {
+  const page = await fetchPage("visits", "all", "month", Math.max(0, fromRow - 1), count);
+  return page.entries;
 }
 
 /** Första sidan (topp 5) — förhandstitten på Mitt Österlen. */

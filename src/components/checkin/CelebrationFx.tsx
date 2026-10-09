@@ -1,17 +1,20 @@
 /**
  * Byggstenar för belöningsögonblicken: konfetti med tyngdkraft, en roterande strålkrans,
- * siffror som rullar, passtämpeln och guldknappen. Samlade här så alla belöningar i appen
- * (incheckningen nu, presenten och troféerna sen) får samma "saftighet" — samma partiklar, samma
- * rörelser, samma knapp — i stället för att varje ögonblick uppfinner sina egna.
+ * siffror som rullar, staplar som fylls, passtämpeln och guldknappen. Samlade här så alla
+ * belöningar i appen (incheckningen nu, presenten och troféerna sen) får samma "saftighet" —
+ * samma partiklar, samma rörelser, samma vibrationer, samma knapp — i stället för att varje
+ * ögonblick uppfinner sina egna.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Image, StyleSheet, Text, View, type TextStyle, type StyleProp, type ViewStyle } from "react-native";
 import Reanimated, {
-  Easing, FadeInDown, FadeOutUp, interpolate, useAnimatedStyle, useReducedMotion, useSharedValue,
-  withRepeat, withTiming, type SharedValue,
+  Easing, FadeInDown, FadeOutUp, interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle,
+  useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
+import * as Haptics from "expo-haptics";
 import { PressableScale } from "@/components/PressableScale";
+import { playSound } from "@/lib/sounds";
 
 export const INK = "#EBC870";
 export const GOLD = "#E9C46A";
@@ -179,6 +182,164 @@ export function RollingNumber({
   );
 }
 
+/** Ett tal som byts med samma lilla rullning (det nya glider upp underifrån, det gamla ut uppåt)
+ * när `value` ändras — för siffror som ska bytas i exakt ett visst ögonblick, t.ex. när en stapel
+ * når fram, i stället för efter en egen klocka som RollingNumber. */
+export function FlipNumber({ value, style, animate = true }: { value: number | string; style: StyleProp<TextStyle>; animate?: boolean }) {
+  const reduceMotion = useReducedMotion();
+  const on = animate && !reduceMotion;
+  return (
+    <View>
+      <Text style={[style, { opacity: 0 }]}>{value}</Text>
+      <Reanimated.Text
+        key={String(value)}
+        entering={on ? FadeInDown.duration(220) : undefined}
+        exiting={on ? FadeOutUp.duration(200) : undefined}
+        style={[style, StyleSheet.absoluteFillObject]}
+      >
+        {value}
+      </Reanimated.Text>
+    </View>
+  );
+}
+
+// ─── Stapel som fylls ──────────────────────────────────────────────────────────
+const FILL_TICKS = 24;
+const SPARK = 30;
+
+/** Accelererande kurva: stapeln börjar röra sig direkt men tar sats och smäller in i sitt nya
+ * läge — samma känsla som hålla-inne-knappen. (Rent kvadratisk stod den nästan still första
+ * kvartssekunden, och då kom ingen vibration heller.) */
+function easeIn(t: number) {
+  "worklet";
+  return t * (0.35 + 0.65 * t);
+}
+
+// Vibrationen följer stapeln: en tick för varje bit den växer, mjuk → lätt → medel
+function rumble(k: number) {
+  const f = k / FILL_TICKS;
+  const style = f < 0.35 ? Haptics.ImpactFeedbackStyle.Soft : f < 0.7 ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium;
+  Haptics.impactAsync(style).catch(() => {});
+}
+
+/**
+ * En stapel som fylls från `from` till `to` (andelar 0–1) med start efter `startAt` ms — och
+ * telefonen vibrerar HELA vägen: en tick för varje bit stapeln växer, så takten följer farten
+ * (glest i början, tätt mot slutet) samtidigt som styrkan ökar, och sist en tydlig duns när den
+ * når fram (`onFull` anropas i samma ögonblick). En glödande gnista löper längst fram medan den
+ * fylls. `celebrate` = stapeln klarade en nivå: den blixtrar till och en glans sveper över.
+ *
+ * Fyllnaden är en guldgradient med FAST bredd (hela stapelns) som skjuts in från vänster inuti
+ * ett klipp. Den ändrar aldrig storlek — en SVG i en behållare vars bredd animeras ritas nämligen
+ * inte om på alla telefoner (då flyttade sig bara den ljusa pricken medan stapeln stod still).
+ */
+export function FillBar({
+  from, to, startAt, durationMs = 1200, skip, height = 12, celebrate = false, onFull,
+}: {
+  from: number; to: number; startAt: number; durationMs?: number; skip: boolean;
+  height?: number; celebrate?: boolean; onFull?: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const gradId = `fill${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  const [w, setW] = useState(0);
+  const run = useSharedValue(0);
+  const flash = useSharedValue(0);
+  const shine = useSharedValue(0);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const onFullRef = useRef(onFull);
+  onFullRef.current = onFull;
+  const a = Math.max(0, Math.min(1, from));
+  const b = Math.max(0, Math.min(1, to));
+
+  const full = () => {
+    Haptics.impactAsync(celebrate ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    onFullRef.current?.();
+  };
+
+  useEffect(() => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    if (skip || reduceMotion) {
+      run.value = 1;
+      flash.value = celebrate ? 0.35 : 0;
+      shine.value = 0;
+      return;
+    }
+    timers.current.push(setTimeout(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
+      playSound("fill");
+    }, startAt));
+    run.value = withDelay(startAt, withTiming(1, { duration: durationMs, easing: Easing.linear }, (fin) => {
+      if (fin) runOnJS(full)();
+    }));
+    if (celebrate) {
+      flash.value = withDelay(startAt + durationMs, withSequence(withTiming(1, { duration: 90 }), withTiming(0.35, { duration: 650 })));
+      shine.value = withDelay(startAt + durationMs + 60, withTiming(1, { duration: 750, easing: Easing.inOut(Easing.quad) }));
+    }
+    return () => timers.current.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skip]);
+
+  useAnimatedReaction(
+    () => Math.floor(easeIn(run.value) * FILL_TICKS),
+    (k, prev) => {
+      if (prev !== null && k > prev && k < FILL_TICKS) runOnJS(rumble)(k);
+    },
+  );
+
+  const fillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: (a + (b - a) * easeIn(run.value) - 1) * w }],
+  }));
+  const sparkStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(run.value, [0, 0.04, 0.9, 1], [0, 1, 1, 0]),
+    transform: [{ translateX: (a + (b - a) * easeIn(run.value)) * w - SPARK / 2 }],
+  }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
+  const shineStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shine.value, [0, 0.1, 0.85, 1], [0, 0.85, 0.85, 0]),
+    transform: [{ translateX: interpolate(shine.value, [0, 1], [-40, w + 10]) }, { skewX: "-20deg" }],
+  }));
+
+  const r = height / 2;
+  return (
+    <View style={{ height }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      <View style={[s.barTrack, { height, borderRadius: r }]}>
+        {w > 0 && (
+          <Reanimated.View style={[s.barFill, { width: w, borderRadius: r }, fillStyle]}>
+            <Svg width={w} height={height}>
+              <Defs>
+                <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor="#8F6A24" />
+                  <Stop offset="0.6" stopColor={GOLD} />
+                  <Stop offset="1" stopColor="#FFE9A8" />
+                </LinearGradient>
+              </Defs>
+              <Rect x={0} y={0} width={w} height={height} fill={`url(#${gradId})`} />
+            </Svg>
+            <Reanimated.View style={[StyleSheet.absoluteFill, s.barFlash, flashStyle]} />
+            <View style={[s.barHead, { width: height, height, borderRadius: r }]} />
+          </Reanimated.View>
+        )}
+        {celebrate && <Reanimated.View style={[s.barShine, shineStyle]} pointerEvents="none" />}
+      </View>
+      {w > 0 && (
+        <Reanimated.View style={[s.spark, { top: (height - SPARK) / 2 }, sparkStyle]} pointerEvents="none">
+          <Svg width={SPARK} height={SPARK}>
+            <Defs>
+              <RadialGradient id={`${gradId}s`} cx={SPARK / 2} cy={SPARK / 2} r={SPARK / 2} gradientUnits="userSpaceOnUse">
+                <Stop offset="0" stopColor="#FFFFFF" stopOpacity={1} />
+                <Stop offset="0.35" stopColor="#FFE9A8" stopOpacity={0.75} />
+                <Stop offset="1" stopColor="#FFE9A8" stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Circle cx={SPARK / 2} cy={SPARK / 2} r={SPARK / 2} fill={`url(#${gradId}s)`} />
+          </Svg>
+        </Reanimated.View>
+      )}
+    </View>
+  );
+}
+
 // ─── Passtämpeln ───────────────────────────────────────────────────────────────
 /** Passtämpeln: dubbel ring i guldbläck, Österlenappens logga, BESÖKT och datumet. */
 export function PassStamp({ size, date }: { size: number; date: string }) {
@@ -247,6 +408,12 @@ export function Reveal({ show, delay = 0, children, style }: { show: boolean; de
 const s = StyleSheet.create({
   confettiOrigin: { position: "absolute", left: "50%", top: "50%", width: 0, height: 0 },
   piece: { position: "absolute", left: 0, top: 0 },
+  barTrack: { overflow: "hidden", backgroundColor: "rgba(255,255,255,0.08)" },
+  barFill: { position: "absolute", left: 0, top: 0, bottom: 0, overflow: "hidden" },
+  barFlash: { backgroundColor: "#FFF4D0" },
+  barHead: { position: "absolute", right: 0, top: 0, backgroundColor: "rgba(255,248,225,0.9)" },
+  barShine: { position: "absolute", top: -4, bottom: -4, width: 24, backgroundColor: "rgba(255,255,255,0.8)" },
+  spark: { position: "absolute", left: 0, width: SPARK, height: SPARK },
   stampInner: { alignItems: "center", justifyContent: "center" },
   stampTitle: { fontFamily: "Montserrat_700Bold", letterSpacing: 3, color: INK },
   stampDate: { fontFamily: "Montserrat_600SemiBold", letterSpacing: 1.2, color: INK, marginTop: 2 },
