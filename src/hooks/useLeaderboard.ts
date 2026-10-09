@@ -70,6 +70,13 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
 // Perioden betyder bara något för besök — streak och samlarobjekt delar cache oavsett vad den står på
 const periodFor = (metric: LeaderboardMetric, period: Period): Period => (metric === "visits" ? period : "all");
 
+/** Min egen siffra i "flest besök denna månad, hela appen" — antal och placering (null om jag
+ * inte syns i topplistorna). Hämtas före och efter en incheckning, för att visa klättringen. */
+export async function fetchMyMonthlyVisits(): Promise<{ value: number; placement: number | null } | null> {
+  const page = await fetchPage("visits", "all", "month", 0, 1);
+  return page.me ? { value: page.me.value, placement: page.me.placement } : null;
+}
+
 /** Första sidan (topp 5) — förhandstitten på Mitt Österlen. */
 export function useLeaderboard(metric: LeaderboardMetric, scope: LeaderboardScope, period: Period = "all") {
   const p = periodFor(metric, period);
