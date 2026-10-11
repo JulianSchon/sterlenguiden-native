@@ -43,7 +43,7 @@ import { playSound } from "@/lib/sounds";
 import { holdTrophyMoments } from "@/lib/trophyMoments";
 import { addTreasureToPlace } from "@/lib/treasurePlacement";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
-import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal, RollingNumber } from "@/components/checkin/CelebrationFx";
+import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
 import { ChestBase, ChestLid, CHEST_H, CHEST_SEAM_Y, CHEST_W } from "./TreasureChest";
 import { StickerArt } from "./StickerArt";
 
@@ -64,7 +64,7 @@ const T_COLLECTION = 1700;
 const T_FILL = 2100;
 const FILL_MS = 1300;
 const T_LEADER = 3700;
-const LEADER_MS = 2000;
+const LEADER_MS = 2500;
 
 interface LeaderData { before: LeaderboardEntry; after: LeaderboardEntry; above: LeaderboardEntry | null }
 
@@ -102,8 +102,6 @@ export function TreasureReveal({
   const [error, setError] = useState<string | null>(null);
   const [leader, setLeader] = useState<LeaderData | null>(null);
   const leaderRef = useRef<LeaderData | null>(null);
-  // Topplistans ruta finns hela tiden (osynlig) — det här startar den
-  const [leaderPlay, setLeaderPlay] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
 
@@ -132,6 +130,7 @@ export function TreasureReveal({
   const lid = useSharedValue(0);
   const chestOut = useSharedValue(0);
   const rise = useSharedValue(0);
+  const sway = useSharedValue(0);
   const flash = useSharedValue(0);
   const rays = useSharedValue(0);
   const burst = useSharedValue(0);
@@ -278,16 +277,22 @@ export function TreasureReveal({
     hint.value = withTiming(0, { duration: 150 });
     rise.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 750, easing: Easing.out(Easing.back(1.4)) }));
     later(BOOM_DELAY + 790, () => hit(Haptics.ImpactFeedbackStyle.Medium));
+    // Efter landningen gungar den en gång till — åt höger, sist åt vänster — och låser sig
+    sway.value = withDelay(BOOM_DELAY + 790, withSequence(
+      withTiming(5, { duration: 300, easing: Easing.inOut(Easing.quad) }),
+      withTiming(-3, { duration: 340, easing: Easing.inOut(Easing.quad) }),
+      withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) }),
+    ));
     landGlow.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 500 }));
     text.value = withDelay(BOOM_DELAY + T_TITLE, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
     collection.value = withDelay(BOOM_DELAY + T_COLLECTION, withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) }));
     // Topplistan om den finns, annars knapparna strax efter att stapeln fyllts
     later(BOOM_DELAY + T_LEADER, () => {
+      // (Topplistans ruta startar sig själv vid samma tidpunkt, se LeaderRow)
       if (leaderRef.current) {
-        setLeaderPlay(true);
         later(LEADER_MS, () => setReady(true));
       } else {
-        later(200, () => setReady(true));
+        later(400, () => setReady(true));
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -336,7 +341,7 @@ export function TreasureReveal({
     transform: [
       { translateY: interpolate(rise.value, [0, 1], [chestY + seamOffset - finalY, 0]) },
       { scale: interpolate(rise.value, [0, 1], [0.2, 1]) },
-      { rotate: `${interpolate(rise.value, [0, 1], [0, -360])}deg` },
+      { rotate: `${interpolate(rise.value, [0, 1], [0, -360]) + sway.value}deg` },
     ],
   }));
   const landGlowStyle = useAnimatedStyle(() => ({ opacity: landGlow.value }));
@@ -358,7 +363,7 @@ export function TreasureReveal({
   const raysSize = Math.hypot(width, height) * 1.05;
   const glowSize = width * 1.4;
   const bottomPad = Math.max(insets.bottom, 16) + 8;
-  const showDescription = !!collectible.description && height >= 760 && !leaderPlay;
+  const showDescription = !!collectible.description && height >= 760 && !leader;
 
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo(false)}>
@@ -447,7 +452,7 @@ export function TreasureReveal({
                   play={opened}
                 />
               </Reanimated.View>
-              <LeaderRow data={leader} play={leaderPlay} />
+              <LeaderRow data={leader} opened={opened} />
               {showDescription ? <Text style={s.description} numberOfLines={3}>{collectible.description}</Text> : null}
             </View>
           </Pressable>
@@ -476,14 +481,18 @@ export function TreasureReveal({
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0];
 
-/** Topplistan "Flest skatter" (hela appen): placeringen rullar, "↑ 2" poppar och hur långt det är
- * till nästa placering tonar in. Finns på plats osynlig från start (så inget skapas mitt i
- * animationen) och spelas när `play` blir sant. Utan data (man syns inte i topplistan) förblir den
- * osynlig. */
-function LeaderRow({ data, play }: { data: LeaderData | null; play: boolean }) {
+/** Topplistan "Flest skatter" (hela appen): placeringen byts från den gamla till den nya, "↑ 2"
+ * poppar och hur långt det är till nästa placering tonar in. Finns på plats osynlig från start
+ * och startar SIG SJÄLV vid rätt tidpunkt efter smällen — så att inget annat behöver ritas om,
+ * och inga nya textbitar skapas (båda siffrorna finns redan, den ena tonas över i den andra).
+ * Utan data (man syns inte i topplistan) förblir den osynlig. */
+function LeaderRow({ data, opened }: { data: LeaderData | null; opened: boolean }) {
   const inV = useSharedValue(0);
+  const roll = useSharedValue(0);
   const chip = useSharedValue(0);
   const gapIn = useSharedValue(0);
+  const dataRef = useRef(data);
+  dataRef.current = data;
   const before = data?.before;
   const after = data?.after;
   const above = data?.above ?? null;
@@ -502,18 +511,26 @@ function LeaderRow({ data, play }: { data: LeaderData | null; play: boolean }) {
   }
 
   useEffect(() => {
-    if (!play || !data) return;
-    inV.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
-    const t1 = setTimeout(() => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      chip.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.back(1.8)) });
-    }, 1200);
-    gapIn.value = withDelay(1500, withTiming(1, { duration: 400 }));
-    return () => clearTimeout(t1);
+    if (!opened) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      if (!dataRef.current) return;
+      inV.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
+      roll.value = withDelay(450, withTiming(1, { duration: 420, easing: Easing.inOut(Easing.quad) }));
+      timers.push(setTimeout(() => hit(Haptics.ImpactFeedbackStyle.Medium), 650));
+      timers.push(setTimeout(() => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        chip.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.back(1.8)) });
+      }, 1200));
+      gapIn.value = withDelay(1500, withTiming(1, { duration: 400 }));
+    }, BOOM_DELAY + T_LEADER));
+    return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play, data]);
+  }, [opened]);
 
   const rowStyle = useAnimatedStyle(() => ({ opacity: inV.value, transform: [{ translateY: interpolate(inV.value, [0, 1], [16, 0]) }] }));
+  const oldStyle = useAnimatedStyle(() => ({ opacity: 1 - roll.value, transform: [{ translateY: -roll.value * 16 }] }));
+  const newStyle = useAnimatedStyle(() => ({ opacity: roll.value, transform: [{ translateY: (1 - roll.value) * 16 }] }));
   const chipStyle = useAnimatedStyle(() => ({ opacity: chip.value, transform: [{ scale: interpolate(chip.value, [0, 1], [0.6, 1]) }] }));
   const gapStyle = useAnimatedStyle(() => ({ opacity: gapIn.value }));
 
@@ -525,16 +542,12 @@ function LeaderRow({ data, play }: { data: LeaderData | null; play: boolean }) {
       </View>
       <View style={s.placeRow}>
         <Text style={s.placeLabel}>Plats </Text>
-        <RollingNumber
-          from={fromPlace}
-          to={play ? toPlace : fromPlace}
-          startAt={400}
-          durationMs={700}
-          skip={false}
-          style={s.placeValue}
-          align="left"
-          onStep={() => hit(Haptics.ImpactFeedbackStyle.Light)}
-        />
+        <View>
+          {/* Osynlig breddhållare: den bredaste av siffrorna */}
+          <Text style={[s.placeValue, { opacity: 0 }]}>{String(Math.max(fromPlace, toPlace))}</Text>
+          <Reanimated.Text style={[s.placeValue, s.placeLayer, oldStyle]}>{fromPlace}</Reanimated.Text>
+          <Reanimated.Text style={[s.placeValue, s.placeLayer, newStyle]}>{toPlace}</Reanimated.Text>
+        </View>
         {chipText && (
           <Reanimated.View style={[s.chip, chipStyle]}>
             <Text style={s.chipText}>{chipText}</Text>
@@ -572,6 +585,7 @@ const s = StyleSheet.create({
   placeRow: { flexDirection: "row", alignItems: "center" },
   placeLabel: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: FG },
   placeValue: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: GOLD, fontVariant: ["tabular-nums"] },
+  placeLayer: { position: "absolute", left: 0, top: 0 },
   // Solid grön, som "Ny på topplistan!" vid incheckningen
   chip: {
     marginLeft: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
