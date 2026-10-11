@@ -20,7 +20,7 @@ import Reanimated, {
   withDelay, withSequence, withTiming,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { TrophyMedal } from "@/components/trophies/TrophyMedal";
+import { RadialGlow, TrophyMedal } from "@/components/trophies/TrophyMedal";
 import type { Trophy } from "@/lib/achievements";
 import { playSound } from "@/lib/sounds";
 import { Confetti, FillBar, FlipNumber, GOLD, RollingNumber } from "./CelebrationFx";
@@ -28,7 +28,9 @@ import { Confetti, FillBar, FlipNumber, GOLD, RollingNumber } from "./Celebratio
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.58)";
 const CARD = "#17171A";
-const GREEN = "#4ADE80";
+/** Samma solida gröna som "Ny på topplistan!" */
+const SOLID_GREEN = "#122A1B";
+const BRIGHT_GREEN = "#6EF09D";
 const MILESTONES = [10, 25, 50, 75, 100, 150, 200, 250];
 const FILL_MS = 1200;
 /** Från att en rad dyker upp tills dess stapel börjar fyllas */
@@ -65,6 +67,8 @@ export interface HeroProgress {
 
 interface RowTiming { appearAt: number; fillAt: number }
 type Box = { y: number; h: number };
+
+const HERO_GLOW = 150;
 
 const formatTenths = (n: number) => `${(n / 10).toFixed(1).replace(".", ",")} %`;
 
@@ -199,6 +203,10 @@ function HeroCounter({ hero, rollAt, milestone, skip }: { hero: HeroProgress; ro
     <View style={s.hero}>
       <View style={s.heroRow}>
         <Reanimated.View style={numberStyle}>
+          {/* Rund mjuk glöd bakom siffran (en textskugga klipps till textens ruta och syns som en fyrkant) */}
+          <View style={s.heroGlow} pointerEvents="none">
+            <RadialGlow size={HERO_GLOW} color={GOLD} opacity={0.4} radiusRatio={0.6} />
+          </View>
           <RollingNumber
             from={hero.from}
             to={hero.to}
@@ -440,13 +448,17 @@ const s = StyleSheet.create({
   heroRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
   heroNumber: {
     fontFamily: "Montserrat_700Bold", fontSize: 84, lineHeight: 96, color: GOLD,
-    textShadowColor: "rgba(233,196,106,0.55)", textShadowRadius: 22, textShadowOffset: { width: 0, height: 0 },
   },
+  heroGlow: {
+    position: "absolute", width: HERO_GLOW, height: HERO_GLOW, left: "50%", top: "50%",
+    marginLeft: -HERO_GLOW / 2, marginTop: -HERO_GLOW / 2,
+  },
+  // De gröna brickorna är helt ogenomskinliga — strålkransen snurrar bakom, och genomskinligt gick knappt att läsa
   plusBadge: {
     marginLeft: 10, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12,
-    backgroundColor: "rgba(74,222,128,0.16)", borderWidth: 1, borderColor: "rgba(74,222,128,0.5)",
+    backgroundColor: SOLID_GREEN, borderWidth: 1, borderColor: "rgba(74,222,128,0.65)",
   },
-  plusText: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: GREEN },
+  plusText: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: BRIGHT_GREEN },
   heroLabel: { fontFamily: "Inter_500Medium", fontSize: 15, color: MUTED, marginTop: -4 },
   pctPill: {
     flexDirection: "row", alignItems: "center", marginTop: 10, paddingHorizontal: 12, paddingVertical: 6,
@@ -474,9 +486,10 @@ const s = StyleSheet.create({
   count: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: FG, fontVariant: ["tabular-nums"] },
   countOf: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED, marginBottom: 2 },
   plusSmall: {
-    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, backgroundColor: "rgba(74,222,128,0.16)",
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: SOLID_GREEN,
+    borderWidth: 1, borderColor: "rgba(74,222,128,0.65)",
   },
-  plusSmallText: { fontFamily: "Montserrat_700Bold", fontSize: 12.5, color: GREEN },
+  plusSmallText: { fontFamily: "Montserrat_700Bold", fontSize: 13.5, color: BRIGHT_GREEN },
   barWrap: { marginTop: 12 },
   footer: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 8 },
   footerHot: { fontFamily: "Inter_600SemiBold", color: GOLD },

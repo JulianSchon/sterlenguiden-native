@@ -313,7 +313,6 @@ const s = StyleSheet.create({
   placeLabel: { fontFamily: "Montserrat_700Bold", fontSize: 44, lineHeight: 52, color: FG },
   placeValue: {
     fontFamily: "Montserrat_700Bold", fontSize: 44, lineHeight: 52, color: GOLD, fontVariant: ["tabular-nums"],
-    textShadowColor: "rgba(233,196,106,0.5)", textShadowRadius: 18, textShadowOffset: { width: 0, height: 0 },
   },
   scope: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: MUTED, marginTop: 2 },
   chip: {
