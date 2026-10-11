@@ -351,7 +351,7 @@ function CollectiblesSection({ collectibles }: { collectibles: FriendStats["coll
 
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>Samlarobjekt</Text>
+      <Text style={s.sectionTitle}>Skatter</Text>
       <View style={[s.card, { padding: 16 }]}>
         <ScrollView
           horizontal

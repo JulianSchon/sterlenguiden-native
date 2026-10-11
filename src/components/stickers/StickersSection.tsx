@@ -1,17 +1,25 @@
 /**
- * "Samlarobjekt" på Mitt Österlen: stickers i ett rutnät, 3 per rad. Upplåsta i
- * färg, övriga som mörka silhuetter (som troféerna på Utmaningar). Tryck
- * öppnar kartan med stickerns kort.
+ * "Österlens skatter" (samlarobjekten) på Mitt Österlen: skatterna i ett rutnät, 3 per rad.
+ * Hittade i färg, övriga som mörka skymtar. Tryck öppnar kartan med skattens kort.
  *
  * Visar bara 2 rader (6 st) till att börja med — "Visa fler" fäller ut resten.
- * Samma princip som troféraden/Samlarobjekt-sektionen på vänprofilen: aldrig
- * en lång lista rakt av på sidan.
+ *
+ * Inklistringen: skatter som hittats sen samlingen senast visades (listan "att klistra in", se
+ * treasurePlacement) står först mörka på sin plats. Sidan scrollar dit, och skatten flyger in
+ * stor och snett från ovan, smäller ner i sin ruta, trycks ihop och sätter sig lite snett — som
+ * ett klistermärke. En i taget.
  */
-import { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, type LayoutChangeEvent } from "react-native";
+import Reanimated, {
+  Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming,
+} from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
-import { useCollectibles, useCollected } from "@/hooks/useCollectibles";
+import * as Haptics from "expo-haptics";
+import { useAuth } from "@/hooks/useAuth";
+import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
+import { getTreasuresToPlace, removeTreasureToPlace } from "@/lib/treasurePlacement";
 import { PressableScale } from "@/components/PressableScale";
 import { StickerArt } from "./StickerArt";
 
@@ -19,12 +27,59 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const PURPLE = "#A78BFA";
 const COLLAPSED_COUNT = 6;
+const ART = 68;
 
-export function StickersSection() {
+export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }) {
   const router = useRouter();
-  const { data: collectibles = [] } = useCollectibles();
-  const { data: collected = new Map<string, string>() } = useCollected();
+  const { user } = useAuth();
+  const { height: winH } = useWindowDimensions();
+  const { data: collectibles = [], isSuccess: loaded } = useCollectibles();
+  const { data: collected = new Map<string, string>(), isSuccess: collectedLoaded } = useCollected();
   const [expanded, setExpanded] = useState(false);
+
+  // ─── Inklistringen ─────────────────────────────────────────────────────────
+  const [waiting, setWaiting] = useState<string[]>([]);
+  const [dropping, setDropping] = useState<string | null>(null);
+  const sectionY = useRef(0);
+  const gridY = useRef(0);
+  const cellY = useRef<Record<string, number>>({});
+  const firstDrop = useRef(true);
+
+  useEffect(() => {
+    if (!user || !loaded || !collectedLoaded) return;
+    let alive = true;
+    getTreasuresToPlace(user.id).then((ids) => {
+      if (!alive) return;
+      const order = (id: string) => collectibles.findIndex((c) => c.id === id);
+      const pending = ids.filter((id) => collected.has(id) && order(id) >= 0).sort((a, b) => order(a) - order(b));
+      if (pending.some((id) => order(id) >= COLLAPSED_COUNT)) setExpanded(true);
+      setWaiting(pending);
+    });
+    return () => { alive = false; };
+    // Läses en gång när sidan öppnats och datan laddats
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loaded, collectedLoaded]);
+
+  // Nästa i tur: scrolla så rutan syns lite ovanför mitten, och släpp skatten
+  useEffect(() => {
+    if (dropping || waiting.length === 0) return;
+    const id = waiting[0];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      scrollTo?.(sectionY.current + gridY.current + (cellY.current[id] ?? 0) - winH * 0.38);
+      timers.push(setTimeout(() => setDropping(id), 650));
+    }, firstDrop.current ? 900 : 350));
+    firstDrop.current = false;
+    return () => timers.forEach(clearTimeout);
+  }, [waiting, dropping, scrollTo, winH]);
+
+  const handleLanded = () => {
+    const id = dropping;
+    if (!id) return;
+    if (user) removeTreasureToPlace(user.id, id);
+    setDropping(null);
+    setWaiting((w) => w.filter((x) => x !== id));
+  };
 
   if (collectibles.length === 0) return null;
 
@@ -33,26 +88,23 @@ export function StickersSection() {
   const canExpand = collectibles.length > COLLAPSED_COUNT;
 
   return (
-    <View style={s.section}>
+    <View style={s.section} onLayout={(e) => { sectionY.current = e.nativeEvent.layout.y; }}>
       <View style={s.head}>
-        <Text style={s.title}>Samlarobjekt</Text>
+        <Text style={s.title}>Österlens skatter</Text>
         <Text style={s.count}>{have} av {collectibles.length}</Text>
       </View>
-      <View style={s.grid}>
-        {visible.map((c) => {
-          const has = collected.has(c.id);
-          return (
-            <TouchableOpacity
-              key={c.id}
-              style={s.cell}
-              activeOpacity={0.8}
-              onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } } as any)}
-            >
-              <StickerArt imagePath={c.imagePath} size={68} silhouette={!has} />
-              <Text style={[s.name, has && { color: FG }]} numberOfLines={2}>{c.name}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={s.grid} onLayout={(e) => { gridY.current = e.nativeEvent.layout.y; }}>
+        {visible.map((c) => (
+          <StickerCell
+            key={c.id}
+            collectible={c}
+            has={collected.has(c.id)}
+            placement={dropping === c.id ? "dropping" : waiting.includes(c.id) ? "waiting" : null}
+            onLanded={handleLanded}
+            onLayout={(e) => { cellY.current[c.id] = e.nativeEvent.layout.y; }}
+            onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } } as any)}
+          />
+        ))}
       </View>
       {canExpand && (
         <PressableScale style={s.moreBtn} scale={0.97} onPress={() => setExpanded((e) => !e)}>
@@ -68,6 +120,65 @@ export function StickersSection() {
   );
 }
 
+/** En ruta i samlingen. "waiting" = hittad men inte inklistrad än (visas mörk), "dropping" =
+ * skatten klistras in just nu. */
+function StickerCell({
+  collectible, has, placement, onLanded, onLayout, onPress,
+}: {
+  collectible: Collectible;
+  has: boolean;
+  placement: "waiting" | "dropping" | null;
+  onLanded: () => void;
+  onLayout: (e: LayoutChangeEvent) => void;
+  onPress: () => void;
+}) {
+  const drop = useSharedValue(0);
+  const squash = useSharedValue(1);
+  const shown = has && placement === null;
+
+  const landed = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 140);
+    squash.value = withSequence(withTiming(0.86, { duration: 70 }), withSpring(1, { damping: 9, stiffness: 260 }));
+    setTimeout(onLanded, 650);
+  };
+
+  useEffect(() => {
+    if (placement !== "dropping") return;
+    drop.value = 0;
+    drop.value = withTiming(1, { duration: 440, easing: Easing.in(Easing.quad) }, (fin) => {
+      if (fin) runOnJS(landed)();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placement]);
+
+  const dropStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(drop.value, [0, 0.25], [0, 1], "clamp"),
+    transform: [
+      { translateY: interpolate(drop.value, [0, 1], [-ART * 1.4, 0]) },
+      { scale: interpolate(drop.value, [0, 1], [2.4, 1]) * squash.value },
+      { rotate: `${interpolate(drop.value, [0, 1], [-28, -5])}deg` },
+    ],
+  }));
+  const restStyle = useAnimatedStyle(() => ({ transform: [{ scale: squash.value }] }));
+
+  return (
+    <TouchableOpacity style={s.cell} activeOpacity={0.8} onPress={onPress} onLayout={onLayout}>
+      <View style={{ width: ART, height: ART }}>
+        <Reanimated.View style={restStyle}>
+          <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={!shown} />
+        </Reanimated.View>
+        {placement === "dropping" && (
+          <Reanimated.View style={[StyleSheet.absoluteFill, dropStyle]} pointerEvents="none">
+            <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={false} />
+          </Reanimated.View>
+        )}
+      </View>
+      <Text style={[s.name, shown && { color: FG }]} numberOfLines={2}>{collectible.name}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const s = StyleSheet.create({
   section: { marginTop: 32 },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: 16 },
@@ -77,7 +188,7 @@ const s = StyleSheet.create({
   // 3 per rad (var 4) så 6 stycken blir exakt två rader innan "Visa fler"
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8, marginTop: 14 },
   cell: { width: "33.333%", alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
-  name: { fontFamily: "Inter_500Medium", fontSize: 11, color: MUTED, textAlign: "center", marginTop: 6 },
+  name: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: MUTED, textAlign: "center", marginTop: 6 },
   moreBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
     marginTop: 6, marginHorizontal: 16, paddingVertical: 12, borderRadius: 12,

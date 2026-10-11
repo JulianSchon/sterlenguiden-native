@@ -1,5 +1,5 @@
 /**
- * Rutan på Hem: "Det finns ett samlarobjekt X m bort". Visas när användaren är
+ * Rutan på Hem: "Det finns en skatt X m bort". Visas när användaren är
  * inom 300 m från ett samlarobjekt hen inte har, och bara medan appen är öppen.
  * Tryck öppnar kartan med stickerns kort.
  */
@@ -36,7 +36,7 @@ export function NearbyStickerPrompt({ lat, lng }: { lat: number | null; lng: num
         <Star size={22} color={PURPLE} strokeWidth={2} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.small}>Det finns ett samlarobjekt {formatDistance(nearest.distance)} bort</Text>
+        <Text style={s.small}>Det finns en skatt {formatDistance(nearest.distance)} bort</Text>
         <Text style={s.name} numberOfLines={1}>{nearest.c.name}</Text>
         <Text style={s.sub}>Tryck för att se på kartan</Text>
       </View>

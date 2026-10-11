@@ -172,9 +172,9 @@ export function useSetLeaderboardAvatar() {
   };
 }
 
-/** "4 besök", "12 dagar", "7 objekt" — samma enhet överallt där ett värde visas. */
+/** "4 besök", "12 dagar", "7 skatter" — samma enhet överallt där ett värde visas. */
 export function formatLeaderboardValue(metric: LeaderboardMetric, value: number): string {
   if (metric === "visits") return `${value} besök`;
   if (metric === "streak") return `${value} ${value === 1 ? "dag" : "dagar"}`;
-  return `${value} objekt`;
+  return `${value} ${value === 1 ? "skatt" : "skatter"}`;
 }

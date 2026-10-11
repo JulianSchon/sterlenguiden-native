@@ -101,7 +101,7 @@ export const sv = {
     delete: {
       action: "Radera konto",
       title: "Radera konto",
-      message: "All din data raderas permanent: dina minnen, listor, samlarobjekt, besök och själva kontot. Detta kan inte ångras.",
+      message: "All din data raderas permanent: dina minnen, listor, skatter, besök och själva kontot. Detta kan inte ångras.",
       confirm: "Radera permanent",
       failed: "Det gick inte att radera kontot. Försök igen eller kontakta oss.",
     },

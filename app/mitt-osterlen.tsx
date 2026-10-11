@@ -5,7 +5,7 @@
  * Streaken räknas ur app_days (en rad per svensk kalenderdag med appöppning),
  * se src/lib/streak.ts.
  */
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -45,6 +45,8 @@ export default function MittOsterlenScreen() {
   const streak = useMemo(() => computeStreak(days, today), [days, today]);
   const week = weekDays(today);
   const daySet = useMemo(() => new Set(days), [days]);
+  // Skatterna scrollar själva fram sig när en ny skatt ska klistras in i samlingen
+  const scrollRef = useRef<ScrollView>(null);
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -60,6 +62,7 @@ export default function MittOsterlenScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}
       >
@@ -182,7 +185,7 @@ export default function MittOsterlenScreen() {
         <LeaderboardSection />
         <ListsSection />
         <MemoriesSection />
-        <StickersSection />
+        <StickersSection scrollTo={(y) => scrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true })} />
       </ScrollView>
     </View>
   );

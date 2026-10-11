@@ -39,7 +39,7 @@ export function LeaderboardSettingsSheet({ visible, onClose }: { visible: boolea
         <View style={s.texts}>
           <Text style={s.label}>Synas i topplistorna</Text>
           <Text style={s.help}>
-            Ditt namn, användarnamn, ort och din statistik — besök, streak och samlarobjekt — visas för andra
+            Ditt namn, användarnamn, ort och din statistik — besök, streak och skatter — visas för andra
             i appen: i hela appen, i ditt område och bland dina vänner.
           </Text>
         </View>

@@ -46,7 +46,7 @@ export function LeaderboardConsentSheet({
       centered
     >
       <Text style={s.body}>
-        Ditt namn, användarnamn, ort och din statistik — antal besök, din streak och hur många samlarobjekt du
+        Ditt namn, användarnamn, ort och din statistik — antal besök, din streak och hur många skatter du
         hittat — visas då
         för andra i appen: i hela appen, i ditt område och bland dina vänner. Profilbilden visas bara om du
         själv slår på det.

@@ -269,7 +269,7 @@ export default function MapScreen() {
       const p = PRACTICAL.find((x) => x.id === id);
       if (p) out.push({ id, label: p.label, type: "prac" });
     });
-    if (stickersOnly) out.unshift({ id: "stickers", label: "Samlarobjekt", type: "sticker" });
+    if (stickersOnly) out.unshift({ id: "stickers", label: "Skatter", type: "sticker" });
     return out;
   }, [selectedCats, practicalFilters, stickersOnly]);
 
@@ -748,7 +748,7 @@ export default function MapScreen() {
             </View>
 
             {/* Samlarobjekt */}
-            <Text style={[s.sheetSection, { marginTop: 28 }]}>SAMLAROBJEKT</Text>
+            <Text style={[s.sheetSection, { marginTop: 28 }]}>SKATTER</Text>
             <View style={s.chipWrap}>
               <TouchableOpacity
                 style={[s.chip, stickersOnly && s.chipActive]}
@@ -756,7 +756,7 @@ export default function MapScreen() {
                 activeOpacity={0.8}
               >
                 <Star size={14} color={stickersOnly ? GOLD : "rgba(255,255,255,0.7)"} strokeWidth={2} />
-                <Text style={[s.chipText, stickersOnly && s.chipTextActive]}>Visa bara samlarobjekt</Text>
+                <Text style={[s.chipText, stickersOnly && s.chipTextActive]}>Visa bara skatter</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -788,7 +788,7 @@ export default function MapScreen() {
                 <SvgRect width="100%" height="100%" fill="url(#gbtn)" rx={16} />
               </Svg>
               <Text style={s.applyText}>
-                Visa {stickersOnly ? collectibles.length : filtered.length} {stickersOnly ? "samlarobjekt" : "platser"}
+                Visa {stickersOnly ? collectibles.length : filtered.length} {stickersOnly ? "skatter" : "platser"}
               </Text>
             </TouchableOpacity>
           </View>

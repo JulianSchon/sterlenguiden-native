@@ -53,7 +53,7 @@ const HEADER_GAP = 24;
 const METRICS: { id: LeaderboardMetric; label: string }[] = [
   { id: "visits", label: "Besök" },
   { id: "streak", label: "Streak" },
-  { id: "stickers", label: "Samlarobjekt" },
+  { id: "stickers", label: "Skatter" },
 ];
 const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
   { id: "month", label: "Denna månad" },
@@ -125,7 +125,7 @@ export default function LeaderboardsScreen() {
 
   // Rubriken säger VAD som räknas; raden under säger NÄR och VAR
   const title =
-    metric === "visits" ? "Flest besökta platser" : metric === "streak" ? "Längst streak just nu" : "Flest samlarobjekt";
+    metric === "visits" ? "Flest besökta platser" : metric === "streak" ? "Längst streak just nu" : "Flest skatter";
   const when =
     metric !== "visits" ? null : period === "month" ? `i ${month}` : period === "year" ? "i år" : "sedan start";
   const where = scopes.find((sc) => sc.id === scope)?.label ?? "";
