@@ -28,7 +28,7 @@ import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } fr
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.62)";
-const MEDAL = 190;
+const MAX_MEDAL = 190;
 
 /** Ljuset följer nivån: brons glöder kopparrött, silver vitt, guld guld — så varje nivå känns
  * som sin egen och guld blir det stora. */
@@ -68,6 +68,10 @@ export function TrophyCelebration({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const tierLight = TIER_LIGHT[trophy.tier];
+  // Lite mindre medalj på små telefoner, så allt får plats ovanför knapparna
+  const medal = Math.min(MAX_MEDAL, Math.round(height * 0.22));
+  // Ljuset bakom följer medaljen dit den hamnar (innehållet centreras ovanför knapparna)
+  const [lightY, setLightY] = useState(height * 0.32);
   const [lit, setLit] = useState(false);
   const [ready, setReady] = useState(false);
   const [skip, setSkip] = useState(false);
@@ -175,7 +179,6 @@ export function TrophyCelebration({
 
   const raysSize = width * 1.9;
   const glowSize = width * 1.2;
-  const lightY = height * 0.36;
   const bottomPad = Math.max(insets.bottom, 16) + 8;
 
   return (
@@ -194,11 +197,14 @@ export function TrophyCelebration({
         <Reanimated.View style={[s.root, contentStyle]} pointerEvents={leaving ? "none" : "auto"}>
           <Pressable style={[s.stage, { paddingTop: insets.top + 12 }]} onPress={tapToSkip}>
             {position && position.total > 1 && (
-              <Text style={s.position}>{position.index} av {position.total}</Text>
+              <Text style={[s.position, { top: insets.top + 12 }]}>{position.index} av {position.total}</Text>
             )}
-            <View style={[s.medalBox, { marginTop: Math.max(0, lightY - insets.top - 12 - MEDAL / 2 - (position && position.total > 1 ? 24 : 0)) }]}>
+            <View
+              style={[s.medalBox, { width: medal, height: medal }]}
+              onLayout={(e) => setLightY(e.nativeEvent.layout.y + medal / 2)}
+            >
               <Reanimated.View style={medalStyle}>
-                <TrophyMedal size={MEDAL} tier={trophy.tier} Icon={trophy.Icon} unlocked={lit} groupId={trophy.groupId} />
+                <TrophyMedal size={medal} tier={trophy.tier} Icon={trophy.Icon} unlocked={lit} groupId={trophy.groupId} />
               </Reanimated.View>
               <Confetti progress={burst} count={36} power={1.1} colors={tierLight.confetti} />
             </View>
@@ -261,9 +267,9 @@ const s = StyleSheet.create({
   backdrop: { backgroundColor: "#0B0A08" },
   flash: { backgroundColor: "#FFF6DE" },
   anchor: { position: "absolute", alignItems: "center", justifyContent: "center" },
-  stage: { flex: 1, alignItems: "center", paddingHorizontal: 20 },
-  position: { fontFamily: "Inter_600SemiBold", fontSize: 13, letterSpacing: 1.5, color: MUTED },
-  medalBox: { width: MEDAL, height: MEDAL, alignItems: "center", justifyContent: "center" },
+  stage: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, paddingBottom: 16 },
+  position: { position: "absolute", fontFamily: "Inter_600SemiBold", fontSize: 13, letterSpacing: 1.5, color: MUTED },
+  medalBox: { alignItems: "center", justifyContent: "center" },
   texts: { alignItems: "center", marginTop: 18 },
   eyebrow: { fontFamily: "Inter_700Bold", fontSize: 13, letterSpacing: 2.6, color: GOLD },
   title: { fontFamily: "Montserrat_700Bold", fontSize: 32, color: FG, marginTop: 6, textAlign: "center" },

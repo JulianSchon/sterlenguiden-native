@@ -20,7 +20,9 @@
  * - Placeringen: troféer som klarats sen sidan senast öppnades (listan "att
  *   placera", se trophyMoments/TrophyHost) står först mörka på sin plats.
  *   Sidan scrollar till en i taget och medaljen faller ner i sin plats med en
- *   studs, glöd och vibration — sen ligger den där som vanligt.
+ *   studs, glöd och vibration — sen ligger den där som vanligt. När den sista
+ *   landat scrollar sidan tillbaka upp och "Senaste utmärkelsen" byts synligt
+ *   till den nya.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -28,6 +30,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Reanimated, { ZoomIn } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ArrowLeft, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -174,11 +177,15 @@ function TrophyBadge({
 // (Kom igång, Utforskaren, Samlaren, Förmånsjägaren, Mångsidig, Bläddraren,
 // Österlenlegend), 3 medaljer per rad, ingen ram/kort runt.
 function TrophyGrid({
-  trophies, waiting, dropping, onLanded, onPress, badgeRefs,
+  trophies, waiting, heroHidden, heroAnimate, dropping, onLanded, onPress, badgeRefs,
 }: {
   trophies: Trophy[];
   /** Klara men ännu inte placerade — visas mörka tills det är deras tur */
   waiting: Set<string>;
+  /** Placerade nyss, men ska inte synas som "Senaste utmärkelsen" förrän sidan scrollat upp igen */
+  heroHidden: Set<string>;
+  /** "Senaste utmärkelsen" byts med en zoom (bara efter en placering, inte när sidan öppnas) */
+  heroAnimate: boolean;
   dropping: string | null;
   onLanded: () => void;
   onPress: (t: Trophy) => void;
@@ -202,20 +209,24 @@ function TrophyGrid({
 
   const featured = useMemo(() => {
     // De som väntar på sin placering visas inte här än — de ska få sitt ögonblick i rastret först
-    const done = trophies.filter((t) => t.done && t.doneAt && !waiting.has(t.key));
+    const done = trophies.filter((t) => t.done && t.doneAt && !waiting.has(t.key) && !heroHidden.has(t.key));
     if (done.length > 0) {
       return [...done].sort((a, b) => +new Date(b.doneAt!) - +new Date(a.doneAt!))[0];
     }
     // Inget upplåst än — visa den du är närmast att klara istället
     return [...trophies].sort((a, b) => b.percent - a.percent)[0] ?? null;
-  }, [trophies, waiting]);
+  }, [trophies, waiting, heroHidden]);
 
   return (
     <View>
       {featured && (
-        <View style={{ alignItems: "center", paddingTop: 32 }}>
+        <Reanimated.View
+          key={featured.key}
+          entering={heroAnimate ? ZoomIn.springify().damping(13) : undefined}
+          style={{ alignItems: "center", paddingTop: 32 }}
+        >
           <FeaturedTrophy trophy={featured} medalSize={heroMedalSize} onPress={() => onPress(featured)} />
-        </View>
+        </Reanimated.View>
       )}
 
       <View style={{ paddingHorizontal: 16, paddingTop: 44, gap: 44 }}>
@@ -347,13 +358,29 @@ export default function ChallengesScreen() {
     return () => timers.forEach(clearTimeout);
   }, [waiting, dropping, winH]);
 
+  const [heroHidden, setHeroHidden] = useState<string[]>([]);
+  const [heroAnimate, setHeroAnimate] = useState(false);
+
   const handleLanded = () => {
     const key = dropping;
     if (!key) return;
     if (user) removeTrophyToPlace(user.id, key);
     setDropping(null);
+    setHeroHidden((h) => [...h, key]);
     setWaiting((w) => w.filter((k) => k !== key));
   };
+
+  // Alla placerade: tillbaka upp, och "Senaste utmärkelsen" byts till den nya
+  useEffect(() => {
+    if (waiting.length > 0 || dropping || heroHidden.length === 0) return;
+    const up = setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 600);
+    const reveal = setTimeout(() => {
+      setHeroAnimate(true);
+      setHeroHidden([]);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }, 1150);
+    return () => { clearTimeout(up); clearTimeout(reveal); };
+  }, [waiting.length, dropping, heroHidden.length]);
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -381,6 +408,8 @@ export default function ChallengesScreen() {
             <TrophyGrid
               trophies={trophies}
               waiting={new Set(waiting)}
+              heroHidden={new Set(heroHidden)}
+              heroAnimate={heroAnimate}
               dropping={dropping}
               onLanded={handleLanded}
               badgeRefs={badgeRefs}
