@@ -84,6 +84,9 @@ function getGreeting(): string {
 }
 
 
+/** Profilbilden uppe till höger i hero-headern */
+const AVATAR = 58;
+
 // Ring colors för FeedPost-avatarer
 const RING_GOLD  = "#C9A84C";   // favorit
 const RING_GREEN = "#52886A";   // ny story
@@ -665,7 +668,7 @@ export default function HomeScreen() {
               <StreakPill />
             </View>
             <View style={s.avatarBtn}>
-              <AvatarRing ring={profile?.avatar_ring} size={50}>
+              <AvatarRing ring={profile?.avatar_ring} size={AVATAR}>
                 <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
                   {avatarUrl ? (
                     <Image
@@ -907,20 +910,20 @@ const s = StyleSheet.create({
     color: "rgba(245,240,232,0.82)",
     marginTop: 4,
   },
-  avatarGroup: { flexDirection: "row", alignItems: "center" },
-  // Pillens högra kant ligger ovanpå profilbildens vänstra kant
-  streakOverlap: { marginRight: -14, zIndex: 2 },
+  avatarGroup: { flexDirection: "row", alignItems: "flex-end" },
+  // Pillens högra kant ligger ovanpå profilbildens vänstra kant, nere vid bildens nederkant
+  streakOverlap: { marginRight: -14, marginBottom: -4, zIndex: 2 },
   avatarBtn: {
     position: "relative",
-    width: 50, height: 50,
+    width: AVATAR, height: AVATAR,
   },
   // Ingen egen kant — en ring runt profilbilden finns bara om man valt en i Utseende (AvatarRing)
   avatarFallback: {
-    width: 50, height: 50, borderRadius: 25,
+    width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",
   },
-  avatarInitials: { fontSize: 18, fontFamily: "Montserrat_700Bold", color: colors.foreground },
+  avatarInitials: { fontSize: 21, fontFamily: "Montserrat_700Bold", color: colors.foreground },
 
   // Scroll
   scrollView: { flex: 1, zIndex: 1 },
