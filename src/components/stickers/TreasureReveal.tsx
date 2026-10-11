@@ -15,19 +15,24 @@
  *  5. "Se i samlingen" (öppnar Mitt Österlen bakom den mörka bakgrunden, där skatten sen klistras
  *     in) eller "Fortsätt".
  *
+ * Prestanda: inget tungt skapas i ett ögonblick då något rör sig. Bara kistan finns från start;
+ * explosionens konfetti, skatten, dess glöd och texterna byggs medan kistan står still och väntar
+ * på första trycket, och tonas sen bara fram. Vid utgången tonas innehållet först, sen tas allt
+ * tungt bort bakom en stilla mörk yta, och först därefter tonas bakgrunden.
+ *
  * Servern (collect_sticker, som själv kontrollerar avståndet) frågas direkt när kistan visas, så
  * svaret hinner komma medan man trycker. Har det inte kommit vid fjärde trycket fortsätter kistan
  * bulta tills det gör det. Säger servern nej slocknar kistan med ett besked.
  */
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, cancelAnimation, interpolate, useAnimatedStyle, useSharedValue, withDelay, withRepeat,
   withSequence, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { useCollectSticker, type Collectible } from "@/hooks/useCollectibles";
+import { stickerImageUrl, useCollectSticker, type Collectible } from "@/hooks/useCollectibles";
 import { playSound } from "@/lib/sounds";
 import { holdTrophyMoments } from "@/lib/trophyMoments";
 import { addTreasureToPlace } from "@/lib/treasurePlacement";
@@ -67,7 +72,10 @@ export function TreasureReveal({
   const [opened, setOpened] = useState(false);
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [landed, setLanded] = useState(false);
+  // Andra steget (explosionen, skatten, texterna) byggs först när kistan landat och står still
+  const [armed, setArmed] = useState(false);
+  // Utgången: allt tungt bort när innehållet tonats ut, så bakgrunden kan tonas mjukt
+  const [cleared, setCleared] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
@@ -102,6 +110,7 @@ export function TreasureReveal({
   const glow = useSharedValue(0);
   const text = useSharedValue(0);
   const hint = useSharedValue(0);
+  const landGlow = useSharedValue(0);
 
   // Utmaningsfirandet väntar medan kistan är öppen
   useEffect(() => holdTrophyMoments(), []);
@@ -120,8 +129,10 @@ export function TreasureReveal({
     );
   };
 
-  // 1. In: kistan dundrar ner, och servern frågas direkt
+  // 1. In: kistan dundrar ner, och servern frågas direkt. Skattens bild förhämtas, så den är
+  // laddad när kistan exploderar även om man trycker blixtsnabbt
   useEffect(() => {
+    if (collectible.imagePath) Image.prefetch(stickerImageUrl(collectible.imagePath)).catch(() => {});
     backdrop.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) });
     chestIn.value = withDelay(120, withTiming(1, { duration: 380, easing: Easing.in(Easing.cubic) }));
     later(500, () => {
@@ -133,6 +144,7 @@ export function TreasureReveal({
       rays.value = withTiming(0.12, { duration: 600 });
     });
     hint.value = withDelay(750, withTiming(1, { duration: 300 }));
+    later(650, () => setArmed(true));
     collect
       .mutateAsync({ collectibleId: collectible.id, lat: userLoc.latitude, lng: userLoc.longitude })
       .then(() => {
@@ -218,10 +230,8 @@ export function TreasureReveal({
     zoom.value = withDelay(BOOM_DELAY, withTiming(0, { duration: 500 }));
     hint.value = withTiming(0, { duration: 150 });
     rise.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 750, easing: Easing.out(Easing.back(1.4)) }));
-    later(BOOM_DELAY + 790, () => {
-      setLanded(true);
-      hit(Haptics.ImpactFeedbackStyle.Medium);
-    });
+    later(BOOM_DELAY + 790, () => hit(Haptics.ImpactFeedbackStyle.Medium));
+    landGlow.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 500 }));
     text.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) }));
     later(BOOM_DELAY + 1500, () => setReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,8 +242,10 @@ export function TreasureReveal({
     setLeaving(true);
     leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) });
     rays.value = withTiming(0, { duration: 260 });
-    const fadeAt = toCollection ? 900 : 140;
-    if (toCollection) setTimeout(onNavigate, 300);
+    // Innehållet tonas ut (260 ms), sen tas allt tungt bort bakom den stilla mörka bakgrunden
+    setTimeout(() => setCleared(true), 280);
+    const fadeAt = toCollection ? 950 : 360;
+    if (toCollection) setTimeout(onNavigate, 330);
     backdrop.value = withDelay(fadeAt, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
     setTimeout(onClose, fadeAt + 340);
   };
@@ -271,13 +283,15 @@ export function TreasureReveal({
       { rotate: `${interpolate(rise.value, [0, 1], [0, -360])}deg` },
     ],
   }));
+  const landGlowStyle = useAnimatedStyle(() => ({ opacity: landGlow.value }));
   const hintStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, hint.value), transform: [{ scale: Math.max(1, hint.value) }] }));
   const textStyle = useAnimatedStyle(() => ({
     opacity: text.value,
     transform: [{ translateY: interpolate(text.value, [0, 1], [18, 0]) }],
   }));
 
-  const raysSize = Math.max(width, height) * 1.6;
+  // Precis stor nog att nå skärmens hörn från kistan — en större SVG kostar bara mer att rita
+  const raysSize = Math.hypot(width, height) * 1.05;
   const glowSize = width * 1.4;
   const bottomPad = Math.max(insets.bottom, 16) + 8;
   const showDescription = !!collectible.description && height >= 720;
@@ -286,6 +300,7 @@ export function TreasureReveal({
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo(false)}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
+        {!cleared && (<>
         {/* Strålkrans och glöd över hela skärmen */}
         <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">
           <View style={[s.anchor, { top: chestY - raysSize / 2, left: (width - raysSize) / 2, width: raysSize, height: raysSize }]}>
@@ -322,7 +337,8 @@ export function TreasureReveal({
               </View>
             </Reanimated.View>
 
-            {/* Explosionen och skatten */}
+            {/* Explosionen och skatten — byggs i förväg (armed), syns först vid smällen */}
+            {armed && (<>
             <View style={[s.anchor, { top: chestY - 1, left: width / 2 - 1, width: 2, height: 2 }]} pointerEvents="none">
               <Confetti progress={burst} count={80} power={1.7} durationS={1.6} />
             </View>
@@ -330,16 +346,18 @@ export function TreasureReveal({
               style={[s.anchor, { top: finalY - STICKER / 2, left: (width - STICKER) / 2, width: STICKER, height: STICKER }, stickerStyle]}
               pointerEvents="none"
             >
-              <View style={[s.anchor, { width: STICKER, height: STICKER, top: 0, left: 0 }]}>
-                {landed && <RadialGlow size={STICKER} color={GOLD} opacity={0.35} radiusRatio={0.75} />}
-              </View>
+              <Reanimated.View style={[s.anchor, { width: STICKER, height: STICKER, top: 0, left: 0 }, landGlowStyle]}>
+                <RadialGlow size={STICKER} color={GOLD} opacity={0.35} radiusRatio={0.75} />
+              </Reanimated.View>
               {/* Renderas från start (osynlig) så bilden hunnit laddas när kistan exploderar */}
               <View style={{ transform: [{ rotate: "-4deg" }] }}>
                 <StickerArt imagePath={collectible.imagePath} size={STICKER} silhouette={false} />
               </View>
             </Reanimated.View>
 
-            {!opened && !error && (
+            </>)}
+
+            {!error && (
               <View style={[s.below, { top: chestY + chestH / 2 + 18 }]} pointerEvents="none">
                 <Reanimated.Text style={[s.hint, hintStyle]}>{HINTS[Math.min(taps, TAPS - 1)]}</Reanimated.Text>
               </View>
@@ -349,7 +367,7 @@ export function TreasureReveal({
                 <Text style={s.error}>{error}</Text>
               </View>
             )}
-            {opened && (
+            {armed && (
               <Reanimated.View style={[s.below, { top: finalY + STICKER / 2 + 10 }, textStyle]} pointerEvents="none">
                 <Text style={s.eyebrow}>DU HITTADE EN SKATT!</Text>
                 <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
@@ -358,7 +376,7 @@ export function TreasureReveal({
                     <Text style={s.progressLabel}>Österlens skatter</Text>
                     <Text style={s.progressCount}>{haveBefore + 1} av {total}</Text>
                   </View>
-                  <FillBar from={haveBefore / Math.max(1, total)} to={(haveBefore + 1) / Math.max(1, total)} startAt={BOOM_DELAY + 950} durationMs={700} skip={false} />
+                  <FillBar from={haveBefore / Math.max(1, total)} to={(haveBefore + 1) / Math.max(1, total)} startAt={BOOM_DELAY + 950} durationMs={700} skip={false} play={opened} />
                 </View>
                 {showDescription ? <Text style={s.description} numberOfLines={3}>{collectible.description}</Text> : null}
               </Reanimated.View>
@@ -385,6 +403,7 @@ export function TreasureReveal({
         </Reanimated.View>
 
         <Reanimated.View style={[StyleSheet.absoluteFill, s.flash, flashStyle]} pointerEvents="none" />
+        </>)}
       </View>
     </Modal>
   );

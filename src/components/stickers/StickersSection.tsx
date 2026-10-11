@@ -62,7 +62,8 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loaded, collectedLoaded]);
 
-  // Nästa i tur: scrolla så rutan syns lite ovanför mitten, och släpp skatten
+  // Nästa i tur: scrolla så rutan syns lite ovanför mitten, och släpp skatten. Den första väntar
+  // tills sidan hunnit byggas klart och firandets mörka bakgrund tonats bort
   useEffect(() => {
     if (dropping || waiting.length === 0) return;
     const id = waiting[0];
@@ -70,7 +71,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
     timers.push(setTimeout(() => {
       scrollTo?.(sectionY.current + gridY.current + (cellY.current[id] ?? 0) - winH * 0.38);
       timers.push(setTimeout(() => setDropping(id), 650));
-    }, firstDrop.current ? 900 : 350));
+    }, firstDrop.current ? 1300 : 350));
     firstDrop.current = false;
     return () => timers.forEach(clearTimeout);
   }, [waiting, dropping, scrollTo, winH]);
@@ -123,7 +124,12 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
 }
 
 /** En ruta i samlingen. "waiting" = hittad men inte inklistrad än (visas mörk), "dropping" =
- * skatten klistras in just nu. */
+ * skatten klistras in just nu.
+ *
+ * Ingenting byts ut mitt i: den färgade bilden som ska falla ner finns redan på plats (osynlig)
+ * medan rutan väntar, den landar RAK exakt där den ska sitta, och efter landningen är det samma
+ * bild som ligger kvar — den mörka under tonas bara bort. Att byta bild i landningsögonblicket
+ * syntes som ett hack. */
 function StickerCell({
   collectible, has, placement, onLanded, onLayout, onPress,
 }: {
@@ -136,12 +142,16 @@ function StickerCell({
 }) {
   const drop = useSharedValue(0);
   const squash = useSharedValue(1);
-  const shown = has && placement === null;
+  // Har klistrats in under det här besöket på sidan: den nedfallna bilden ligger kvar för gott
+  const [settled, setSettled] = useState(false);
+  const placing = placement !== null || settled;
+  const shown = has && !placing;
 
   const landed = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 140);
     squash.value = withSequence(withTiming(0.86, { duration: 70 }), withSpring(1, { damping: 9, stiffness: 260 }));
+    setSettled(true);
     setTimeout(onLanded, 650);
   };
 
@@ -159,24 +169,31 @@ function StickerCell({
     transform: [
       { translateY: interpolate(drop.value, [0, 1], [-ART * 1.4, 0]) },
       { scale: interpolate(drop.value, [0, 1], [2.4, 1]) * squash.value },
-      { rotate: `${interpolate(drop.value, [0, 1], [-28, -5])}deg` },
+      { rotate: `${interpolate(drop.value, [0, 1], [-28, 0])}deg` },
     ],
   }));
-  const restStyle = useAnimatedStyle(() => ({ transform: [{ scale: squash.value }] }));
+  const darkStyle = useAnimatedStyle(() => ({
+    opacity: 1 - interpolate(drop.value, [0.9, 1], [0, 1], "clamp"),
+    transform: [{ scale: squash.value }],
+  }));
 
   return (
     <TouchableOpacity style={s.cell} activeOpacity={0.8} onPress={onPress} onLayout={onLayout}>
       <View style={{ width: ART, height: ART }}>
-        <Reanimated.View style={restStyle}>
+        {placing ? (
+          <>
+            <Reanimated.View style={[StyleSheet.absoluteFill, darkStyle]}>
+              <StickerArt imagePath={collectible.imagePath} size={ART} silhouette />
+            </Reanimated.View>
+            <Reanimated.View style={[StyleSheet.absoluteFill, dropStyle]} pointerEvents="none">
+              <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={false} />
+            </Reanimated.View>
+          </>
+        ) : (
           <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={!shown} />
-        </Reanimated.View>
-        {placement === "dropping" && (
-          <Reanimated.View style={[StyleSheet.absoluteFill, dropStyle]} pointerEvents="none">
-            <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={false} />
-          </Reanimated.View>
         )}
       </View>
-      <Text style={[s.name, shown && { color: FG }]} numberOfLines={2}>{collectible.name}</Text>
+      <Text style={[s.name, (shown || settled) && { color: FG }]} numberOfLines={2}>{collectible.name}</Text>
     </TouchableOpacity>
   );
 }

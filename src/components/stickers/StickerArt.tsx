@@ -4,6 +4,7 @@
  * (En helt platt siluett blev bara en knölig klump för detaljrika motiv som Ales stenar.)
  * Saknas konstfilen visas en lila platshållare tills den finns.
  */
+import { useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import Svg, { Circle, Polygon } from "react-native-svg";
 import { stickerImageUrl } from "@/hooks/useCollectibles";
@@ -14,6 +15,9 @@ const SILHOUETTE = "#3A3A44";
 export function StickerArt({
   imagePath, size, silhouette,
 }: { imagePath: string | null; size: number; silhouette: boolean }) {
+  // Den mörka kopian måste ha laddats innan den färgade bilden under får synas — annars blinkar
+  // varje låst skatt till i färg medan bilderna laddas (som ett tåg genom samlingen)
+  const [darkReady, setDarkReady] = useState(false);
   if (imagePath) {
     const uri = stickerImageUrl(imagePath);
     if (!silhouette) {
@@ -22,10 +26,10 @@ export function StickerArt({
     return (
       <View style={{ width: size, height: size }}>
         {/* Bilden själv, lätt suddig */}
-        <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="contain" blurRadius={Math.max(1, size / 40)} />
+        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { opacity: darkReady ? 1 : 0 }]} resizeMode="contain" blurRadius={Math.max(1, size / 40)} />
         {/* Samma form i mörkt ovanpå (tintColor = alla synliga pixlar i en färg) — släpper igenom
             en skymt av motivet */}
-        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { tintColor: SILHOUETTE, opacity: 0.84 }]} resizeMode="contain" />
+        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { tintColor: SILHOUETTE, opacity: 0.84 }]} resizeMode="contain" onLoad={() => setDarkReady(true)} />
       </View>
     );
   }

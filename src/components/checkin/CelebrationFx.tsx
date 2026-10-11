@@ -5,7 +5,7 @@
  * samma partiklar, samma rörelser, samma vibrationer, samma knapp — i stället för att varje
  * ögonblick uppfinner sina egna.
  */
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Image, StyleSheet, Text, View, type TextStyle, type StyleProp, type ViewStyle } from "react-native";
 import Reanimated, {
   Easing, FadeInDown, FadeOutUp, interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle,
@@ -26,7 +26,7 @@ const CONFETTI_COLORS = ["#FFF1C1", "#F5D88A", "#E9C46A", "#C9A24C", "#FFFFFF"];
  * var och en med egen fart, rotation och snurr. Styrs av ett enda värde 0→1 (`progress`) som
  * föräldern animerar; ligger osynlig på 0. Lägg komponenten i den punkt den ska skjutas ut från.
  */
-export function Confetti({
+export const Confetti = memo(function Confetti({
   progress, count = 30, power = 1, durationS = 1.3, colors = CONFETTI_COLORS,
 }: { progress: SharedValue<number>; count?: number; power?: number; durationS?: number; colors?: string[] }) {
   const pieces = useMemo(
@@ -51,7 +51,7 @@ export function Confetti({
       {pieces.map((p, i) => <ConfettiPiece key={i} piece={p} progress={progress} durationS={durationS} />)}
     </View>
   );
-}
+});
 
 function ConfettiPiece({
   piece, progress, durationS,
@@ -91,7 +91,7 @@ function ConfettiPiece({
  * Mjuka guldstrålar som långsamt roterar bakom en belöning (som i spel) — tonar ut mot kanten med
  * en radiell gradient. `visible` 0→1 styrs av föräldern; själva rotationen går av sig själv.
  */
-export function GoldRays({
+export const GoldRays = memo(function GoldRays({
   size, visible, maxOpacity = 0.5, color = "#F5D88A",
 }: { size: number; visible: SharedValue<number>; maxOpacity?: number; color?: string }) {
   const reduceMotion = useReducedMotion();
@@ -127,7 +127,7 @@ export function GoldRays({
       </Svg>
     </Reanimated.View>
   );
-}
+});
 
 // ─── Rullande siffra ───────────────────────────────────────────────────────────
 /**
@@ -236,10 +236,14 @@ function rumble(k: number) {
  * inte om på alla telefoner (då flyttade sig bara den ljusa pricken medan stapeln stod still).
  */
 export function FillBar({
-  from, to, startAt, durationMs = 1200, skip, height = 12, celebrate = false, onFull,
+  from, to, startAt, durationMs = 1200, skip, height = 12, celebrate = false, play = true, onFull,
 }: {
   from: number; to: number; startAt: number; durationMs?: number; skip: boolean;
-  height?: number; celebrate?: boolean; onFull?: () => void;
+  height?: number; celebrate?: boolean;
+  /** false = stapeln står stilla tills den blir true (startAt räknas därifrån) — så den kan
+   * finnas på plats osynligt i förväg i stället för att skapas mitt i en animation */
+  play?: boolean;
+  onFull?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const gradId = `fill${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -267,6 +271,7 @@ export function FillBar({
       shine.value = 0;
       return;
     }
+    if (!play) return;
     timers.current.push(setTimeout(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
       playSound("fill");
@@ -280,7 +285,7 @@ export function FillBar({
     }
     return () => timers.current.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [skip]);
+  }, [skip, play]);
 
   useAnimatedReaction(
     () => Math.floor(easeIn(run.value) * FILL_TICKS),
