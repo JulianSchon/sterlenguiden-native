@@ -209,6 +209,8 @@ export function TrophyCelebration({
               <View style={s.levelPill}>
                 <Text style={s.levelText}>{trophy.levelLabel} · {trophy.levelName}</Text>
               </View>
+              {/* Vad man gjorde — kopplar ihop handlingen med belöningen */}
+              <Text style={s.why}>✓  {trophy.requirementText}</Text>
             </Reanimated.View>
 
             <Reanimated.View style={[s.next, nextStyle]}>
@@ -271,6 +273,7 @@ const s = StyleSheet.create({
     backgroundColor: "#1C1A15", borderWidth: 1, borderColor: "rgba(233,196,106,0.55)",
   },
   levelText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
+  why: { fontFamily: "Inter_500Medium", fontSize: 15, color: "rgba(245,241,232,0.8)", marginTop: 10, textAlign: "center" },
   next: {
     alignSelf: "stretch", marginTop: 26, padding: 14, borderRadius: 18,
     backgroundColor: "#17171A", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",

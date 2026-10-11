@@ -16,15 +16,28 @@ import { buildTrophies, computeUserStats, type Trophy } from "@/lib/achievements
  * och incheckningens belöningsskärm — så de aldrig kan visa olika saker.
  */
 export function useTrophies() {
-  const { data: visits = [] } = useVisits();
-  const { data: places = [], isLoading: placesLoading } = usePlaces();
-  const { data: favorites = [] } = useFavorites();
-  const { data: redemptions = [] } = useOfferRedemptions();
-  const { data: dismissedIds = [] } = useDismissals();
-  const { data: achievements = [], isLoading: achievementsLoading } = useAchievements();
+  const visitsQ = useVisits();
+  const placesQ = usePlaces();
+  const favoritesQ = useFavorites();
+  const redemptionsQ = useOfferRedemptions();
+  const dismissalsQ = useDismissals();
+  const achievementsQ = useAchievements();
   const { user } = useAuth();
-  const { data: lists = [] } = useLists();
-  const { data: memories = [] } = useMemories();
+  const listsQ = useLists();
+  const memoriesQ = useMemories();
+  const { data: visits = [] } = visitsQ;
+  const { data: places = [], isLoading: placesLoading } = placesQ;
+  const { data: favorites = [] } = favoritesQ;
+  const { data: redemptions = [] } = redemptionsQ;
+  const { data: dismissedIds = [] } = dismissalsQ;
+  const { data: achievements = [], isLoading: achievementsLoading } = achievementsQ;
+  const { data: lists = [] } = listsQ;
+  const { data: memories = [] } = memoriesQ;
+  // Allt som troféerna räknas ur har hämtats minst en gång. Loggen över klarade troféer måste ha
+  // LYCKATS — misslyckas den ser alla klara troféer ut som nya. Misslyckas något annat räknas det
+  // bara som tomt, vilket aldrig får något att se klart ut som inte är det.
+  const allLoaded = achievementsQ.isSuccess
+    && [visitsQ, placesQ, favoritesQ, redemptionsQ, dismissalsQ, listsQ, memoriesQ].every((q) => q.isFetched);
   const listsCreated = lists.filter((l) => l.ownerId === user?.id).length;
 
   const stats = useMemo(
@@ -33,7 +46,7 @@ export function useTrophies() {
   );
   const trophies = useMemo(() => buildTrophies(stats, achievements), [stats, achievements]);
 
-  return { stats, trophies, isLoading: placesLoading || achievementsLoading };
+  return { stats, trophies, isLoading: placesLoading || achievementsLoading, allLoaded };
 }
 
 // Delas av alla skärmar som kallar useGrantNewTrophies, så samma trofé aldrig
