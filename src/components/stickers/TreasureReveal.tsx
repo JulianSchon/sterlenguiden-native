@@ -232,7 +232,7 @@ export function TreasureReveal({
           <Pressable style={s.root} onPress={tap}>
             {/* Kistan och skatten, centrerade kring samma punkt */}
             <View style={[s.anchor, { top: centerY - STICKER / 2, left: (width - STICKER) / 2, width: STICKER, height: STICKER }]} pointerEvents="none">
-              <Reanimated.View style={[{ width: CHEST, height: chestH, marginTop: STICKER * 0.2 }, chestStyle]}>
+              <Reanimated.View style={[{ width: CHEST, height: chestH, marginTop: STICKER * 0.06 }, chestStyle]}>
                 <View style={StyleSheet.absoluteFill}><ChestBase size={CHEST} /></View>
                 <Reanimated.View style={[s.seam, { top: seamY - 3, left: CHEST * 0.08, width: CHEST * 0.84 }, seamStyle]} />
                 <Reanimated.View style={[StyleSheet.absoluteFill, lidStyle]}><ChestLid size={CHEST} /></Reanimated.View>
