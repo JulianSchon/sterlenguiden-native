@@ -40,6 +40,7 @@ import { useEvents, type Event } from "@/hooks/useEvents";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { AvatarRing } from "@/components/profile/AvatarRing";
+import { StreakPill } from "@/components/streak/StreakPill";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { useFavorites, useToggleFavorite, useIsFavorite } from "@/hooks/useFavorites";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
@@ -654,28 +655,29 @@ export default function HomeScreen() {
               {getGreeting()}{firstName ? `, ${firstName}` : ""}
             </Text>
           </View>
+          {/* Streaken + profilbilden — ett enda tryck som leder till Mitt Österlen */}
           <TouchableOpacity
-            style={s.avatarBtn}
-            onPress={() => router.push("/(tabs)/profile" as any)}
+            style={s.avatarGroup}
+            onPress={() => router.push("/mitt-osterlen" as any)}
             activeOpacity={0.85}
           >
-            <AvatarRing ring={profile?.avatar_ring} size={50}>
-              <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
-                {avatarUrl ? (
-                  <Image
-                    source={{ uri: avatarUrl }}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Text style={[s.avatarInitials, { color: toneOnTone(profile?.circle_color ?? "#2A2A2A") }]}>
-                    {initialsOf(profile?.display_name ?? "") || "?"}
-                  </Text>
-                )}
-              </View>
-            </AvatarRing>
-            <View style={s.levelBadge}>
-              <Text style={s.levelText}>1</Text>
+            <StreakPill />
+            <View style={s.avatarBtn}>
+              <AvatarRing ring={profile?.avatar_ring} size={50}>
+                <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
+                  {avatarUrl ? (
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={StyleSheet.absoluteFill}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text style={[s.avatarInitials, { color: toneOnTone(profile?.circle_color ?? "#2A2A2A") }]}>
+                      {initialsOf(profile?.display_name ?? "") || "?"}
+                    </Text>
+                  )}
+                </View>
+              </AvatarRing>
             </View>
           </TouchableOpacity>
         </View>
@@ -903,25 +905,18 @@ const s = StyleSheet.create({
     color: "rgba(245,240,232,0.82)",
     marginTop: 4,
   },
+  avatarGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
   avatarBtn: {
     position: "relative",
     width: 50, height: 50,
   },
+  // Ingen egen kant — en ring runt profilbilden finns bara om man valt en i Utseende (AvatarRing)
   avatarFallback: {
     width: 50, height: 50, borderRadius: 25,
-    borderWidth: 2.5, borderColor: colors.gold,
     alignItems: "center", justifyContent: "center",
     overflow: "hidden",
   },
-  avatarInitials: { fontSize: 18, fontFamily: "PlayfairDisplay_700Bold", color: colors.foreground },
-  levelBadge: {
-    position: "absolute", bottom: -2, right: -2,
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: colors.gold,
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5, borderColor: colors.background,
-  },
-  levelText: { fontSize: 10, fontWeight: "800", color: "#1a1200" },
+  avatarInitials: { fontSize: 18, fontFamily: "Montserrat_700Bold", color: colors.foreground },
 
   // Scroll
   scrollView: { flex: 1, zIndex: 1 },
