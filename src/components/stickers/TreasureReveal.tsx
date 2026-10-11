@@ -1,28 +1,32 @@
 /**
- * Upplåsningen av en skatt: en skattkista man själv trycker upp.
+ * Upplåsningen av en skatt: en stor skattkista man själv trycker upp. Byggd för att trappa upp
+ * spänningen snabbt och sen smälla — inte ett jämnt tempo:
  *
- *  1. Kistan faller ner i mitten med en duns. "Tryck på kistan för att öppna den."
- *  2. Varje tryck skakar kistan (mer för varje gång), guldljuset läcker ut genom springan under
- *     locket, gnistor sprutar och vibrationen blir kraftigare (lätt → medel → kraftig).
- *  3. Fjärde trycket: locket sprängs av, blixt över hela skärmen, strålkransen tänds, konfetti —
- *     och skatten svävar upp ur kistan, snurrar ett varv och landar stort, lite snett, som ett
- *     riktigt klistermärke.
- *  4. "Du hittade en skatt!", namnet, samlingens stapel (2 → 3 av 24) och kuriosan.
+ *  1. In (0,6 s): skärmen mörknar, kistan dundrar ner i mitten (stor, nästan skärmbredd) med en
+ *     tung duns, en skakning av hela bilden och ett dammoln.
+ *  2. Trycken (fyra): varje tryck får kistan att hoppa och skaka hårdare, ljus strålar ut ur
+ *     springan under locket (mer för varje gång), "kameran" zoomar in, gnistor sprutar och
+ *     vibrationen blir kraftigare. Mellan trycken darrar kistan och bultar som ett hjärta.
+ *     Texten driver på: "Tryck på kistan!" → "Igen!" → "Mer!" → "Nästan…!"
+ *  3. Smällen: kistan glöder vitt och skakar okontrollerat i en kvarts sekund — sen exploderar
+ *     den: blixt över hela skärmen, locket skjuts av, konfetti över hela skärmen, strålkransen
+ *     tänds, och skatten skjuter upp ur kistan, snurrar ett varv och landar stort.
+ *  4. Snabbt efter: "Du hittade en skatt!", namnet, samlingens stapel och kuriosan.
  *  5. "Se i samlingen" (öppnar Mitt Österlen bakom den mörka bakgrunden, där skatten sen klistras
  *     in) eller "Fortsätt".
  *
  * Servern (collect_sticker, som själv kontrollerar avståndet) frågas direkt när kistan visas, så
  * svaret hinner komma medan man trycker. Har det inte kommit vid fjärde trycket fortsätter kistan
- * skaka av sig själv tills det gör det. Säger servern nej tonar kistan bort med ett besked.
+ * bulta tills det gör det. Säger servern nej slocknar kistan med ett besked.
  */
 import { useEffect, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Reanimated, {
-  Easing, interpolate, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming,
+  Easing, cancelAnimation, interpolate, useAnimatedStyle, useSharedValue, withDelay, withRepeat,
+  withSequence, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { useAuth } from "@/hooks/useAuth";
 import { useCollectSticker, type Collectible } from "@/hooks/useCollectibles";
 import { playSound } from "@/lib/sounds";
 import { holdTrophyMoments } from "@/lib/trophyMoments";
@@ -33,15 +37,14 @@ import { ChestBase, ChestLid, CHEST_H, CHEST_SEAM_Y, CHEST_W } from "./TreasureC
 import { StickerArt } from "./StickerArt";
 
 const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.7)";
+const MUTED = "rgba(245,241,232,0.72)";
 const TAPS = 4;
-const CHEST = 200;
-const STICKER = 220;
-const TAP_HAPTICS = [
-  Haptics.ImpactFeedbackStyle.Light, Haptics.ImpactFeedbackStyle.Medium,
-  Haptics.ImpactFeedbackStyle.Heavy, Haptics.ImpactFeedbackStyle.Heavy,
-];
+const HINTS = ["Tryck på kistan!", "Igen!", "Mer!", "Nästan…!"];
 const SPARKS = ["#FFF1C1", "#F5D88A", "#E9C46A", "#FFFFFF"];
+const DUST = ["#C9B38A", "#A88E62", "#E2D3B0"];
+const BOOM_DELAY = 300;
+
+const hit = (style: Haptics.ImpactFeedbackStyle) => Haptics.impactAsync(style).catch(() => {});
 
 export function TreasureReveal({
   collectible, userLoc, total, haveBefore, onNavigate, onClose,
@@ -58,25 +61,38 @@ export function TreasureReveal({
 }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const collect = useCollectSticker();
   const [taps, setTaps] = useState(0);
   const [found, setFound] = useState(false);
   const [opened, setOpened] = useState(false);
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [landed, setLanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
 
+  // Storlekar: kistan nästan skärmbredd, skatten lika stor när den landat
+  const CHEST = Math.round(Math.min(width * 0.86, height * 0.44));
+  const STICKER = Math.round(Math.min(width * 0.8, height * 0.36));
+  const chestY = height * 0.42;
+  const finalY = height * 0.33;
+  const chestH = (CHEST * CHEST_H) / CHEST_W;
+  const seamOffset = chestH * (CHEST_SEAM_Y / CHEST_H) - chestH / 2; // springan mot kistans mitt
+
   const backdrop = useSharedValue(0);
   const leave = useSharedValue(0);
   const chestIn = useSharedValue(0);
+  const squash = useSharedValue(0);
+  const jump = useSharedValue(0);
   const shake = useSharedValue(0);
-  const bump = useSharedValue(0);
+  const tremble = useSharedValue(0);
+  const zoom = useSharedValue(0);
+  const screenShake = useSharedValue(0);
   const seam = useSharedValue(0);
+  const hot = useSharedValue(0);
   const sparks = useSharedValue(0);
-  const hint = useSharedValue(0);
+  const dust = useSharedValue(0);
   const lid = useSharedValue(0);
   const chestOut = useSharedValue(0);
   const rise = useSharedValue(0);
@@ -85,82 +101,129 @@ export function TreasureReveal({
   const burst = useSharedValue(0);
   const glow = useSharedValue(0);
   const text = useSharedValue(0);
+  const hint = useSharedValue(0);
 
   // Utmaningsfirandet väntar medan kistan är öppen
   useEffect(() => holdTrophyMoments(), []);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
-  // Kistan faller ner, och servern frågas direkt
+  const shakeScreen = (px: number) => {
+    screenShake.value = withSequence(
+      withTiming(px, { duration: 40 }), withTiming(-px * 0.8, { duration: 50 }),
+      withTiming(px * 0.5, { duration: 50 }), withTiming(0, { duration: 60 }),
+    );
+  };
+  const setTremble = (deg: number) => {
+    cancelAnimation(tremble);
+    tremble.value = deg === 0 ? withTiming(0, { duration: 80 }) : withRepeat(
+      withSequence(withTiming(deg, { duration: 55 }), withTiming(-deg, { duration: 55 })), -1, true,
+    );
+  };
+
+  // 1. In: kistan dundrar ner, och servern frågas direkt
   useEffect(() => {
-    backdrop.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
-    chestIn.value = withDelay(150, withTiming(1, { duration: 420, easing: Easing.in(Easing.quad) }));
-    later(570, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}));
-    bump.value = withDelay(570, withSequence(withTiming(-0.6, { duration: 80 }), withTiming(0, { duration: 260, easing: Easing.out(Easing.back(2)) })));
-    hint.value = withDelay(900, withTiming(1, { duration: 400 }));
+    backdrop.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) });
+    chestIn.value = withDelay(120, withTiming(1, { duration: 380, easing: Easing.in(Easing.cubic) }));
+    later(500, () => {
+      hit(Haptics.ImpactFeedbackStyle.Heavy);
+      shakeScreen(7);
+      squash.value = withSequence(withTiming(1, { duration: 70 }), withTiming(0, { duration: 280, easing: Easing.out(Easing.back(2.5)) }));
+      dust.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
+      glow.value = withTiming(0.2, { duration: 400 });
+      rays.value = withTiming(0.12, { duration: 600 });
+    });
+    hint.value = withDelay(750, withTiming(1, { duration: 300 }));
     collect
       .mutateAsync({ collectibleId: collectible.id, lat: userLoc.latitude, lng: userLoc.longitude })
       .then(() => {
         setFound(true);
-        if (user) addTreasureToPlace(user.id, collectible.id);
+        addTreasureToPlace(collectible.id);
       })
       .catch((e: Error) => {
         setError(e.message === "too_far"
           ? "Du är för långt bort. Gå lite närmare och försök igen."
           : "Det gick inte att öppna kistan. Försök igen.");
-        hint.value = withTiming(0, { duration: 200 });
+        setTremble(0);
+        seam.value = withTiming(0, { duration: 300 });
+        glow.value = withTiming(0, { duration: 300 });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Ett tryck: skaka, mer ljus genom springan, gnistor, kraftigare vibration
-  const shakeOnce = (strength: number) => {
-    const deg = 3 + strength * 2.5;
+  // 2. Ett tryck: hopp, skak, gnistor (ljuset, zoomen och vibrationen sätts i tap)
+  const punch = (n: number) => {
+    jump.value = withSequence(withTiming(1, { duration: 90, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 230, easing: Easing.in(Easing.quad) }));
+    const deg = 4 + n * 3;
     shake.value = withSequence(
       withTiming(deg, { duration: 45 }), withTiming(-deg, { duration: 70 }),
       withTiming(deg * 0.6, { duration: 60 }), withTiming(-deg * 0.3, { duration: 55 }), withTiming(0, { duration: 60 }),
     );
-    bump.value = withSequence(withTiming(1, { duration: 80 }), withTiming(0, { duration: 260, easing: Easing.out(Easing.quad) }));
+    later(320, () => {
+      squash.value = withSequence(withTiming(0.7, { duration: 60 }), withTiming(0, { duration: 240, easing: Easing.out(Easing.back(2)) }));
+    });
     sparks.value = 0;
-    sparks.value = withTiming(1, { duration: 700, easing: Easing.linear });
+    sparks.value = withTiming(1, { duration: 800, easing: Easing.linear });
+    if (n >= 3) shakeScreen(3 + n);
   };
 
   const tap = () => {
-    if (opened || error || leaving || chestIn.value < 1) return;
-    const n = Math.min(taps + 1, TAPS);
+    if (opened || error || leaving || chestIn.value < 1 || taps >= TAPS) return;
+    const n = taps + 1;
     setTaps(n);
-    shakeOnce(n);
-    seam.value = withTiming(n / TAPS, { duration: 200 });
-    hint.value = withTiming(0, { duration: 200 });
-    Haptics.impactAsync(TAP_HAPTICS[n - 1]).catch(() => {});
+    punch(n);
+    seam.value = withTiming(n / TAPS, { duration: 220 });
+    zoom.value = withTiming(n / TAPS, { duration: 320, easing: Easing.out(Easing.cubic) });
+    glow.value = withTiming(0.2 + n * 0.15, { duration: 300 });
+    rays.value = withTiming(0.12 + n * 0.1, { duration: 300 });
+    setTremble(n * 0.7);
+    hint.value = withSequence(withTiming(1.25, { duration: 90 }), withTiming(1, { duration: 200 }));
+    hit(n === 1 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Heavy);
+    if (n >= 3) later(90, () => hit(Haptics.ImpactFeedbackStyle.Rigid));
     playSound("tick");
   };
 
-  // Öppna när fjärde trycket gjorts OCH servern sagt ja — annars skakar kistan av sig själv tills dess
+  // Mellan trycken bultar kistan som ett hjärta (från andra trycket)
+  useEffect(() => {
+    if (taps < 2 || opened || error) return;
+    const id = setInterval(() => hit(Haptics.ImpactFeedbackStyle.Soft), 650);
+    return () => clearInterval(id);
+  }, [taps, opened, error]);
+
+  // 3. Smällen — när fjärde trycket gjorts OCH servern sagt ja; annars bultar kistan tills dess
   useEffect(() => {
     if (opened || error || taps < TAPS) return;
     if (!found) {
-      const id = setInterval(() => {
-        shakeOnce(TAPS);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      }, 650);
+      const id = setInterval(() => { punch(TAPS); hit(Haptics.ImpactFeedbackStyle.Medium); }, 700);
       return () => clearInterval(id);
     }
     setOpened(true);
-    const t0 = 160;
-    later(t0, () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    // Uppbyggnad: vitglödande, okontrollerat skakande
+    hot.value = withTiming(1, { duration: BOOM_DELAY, easing: Easing.in(Easing.quad) });
+    setTremble(5);
+    [0, 60, 120, 170, 215, 255].forEach((at, i) => later(at, () => hit(i < 3 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Rigid)));
+    // BOOM
+    later(BOOM_DELAY, () => {
+      setTremble(0);
+      hit(Haptics.ImpactFeedbackStyle.Heavy);
       playSound("milestone");
+      shakeScreen(14);
     });
-    later(t0 + 130, () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}));
-    lid.value = withDelay(t0, withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) }));
-    flash.value = withDelay(t0, withSequence(withTiming(1, { duration: 60 }), withTiming(0, { duration: 400 })));
-    rays.value = withDelay(t0, withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) }));
-    burst.value = withDelay(t0, withTiming(1, { duration: 1400, easing: Easing.linear }));
-    glow.value = withDelay(t0, withSequence(withTiming(1, { duration: 140 }), withTiming(0.6, { duration: 900 })));
-    rise.value = withDelay(t0 + 80, withTiming(1, { duration: 950, easing: Easing.out(Easing.cubic) }));
-    chestOut.value = withDelay(t0 + 450, withTiming(1, { duration: 500, easing: Easing.in(Easing.quad) }));
-    text.value = withDelay(t0 + 900, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
-    later(t0 + 2300, () => setReady(true));
+    later(BOOM_DELAY + 130, () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}));
+    flash.value = withDelay(BOOM_DELAY, withSequence(withTiming(1, { duration: 50 }), withTiming(0, { duration: 500 })));
+    lid.value = withDelay(BOOM_DELAY, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
+    chestOut.value = withDelay(BOOM_DELAY + 120, withTiming(1, { duration: 550, easing: Easing.in(Easing.quad) }));
+    burst.value = withDelay(BOOM_DELAY, withTiming(1, { duration: 1700, easing: Easing.linear }));
+    rays.value = withDelay(BOOM_DELAY, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
+    glow.value = withDelay(BOOM_DELAY, withSequence(withTiming(1, { duration: 120 }), withTiming(0.65, { duration: 900 })));
+    zoom.value = withDelay(BOOM_DELAY, withTiming(0, { duration: 500 }));
+    hint.value = withTiming(0, { duration: 150 });
+    rise.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 750, easing: Easing.out(Easing.back(1.4)) }));
+    later(BOOM_DELAY + 790, () => {
+      setLanded(true);
+      hit(Haptics.ImpactFeedbackStyle.Medium);
+    });
+    text.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) }));
+    later(BOOM_DELAY + 1500, () => setReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taps, found, error, opened]);
 
@@ -177,84 +240,117 @@ export function TreasureReveal({
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
   const contentStyle = useAnimatedStyle(() => ({ opacity: 1 - leave.value, transform: [{ translateY: leave.value * 24 }] }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: Math.max(glow.value, seam.value * 0.35) }));
-  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value * 0.2 }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value * 0.42 }));
+  // "Kameran": inzoomning per tryck + skakning av hela bilden
+  const stageStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: screenShake.value }, { scale: 1 + zoom.value * 0.14 }],
+  }));
   const chestStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(chestIn.value, [0, 0.3], [0, 1], "clamp") * (1 - chestOut.value),
+    opacity: interpolate(chestIn.value, [0, 0.25], [0, 1], "clamp") * (1 - chestOut.value),
     transform: [
-      { translateY: interpolate(chestIn.value, [0, 1], [-height * 0.4, 0]) + chestOut.value * 90 },
-      { rotate: `${shake.value}deg` },
-      { scaleX: 1 + bump.value * 0.05 },
-      { scaleY: 1 - bump.value * 0.04 },
+      { translateY: interpolate(chestIn.value, [0, 1], [-height * 0.6, 0]) - jump.value * 22 + chestOut.value * height * 0.3 },
+      { rotate: `${shake.value + tremble.value}deg` },
+      { scaleX: 1 + squash.value * 0.08 },
+      { scaleY: 1 - squash.value * 0.07 },
     ],
   }));
   const lidStyle = useAnimatedStyle(() => ({
-    opacity: 1 - interpolate(lid.value, [0.6, 1], [0, 1], "clamp"),
-    transform: [{ translateY: -lid.value * 170 }, { translateX: lid.value * 40 }, { rotate: `${lid.value * 38}deg` }],
+    transform: [{ translateY: -lid.value * height * 0.75 }, { translateX: lid.value * 60 }, { rotate: `${lid.value * 80}deg` }],
   }));
-  // Ljuset i springan mellan lock och botten — starkare för varje tryck
-  const seamStyle = useAnimatedStyle(() => ({ opacity: seam.value * (1 - lid.value) }));
+  const seamStyle = useAnimatedStyle(() => ({ opacity: Math.max(seam.value, hot.value) * (1 - lid.value) }));
+  // Ljuset som strålar ut ur springan (bakom kistan)
+  const beamsStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, seam.value * 0.9 + hot.value) * (1 - chestOut.value) }));
+  // Vitglöden över kistan precis före smällen
+  const hotStyle = useAnimatedStyle(() => ({ opacity: hot.value * 0.55 * (1 - lid.value) }));
   const stickerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(rise.value, [0, 0.15], [0, 1], "clamp"),
+    opacity: interpolate(rise.value, [0, 0.1], [0, 1], "clamp"),
     transform: [
-      { translateY: interpolate(rise.value, [0, 1], [CHEST * 0.15, -CHEST * 0.05]) },
-      { scale: interpolate(rise.value, [0, 0.7, 1], [0.25, 1.08, 1]) },
-      { rotate: `${interpolate(rise.value, [0, 1], [0, -366])}deg` },
+      { translateY: interpolate(rise.value, [0, 1], [chestY + seamOffset - finalY, 0]) },
+      { scale: interpolate(rise.value, [0, 1], [0.2, 1]) },
+      { rotate: `${interpolate(rise.value, [0, 1], [0, -360])}deg` },
     ],
   }));
-  const hintStyle = useAnimatedStyle(() => ({ opacity: hint.value }));
+  const hintStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, hint.value), transform: [{ scale: Math.max(1, hint.value) }] }));
   const textStyle = useAnimatedStyle(() => ({
     opacity: text.value,
-    transform: [{ translateY: interpolate(text.value, [0, 1], [16, 0]) }],
+    transform: [{ translateY: interpolate(text.value, [0, 1], [18, 0]) }],
   }));
 
-  const raysSize = width * 1.9;
-  const glowSize = width * 1.2;
-  const centerY = height * 0.34;
-  const chestH = (CHEST * CHEST_H) / CHEST_W;
-  const seamY = (CHEST * CHEST_SEAM_Y) / CHEST_W;
+  const raysSize = Math.max(width, height) * 1.6;
+  const glowSize = width * 1.4;
   const bottomPad = Math.max(insets.bottom, 16) + 8;
+  const showDescription = !!collectible.description && height >= 720;
 
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo(false)}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
+        {/* Strålkrans och glöd över hela skärmen */}
         <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">
-          <View style={[s.anchor, { top: centerY - raysSize / 2, left: (width - raysSize) / 2, width: raysSize, height: raysSize }]}>
-            <GoldRays size={raysSize} visible={rays} />
+          <View style={[s.anchor, { top: chestY - raysSize / 2, left: (width - raysSize) / 2, width: raysSize, height: raysSize }]}>
+            <GoldRays size={raysSize} visible={rays} maxOpacity={0.55} />
           </View>
-          <Reanimated.View style={[s.anchor, { top: centerY - glowSize / 2, left: (width - glowSize) / 2, width: glowSize, height: glowSize }, glowStyle]}>
-            <RadialGlow size={glowSize} color={GOLD} opacity={0.36} radiusRatio={0.55} />
+          <Reanimated.View style={[s.anchor, { top: chestY - glowSize / 2, left: (width - glowSize) / 2, width: glowSize, height: glowSize }, glowStyle]}>
+            <RadialGlow size={glowSize} color={GOLD} opacity={0.4} radiusRatio={0.6} />
           </Reanimated.View>
         </Reanimated.View>
 
         <Reanimated.View style={[s.root, contentStyle]} pointerEvents={leaving ? "none" : "auto"}>
           <Pressable style={s.root} onPress={tap}>
-            {/* Kistan och skatten, centrerade kring samma punkt */}
-            <View style={[s.anchor, { top: centerY - STICKER / 2, left: (width - STICKER) / 2, width: STICKER, height: STICKER }]} pointerEvents="none">
-              <Reanimated.View style={[{ width: CHEST, height: chestH, marginTop: STICKER * 0.06 }, chestStyle]}>
-                <View style={StyleSheet.absoluteFill}><ChestBase size={CHEST} /></View>
-                <Reanimated.View style={[s.seam, { top: seamY - 3, left: CHEST * 0.08, width: CHEST * 0.84 }, seamStyle]} />
-                <Reanimated.View style={[StyleSheet.absoluteFill, lidStyle]}><ChestLid size={CHEST} /></Reanimated.View>
-                <View style={s.sparkOrigin}>
-                  <Confetti progress={sparks} count={10} power={0.45} durationS={0.7} colors={SPARKS} />
+            {/* Kistan, med kamerans zoom och skak */}
+            <Reanimated.View style={[StyleSheet.absoluteFill, stageStyle]} pointerEvents="none">
+              <View style={[s.anchor, { top: chestY - chestH / 2, left: (width - CHEST) / 2, width: CHEST, height: chestH }]}>
+                {/* Ljuset ur springan, bakom kistan */}
+                <Reanimated.View style={[s.anchor, { top: chestH / 2 + seamOffset - CHEST, left: -CHEST / 2, width: CHEST * 2, height: CHEST * 2 }, beamsStyle]}>
+                  <GoldRays size={CHEST * 2} visible={seam} maxOpacity={0.9} />
+                </Reanimated.View>
+                <Reanimated.View style={[{ width: CHEST, height: chestH }, chestStyle]}>
+                  <View style={StyleSheet.absoluteFill}><ChestBase size={CHEST} /></View>
+                  <Reanimated.View style={[s.seam, { top: chestH / 2 + seamOffset - 4, left: CHEST * 0.1, width: CHEST * 0.8 }, seamStyle]} />
+                  <Reanimated.View style={[StyleSheet.absoluteFill, lidStyle]}><ChestLid size={CHEST} /></Reanimated.View>
+                  <Reanimated.View style={[s.anchor, { top: chestH / 2 + seamOffset - CHEST * 0.4, left: CHEST * 0.1, width: CHEST * 0.8, height: CHEST * 0.8 }, hotStyle]}>
+                    <RadialGlow size={CHEST * 0.8} color="#FFF4D6" opacity={1} radiusRatio={0.6} />
+                  </Reanimated.View>
+                </Reanimated.View>
+                <View style={[s.sparkOrigin, { top: chestH / 2 + seamOffset }]}>
+                  <Confetti progress={sparks} count={14} power={0.7} durationS={0.8} colors={SPARKS} />
                 </View>
-              </Reanimated.View>
-              <Reanimated.View style={[StyleSheet.absoluteFill, s.center, stickerStyle]}>
-                {/* Renderas från start (osynlig) så bilden hunnit laddas när locket flyger av */}
-                <StickerArt imagePath={collectible.imagePath} size={STICKER} silhouette={false} />
-              </Reanimated.View>
-              <View style={[StyleSheet.absoluteFill, s.center]}>
-                <Confetti progress={burst} count={40} power={1.15} />
+                <View style={[s.sparkOrigin, { top: chestH * 0.86 }]}>
+                  <Confetti progress={dust} count={14} power={0.35} durationS={0.7} colors={DUST} />
+                </View>
               </View>
-            </View>
+            </Reanimated.View>
 
-            <View style={[s.below, { top: centerY + STICKER / 2 + 12 }]} pointerEvents="none">
-              {!opened && !error && (
-                <Reanimated.Text style={[s.hint, hintStyle]}>Tryck på kistan för att öppna den</Reanimated.Text>
-              )}
-              {error && <Text style={s.error}>{error}</Text>}
-              <Reanimated.View style={[s.texts, textStyle]}>
+            {/* Explosionen och skatten */}
+            <View style={[s.anchor, { top: chestY - 1, left: width / 2 - 1, width: 2, height: 2 }]} pointerEvents="none">
+              <Confetti progress={burst} count={80} power={1.7} durationS={1.6} />
+            </View>
+            <Reanimated.View
+              style={[s.anchor, { top: finalY - STICKER / 2, left: (width - STICKER) / 2, width: STICKER, height: STICKER }, stickerStyle]}
+              pointerEvents="none"
+            >
+              <View style={[s.anchor, { width: STICKER, height: STICKER, top: 0, left: 0 }]}>
+                {landed && <RadialGlow size={STICKER} color={GOLD} opacity={0.35} radiusRatio={0.75} />}
+              </View>
+              {/* Renderas från start (osynlig) så bilden hunnit laddas när kistan exploderar */}
+              <View style={{ transform: [{ rotate: "-4deg" }] }}>
+                <StickerArt imagePath={collectible.imagePath} size={STICKER} silhouette={false} />
+              </View>
+            </Reanimated.View>
+
+            {!opened && !error && (
+              <View style={[s.below, { top: chestY + chestH / 2 + 18 }]} pointerEvents="none">
+                <Reanimated.Text style={[s.hint, hintStyle]}>{HINTS[Math.min(taps, TAPS - 1)]}</Reanimated.Text>
+              </View>
+            )}
+            {error && (
+              <View style={[s.below, { top: chestY + chestH / 2 + 18 }]} pointerEvents="none">
+                <Text style={s.error}>{error}</Text>
+              </View>
+            )}
+            {opened && (
+              <Reanimated.View style={[s.below, { top: finalY + STICKER / 2 + 10 }, textStyle]} pointerEvents="none">
                 <Text style={s.eyebrow}>DU HITTADE EN SKATT!</Text>
                 <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
                 <View style={s.progress}>
@@ -262,13 +358,11 @@ export function TreasureReveal({
                     <Text style={s.progressLabel}>Österlens skatter</Text>
                     <Text style={s.progressCount}>{haveBefore + 1} av {total}</Text>
                   </View>
-                  {opened && (
-                    <FillBar from={haveBefore / Math.max(1, total)} to={(haveBefore + 1) / Math.max(1, total)} startAt={1350} durationMs={900} skip={false} />
-                  )}
+                  <FillBar from={haveBefore / Math.max(1, total)} to={(haveBefore + 1) / Math.max(1, total)} startAt={BOOM_DELAY + 950} durationMs={700} skip={false} />
                 </View>
-                {collectible.description ? <Text style={s.description} numberOfLines={4}>{collectible.description}</Text> : null}
+                {showDescription ? <Text style={s.description} numberOfLines={3}>{collectible.description}</Text> : null}
               </Reanimated.View>
-            </View>
+            )}
           </Pressable>
 
           <View style={[s.buttons, { height: 118 + bottomPad, paddingBottom: bottomPad }]}>
@@ -301,25 +395,23 @@ const s = StyleSheet.create({
   backdrop: { backgroundColor: "#0B0A08" },
   flash: { backgroundColor: "#FFF6DE" },
   anchor: { position: "absolute", alignItems: "center", justifyContent: "center" },
-  center: { alignItems: "center", justifyContent: "center" },
   seam: {
-    position: "absolute", height: 6, borderRadius: 3, backgroundColor: "#FFE7A0",
-    shadowColor: "#FFD36A", shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+    position: "absolute", height: 8, borderRadius: 4, backgroundColor: "#FFE7A0",
+    shadowColor: "#FFD36A", shadowOpacity: 1, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
   },
-  sparkOrigin: { position: "absolute", left: 0, right: 0, top: "45%", height: 0 },
+  sparkOrigin: { position: "absolute", left: 0, right: 0, height: 0 },
   below: { position: "absolute", left: 24, right: 24, alignItems: "center" },
-  hint: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: MUTED, textAlign: "center", marginTop: 8 },
-  error: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#F2A0A0", textAlign: "center", marginTop: 8 },
-  texts: { alignItems: "center", alignSelf: "stretch" },
+  hint: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: FG, textAlign: "center" },
+  error: { fontFamily: "Inter_600SemiBold", fontSize: 15.5, color: "#F2A0A0", textAlign: "center" },
   eyebrow: { fontFamily: "Inter_700Bold", fontSize: 13, letterSpacing: 2.6, color: GOLD },
   name: { fontFamily: "Montserrat_700Bold", fontSize: 28, color: FG, marginTop: 6, textAlign: "center" },
   progress: {
-    alignSelf: "stretch", marginTop: 16, padding: 12, borderRadius: 14,
+    alignSelf: "stretch", marginTop: 14, padding: 12, borderRadius: 14,
     backgroundColor: "#17171A", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
   progressTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  progressLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG },
-  progressCount: { fontFamily: "Montserrat_700Bold", fontSize: 14, color: GOLD },
+  progressLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: FG },
+  progressCount: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, color: GOLD },
   description: { fontFamily: "Inter_400Regular", fontSize: 14.5, lineHeight: 21, color: MUTED, textAlign: "center", marginTop: 12 },
   buttons: { paddingHorizontal: 20, gap: 10, justifyContent: "flex-end" },
 });

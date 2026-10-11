@@ -1,7 +1,8 @@
 /**
  * Kortet som öppnas när man trycker på en skatt (lila nål) på kartan. Tre lägen:
  *  - hittad:   skatten i färg, datum och kuriosa
- *  - framme:   inom 75 m — "Öppna skatten" glöder och öppnar skattkistan (TreasureReveal)
+ *  - framme:   inom 75 m — "Håll in för att öppna" (samma knapp som incheckningen) öppnar
+ *              skattkistan (TreasureReveal)
  *  - på väg:   "varmare, kallare" — avståndet live, en mätare som fylls ju närmare man kommer
  *              (kallt → varmt) och en liten puls i telefonen som tätnar på nära håll
  *
@@ -11,7 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Reanimated, {
-  Easing, interpolateColor, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming,
+  Easing, interpolateColor, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
@@ -21,7 +22,7 @@ import { sv } from "date-fns/locale";
 import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
 import { distanceMeters, formatDistance } from "@/lib/checkin";
 import { STICKER_RADIUS_M } from "@/lib/stickers";
-import { PressableScale } from "@/components/PressableScale";
+import { HoldToCheckIn } from "@/components/checkin/HoldToCheckIn";
 import { StickerArt } from "./StickerArt";
 import { TreasureReveal } from "./TreasureReveal";
 
@@ -81,21 +82,10 @@ export function StickerCard({
     return () => clearInterval(id);
   }, [found, near, distance]);
 
-  // Knappen andas när man är framme
-  const breathe = useSharedValue(0);
-  useEffect(() => {
-    breathe.value = near && !found
-      ? withRepeat(withSequence(withTiming(1, { duration: 900 }), withTiming(0, { duration: 900 })), -1, false)
-      : withTiming(0, { duration: 200 });
-  }, [near, found, breathe]);
 
   const meterStyle = useAnimatedStyle(() => ({
     width: `${Math.max(4, meter.value * 100)}%`,
     backgroundColor: interpolateColor(meter.value, [0, 0.5, 1], ["#5B8DEF", "#E9A23B", "#FF6A2B"]),
-  }));
-  const buttonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + breathe.value * 0.025 }],
-    shadowOpacity: 0.15 + breathe.value * 0.25,
   }));
 
   return (
@@ -141,22 +131,16 @@ export function StickerCard({
             </>
           )}
           <Text style={s.safety}>Var uppmärksam på omgivningen och respektera privat mark.</Text>
-          <Reanimated.View style={[s.buttonGlow, near && buttonStyle]}>
-            <PressableScale
-              style={[s.button, !near && s.buttonOff]}
-              scale={0.97}
-              disabled={!near || !userLoc}
-              onPress={() => {
-                if (!userLoc) return;
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                setRevealing({ haveBefore: collected.size, loc: userLoc });
-              }}
-            >
-              <Text style={[s.buttonText, !near && { color: "rgba(255,255,255,0.4)" }]}>
-                {near ? "Öppna skatten" : `Gå inom ${STICKER_RADIUS_M} m för att öppna`}
-              </Text>
-            </PressableScale>
-          </Reanimated.View>
+          {near && userLoc ? (
+            <HoldToCheckIn
+              label="Håll in för att öppna"
+              onComplete={() => setRevealing({ haveBefore: collected.size, loc: userLoc })}
+            />
+          ) : (
+            <View style={s.buttonOff}>
+              <Text style={s.buttonOffText}>Gå inom {STICKER_RADIUS_M} m för att öppna</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -198,10 +182,8 @@ const s = StyleSheet.create({
   meterTrack: { height: 10, borderRadius: 5, backgroundColor: "rgba(255,255,255,0.10)", overflow: "hidden" },
   meterFill: { height: "100%", borderRadius: 5 },
   safety: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(245,241,232,0.45)" },
-  buttonGlow: { borderRadius: 14, shadowColor: GOLD, shadowRadius: 9, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0 },
-  button: { backgroundColor: "#C9A24C", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-  buttonOff: { backgroundColor: "rgba(255,255,255,0.08)" },
-  buttonText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#FFFFFF" },
+  buttonOff: { height: 56, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)" },
+  buttonOffText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "rgba(255,255,255,0.45)" },
   foundAt: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: PURPLE },
   description: { fontFamily: "Inter_400Regular", fontSize: 14.5, lineHeight: 21, color: "rgba(245,241,232,0.85)" },
 });
