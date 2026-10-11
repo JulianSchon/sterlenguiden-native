@@ -70,20 +70,29 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
 // Perioden betyder bara något för besök — streak och samlarobjekt delar cache oavsett vad den står på
 const periodFor = (metric: LeaderboardMetric, period: Period): Period => (metric === "visits" ? period : "all");
 
-/** Min egen rad i "flest besök denna månad, hela appen" — antal, placering och radnummer
- * (placering och rad är null om jag inte syns i topplistorna, eller inte besökt något än i
- * månaden). Hämtas före och efter en incheckning, för att visa klättringen. */
-export async function fetchMyMonthStanding(): Promise<LeaderboardEntry | null> {
-  const page = await fetchPage("visits", "all", "month", 0, 1);
+/** Min egen rad i en topplista — antal, placering och radnummer (placering och rad är null om jag
+ * inte syns i topplistorna, eller inte har något att räknas för än). Hämtas före och efter en
+ * belöning (incheckning, en hittad skatt), för att visa klättringen. */
+export async function fetchMyStanding(
+  metric: LeaderboardMetric, scope: LeaderboardScope = "all", period: Period = "all",
+): Promise<LeaderboardEntry | null> {
+  const page = await fetchPage(metric, scope, periodFor(metric, period), 0, 1);
   return page.me;
 }
 
-/** Raderna `fromRow` till `fromRow + count - 1` i samma topplista — grannarna runt mig efter en
- * incheckning (den jag nu jagar och de jag nyss gick om). */
-export async function fetchMonthRows(fromRow: number, count: number): Promise<LeaderboardEntry[]> {
-  const page = await fetchPage("visits", "all", "month", Math.max(0, fromRow - 1), count);
+/** Raderna `fromRow` till `fromRow + count - 1` i samma topplista — grannarna runt mig. */
+export async function fetchRows(
+  metric: LeaderboardMetric, fromRow: number, count: number, scope: LeaderboardScope = "all", period: Period = "all",
+): Promise<LeaderboardEntry[]> {
+  const page = await fetchPage(metric, scope, periodFor(metric, period), Math.max(0, fromRow - 1), count);
   return page.entries;
 }
+
+/** Min rad i "flest besök denna månad, hela appen" (incheckningens klättring). */
+export const fetchMyMonthStanding = () => fetchMyStanding("visits", "all", "month");
+
+/** Grannarna i "flest besök denna månad, hela appen". */
+export const fetchMonthRows = (fromRow: number, count: number) => fetchRows("visits", fromRow, count, "all", "month");
 
 /** Första sidan (topp 5) — förhandstitten på Mitt Österlen. */
 export function useLeaderboard(metric: LeaderboardMetric, scope: LeaderboardScope, period: Period = "all") {

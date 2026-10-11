@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
+import { fetchMyStanding, type LeaderboardEntry } from "@/hooks/useLeaderboard";
 import { distanceMeters, formatDistance } from "@/lib/checkin";
 import { STICKER_RADIUS_M } from "@/lib/stickers";
 import { HoldToCheckIn } from "@/components/checkin/HoldToCheckIn";
@@ -56,6 +57,8 @@ export function StickerCard({
   const { data: collectibles = [] } = useCollectibles();
   const { data: collected = new Map<string, string>() } = useCollected();
   const [revealing, setRevealing] = useState<{ haveBefore: number; loc: { latitude: number; longitude: number } } | null>(null);
+  // Min rad i topplistan "Flest skatter" före — hämtas redan medan man håller knappen
+  const standingBefore = useRef<Promise<LeaderboardEntry | null> | null>(null);
   const found = !!collectedAt;
   const distance = userLoc
     ? distanceMeters(userLoc.latitude, userLoc.longitude, collectible.lat, collectible.lng)
@@ -134,6 +137,7 @@ export function StickerCard({
           {near && userLoc ? (
             <HoldToCheckIn
               label="Håll in för att öppna"
+              onStart={() => { standingBefore.current = fetchMyStanding("stickers").catch(() => null); }}
               onComplete={() => setRevealing({ haveBefore: collected.size, loc: userLoc })}
             />
           ) : (
@@ -150,6 +154,7 @@ export function StickerCard({
           userLoc={revealing.loc}
           total={collectibles.length}
           haveBefore={revealing.haveBefore}
+          standingBefore={standingBefore.current ?? undefined}
           onNavigate={() => router.push("/mitt-osterlen" as any)}
           onClose={() => setRevealing(null)}
         />
