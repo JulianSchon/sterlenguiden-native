@@ -37,7 +37,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { stickerImageUrl, useCollectSticker, type Collectible } from "@/hooks/useCollectibles";
+import { stickerImageUrl, useCollectibles, useCollectSticker, type Collectible } from "@/hooks/useCollectibles";
 import { fetchMyStanding, fetchRows, type LeaderboardEntry } from "@/hooks/useLeaderboard";
 import { playSound } from "@/lib/sounds";
 import { holdTrophyMoments } from "@/lib/trophyMoments";
@@ -97,6 +97,7 @@ export function TreasureReveal({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const collect = useCollectSticker();
+  const { data: allCollectibles = [] } = useCollectibles();
   const [taps, setTaps] = useState(0);
   const [found, setFound] = useState(false);
   const [opened, setOpened] = useState(false);
@@ -296,6 +297,10 @@ export function TreasureReveal({
     hint.value = withTiming(0, { duration: 150 });
     rise.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 750, easing: Easing.out(Easing.back(1.4)) }));
     later(BOOM_DELAY + 790, () => hit(Haptics.ImpactFeedbackStyle.Medium));
+    // Lugn stund: förhämta alla skatters bilder, så samlingen på Mitt Österlen är laddad direkt
+    later(BOOM_DELAY + 2500, () => {
+      allCollectibles.forEach((c) => { if (c.imagePath) Image.prefetch(stickerImageUrl(c.imagePath)).catch(() => {}); });
+    });
     // Efter landningen gungar den en gång till — åt höger, sist åt vänster — och låser sig
     tilt.value = withDelay(BOOM_DELAY + 40, withSpring(0, TILT_SPRING));
     landGlow.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 500 }));

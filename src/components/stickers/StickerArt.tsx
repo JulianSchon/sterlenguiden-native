@@ -4,7 +4,7 @@
  * (En helt platt siluett blev bara en knölig klump för detaljrika motiv som Ales stenar.)
  * Saknas konstfilen visas en lila platshållare tills den finns.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import Svg, { Circle, Polygon } from "react-native-svg";
 import { stickerImageUrl } from "@/hooks/useCollectibles";
@@ -13,15 +13,24 @@ const STAR = "12,4.5 14.4,9.6 20,10.3 15.8,14.1 17,19.6 12,16.8 7,19.6 8.2,14.1 
 const SILHOUETTE = "#3A3A44";
 
 export function StickerArt({
-  imagePath, size, silhouette,
-}: { imagePath: string | null; size: number; silhouette: boolean }) {
+  imagePath, size, silhouette, onLoaded,
+}: {
+  imagePath: string | null; size: number; silhouette: boolean;
+  /** Anropas när bilden som syns faktiskt laddats (samlingen väntar på det innan den scrollar) */
+  onLoaded?: () => void;
+}) {
   // Den mörka kopian måste ha laddats innan den färgade bilden under får synas — annars blinkar
   // varje låst skatt till i färg medan bilderna laddas (som ett tåg genom samlingen)
   const [darkReady, setDarkReady] = useState(false);
+  // Platshållaren har ingen bild att vänta på
+  useEffect(() => {
+    if (!imagePath) onLoaded?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imagePath]);
   if (imagePath) {
     const uri = stickerImageUrl(imagePath);
     if (!silhouette) {
-      return <Image source={{ uri }} style={{ width: size, height: size }} resizeMode="contain" />;
+      return <Image source={{ uri }} style={{ width: size, height: size }} resizeMode="contain" onLoad={onLoaded} />;
     }
     return (
       <View style={{ width: size, height: size }}>
@@ -29,7 +38,7 @@ export function StickerArt({
         <Image source={{ uri }} style={[StyleSheet.absoluteFill, { opacity: darkReady ? 1 : 0 }]} resizeMode="contain" blurRadius={Math.max(1, size / 40)} />
         {/* Samma form i mörkt ovanpå (tintColor = alla synliga pixlar i en färg) — släpper igenom
             en skymt av motivet */}
-        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { tintColor: SILHOUETTE, opacity: 0.84 }]} resizeMode="contain" onLoad={() => setDarkReady(true)} />
+        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { tintColor: SILHOUETTE, opacity: 0.84 }]} resizeMode="contain" onLoad={() => { setDarkReady(true); onLoaded?.(); }} />
       </View>
     );
   }

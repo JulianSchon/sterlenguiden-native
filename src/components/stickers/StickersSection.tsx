@@ -9,7 +9,7 @@
  * stor och snett från ovan, smäller ner i sin ruta, trycks ihop och sätter sig lite snett — som
  * ett klistermärke. En i taget.
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import Reanimated, {
   Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming,
@@ -44,6 +44,16 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
   const gridY = useRef(0);
   const cellY = useRef<Record<string, number>>({});
   const firstDrop = useRef(true);
+  const mountedAt = useRef(Date.now());
+  // Inklistringen startar först när rutornas bilder faktiskt laddats (högst 3 s) — annars
+  // scrollade sidan ner till rutor som ännu var tomma
+  const loadedIds = useRef(new Set<string>());
+  const visibleIds = useRef<string[]>([]);
+  const [imagesReady, setImagesReady] = useState(false);
+  const markLoaded = useCallback((id: string) => {
+    loadedIds.current.add(id);
+    if (visibleIds.current.length > 0 && visibleIds.current.every((v) => loadedIds.current.has(v))) setImagesReady(true);
+  }, []);
 
   useEffect(() => {
     if (!user || !loaded || !collectedLoaded) return;
@@ -65,16 +75,22 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
   // Nästa i tur: scrolla så rutan syns lite ovanför mitten, och släpp skatten. Den första väntar
   // tills sidan hunnit byggas klart och firandets mörka bakgrund tonats bort
   useEffect(() => {
-    if (dropping || waiting.length === 0) return;
+    if (waiting.length === 0 || imagesReady) return;
+    const t = setTimeout(() => setImagesReady(true), 3000);
+    return () => clearTimeout(t);
+  }, [waiting.length, imagesReady]);
+
+  useEffect(() => {
+    if (dropping || waiting.length === 0 || !imagesReady) return;
     const id = waiting[0];
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => {
       scrollTo?.(sectionY.current + gridY.current + (cellY.current[id] ?? 0) - winH * 0.38);
       timers.push(setTimeout(() => setDropping(id), 650));
-    }, firstDrop.current ? 1300 : 350));
+    }, firstDrop.current ? Math.max(700, 1500 - (Date.now() - mountedAt.current)) : 350));
     firstDrop.current = false;
     return () => timers.forEach(clearTimeout);
-  }, [waiting, dropping, scrollTo, winH]);
+  }, [waiting, dropping, imagesReady, scrollTo, winH]);
 
   const handleLanded = () => {
     const id = dropping;
@@ -88,6 +104,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
 
   const have = collectibles.filter((c) => collected.has(c.id)).length;
   const visible = expanded ? collectibles : collectibles.slice(0, COLLAPSED_COUNT);
+  visibleIds.current = visible.map((c) => c.id);
   const canExpand = collectibles.length > COLLAPSED_COUNT;
 
   return (
@@ -105,6 +122,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
             placement={dropping === c.id ? "dropping" : waiting.includes(c.id) ? "waiting" : null}
             onLanded={handleLanded}
             onLayout={(e) => { cellY.current[c.id] = e.nativeEvent.layout.y; }}
+            onLoaded={() => markLoaded(c.id)}
             onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } } as any)}
           />
         ))}
@@ -131,13 +149,14 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
  * bild som ligger kvar — den mörka under tonas bara bort. Att byta bild i landningsögonblicket
  * syntes som ett hack. */
 function StickerCell({
-  collectible, has, placement, onLanded, onLayout, onPress,
+  collectible, has, placement, onLanded, onLayout, onLoaded, onPress,
 }: {
   collectible: Collectible;
   has: boolean;
   placement: "waiting" | "dropping" | null;
   onLanded: () => void;
   onLayout: (e: LayoutChangeEvent) => void;
+  onLoaded: () => void;
   onPress: () => void;
 }) {
   const drop = useSharedValue(0);
@@ -183,14 +202,14 @@ function StickerCell({
         {placing ? (
           <>
             <Reanimated.View style={[StyleSheet.absoluteFill, darkStyle]}>
-              <StickerArt imagePath={collectible.imagePath} size={ART} silhouette />
+              <StickerArt imagePath={collectible.imagePath} size={ART} silhouette onLoaded={onLoaded} />
             </Reanimated.View>
             <Reanimated.View style={[StyleSheet.absoluteFill, dropStyle]} pointerEvents="none">
               <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={false} />
             </Reanimated.View>
           </>
         ) : (
-          <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={!shown} />
+          <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={!shown} onLoaded={onLoaded} />
         )}
       </View>
       <Text style={[s.name, (shown || settled) && { color: FG }]} numberOfLines={2}>{collectible.name}</Text>
