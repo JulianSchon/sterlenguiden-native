@@ -10,7 +10,7 @@
  *     Texten driver på: "Tryck på kistan!" → "Igen!" → "Mer!" → "Nästan…!"
  *  3. Smällen: kistan glöder vitt och skakar okontrollerat i en kvarts sekund — sen exploderar
  *     den: blixt över hela skärmen, locket skjuts av, konfetti över hela skärmen, strålkransen
- *     tänds, och skatten skjuter upp ur kistan, snurrar ett varv och landar stort.
+ *     tänds, och skatten skjuter upp ur kistan, kommer upp lutad och gungar av som en fjäder, och landar stort.
  *  4. Lugnt efter, en sak i taget: "Du hittade en skatt!" och namnet, sen samlingens stapel som
  *     fylls, och — om man syns i topplistorna och placeringen ändrades — topplistan "Flest
  *     skatter" där placeringen rullar och hur långt det är till nästa placering. Knapparna kommer
@@ -33,7 +33,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, cancelAnimation, interpolate, useAnimatedStyle, useSharedValue, withDelay, withRepeat,
-  withSequence, withTiming,
+  withSequence, withSpring, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -65,18 +65,11 @@ const T_FILL = 2100;
 const FILL_MS = 1300;
 const T_LEADER = 3700;
 const LEADER_MS = 2500;
-/** Skattens gung efter snurret: en och en halv pendelsvängning som klingar av */
-const SWAY_MS = 640;
-const SWAY_DEG = 7;
-
-/** Vinkeln (grader) för en avklingande pendel vid tiden x (0–1): jämn takt hela vägen — höger,
- * vänster, ett nästan osynligt sista sväng — och både vinkel och fart är noll när den slutar,
- * så den låser sig mjukt i stället för att tvärstanna. */
-function pendulum(x: number) {
-  "worklet";
-  if (x <= 0 || x >= 1) return 0;
-  return SWAY_DEG * Math.pow(1 - x, 1.5) * Math.sin(3 * Math.PI * x);
-}
+/** Skatten kommer upp lutad så här mycket åt vänster och fjädrar sen till rätt läge: slår över
+ * åt höger (~16°), tillbaka åt vänster (~6°) och klingar av — i samma takt hela vägen
+ * (svängningstid ~0,45 s, dämpning ~0,28) */
+const TILT_START = -42;
+const TILT_SPRING = { stiffness: 195, damping: 7.8, mass: 1 };
 
 interface LeaderData { before: LeaderboardEntry; after: LeaderboardEntry; above: LeaderboardEntry | null }
 
@@ -150,10 +143,10 @@ export function TreasureReveal({
   const lid = useSharedValue(0);
   const chestOut = useSharedValue(0);
   const rise = useSharedValue(0);
-  // Snurret (ett varv) och gunget efteråt är skilda värden: snurret saktar in, och gunget — en
-  // avklingande pendel — startar redan innan snurret stannat, så rörelsen aldrig står still
-  const spin = useSharedValue(0);
-  const sway = useSharedValue(0);
+  // Skattens lutning: kommer upp ur kistan snett och gungar av som en fjäder — EN rörelse i en
+  // takt från uppfärd till stillastående (ett snabbt snurr följt av ett lugnt gung kändes alltid
+  // som en inbromsning, hur de än skarvades)
+  const tilt = useSharedValue(TILT_START);
   const flash = useSharedValue(0);
   const rays = useSharedValue(0);
   const burst = useSharedValue(0);
@@ -304,9 +297,7 @@ export function TreasureReveal({
     rise.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 750, easing: Easing.out(Easing.back(1.4)) }));
     later(BOOM_DELAY + 790, () => hit(Haptics.ImpactFeedbackStyle.Medium));
     // Efter landningen gungar den en gång till — åt höger, sist åt vänster — och låser sig
-    spin.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
-    // Pendeln: en jämn svängning som klingar av (se stickerStyle) — höger, vänster, stilla
-    sway.value = withDelay(BOOM_DELAY + 40 + 560, withTiming(1, { duration: SWAY_MS, easing: Easing.linear }));
+    tilt.value = withDelay(BOOM_DELAY + 40, withSpring(0, TILT_SPRING));
     landGlow.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 500 }));
     text.value = withDelay(BOOM_DELAY + T_TITLE, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
     collection.value = withDelay(BOOM_DELAY + T_COLLECTION, withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) }));
@@ -365,7 +356,7 @@ export function TreasureReveal({
     transform: [
       { translateY: interpolate(rise.value, [0, 1], [chestY + seamOffset - finalY, 0]) },
       { scale: interpolate(rise.value, [0, 1], [0.2, 1]) },
-      { rotate: `${-360 * spin.value + pendulum(sway.value)}deg` },
+      { rotate: `${tilt.value}deg` },
     ],
   }));
   const landGlowStyle = useAnimatedStyle(() => ({ opacity: landGlow.value }));
