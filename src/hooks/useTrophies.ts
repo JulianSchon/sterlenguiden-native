@@ -3,7 +3,7 @@ import { useVisits } from "@/hooks/useVisits";
 import { usePlaces } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
-import { useDismissals } from "@/hooks/useDismissals";
+import { useDiscoveryLikes, useDismissals } from "@/hooks/useDismissals";
 import { useAuth } from "@/hooks/useAuth";
 import { useLists } from "@/hooks/useLists";
 import { useMemories } from "@/hooks/useMemories";
@@ -21,6 +21,7 @@ export function useTrophies() {
   const favoritesQ = useFavorites();
   const redemptionsQ = useOfferRedemptions();
   const dismissalsQ = useDismissals();
+  const likesQ = useDiscoveryLikes();
   const achievementsQ = useAchievements();
   const { user } = useAuth();
   const listsQ = useLists();
@@ -30,6 +31,9 @@ export function useTrophies() {
   const { data: favorites = [] } = favoritesQ;
   const { data: redemptions = [] } = redemptionsQ;
   const { data: dismissedIds = [] } = dismissalsQ;
+  const { data: likedIds = [] } = likesQ;
+  // Platser svepta åt något håll i Upptäck
+  const swipedIds = useMemo(() => [...new Set([...dismissedIds, ...likedIds])], [dismissedIds, likedIds]);
   const { data: achievements = [], isLoading: achievementsLoading } = achievementsQ;
   const { data: lists = [] } = listsQ;
   const { data: memories = [] } = memoriesQ;
@@ -37,12 +41,12 @@ export function useTrophies() {
   // LYCKATS — misslyckas den ser alla klara troféer ut som nya. Misslyckas något annat räknas det
   // bara som tomt, vilket aldrig får något att se klart ut som inte är det.
   const allLoaded = achievementsQ.isSuccess
-    && [visitsQ, placesQ, favoritesQ, redemptionsQ, dismissalsQ, listsQ, memoriesQ].every((q) => q.isFetched);
+    && [visitsQ, placesQ, favoritesQ, redemptionsQ, dismissalsQ, likesQ, listsQ, memoriesQ].every((q) => q.isFetched);
   const listsCreated = lists.filter((l) => l.ownerId === user?.id).length;
 
   const stats = useMemo(
-    () => computeUserStats(visits, places, favorites.length, redemptions, dismissedIds, listsCreated, memories.length),
-    [visits, places, favorites.length, redemptions, dismissedIds, listsCreated, memories.length]
+    () => computeUserStats(visits, places, favorites.length, redemptions, swipedIds, listsCreated, memories.length),
+    [visits, places, favorites.length, redemptions, swipedIds, listsCreated, memories.length]
   );
   const trophies = useMemo(() => buildTrophies(stats, achievements), [stats, achievements]);
 

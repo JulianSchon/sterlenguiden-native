@@ -66,7 +66,8 @@ export interface UserStats {
   uniqueVisits: number;
   favoritesCount: number;
   redemptionsDistinct: number;
-  dismissalsCount: number;
+  /** Platser svepta åt något håll i Upptäck (vänster eller höger) */
+  swipedCount: number;
   categoriesVisited: number; // 0–8
   /** Listor användaren själv skapat (inte de hen bara gått med i) */
   listsCreated: number;
@@ -78,7 +79,7 @@ export function computeUserStats(
   places: Place[],
   favoritesCount: number,
   redemptions: RedemptionRow[],
-  dismissedPlaceIds: number[],
+  swipedPlaceIds: number[],
   listsCreated: number,
   memoriesCount: number,
 ): UserStats {
@@ -96,7 +97,7 @@ export function computeUserStats(
     uniqueVisits: uniqueVisitedIds.length,
     favoritesCount,
     redemptionsDistinct: new Set(redemptions.map((r) => r.offer_id)).size,
-    dismissalsCount: dismissedPlaceIds.length,
+    swipedCount: swipedPlaceIds.length,
     categoriesVisited,
     listsCreated,
     memoriesCount,
@@ -181,9 +182,9 @@ const GROUPS: GroupDef[] = [
     tagline: "Svep dig igenom hela katalogen",
     Icon: Layers,
     tiers: [
-      { target: 15,  progress: (s) => s.dismissalsCount, requirementText: "Svep igenom 15 platser i Upptäck",  levelName: "Bläddrare" },
-      { target: 60,  progress: (s) => s.dismissalsCount, requirementText: "Svep igenom 60 platser i Upptäck",  levelName: "Katalogkännare" },
-      { target: 150, progress: (s) => s.dismissalsCount, requirementText: "Svep igenom 150 platser i Upptäck", levelName: "Hela högen" },
+      { target: 15,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 15 platser i Upptäck",  levelName: "Bläddrare" },
+      { target: 60,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 60 platser i Upptäck",  levelName: "Katalogkännare" },
+      { target: 150, progress: (s) => s.swipedCount, requirementText: "Svep igenom 150 platser i Upptäck", levelName: "Hela högen" },
     ],
   },
   {

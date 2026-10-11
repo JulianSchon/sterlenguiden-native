@@ -15,7 +15,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Heart, X, ArrowLeft, MapPin, Plus, ArrowRight } from "lucide-react-native";
 import { usePlaces, isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
-import { useDismissals, useDismissPlace } from "@/hooks/useDismissals";
+import { useDismissals, useDismissPlace, useLikePlace } from "@/hooks/useDismissals";
 import { colors } from "@/lib/colors";
 import * as Location from "expo-location";
 
@@ -222,6 +222,7 @@ export default function DiscoverScreen() {
 
   const toggleFavorite = useToggleFavorite();
   const dismissPlace = useDismissPlace();
+  const likePlace = useLikePlace();
 
   // Fixed card queue — shuffled ONCE when all data has loaded, never touched again.
   // Advancing through it is just incrementing an index.
@@ -272,8 +273,10 @@ export default function DiscoverScreen() {
   const handleSwipeRight = useCallback(() => {
     if (!currentPlace) return;
     toggleFavorite.mutate({ placeId: currentPlace.id });
+    // Svepet loggas för sig — räknas till Bläddraren (favoriten kan också sparas på andra ställen)
+    likePlace.mutate(currentPlace.id);
     advance();
-  }, [currentPlace, toggleFavorite, advance]);
+  }, [currentPlace, toggleFavorite, likePlace, advance]);
 
   const handleSwipeLeft = useCallback(() => {
     if (!currentPlace) return;
