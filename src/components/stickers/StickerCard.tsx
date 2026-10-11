@@ -95,7 +95,7 @@ export function StickerCard({
   }));
   const buttonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + breathe.value * 0.025 }],
-    shadowOpacity: 0.35 + breathe.value * 0.45,
+    shadowOpacity: 0.15 + breathe.value * 0.25,
   }));
 
   return (
@@ -198,10 +198,10 @@ const s = StyleSheet.create({
   meterTrack: { height: 10, borderRadius: 5, backgroundColor: "rgba(255,255,255,0.10)", overflow: "hidden" },
   meterFill: { height: "100%", borderRadius: 5 },
   safety: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(245,241,232,0.45)" },
-  buttonGlow: { borderRadius: 14, shadowColor: GOLD, shadowRadius: 14, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0 },
+  buttonGlow: { borderRadius: 14, shadowColor: GOLD, shadowRadius: 9, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0 },
   button: { backgroundColor: "#C9A24C", borderRadius: 14, paddingVertical: 14, alignItems: "center" },
   buttonOff: { backgroundColor: "rgba(255,255,255,0.08)" },
-  buttonText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#16120A" },
+  buttonText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#FFFFFF" },
   foundAt: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: PURPLE },
   description: { fontFamily: "Inter_400Regular", fontSize: 14.5, lineHeight: 21, color: "rgba(245,241,232,0.85)" },
 });

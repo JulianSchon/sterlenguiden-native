@@ -51,7 +51,9 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
     getTreasuresToPlace(user.id).then((ids) => {
       if (!alive) return;
       const order = (id: string) => collectibles.findIndex((c) => c.id === id);
-      const pending = ids.filter((id) => collected.has(id) && order(id) >= 0).sort((a, b) => order(a) - order(b));
+      // Allt på listan räknas som hittat (det lades dit precis när skatten hittades) — samlingens
+      // egen data kan ligga en stund efter
+      const pending = ids.filter((id) => order(id) >= 0).sort((a, b) => order(a) - order(b));
       if (pending.some((id) => order(id) >= COLLAPSED_COUNT)) setExpanded(true);
       setWaiting(pending);
     });
@@ -98,7 +100,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
           <StickerCell
             key={c.id}
             collectible={c}
-            has={collected.has(c.id)}
+            has={collected.has(c.id) || waiting.includes(c.id)}
             placement={dropping === c.id ? "dropping" : waiting.includes(c.id) ? "waiting" : null}
             onLanded={handleLanded}
             onLayout={(e) => { cellY.current[c.id] = e.nativeEvent.layout.y; }}
