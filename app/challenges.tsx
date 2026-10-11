@@ -17,6 +17,10 @@
  *   aldrig ett hänglås.
  * - Headern flyter genomskinligt och scrollar bort med resten av sidan —
  *   inte en fast/sticky bar som Favoriter/Förmåner/Historik/Statistik.
+ * - Placeringen: troféer som klarats sen sidan senast öppnades (listan "att
+ *   placera", se trophyMoments/TrophyHost) står först mörka på sin plats.
+ *   Sidan scrollar till en i taget och medaljen faller ner i sin plats med en
+ *   studs, glöd och vibration — sen ligger den där som vanligt.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -27,7 +31,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { useTrophies, useGrantNewTrophies } from "@/hooks/useTrophies";
+import { useTrophies } from "@/hooks/useTrophies";
+import { useAuth } from "@/hooks/useAuth";
+import { getTrophiesToPlace, removeTrophyToPlace } from "@/lib/trophyMoments";
 import { TrophyMedal, GlowCanvas } from "@/components/trophies/TrophyMedal";
 import { TIER_PALETTE, GROUP_ORDER, type Trophy } from "@/lib/achievements";
 import { format } from "date-fns";
@@ -72,28 +78,47 @@ function FeaturedTrophy({ trophy, medalSize, onPress }: { trophy: Trophy; medalS
 
 // ─── En troféplats i rastret — bara medalj + text, inget kort runt,
 // precis som referensbilden. Låst = "?" i medaljen (kodas i TrophyMedal).
+// placement: "waiting" = klar men inte placerad än (visas mörk), "dropping" =
+// medaljen faller ner i sin plats just nu; onLanded när den landat.
+type Placement = "waiting" | "dropping" | null;
+
 function TrophyBadge({
-  trophy, itemWidth, medalSize, justUnlocked, onPress,
-}: { trophy: Trophy; itemWidth: number; medalSize: number; justUnlocked: boolean; onPress: () => void }) {
+  trophy, itemWidth, medalSize, placement, onLanded, onPress, badgeRef,
+}: {
+  trophy: Trophy; itemWidth: number; medalSize: number; placement: Placement;
+  onLanded: () => void; onPress: () => void; badgeRef: (v: View | null) => void;
+}) {
   const scale = useRef(new Animated.Value(1)).current;
   const enter = useRef(new Animated.Value(0)).current;
-  const celebrate = useRef(new Animated.Value(0)).current;
-  const unlocked = trophy.done;
+  const drop = useRef(new Animated.Value(0)).current;
+  const squash = useRef(new Animated.Value(1)).current;
+  const glow = useRef(new Animated.Value(0)).current;
+  const unlocked = trophy.done && placement === null;
 
   useEffect(() => {
     Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 6 }).start();
   }, []);
 
-  // Upplåsningsfirande: guldglöd blinkar till + medaljen studsar till.
+  // Medaljen faller ner i sin plats: in uppifrån och stor, smäller ner, trycks ihop och studsar,
+  // glöden blinkar till — samma känsla som stämpeln vid incheckningen
   useEffect(() => {
-    if (!justUnlocked) return;
-    celebrate.setValue(0);
-    Animated.timing(celebrate, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    Animated.sequence([
-      Animated.spring(scale, { toValue: 1.16, useNativeDriver: true, speed: 20, bounciness: 10 }),
-      Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20, bounciness: 6 }),
-    ]).start();
-  }, [justUnlocked]);
+    if (placement !== "dropping") return;
+    drop.setValue(0);
+    Animated.timing(drop, { toValue: 1, duration: 420, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
+      if (!finished) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 150);
+      Animated.sequence([
+        Animated.timing(squash, { toValue: 0.88, duration: 70, useNativeDriver: true }),
+        Animated.spring(squash, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 12 }),
+      ]).start();
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 120, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+      setTimeout(onLanded, 700);
+    });
+  }, [placement]);
 
   const onPressIn  = () => Animated.spring(scale, { toValue: 0.92, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50, bounciness: 4 }).start();
@@ -110,17 +135,31 @@ function TrophyBadge({
           ],
         }}
       >
-        <View style={{ width: medalSize, height: medalSize }}>
-          <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} />
-          {justUnlocked && (
+        <View ref={badgeRef} style={{ width: medalSize, height: medalSize }}>
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { opacity: glow, transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.25] }) }] }]}
+          >
+            <GlowCanvas size={medalSize} color={GOLD_LT} opacity={0.6} radiusRatio={0.8} blurRatio={0.22} />
+          </Animated.View>
+          <Animated.View style={{ transform: [{ scale: squash }] }}>
+            <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} />
+          </Animated.View>
+          {placement === "dropping" && (
             <Animated.View
               pointerEvents="none"
               style={[
                 StyleSheet.absoluteFill,
-                { opacity: celebrate.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 0] }) },
+                {
+                  opacity: drop.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1] }),
+                  transform: [
+                    { translateY: drop.interpolate({ inputRange: [0, 1], outputRange: [-medalSize * 0.6, 0] }) },
+                    { scale: Animated.multiply(drop.interpolate({ inputRange: [0, 1], outputRange: [2.3, 1] }), squash) },
+                  ],
+                },
               ]}
             >
-              <GlowCanvas size={medalSize} color={GOLD_LT} opacity={0.55} radiusRatio={0.75} blurRatio={0.22} />
+              <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked groupId={trophy.groupId} />
             </Animated.View>
           )}
         </View>
@@ -135,8 +174,16 @@ function TrophyBadge({
 // (Kom igång, Utforskaren, Samlaren, Förmånsjägaren, Mångsidig, Bläddraren,
 // Österlenlegend), 3 medaljer per rad, ingen ram/kort runt.
 function TrophyGrid({
-  trophies, celebratingKeys, onPress,
-}: { trophies: Trophy[]; celebratingKeys: Set<string>; onPress: (t: Trophy) => void }) {
+  trophies, waiting, dropping, onLanded, onPress, badgeRefs,
+}: {
+  trophies: Trophy[];
+  /** Klara men ännu inte placerade — visas mörka tills det är deras tur */
+  waiting: Set<string>;
+  dropping: string | null;
+  onLanded: () => void;
+  onPress: (t: Trophy) => void;
+  badgeRefs: React.MutableRefObject<Record<string, View | null>>;
+}) {
   const { width: winW } = useWindowDimensions();
   const pageW = winW - 32; // 16px sidmarginal, som resten av appens sidor
   const gap = 16;
@@ -154,13 +201,14 @@ function TrophyGrid({
   }, [trophies]);
 
   const featured = useMemo(() => {
-    const done = trophies.filter((t) => t.done && t.doneAt);
+    // De som väntar på sin placering visas inte här än — de ska få sitt ögonblick i rastret först
+    const done = trophies.filter((t) => t.done && t.doneAt && !waiting.has(t.key));
     if (done.length > 0) {
       return [...done].sort((a, b) => +new Date(b.doneAt!) - +new Date(a.doneAt!))[0];
     }
     // Inget upplåst än — visa den du är närmast att klara istället
     return [...trophies].sort((a, b) => b.percent - a.percent)[0] ?? null;
-  }, [trophies]);
+  }, [trophies, waiting]);
 
   return (
     <View>
@@ -186,7 +234,9 @@ function TrophyGrid({
                     trophy={t}
                     itemWidth={itemWidth}
                     medalSize={medalSize}
-                    justUnlocked={celebratingKeys.has(t.key)}
+                    placement={dropping === t.key ? "dropping" : waiting.has(t.key) ? "waiting" : null}
+                    onLanded={onLanded}
+                    badgeRef={(v) => { badgeRefs.current[t.key] = v; }}
                     onPress={() => onPress(t)}
                   />
                 ))}
@@ -248,40 +298,62 @@ export default function ChallengesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { trophies, isLoading } = useTrophies();
+  const { user } = useAuth();
+  const { height: winH } = useWindowDimensions();
   const [selected, setSelected] = useState<Trophy | null>(null);
   const safeTop = Math.max(insets.top, 44);
 
-  // Spara nyklara troféer (datum för när de klarades) — se useGrantNewTrophies
-  useGrantNewTrophies(trophies, !isLoading, () =>
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-  );
 
-  // Vilka troféer just låstes upp under den här sessionen — driver
-  // guldglöd-firandet i TrophyTile. Ingen fira-animation vid första
-  // laddningen, bara på riktiga övergångar från låst till upplåst.
-  const isFirstRun = useRef(true);
-  const prevDoneRef = useRef(new Set<string>());
-  const [celebrating, setCelebrating] = useState<Set<string>>(new Set());
+  // ─── Placeringen: nya troféer faller ner i sina platser, en i taget ──────────
+  // (TrophyHost sparar nyklara troféer i databasen och lägger dem på listan "att placera")
+  const [waiting, setWaiting] = useState<string[]>([]);
+  const [dropping, setDropping] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const contentRef = useRef<View>(null);
+  const badgeRefs = useRef<Record<string, View | null>>({});
+  // Den första väntar lite längre — kommer man från firandet hinner dess mörka bakgrund tona bort
+  const firstDrop = useRef(true);
+
   useEffect(() => {
-    const doneKeys = trophies.filter((t) => t.done).map((t) => t.key);
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      prevDoneRef.current = new Set(doneKeys);
-      return;
-    }
-    const newlyDone = doneKeys.filter((k) => !prevDoneRef.current.has(k));
-    if (newlyDone.length > 0) {
-      setCelebrating((prev) => new Set([...prev, ...newlyDone]));
-      setTimeout(() => {
-        setCelebrating((prev) => {
-          const next = new Set(prev);
-          newlyDone.forEach((k) => next.delete(k));
-          return next;
-        });
-      }, 1400);
-    }
-    prevDoneRef.current = new Set(doneKeys);
-  }, [trophies]);
+    if (!user || isLoading) return;
+    let alive = true;
+    getTrophiesToPlace(user.id).then((keys) => {
+      if (!alive) return;
+      const order = (k: string) => trophies.findIndex((t) => t.key === k);
+      // Bara sådant som faktiskt är klart, i sidans ordning (uppifrån och ner)
+      setWaiting(keys.filter((k) => trophies.find((t) => t.key === k)?.done).sort((x, y) => order(x) - order(y)));
+    });
+    return () => { alive = false; };
+    // Läses en gång när sidan öppnats och troféerna laddats
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isLoading]);
+
+  // Nästa i tur: scrolla så platsen syns lite ovanför mitten, och släpp medaljen
+  useEffect(() => {
+    if (dropping || waiting.length === 0) return;
+    const key = waiting[0];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(setTimeout(() => {
+      const badge = badgeRefs.current[key];
+      const content = contentRef.current;
+      if (badge && content) {
+        badge.measureLayout(content, (_x, y) => {
+          scrollRef.current?.scrollTo({ y: Math.max(0, y - winH * 0.38), animated: true });
+        }, () => {});
+      }
+      timers.push(setTimeout(() => setDropping(key), 650));
+    }, firstDrop.current ? 900 : 350));
+    firstDrop.current = false;
+    return () => timers.forEach(clearTimeout);
+  }, [waiting, dropping, winH]);
+
+  const handleLanded = () => {
+    const key = dropping;
+    if (!key) return;
+    if (user) removeTrophyToPlace(user.id, key);
+    setDropping(null);
+    setWaiting((w) => w.filter((k) => k !== key));
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -294,6 +366,7 @@ export default function ChallengesScreen() {
         </View>
       ) : (
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           // Ingen +96 här — den paddingen fanns för att lämna plats åt den
           // flytande bottennavigeringen, men den renderas bara inuti
@@ -303,15 +376,20 @@ export default function ChallengesScreen() {
         >
           {/* Headern ligger i scrollflödet, inte fast/sticky ovanpå —
               den ska scrolla bort tillsammans med resten av sidan. */}
-          <ChallengesHeader safeTop={safeTop} onBack={() => router.back()} />
-          <TrophyGrid
-            trophies={trophies}
-            celebratingKeys={celebrating}
-            onPress={(t) => {
-              Haptics.selectionAsync().catch(() => {});
-              setSelected(t);
-            }}
-          />
+          <View ref={contentRef}>
+            <ChallengesHeader safeTop={safeTop} onBack={() => router.back()} />
+            <TrophyGrid
+              trophies={trophies}
+              waiting={new Set(waiting)}
+              dropping={dropping}
+              onLanded={handleLanded}
+              badgeRefs={badgeRefs}
+              onPress={(t) => {
+                Haptics.selectionAsync().catch(() => {});
+                setSelected(t);
+              }}
+            />
+          </View>
         </ScrollView>
       )}
 

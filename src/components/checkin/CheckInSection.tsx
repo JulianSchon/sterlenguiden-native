@@ -16,7 +16,7 @@ import { MapPin, CheckCircle2 } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
 import { useVisits, useCheckIn, CheckInCooldownError } from "@/hooks/useVisits";
 import { useUserLocation } from "@/hooks/useUserLocation";
-import { useTrophies, useGrantNewTrophies } from "@/hooks/useTrophies";
+import { useTrophies } from "@/hooks/useTrophies";
 import { fetchMyMonthStanding, type LeaderboardEntry } from "@/hooks/useLeaderboard";
 import {
   CHECKIN_RADIUS_M, CHECKIN_NEAR_M, distanceMeters, formatDistance, cooldownEnd, formatClock,
@@ -35,8 +35,7 @@ export function CheckInSection({ place }: { place: Place }) {
   const { location, refresh } = useUserLocation(canCheckIn);
   const { data: visits = [] } = useVisits();
   const checkIn = useCheckIn();
-  const { trophies, stats, isLoading } = useTrophies();
-  useGrantNewTrophies(trophies, !isLoading);
+  const { trophies, stats } = useTrophies();
 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

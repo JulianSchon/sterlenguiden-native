@@ -1,5 +1,6 @@
 import { Stack, router } from "expo-router";
 import { ActiveOfferHost } from "@/components/offers/ActiveOfferHost";
+import { TrophyHost } from "@/components/trophies/TrophyHost";
 import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -143,6 +144,8 @@ function AppStack() {
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
       {/* Personalskärmen för ett aktivt erbjudande: ovanpå allt, syns var man än är */}
       <ActiveOfferHost />
+      {/* Utmaningsögonblicket: när en utmaning klaras, var man än är (väntar på personalskärmen) */}
+      <TrophyHost />
       </GestureHandlerRootView>
     </NavigationThemeProvider>
   );

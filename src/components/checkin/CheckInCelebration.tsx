@@ -41,6 +41,7 @@ import { StampScene } from "./StampScene";
 import { ProgressScene, type CategoryProgress, type HeroProgress, type ProgressItem } from "./ProgressScene";
 import { ClimbScene, MAX_PASSED, type ClimbData } from "./ClimbScene";
 import { NextStopScene, type NextStop } from "./NextStopScene";
+import { holdTrophyMoments, markTrophiesCelebrated } from "@/lib/trophyMoments";
 
 export interface CelebrationState {
   /** "pending" medan servern bekräftar — kortet hinner resa sig under tiden */
@@ -137,6 +138,9 @@ export function CheckInCelebration({
   const rays = useSharedValue(0);
   const flash = useSharedValue(0);
 
+  // Utmaningsögonblicket (TrophyHost) väntar medan belöningen visas
+  useEffect(() => holdTrophyMoments(), []);
+
   useEffect(() => {
     backdrop.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,11 +227,14 @@ export function CheckInCelebration({
       const total = places.filter((p) => placeMatchesCategory(p, cat.dbValues)).length;
       if (total > 0) category = { label: cat.label, color: cat.color, Icon: cat.Icon, from: before, to: before + 1, total };
     }
+    const items = visitProgressItems(state.trophiesBefore, trophies);
     frozen.current.progress = {
       hero: { from: state.uniqueBefore, to: state.uniqueBefore + 1, total: places.length },
       category,
-      items: visitProgressItems(state.trophiesBefore, trophies),
+      items,
     };
+    // Utmaningar som låses upp här ska inte firas en gång till av TrophyHost
+    markTrophiesCelebrated(items.filter((it) => it.unlocked).map((it) => it.key));
   }
   if (step === "next" && !frozen.current.next) frozen.current.next = nextStops;
 

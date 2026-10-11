@@ -13,6 +13,7 @@ import { ActiveOfferView } from "./ActiveOfferView";
 import { ACTIVE_REDEMPTION_KEY, useActiveRedemption } from "@/hooks/useActiveRedemption";
 import { ACTIVE_SECS } from "@/lib/offers";
 import { serverNow } from "@/lib/serverClock";
+import { holdTrophyMoments } from "@/lib/trophyMoments";
 
 export function ActiveOfferHost() {
   const queryClient = useQueryClient();
@@ -25,7 +26,12 @@ export function ActiveOfferHost() {
     return () => sub.remove();
   }, [queryClient]);
 
-  if (!data || serverNow() >= data.activatedAt + ACTIVE_SECS * 1000) return null;
+  const active = !!data && serverNow() < data.activatedAt + ACTIVE_SECS * 1000;
+  // Personalskärmen får aldrig avbrytas: ett utmaningsfirande (t.ex. Förmånsjägaren, som klaras
+  // av just den här inlösen) väntar tills skärmen stängts
+  useEffect(() => (active ? holdTrophyMoments() : undefined), [active]);
+
+  if (!data || !active) return null;
 
   return (
     <ActiveOfferView
