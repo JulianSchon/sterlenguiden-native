@@ -10,13 +10,16 @@
  *  4. Vart härnäst? — de närmaste platserna man inte besökt än, och "Skapa minne" / "Klar".
  *
  * Steg som inte har något att visa hoppas över. Ett tryck under en animation spolar fram den.
+ * Avslutet tonar också ut i stället för att bara försvinna: väljer man något som öppnar en annan
+ * sida (Skapa minne, ett nästa stopp) öppnas den BAKOM den mörka bakgrunden, och bakgrunden tonas
+ * bort först när sidan är på plats — man kastas aldrig tillbaka till platssidan på vägen.
  * Bakgrunden — mörkret, guldglöden och den roterande strålkransen — lever kvar genom alla steg,
  * så övergångarna blir mjuka.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Reanimated, {
-  Easing, FadeIn, FadeOutUp, useAnimatedStyle, useSharedValue, withTiming,
+  Easing, FadeIn, FadeOutUp, useAnimatedStyle, useSharedValue, withDelay, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
@@ -58,6 +61,9 @@ export interface CelebrationState {
 /** Vart användaren ville gå när belöningen stängdes */
 export type CelebrationExit = "memory" | "offers" | { placeId: number };
 
+/** Erbjudandetipset (46) + Skapa minne (56) + Klar (52) + mellanrummen */
+const BUTTONS_H = 176;
+
 type Step = "stamp" | "progress" | "climb" | "next";
 
 // Utforskaren först (den alla rör sig i), sedan resten
@@ -97,11 +103,14 @@ const atMost = <T,>(p: Promise<T | null>, ms = 3000) =>
   Promise.race([p.catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), ms))]);
 
 export function CheckInCelebration({
-  place, state, onClose,
+  place, state, onNavigate, onClose,
 }: {
   place: Place;
   state: CelebrationState;
-  onClose: (exit?: CelebrationExit) => void;
+  /** Öppna en annan sida — anropas medan belöningen fortfarande täcker skärmen */
+  onNavigate: (exit: CelebrationExit) => void;
+  /** Belöningen har tonat ut helt och kan tas bort */
+  onClose: () => void;
 }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -119,9 +128,11 @@ export function CheckInCelebration({
   // undefined = topplistan är inte hämtad än
   const [month, setMonth] = useState<{ before: LeaderboardEntry | null; after: LeaderboardEntry | null; rows: LeaderboardEntry[] }>();
   const [advancing, setAdvancing] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const monthName = format(new Date(), "LLLL", { locale: sv });
 
   const backdrop = useSharedValue(0);
+  const leave = useSharedValue(0);
   const glow = useSharedValue(0);
   const rays = useSharedValue(0);
 
@@ -235,6 +246,18 @@ export function CheckInCelebration({
     setAdvancing(false);
   }
 
+  // Avslutet: innehållet tonar ut nedåt, sen bakgrunden. Ska en annan sida öppnas läggs den
+  // bakom bakgrunden direkt och hinner glida på plats innan bakgrunden tonas bort.
+  const exitTo = (exit?: CelebrationExit) => {
+    if (leaving) return;
+    setLeaving(true);
+    leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) });
+    const fadeAt = exit ? 650 : 140;
+    if (exit) setTimeout(() => onNavigate(exit), 180);
+    backdrop.value = withDelay(fadeAt, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
+    setTimeout(onClose, fadeAt + 340);
+  };
+
   const tapToSkip = () => {
     if (ready) return;
     if (step === "stamp" && state.status !== "done") return;
@@ -242,6 +265,10 @@ export function CheckInCelebration({
   };
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: 1 - leave.value,
+    transform: [{ translateY: leave.value * 24 }],
+  }));
   const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
   const glowSize = width * 1.25;
   const raysSize = width * 1.9;
@@ -262,7 +289,7 @@ export function CheckInCelebration({
       <>
         {placeOffers.length > 0 && (
           <Reveal show delay={0}>
-            <PressableScale style={s.offer} scale={0.98} onPress={() => onClose("offers")}>
+            <PressableScale style={s.offer} scale={0.98} onPress={() => exitTo("offers")}>
               <Text style={s.offerText}>
                 {placeOffers.length === 1 ? "Platsen har 1 aktivt erbjudande" : `Platsen har ${placeOffers.length} aktiva erbjudanden`}
               </Text>
@@ -271,79 +298,85 @@ export function CheckInCelebration({
           </Reveal>
         )}
         <Reveal show delay={80}>
-          <GoldButton label="Skapa minne" onPress={() => onClose("memory")} />
+          <GoldButton label="Skapa minne" onPress={() => exitTo("memory")} />
         </Reveal>
         <Reveal show delay={180}>
-          <GhostButton label="Klar" onPress={() => onClose()} />
+          <GhostButton label="Klar" onPress={() => exitTo()} />
         </Reveal>
       </>
     );
   })();
 
+  const bottomPad = Math.max(insets.bottom, 16) + 8;
   const enter = FadeIn.delay(220).duration(420);
   const exit = FadeOutUp.duration(320);
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => onClose()}>
+    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo()}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
 
-        {/* Ljuset bakom: guldglöd + roterande strålkrans, lever kvar genom alla steg */}
-        <View style={[s.lightAnchor, { top: lightY - raysSize / 2, left: (width - raysSize) / 2, width: raysSize, height: raysSize }]} pointerEvents="none">
-          <GoldRays size={raysSize} visible={rays} />
-        </View>
-        <Reanimated.View
-          style={[s.lightAnchor, { top: lightY - glowSize / 2, left: (width - glowSize) / 2, width: glowSize, height: glowSize }, glowStyle]}
-          pointerEvents="none"
-        >
-          <RadialGlow size={glowSize} color={GOLD} opacity={0.32} radiusRatio={0.55} />
+        {/* Ljuset bakom: guldglöd + roterande strålkrans, lever kvar genom alla steg (och tonas ut
+            tillsammans med bakgrunden) */}
+        <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">
+          <View style={[s.lightAnchor, { top: lightY - raysSize / 2, left: (width - raysSize) / 2, width: raysSize, height: raysSize }]} pointerEvents="none">
+            <GoldRays size={raysSize} visible={rays} />
+          </View>
+          <Reanimated.View
+            style={[s.lightAnchor, { top: lightY - glowSize / 2, left: (width - glowSize) / 2, width: glowSize, height: glowSize }, glowStyle]}
+            pointerEvents="none"
+          >
+            <RadialGlow size={glowSize} color={GOLD} opacity={0.32} radiusRatio={0.55} />
+          </Reanimated.View>
         </Reanimated.View>
 
-        <Pressable style={[s.stage, { paddingTop: insets.top }]} onPress={tapToSkip}>
-          {step === "stamp" && (
-            <Reanimated.View key="stamp" style={s.stage} exiting={exit}>
-              <StampScene
-                place={place}
-                firstVisit={state.firstVisit}
-                visitNumber={state.visitNumber}
-                lastVisitAt={state.lastVisitAt}
-                done={state.status === "done"}
-                skip={skip}
-                rays={rays}
-                glow={glow}
-                onReady={() => setReady(true)}
-              />
-            </Reanimated.View>
-          )}
-          {step === "progress" && frozen.current.progress && (
-            <Reanimated.View key="progress" style={s.stage} entering={enter} exiting={exit}>
-              <ProgressScene
-                hero={frozen.current.progress.hero}
-                category={frozen.current.progress.category}
-                items={frozen.current.progress.items}
-                skip={skip}
-                onReady={() => setReady(true)}
-              />
-            </Reanimated.View>
-          )}
-          {step === "climb" && climb && (
-            <Reanimated.View key="climb" style={s.stage} entering={enter} exiting={exit}>
-              <ClimbScene data={climb} monthName={monthName} skip={skip} onReady={() => setReady(true)} />
-            </Reanimated.View>
-          )}
-          {step === "next" && frozen.current.next && (
-            <Reanimated.View key="next" style={s.stage} entering={enter}>
-              <NextStopScene
-                stops={frozen.current.next}
-                skip={skip}
-                onReady={() => setReady(true)}
-                onOpen={(placeId) => onClose({ placeId })}
-              />
-            </Reanimated.View>
-          )}
-        </Pressable>
-
-        {/* Fast höjd så scenen inte hoppar när knapparna dyker upp */}
-        <View style={[s.buttons, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>{buttons}</View>
+        <Reanimated.View style={[s.stage, contentStyle]} pointerEvents={leaving ? "none" : "auto"}>
+          <Pressable style={[s.stage, { paddingTop: insets.top }]} onPress={tapToSkip}>
+            {step === "stamp" && (
+              <Reanimated.View key="stamp" style={s.stage} exiting={exit}>
+                <StampScene
+                  place={place}
+                  firstVisit={state.firstVisit}
+                  visitNumber={state.visitNumber}
+                  lastVisitAt={state.lastVisitAt}
+                  done={state.status === "done"}
+                  skip={skip}
+                  rays={rays}
+                  glow={glow}
+                  onReady={() => setReady(true)}
+                />
+              </Reanimated.View>
+            )}
+            {step === "progress" && frozen.current.progress && (
+              <Reanimated.View key="progress" style={s.stage} entering={enter} exiting={exit}>
+                <ProgressScene
+                  hero={frozen.current.progress.hero}
+                  category={frozen.current.progress.category}
+                  items={frozen.current.progress.items}
+                  skip={skip}
+                  onReady={() => setReady(true)}
+                />
+              </Reanimated.View>
+            )}
+            {step === "climb" && climb && (
+              <Reanimated.View key="climb" style={s.stage} entering={enter} exiting={exit}>
+                <ClimbScene data={climb} monthName={monthName} skip={skip} onReady={() => setReady(true)} />
+              </Reanimated.View>
+            )}
+            {step === "next" && frozen.current.next && (
+              <Reanimated.View key="next" style={s.stage} entering={enter}>
+                <NextStopScene
+                  stops={frozen.current.next}
+                  skip={skip}
+                  onReady={() => setReady(true)}
+                  onOpen={(placeId) => exitTo({ placeId })}
+                />
+              </Reanimated.View>
+            )}
+          </Pressable>
+  
+          {/* Fast höjd så scenen inte hoppar när knapparna dyker upp */}
+          <View style={[s.buttons, { height: BUTTONS_H + bottomPad, paddingBottom: bottomPad }]}>{buttons}</View>
+        </Reanimated.View>
       </View>
     </Modal>
   );
@@ -354,10 +387,13 @@ const s = StyleSheet.create({
   backdrop: { backgroundColor: "#0B0A08" },
   lightAnchor: { position: "absolute", alignItems: "center", justifyContent: "center" },
   stage: { flex: 1 },
-  buttons: { paddingHorizontal: 20, gap: 10, minHeight: 140, justifyContent: "flex-end" },
+  // Fast höjd med plats för erbjudandetipset + båda knapparna redan från start — växer rutan när
+  // sista knapparna dyker upp flyttar sig hela den centrerade scenen (det hack som syntes på
+  // Vart härnäst?)
+  buttons: { paddingHorizontal: 20, gap: 10, justifyContent: "flex-end" },
   offer: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14,
+    height: 46, paddingHorizontal: 14, borderRadius: 14,
     backgroundColor: "rgba(233,196,106,0.10)", borderWidth: 1, borderColor: "rgba(233,196,106,0.35)",
   },
   offerText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: GOLD },

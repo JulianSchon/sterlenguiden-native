@@ -103,16 +103,12 @@ export function CheckInSection({ place }: { place: Place }) {
     }
   };
 
-  // Belöningen stängs först, navigeringen sker en kort stund senare — att byta sida medan en
-  // modal håller på att stängas kan låsa sig på iOS
-  const handleCelebrationClose = (exit?: CelebrationExit) => {
-    setCelebration(null);
-    if (!exit) return;
-    setTimeout(() => {
-      if (exit === "offers") router.push("/offers" as any);
-      else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } } as any);
-      else router.push(`/place/${exit.placeId}` as any);
-    }, 300);
+  // Belöningen tonar själv ut. En sida som ska öppnas läggs bakom den medan den fortfarande täcker
+  // skärmen, så man aldrig skymtar platssidan på vägen
+  const handleCelebrationNavigate = (exit: CelebrationExit) => {
+    if (exit === "offers") router.push("/offers" as any);
+    else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } } as any);
+    else router.push(`/place/${exit.placeId}` as any);
   };
 
   const handleRecheck = async () => {
@@ -217,7 +213,7 @@ export function CheckInSection({ place }: { place: Place }) {
   return (
     <>
       {card}
-      {celebration && <CheckInCelebration place={place} state={celebration} onClose={handleCelebrationClose} />}
+      {celebration && <CheckInCelebration place={place} state={celebration} onNavigate={handleCelebrationNavigate} onClose={() => setCelebration(null)} />}
     </>
   );
 }
