@@ -62,7 +62,7 @@ const LAND_AT = DROP_AT + DROP_MS;
 const T_TITLE = 1000;
 const T_COLLECTION = 1700;
 const T_FILL = 2100;
-const FILL_MS = 1300;
+const FILL_MS = 1200; // samma tempo som besökets staplar (ProgressScene)
 const T_LEADER = 3700;
 const LEADER_MS = 2500;
 /** Skatten kommer upp lutad så här mycket åt vänster och fjädrar sen till rätt läge: slår över
@@ -531,7 +531,7 @@ function LeaderRow({ data, opened }: { data: LeaderData | null; opened: boolean 
     timers.push(setTimeout(() => {
       if (!dataRef.current) return;
       inV.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
-      roll.value = withDelay(450, withTiming(1, { duration: 420, easing: Easing.inOut(Easing.quad) }));
+      roll.value = withDelay(450, withTiming(1, { duration: 300, easing: Easing.inOut(Easing.quad) }));
       timers.push(setTimeout(() => hit(Haptics.ImpactFeedbackStyle.Medium), 650));
       timers.push(setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
