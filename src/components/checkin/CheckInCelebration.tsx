@@ -253,6 +253,9 @@ export function CheckInCelebration({
     if (leaving) return;
     setLeaving(true);
     leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) });
+    // Strålkransen tonas ut med innehållet — när en ny sida öppnas bakom kan den annars synas hoppa
+    // tillbaka till startläget
+    rays.value = withTiming(0, { duration: 260 });
     // Sidan öppnas först när innehållet tonat ut helt (att bygga en ny sida kan tappa en bildruta,
     // och det syns inte mot en stilla mörk yta), och bakgrunden tonas bort när den glidit på plats
     const fadeAt = exit ? 900 : 140;

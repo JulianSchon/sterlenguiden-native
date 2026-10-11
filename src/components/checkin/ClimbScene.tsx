@@ -318,9 +318,10 @@ const s = StyleSheet.create({
   scope: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: MUTED, marginTop: 2 },
   chip: {
     marginTop: 12, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999,
-    backgroundColor: "rgba(74,222,128,0.14)", borderWidth: 1, borderColor: "rgba(74,222,128,0.5)",
+    // Helt ogenomskinlig — guldstrålarna snurrar bakom, och en genomskinlig bricka gick knappt att läsa
+    backgroundColor: "#122A1B", borderWidth: 1, borderColor: "rgba(74,222,128,0.65)",
   },
-  chipText: { fontFamily: "Montserrat_700Bold", fontSize: 14, color: GREEN },
+  chipText: { fontFamily: "Montserrat_700Bold", fontSize: 15, color: "#6EF09D" },
   slot: { position: "absolute", left: 0, right: 0, top: 0 },
   // Ogenomskinlig botten under min (halvgenomskinligt guldtonade) rad, så raderna jag glider förbi
   // inte lyser igenom
