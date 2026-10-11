@@ -450,10 +450,11 @@ const s = StyleSheet.create({
   heroLabel: { fontFamily: "Inter_500Medium", fontSize: 15, color: MUTED, marginTop: -4 },
   pctPill: {
     flexDirection: "row", alignItems: "center", marginTop: 10, paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 999, backgroundColor: "rgba(233,196,106,0.10)", borderWidth: 1, borderColor: "rgba(233,196,106,0.30)",
+    // Helt ogenomskinlig — guldstrålarna snurrar bakom, och en genomskinlig ruta gick knappt att läsa
+    borderRadius: 999, backgroundColor: "#1C1A15", borderWidth: 1, borderColor: "rgba(233,196,106,0.55)",
   },
-  pctValue: { fontFamily: "Montserrat_700Bold", fontSize: 13.5, color: GOLD, fontVariant: ["tabular-nums"] },
-  pctLabel: { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(245,241,232,0.75)" },
+  pctValue: { fontFamily: "Montserrat_700Bold", fontSize: 15, color: GOLD, fontVariant: ["tabular-nums"] },
+  pctLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: FG },
   milestoneChip: {
     marginTop: 10, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
     backgroundColor: "rgba(233,196,106,0.16)", borderWidth: 1, borderColor: "rgba(233,196,106,0.6)",
