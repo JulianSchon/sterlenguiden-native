@@ -58,14 +58,13 @@ const GOLD_LT = "#E8C674";
 // högst upp (där boxen börjar) istället för runt medaljen (där den faktiskt
 // syns), och kändes för kraftig. Ett tunt, löst lager runt själva medaljen
 // — precis som i referensbilden — läser bättre.
-// Bytet av "Senaste utmärkelsen" efter en placering: en mjuk toning med en knappt märkbar zoom —
-// diskret, ingen studs (stora ögonblicket har redan varit, det här bara bekräftar)
+// Bytet av "Senaste utmärkelsen" efter en placering: bara en lugn toning, ingen zoom eller studs
+// (stora ögonblicket har redan varit, det här bara bekräftar)
 const heroSwap = () => {
   "worklet";
-  const timing = { duration: 650, easing: ReEasing.out(ReEasing.cubic) };
   return {
-    initialValues: { opacity: 0, transform: [{ scale: 0.94 }] },
-    animations: { opacity: withTiming(1, timing), transform: [{ scale: withTiming(1, timing) }] },
+    initialValues: { opacity: 0 },
+    animations: { opacity: withTiming(1, { duration: 900, easing: ReEasing.inOut(ReEasing.quad) }) },
   };
 };
 
@@ -388,7 +387,7 @@ export default function ChallengesScreen() {
     const reveal = setTimeout(() => {
       setHeroAnimate(true);
       setHeroHidden([]);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      Haptics.selectionAsync().catch(() => {});
     }, 1150);
     return () => { clearTimeout(up); clearTimeout(reveal); };
   }, [waiting.length, dropping, heroHidden.length]);
