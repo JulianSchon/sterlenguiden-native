@@ -43,7 +43,7 @@ function ordinal(n: number): string {
 }
 
 export function StampScene({
-  place, firstVisit, visitNumber, lastVisitAt, done, skip, rays, glow, onReady,
+  place, firstVisit, visitNumber, lastVisitAt, done, skip, rays, glow, flash, onReady,
 }: {
   place: Place;
   firstVisit: boolean;
@@ -55,6 +55,8 @@ export function StampScene({
   /** Bakgrundens strålkrans och glöd — ägs av föräldern (lever kvar in i nästa steg) */
   rays: SharedValue<number>;
   glow: SharedValue<number>;
+  /** Blixten vid smällen — ritas av föräldern över HELA skärmen, knappytan inräknad */
+  flash: SharedValue<number>;
   onReady: () => void;
 }) {
   const { width, height } = useWindowDimensions();
@@ -79,7 +81,6 @@ export function StampScene({
   const press = useSharedValue(0);
   const shake = useSharedValue(0);
   const ring = useSharedValue(0);
-  const flash = useSharedValue(0);
   const burst = useSharedValue(0);
   // Efterspel
   const headline = useSharedValue(0);
@@ -236,7 +237,6 @@ export function StampScene({
     opacity: interpolate(ring.value, [0, 0.05, 1], [0, 0.7, 0]),
     transform: [{ scale: interpolate(ring.value, [0, 1], [0.8, 1.9]) }],
   }));
-  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value * 0.16 }));
   const headlineStyle = useAnimatedStyle(() => ({
     opacity: headline.value,
     transform: [{ translateY: interpolate(headline.value, [0, 1], [16, 0]) }, { scale: interpolate(headline.value, [0, 1], [0.94, 1]) }],
@@ -307,7 +307,6 @@ export function StampScene({
         </Reanimated.Text>
       </View>
 
-      <Reanimated.View style={[StyleSheet.absoluteFill, s.flash, flashStyle]} />
     </View>
   );
 }
@@ -348,5 +347,4 @@ const s = StyleSheet.create({
   texts: { alignItems: "center", marginTop: 28, minHeight: 74 },
   headline: { fontFamily: "Montserrat_700Bold", fontSize: 30, color: FG, textAlign: "center" },
   sub: { fontFamily: "Inter_500Medium", fontSize: 15, color: INK, marginTop: 6, textAlign: "center" },
-  flash: { backgroundColor: "#FFF6DE" },
 });

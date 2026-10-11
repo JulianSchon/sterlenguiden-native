@@ -135,6 +135,7 @@ export function CheckInCelebration({
   const leave = useSharedValue(0);
   const glow = useSharedValue(0);
   const rays = useSharedValue(0);
+  const flash = useSharedValue(0);
 
   useEffect(() => {
     backdrop.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) });
@@ -252,8 +253,10 @@ export function CheckInCelebration({
     if (leaving) return;
     setLeaving(true);
     leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) });
-    const fadeAt = exit ? 650 : 140;
-    if (exit) setTimeout(() => onNavigate(exit), 180);
+    // Sidan öppnas först när innehållet tonat ut helt (att bygga en ny sida kan tappa en bildruta,
+    // och det syns inte mot en stilla mörk yta), och bakgrunden tonas bort när den glidit på plats
+    const fadeAt = exit ? 900 : 140;
+    if (exit) setTimeout(() => onNavigate(exit), 300);
     backdrop.value = withDelay(fadeAt, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
     setTimeout(onClose, fadeAt + 340);
   };
@@ -270,6 +273,7 @@ export function CheckInCelebration({
     transform: [{ translateY: leave.value * 24 }],
   }));
   const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value * 0.16 }));
   const glowSize = width * 1.25;
   const raysSize = width * 1.9;
   const lightY = height * 0.42;
@@ -342,6 +346,7 @@ export function CheckInCelebration({
                   skip={skip}
                   rays={rays}
                   glow={glow}
+                  flash={flash}
                   onReady={() => setReady(true)}
                 />
               </Reanimated.View>
@@ -377,6 +382,9 @@ export function CheckInCelebration({
           {/* Fast höjd så scenen inte hoppar när knapparna dyker upp */}
           <View style={[s.buttons, { height: BUTTONS_H + bottomPad, paddingBottom: bottomPad }]}>{buttons}</View>
         </Reanimated.View>
+
+        {/* Smällens blixt över hela skärmen */}
+        <Reanimated.View style={[StyleSheet.absoluteFill, s.flash, flashStyle]} pointerEvents="none" />
       </View>
     </Modal>
   );
@@ -385,6 +393,7 @@ export function CheckInCelebration({
 const s = StyleSheet.create({
   root: { flex: 1 },
   backdrop: { backgroundColor: "#0B0A08" },
+  flash: { backgroundColor: "#FFF6DE" },
   lightAnchor: { position: "absolute", alignItems: "center", justifyContent: "center" },
   stage: { flex: 1 },
   // Fast höjd med plats för erbjudandetipset + båda knapparna redan från start — växer rutan när
