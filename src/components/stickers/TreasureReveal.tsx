@@ -104,6 +104,14 @@ export function TreasureReveal({
   const leaderRef = useRef<LeaderData | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
+  // Svar från servern som kommer medan kistan faller och landar sparas och används först när
+  // landningen är klar — en omritning mitt i studsen tappade en bildruta
+  const mountedAt = useRef(Date.now());
+  const afterLanding = (fn: () => void) => {
+    const wait = mountedAt.current + LAND_AT + 450 - Date.now();
+    if (wait > 0) later(wait, fn);
+    else fn();
+  };
 
   // Storlekar: kistan nästan skärmbredd, skatten lika stor när den landat
   const CHEST = Math.round(Math.min(width * 0.86, height * 0.44));
@@ -181,24 +189,27 @@ export function TreasureReveal({
         return collect.mutateAsync({ collectibleId: collectible.id, lat: userLoc.latitude, lng: userLoc.longitude });
       })
       .then(() => {
-        setFound(true);
+        afterLanding(() => setFound(true));
         addTreasureToPlace(collectible.id);
         // Topplistan efteråt — bara om jag syns där, hade en rad före och siffran ändrades
         return atMost(fetchMyStanding("stickers")).then(async (after) => {
           const b = before;
           if (!b || !after || after.placement == null || after.rowPos == null || after.value === b.value) return;
           const above = after.rowPos > 1 ? (await atMost(fetchRows("stickers", after.rowPos - 1, 1)))?.[0] ?? null : null;
-          leaderRef.current = { before: b, after, above };
-          setLeader(leaderRef.current);
+          const data = { before: b, after, above };
+          leaderRef.current = data;
+          afterLanding(() => setLeader(data));
         });
       })
       .catch((e: Error) => {
-        setError(e.message === "too_far"
-          ? "Du är för långt bort. Gå lite närmare och försök igen."
-          : "Det gick inte att öppna kistan. Försök igen.");
-        setTremble(0);
-        seam.value = withTiming(0, { duration: 300 });
-        glow.value = withTiming(0, { duration: 300 });
+        afterLanding(() => {
+          setError(e.message === "too_far"
+            ? "Du är för långt bort. Gå lite närmare och försök igen."
+            : "Det gick inte att öppna kistan. Försök igen.");
+          setTremble(0);
+          seam.value = withTiming(0, { duration: 300 });
+          glow.value = withTiming(0, { duration: 300 });
+        });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -278,10 +289,11 @@ export function TreasureReveal({
     rise.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 750, easing: Easing.out(Easing.back(1.4)) }));
     later(BOOM_DELAY + 790, () => hit(Haptics.ImpactFeedbackStyle.Medium));
     // Efter landningen gungar den en gång till — åt höger, sist åt vänster — och låser sig
+    // (samma rappa takt som snurrets egen eftersvängning, så inget sväng känns segare än ett annat)
     sway.value = withDelay(BOOM_DELAY + 790, withSequence(
-      withTiming(5, { duration: 300, easing: Easing.inOut(Easing.quad) }),
-      withTiming(-3, { duration: 340, easing: Easing.inOut(Easing.quad) }),
-      withTiming(0, { duration: 300, easing: Easing.out(Easing.quad) }),
+      withTiming(4, { duration: 170, easing: Easing.inOut(Easing.sin) }),
+      withTiming(-3, { duration: 230, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0, { duration: 190, easing: Easing.out(Easing.sin) }),
     ));
     landGlow.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 500 }));
     text.value = withDelay(BOOM_DELAY + T_TITLE, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
