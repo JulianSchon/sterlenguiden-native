@@ -30,7 +30,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Reanimated, { ZoomIn } from "react-native-reanimated";
+import Reanimated, { Easing as ReEasing, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ArrowLeft, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -58,6 +58,17 @@ const GOLD_LT = "#E8C674";
 // högst upp (där boxen börjar) istället för runt medaljen (där den faktiskt
 // syns), och kändes för kraftig. Ett tunt, löst lager runt själva medaljen
 // — precis som i referensbilden — läser bättre.
+// Bytet av "Senaste utmärkelsen" efter en placering: en mjuk toning med en knappt märkbar zoom —
+// diskret, ingen studs (stora ögonblicket har redan varit, det här bara bekräftar)
+const heroSwap = () => {
+  "worklet";
+  const timing = { duration: 650, easing: ReEasing.out(ReEasing.cubic) };
+  return {
+    initialValues: { opacity: 0, transform: [{ scale: 0.94 }] },
+    animations: { opacity: withTiming(1, timing), transform: [{ scale: withTiming(1, timing) }] },
+  };
+};
+
 function FeaturedTrophy({ trophy, medalSize, onPress }: { trophy: Trophy; medalSize: number; onPress: () => void }) {
   const unlocked = trophy.done;
   const glowColor = TIER_PALETTE[trophy.tier].field[0]; // ljusaste tonen i paletten, mest "glow"-lik
@@ -222,7 +233,7 @@ function TrophyGrid({
       {featured && (
         <Reanimated.View
           key={featured.key}
-          entering={heroAnimate ? ZoomIn.springify().damping(13) : undefined}
+          entering={heroAnimate ? heroSwap : undefined}
           style={{ alignItems: "center", paddingTop: 32 }}
         >
           <FeaturedTrophy trophy={featured} medalSize={heroMedalSize} onPress={() => onPress(featured)} />
@@ -377,7 +388,7 @@ export default function ChallengesScreen() {
     const reveal = setTimeout(() => {
       setHeroAnimate(true);
       setHeroHidden([]);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }, 1150);
     return () => { clearTimeout(up); clearTimeout(reveal); };
   }, [waiting.length, dropping, heroHidden.length]);
