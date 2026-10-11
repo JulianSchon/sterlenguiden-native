@@ -325,10 +325,13 @@ export function TreasureReveal({
     rays.value = withTiming(0, { duration: 260 });
     // Innehållet tonas ut (260 ms), sen tas allt tungt bort bakom den stilla mörka bakgrunden
     setTimeout(() => setCleared(true), 280);
-    const fadeAt = toCollection ? 950 : 360;
+    // Till samlingen: Mitt Österlen får lite längre tid att bli klar bakom den mörka ytan, och
+    // toningen är längre och mjukare — då syns ett eventuellt tappat bildruta knappt
+    const fadeAt = toCollection ? 1150 : 360;
+    const fadeMs = toCollection ? 480 : 320;
     if (toCollection) setTimeout(onNavigate, 330);
-    backdrop.value = withDelay(fadeAt, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
-    setTimeout(onClose, fadeAt + 340);
+    backdrop.value = withDelay(fadeAt, withTiming(0, { duration: fadeMs, easing: Easing.inOut(Easing.quad) }));
+    setTimeout(onClose, fadeAt + fadeMs + 20);
   };
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));

@@ -87,7 +87,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
     timers.push(setTimeout(() => {
       scrollTo?.(sectionY.current + gridY.current + (cellY.current[id] ?? 0) - winH * 0.38);
       timers.push(setTimeout(() => setDropping(id), 650));
-    }, firstDrop.current ? Math.max(700, 1500 - (Date.now() - mountedAt.current)) : 350));
+    }, firstDrop.current ? Math.max(700, 1800 - (Date.now() - mountedAt.current)) : 350));
     firstDrop.current = false;
     return () => timers.forEach(clearTimeout);
   }, [waiting, dropping, imagesReady, scrollTo, winH]);
