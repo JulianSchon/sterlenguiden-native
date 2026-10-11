@@ -18,10 +18,12 @@
  *  5. "Se i samlingen" (öppnar Mitt Österlen bakom den mörka bakgrunden, där skatten sen klistras
  *     in) eller "Fortsätt".
  *
- * Prestanda: inget tungt skapas i ett ögonblick då något rör sig. Bara kistan finns från start;
- * explosionens konfetti, skatten, dess glöd och texterna byggs medan kistan står still och väntar
- * på första trycket, och tonas sen bara fram. Vid utgången tonas innehållet först, sen tas allt
- * tungt bort bakom en stilla mörk yta, och först därefter tonas bakgrunden.
+ * Prestanda: ingenting skapas efter att kistan börjat falla. ALLT — kistan, explosionens
+ * konfetti, skatten, texterna, topplistans ruta och knapparna — byggs medan skärmen mörknar, och
+ * kistan släpps först när det är klart. Sen tonas saker bara fram. Landningens skak och studs
+ * körs helt på animationstråden (inte via en timer som kan bli sen om appen är upptagen). Vid
+ * utgången tonas innehållet först, sen tas allt tungt bort bakom en stilla mörk yta, och först
+ * därefter tonas bakgrunden.
  *
  * Servern (collect_sticker, som själv kontrollerar avståndet) frågas direkt när kistan visas, så
  * svaret hinner komma medan man trycker. Har det inte kommit vid fjärde trycket fortsätter kistan
@@ -52,6 +54,10 @@ const HINTS = ["Tryck på kistan!", "Igen!", "Mer!", "Nästan…!"];
 const SPARKS = ["#FFF1C1", "#F5D88A", "#E9C46A", "#FFFFFF"];
 const DUST = ["#C9B38A", "#A88E62", "#E2D3B0"];
 const BOOM_DELAY = 300;
+// Kistan släpps först när allt hunnit byggas bakom den mörknande skärmen
+const DROP_AT = 420;
+const DROP_MS = 380;
+const LAND_AT = DROP_AT + DROP_MS;
 // Efter smällen (räknat från BOOM_DELAY): titeln, samlingens rad, stapeln, topplistan, knapparna
 const T_TITLE = 1000;
 const T_COLLECTION = 1700;
@@ -91,13 +97,13 @@ export function TreasureReveal({
   const [opened, setOpened] = useState(false);
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  // Andra steget (explosionen, skatten, texterna) byggs först när kistan landat och står still
-  const [armed, setArmed] = useState(false);
   // Utgången: allt tungt bort när innehållet tonats ut, så bakgrunden kan tonas mjukt
   const [cleared, setCleared] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leader, setLeader] = useState<LeaderData | null>(null);
   const leaderRef = useRef<LeaderData | null>(null);
+  // Topplistans ruta finns hela tiden (osynlig) — det här startar den
+  const [leaderPlay, setLeaderPlay] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
 
@@ -134,6 +140,7 @@ export function TreasureReveal({
   const hint = useSharedValue(0);
   const landGlow = useSharedValue(0);
   const collection = useSharedValue(0);
+  const buttonsIn = useSharedValue(0);
 
   // Utmaningsfirandet väntar medan kistan är öppen
   useEffect(() => holdTrophyMoments(), []);
@@ -156,18 +163,18 @@ export function TreasureReveal({
   // laddad när kistan exploderar även om man trycker blixtsnabbt
   useEffect(() => {
     if (collectible.imagePath) Image.prefetch(stickerImageUrl(collectible.imagePath)).catch(() => {});
-    backdrop.value = withTiming(1, { duration: 250, easing: Easing.out(Easing.quad) });
-    chestIn.value = withDelay(120, withTiming(1, { duration: 380, easing: Easing.in(Easing.cubic) }));
-    later(500, () => {
-      hit(Haptics.ImpactFeedbackStyle.Heavy);
-      shakeScreen(7);
-      squash.value = withSequence(withTiming(1, { duration: 70 }), withTiming(0, { duration: 280, easing: Easing.out(Easing.back(2.5)) }));
-      dust.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
-      glow.value = withTiming(0.2, { duration: 400 });
-      rays.value = withTiming(0.12, { duration: 600 });
-    });
-    hint.value = withDelay(750, withTiming(1, { duration: 300 }));
-    later(650, () => setArmed(true));
+    backdrop.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
+    chestIn.value = withDelay(DROP_AT, withTiming(1, { duration: DROP_MS, easing: Easing.in(Easing.cubic) }));
+    // Landningen — allt det visuella på animationstråden, i exakt rätt bildruta
+    later(LAND_AT, () => hit(Haptics.ImpactFeedbackStyle.Heavy));
+    screenShake.value = withDelay(LAND_AT, withSequence(
+      withTiming(7, { duration: 40 }), withTiming(-5.6, { duration: 50 }), withTiming(3.5, { duration: 50 }), withTiming(0, { duration: 60 }),
+    ));
+    squash.value = withDelay(LAND_AT, withSequence(withTiming(1, { duration: 70 }), withTiming(0, { duration: 280, easing: Easing.out(Easing.back(2.5)) })));
+    dust.value = withDelay(LAND_AT, withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) }));
+    glow.value = withDelay(LAND_AT, withTiming(0.2, { duration: 400 }));
+    rays.value = withDelay(LAND_AT, withTiming(0.12, { duration: 600 }));
+    hint.value = withDelay(LAND_AT + 250, withTiming(1, { duration: 300 }));
     let before: LeaderboardEntry | null = null;
     atMost(standingBefore ?? fetchMyStanding("stickers"))
       .then((b) => {
@@ -183,6 +190,7 @@ export function TreasureReveal({
           if (!b || !after || after.placement == null || after.rowPos == null || after.value === b.value) return;
           const above = after.rowPos > 1 ? (await atMost(fetchRows("stickers", after.rowPos - 1, 1)))?.[0] ?? null : null;
           leaderRef.current = { before: b, after, above };
+          setLeader(leaderRef.current);
         });
       })
       .catch((e: Error) => {
@@ -211,6 +219,11 @@ export function TreasureReveal({
     sparks.value = withTiming(1, { duration: 800, easing: Easing.linear });
     if (n >= 3) shakeScreen(3 + n);
   };
+
+  // Knapparna finns redan (osynliga) och tonas bara fram
+  useEffect(() => {
+    if (ready) buttonsIn.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
+  }, [ready, buttonsIn]);
 
   const tap = () => {
     if (opened || error || leaving || chestIn.value < 1 || taps >= TAPS) return;
@@ -271,7 +284,7 @@ export function TreasureReveal({
     // Topplistan om den finns, annars knapparna strax efter att stapeln fyllts
     later(BOOM_DELAY + T_LEADER, () => {
       if (leaderRef.current) {
-        setLeader(leaderRef.current);
+        setLeaderPlay(true);
         later(LEADER_MS, () => setReady(true));
       } else {
         later(200, () => setReady(true));
@@ -332,6 +345,10 @@ export function TreasureReveal({
     opacity: text.value,
     transform: [{ translateY: interpolate(text.value, [0, 1], [18, 0]) }],
   }));
+  const buttonsStyle = useAnimatedStyle(() => ({
+    opacity: buttonsIn.value,
+    transform: [{ translateY: interpolate(buttonsIn.value, [0, 1], [14, 0]) }],
+  }));
   const collectionStyle = useAnimatedStyle(() => ({
     opacity: collection.value,
     transform: [{ translateY: interpolate(collection.value, [0, 1], [16, 0]) }],
@@ -341,7 +358,7 @@ export function TreasureReveal({
   const raysSize = Math.hypot(width, height) * 1.05;
   const glowSize = width * 1.4;
   const bottomPad = Math.max(insets.bottom, 16) + 8;
-  const showDescription = !!collectible.description && height >= 760 && !leader;
+  const showDescription = !!collectible.description && height >= 760 && !leaderPlay;
 
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo(false)}>
@@ -384,8 +401,7 @@ export function TreasureReveal({
               </View>
             </Reanimated.View>
 
-            {/* Explosionen och skatten — byggs i förväg (armed), syns först vid smällen */}
-            {armed && (<>
+            {/* Explosionen och skatten — finns från start, syns först vid smällen */}
             <View style={[s.anchor, { top: chestY - 1, left: width / 2 - 1, width: 2, height: 2 }]} pointerEvents="none">
               <Confetti progress={burst} count={80} power={1.7} durationS={1.6} />
             </View>
@@ -402,8 +418,6 @@ export function TreasureReveal({
               </View>
             </Reanimated.View>
 
-            </>)}
-
             {!error && (
               <View style={[s.below, { top: chestY + chestH / 2 + 18 }]} pointerEvents="none">
                 <Reanimated.Text style={[s.hint, hintStyle]}>{HINTS[Math.min(taps, TAPS - 1)]}</Reanimated.Text>
@@ -414,42 +428,36 @@ export function TreasureReveal({
                 <Text style={s.error}>{error}</Text>
               </View>
             )}
-            {armed && (
-              <View style={[s.below, { top: finalY + STICKER / 2 + 12 }]} pointerEvents="none">
-                <Reanimated.View style={[s.titleBlock, textStyle]}>
-                  <Text style={s.eyebrow}>DU HITTADE EN SKATT!</Text>
-                  <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
-                </Reanimated.View>
-                <Reanimated.View style={[s.progress, collectionStyle]}>
-                  <View style={s.progressTop}>
-                    <Text style={s.progressLabel}>Österlens skatter</Text>
-                    <Text style={s.progressCount}>{haveBefore + 1} av {total}</Text>
-                  </View>
-                  <FillBar
-                    from={haveBefore / Math.max(1, total)}
-                    to={(haveBefore + 1) / Math.max(1, total)}
-                    startAt={BOOM_DELAY + T_FILL}
-                    durationMs={FILL_MS}
-                    skip={false}
-                    play={opened}
-                  />
-                </Reanimated.View>
-                {leader && <LeaderRow data={leader} />}
-                {showDescription ? <Text style={s.description} numberOfLines={3}>{collectible.description}</Text> : null}
-              </View>
-            )}
+            <View style={[s.below, { top: finalY + STICKER / 2 + 12 }]} pointerEvents="none">
+              <Reanimated.View style={[s.titleBlock, textStyle]}>
+                <Text style={s.eyebrow}>DU HITTADE EN SKATT!</Text>
+                <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
+              </Reanimated.View>
+              <Reanimated.View style={[s.progress, collectionStyle]}>
+                <View style={s.progressTop}>
+                  <Text style={s.progressLabel}>Österlens skatter</Text>
+                  <Text style={s.progressCount}>{haveBefore + 1} av {total}</Text>
+                </View>
+                <FillBar
+                  from={haveBefore / Math.max(1, total)}
+                  to={(haveBefore + 1) / Math.max(1, total)}
+                  startAt={BOOM_DELAY + T_FILL}
+                  durationMs={FILL_MS}
+                  skip={false}
+                  play={opened}
+                />
+              </Reanimated.View>
+              <LeaderRow data={leader} play={leaderPlay} />
+              {showDescription ? <Text style={s.description} numberOfLines={3}>{collectible.description}</Text> : null}
+            </View>
           </Pressable>
 
           <View style={[s.buttons, { height: 118 + bottomPad, paddingBottom: bottomPad }]}>
-            {ready && (
-              <>
-                <Reveal show>
-                  <GoldButton label="Se i samlingen" onPress={() => exitTo(true)} />
-                </Reveal>
-                <Reveal show delay={100}>
-                  <GhostButton label="Fortsätt" onPress={() => exitTo(false)} />
-                </Reveal>
-              </>
+            {!error && (
+              <Reanimated.View style={[s.buttonStack, buttonsStyle]} pointerEvents={ready ? "auto" : "none"}>
+                <GoldButton label="Se i samlingen" onPress={() => exitTo(true)} />
+                <GhostButton label="Fortsätt" onPress={() => exitTo(false)} />
+              </Reanimated.View>
             )}
             {error && (
               <Reveal show>
@@ -469,18 +477,24 @@ export function TreasureReveal({
 const firstName = (name: string) => name.trim().split(/\s+/)[0];
 
 /** Topplistan "Flest skatter" (hela appen): placeringen rullar, "↑ 2" poppar och hur långt det är
- * till nästa placering tonar in. Spelas från att raden dyker upp. */
-function LeaderRow({ data }: { data: LeaderData }) {
-  const { before, after, above } = data;
+ * till nästa placering tonar in. Finns på plats osynlig från start (så inget skapas mitt i
+ * animationen) och spelas när `play` blir sant. Utan data (man syns inte i topplistan) förblir den
+ * osynlig. */
+function LeaderRow({ data, play }: { data: LeaderData | null; play: boolean }) {
   const inV = useSharedValue(0);
   const chip = useSharedValue(0);
   const gapIn = useSharedValue(0);
-  const isNew = before.placement == null;
-  const gained = !isNew ? before.placement! - after.placement! : 0;
+  const before = data?.before;
+  const after = data?.after;
+  const above = data?.above ?? null;
+  const fromPlace = before?.placement ?? after?.placement ?? 0;
+  const toPlace = after?.placement ?? 0;
+  const isNew = !!data && before?.placement == null;
+  const gained = data && !isNew ? fromPlace - toPlace : 0;
   const chipText = isNew ? "Ny på topplistan!" : gained > 0 ? `↑ ${gained} ${gained === 1 ? "placering" : "placeringar"}` : null;
   let gap: string | null = null;
-  if (after.placement === 1) gap = "Du leder topplistan!";
-  else if (above) {
+  if (after?.placement === 1) gap = "Du leder topplistan!";
+  else if (above && after) {
     const need = above.value - after.value;
     gap = need > 0
       ? `${need} ${need === 1 ? "skatt" : "skatter"} till så når du plats ${above.placement}`
@@ -488,6 +502,7 @@ function LeaderRow({ data }: { data: LeaderData }) {
   }
 
   useEffect(() => {
+    if (!play || !data) return;
     inV.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
     const t1 = setTimeout(() => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -496,7 +511,7 @@ function LeaderRow({ data }: { data: LeaderData }) {
     gapIn.value = withDelay(1500, withTiming(1, { duration: 400 }));
     return () => clearTimeout(t1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [play, data]);
 
   const rowStyle = useAnimatedStyle(() => ({ opacity: inV.value, transform: [{ translateY: interpolate(inV.value, [0, 1], [16, 0]) }] }));
   const chipStyle = useAnimatedStyle(() => ({ opacity: chip.value, transform: [{ scale: interpolate(chip.value, [0, 1], [0.6, 1]) }] }));
@@ -506,13 +521,13 @@ function LeaderRow({ data }: { data: LeaderData }) {
     <Reanimated.View style={[s.progress, rowStyle]}>
       <View style={s.progressTop}>
         <Text style={s.progressLabel}>Topplistan · Flest skatter</Text>
-        <Text style={s.progressCount}>{after.value} {after.value === 1 ? "skatt" : "skatter"}</Text>
+        <Text style={s.progressCount}>{after ? `${after.value} ${after.value === 1 ? "skatt" : "skatter"}` : ""}</Text>
       </View>
       <View style={s.placeRow}>
         <Text style={s.placeLabel}>Plats </Text>
         <RollingNumber
-          from={before.placement ?? after.placement!}
-          to={after.placement!}
+          from={fromPlace}
+          to={play ? toPlace : fromPlace}
           startAt={400}
           durationMs={700}
           skip={false}
@@ -566,4 +581,5 @@ const s = StyleSheet.create({
   gap: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD, marginTop: 8 },
   description: { fontFamily: "Inter_400Regular", fontSize: 14.5, lineHeight: 21, color: MUTED, textAlign: "center", marginTop: 12 },
   buttons: { paddingHorizontal: 20, gap: 10, justifyContent: "flex-end" },
+  buttonStack: { gap: 10 },
 });
