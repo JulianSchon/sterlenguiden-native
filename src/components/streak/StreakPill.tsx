@@ -28,7 +28,7 @@ import { StreakMilestone } from "./StreakMilestone";
 
 const MILESTONES = [7, 30, 100, 365];
 const EMBERS = ["#FFE08A", "#FFB23E", "#FF7A1A", "#FFFFFF"];
-const FLAME = 20;
+const FLAME = 19;
 const T_IGNITE = 900;
 const seenKey = (userId: string) => `streak-lit:v1:${userId}`;
 
@@ -135,7 +135,7 @@ export function StreakPill() {
       <View style={s.pill}>
         <View style={s.flameBox}>
           <Reanimated.View style={flameStyle}>
-            <Flame size={FLAME} lit={lit} id="streakPillFlame" />
+            <Flame size={FLAME} lit={lit} />
           </Reanimated.View>
           <Confetti progress={burst} count={10} power={0.32} durationS={0.9} colors={EMBERS} />
         </View>
@@ -156,10 +156,11 @@ export function StreakPill() {
 
 const s = StyleSheet.create({
   // Solid botten och stora siffror — ska gå lätt att läsa ovanpå hero-bilden
+  // Samma hörnradie som värderutorna under topplistans pall
   pill: {
-    flexDirection: "row", alignItems: "center", gap: 6, height: 38, paddingLeft: 10, paddingRight: 13,
-    borderRadius: 19, backgroundColor: "#1C1A15", borderWidth: 1, borderColor: "rgba(255,178,62,0.55)",
+    flexDirection: "row", alignItems: "center", gap: 5, height: 30, paddingLeft: 8, paddingRight: 10,
+    borderRadius: 10, backgroundColor: "#1C1A15", borderWidth: 1, borderColor: "rgba(255,178,62,0.55)",
   },
-  flameBox: { width: FLAME, height: FLAME, alignItems: "center", justifyContent: "center" },
-  count: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: "#F5F1E8", fontVariant: ["tabular-nums"] },
+  flameBox: { height: FLAME, alignItems: "center", justifyContent: "center" },
+  count: { fontFamily: "Montserrat_700Bold", fontSize: 15, color: "#F5F1E8", fontVariant: ["tabular-nums"] },
 });

@@ -661,7 +661,9 @@ export default function HomeScreen() {
             onPress={() => router.push("/mitt-osterlen" as any)}
             activeOpacity={0.85}
           >
-            <StreakPill />
+            <View style={s.streakOverlap}>
+              <StreakPill />
+            </View>
             <View style={s.avatarBtn}>
               <AvatarRing ring={profile?.avatar_ring} size={50}>
                 <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
@@ -905,7 +907,9 @@ const s = StyleSheet.create({
     color: "rgba(245,240,232,0.82)",
     marginTop: 4,
   },
-  avatarGroup: { flexDirection: "row", alignItems: "center", gap: 10 },
+  avatarGroup: { flexDirection: "row", alignItems: "center" },
+  // Pillens högra kant ligger ovanpå profilbildens vänstra kant
+  streakOverlap: { marginRight: -14, zIndex: 2 },
   avatarBtn: {
     position: "relative",
     width: 50, height: 50,

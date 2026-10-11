@@ -158,9 +158,9 @@ export function StreakMilestone({ days, onClose }: { days: number; onClose: () =
 
         <Reanimated.View style={[s.root, contentStyle]} pointerEvents={leaving ? "none" : "auto"}>
           <Pressable style={[s.stage, { paddingTop: Math.max(0, lightY - flameSize / 2) }]} onPress={tapToSkip}>
-            <View style={{ width: flameSize, height: flameSize, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ height: flameSize, alignItems: "center", justifyContent: "center" }}>
               <Reanimated.View style={flameStyle}>
-                <Flame size={flameSize} lit={lit} id="milestoneFlame" />
+                <Flame size={flameSize} lit={lit} compact={false} />
               </Reanimated.View>
               <Confetti progress={burst} count={34} power={1.1} colors={EMBERS} />
             </View>
