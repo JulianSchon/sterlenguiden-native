@@ -25,7 +25,7 @@ export function StickerArt({
         <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="contain" blurRadius={Math.max(1, size / 40)} />
         {/* Samma form i mörkt ovanpå (tintColor = alla synliga pixlar i en färg) — släpper igenom
             en skymt av motivet */}
-        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { tintColor: SILHOUETTE, opacity: 0.78 }]} resizeMode="contain" />
+        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { tintColor: SILHOUETTE, opacity: 0.84 }]} resizeMode="contain" />
       </View>
     );
   }
