@@ -313,6 +313,7 @@ export const de: typeof sv = {
     expired: "Abgelaufen",
     activating: "Wird aktiviert…",
     activateFailed: { title: "Aktivierung fehlgeschlagen", body: "Das Angebot wurde nicht aktiviert. Prüfe deine Verbindung und versuche es erneut." },
+    activateBlocked: { title: "Dieses Angebot ist gerade nicht verfügbar", body: "Es wurde bereits genutzt oder kann noch nicht erneut genutzt werden." },
     how: {
       hold: "Gedrückt halten",
       show: "Dem Personal zeigen",

@@ -291,8 +291,12 @@ export function OfferDrawer({
     setActivating(true);
     try {
       await activate.mutateAsync(offer);
-    } catch {
-      Alert.alert(t("offers.activateFailed.title"), t("offers.activateFailed.body"));
+    } catch (e) {
+      // Servern stoppar aktiveringar som bryter mot reglerna (migration 025) — t.ex. om telefonens
+      // klocka ställts fram för att använda ett veckoerbjudande igen
+      const blocked = e instanceof Object && /offer_(not_available|already_used|not_yet_available)/.test(String((e as { message?: string }).message));
+      const key = blocked ? "offers.activateBlocked" : "offers.activateFailed";
+      Alert.alert(t(`${key}.title`), t(`${key}.body`));
     } finally {
       setActivating(false);
     }

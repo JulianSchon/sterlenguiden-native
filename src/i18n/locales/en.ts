@@ -313,6 +313,7 @@ export const en: typeof sv = {
     expired: "Expired",
     activating: "Activating…",
     activateFailed: { title: "Couldn't activate", body: "The offer wasn't activated. Check your connection and try again." },
+    activateBlocked: { title: "This offer can't be used right now", body: "It has already been used, or can't be used again yet." },
     how: {
       hold: "Press and hold",
       show: "Show the staff",

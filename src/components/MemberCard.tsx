@@ -32,6 +32,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
+import { serverNow } from "@/lib/serverClock";
 
 const { width: SW } = Dimensions.get("window");
 /** Kortets standardstorlek (hela skärmbredden minus sidomarginaler) */
@@ -116,7 +117,7 @@ export function MemberCard({
   const [clockOn, setClockOn]                = useState(showBackOnly || (startOnBack && isMember));
   // Vilken sida kortet är på väg mot; uppdateras direkt
   const flippedRef                          = useRef(showBackOnly || (startOnBack && isMember));
-  const [time, setTime]                     = useState(new Date());
+  const [time, setTime]                     = useState(() => new Date(serverNow()));
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
   const bgFade                              = useRef(new Animated.Value(shownBackgrounds.has(getVariant(cardColor).id) ? 1 : 0)).current;
 
@@ -226,7 +227,7 @@ export function MemberCard({
 
   /** Klockan börjar gå och visar rätt tid direkt, så den inte står still medan kortet vänds mot baksidan. */
   const startClock = () => {
-    setTime(new Date());
+    setTime(new Date(serverNow()));
     setClockOn(true);
   };
 
@@ -311,7 +312,7 @@ export function MemberCard({
   // Live clock — only when back is showing
   useEffect(() => {
     if (!clockOn) return;
-    const id = setInterval(() => setTime(new Date()), 1000);
+    const id = setInterval(() => setTime(new Date(serverNow())), 1000);
     return () => clearInterval(id);
   }, [clockOn]);
 

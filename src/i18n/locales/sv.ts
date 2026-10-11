@@ -316,6 +316,7 @@ export const sv = {
     expired: "Utgånget",
     activating: "Aktiverar…",
     activateFailed: { title: "Det gick inte att aktivera", body: "Erbjudandet aktiverades inte. Kontrollera din uppkoppling och försök igen." },
+    activateBlocked: { title: "Erbjudandet kan inte användas just nu", body: "Det har redan använts, eller går inte att använda igen än." },
     how: {
       hold: "Håll inne",
       show: "Visa för personalen",

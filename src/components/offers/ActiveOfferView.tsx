@@ -31,6 +31,7 @@ import { preventScreenCapture } from "@/lib/screenCapture";
 import { findCategory, withAlpha } from "@/theme/categories";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
+import { serverNow } from "@/lib/serverClock";
 
 const GOLD    = "#C5A059";
 const GOLD_LT = "#E8C674";
@@ -49,7 +50,7 @@ const RING_PATH = Skia.Path.Make();
 RING_PATH.addCircle(RING / 2, RING / 2, RADIUS);
 
 function secsLeft(activatedAt: number): number {
-  const elapsed = (Date.now() - activatedAt) / 1000;
+  const elapsed = (serverNow() - activatedAt) / 1000;
   return Math.max(0, Math.ceil(ACTIVE_SECS - elapsed));
 }
 
@@ -122,7 +123,7 @@ export function ActiveOfferView({
   const progress = useSharedValue(1);
   useEffect(() => {
     if (!visible) return;
-    const leftMs = Math.max(0, activatedAt + ACTIVE_SECS * 1000 - Date.now());
+    const leftMs = Math.max(0, activatedAt + ACTIVE_SECS * 1000 - serverNow());
     progress.value = leftMs / (ACTIVE_SECS * 1000);
     progress.value = withTiming(0, { duration: leftMs, easing: Easing.linear });
   }, [visible, activatedAt]);

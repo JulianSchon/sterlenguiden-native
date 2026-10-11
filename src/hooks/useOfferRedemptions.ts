@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Offer, RedemptionRow } from "@/lib/offers";
 import { ACTIVE_REDEMPTION_KEY, type ActiveRedemption } from "@/hooks/useActiveRedemption";
+import { syncServerClock } from "@/lib/serverClock";
 
 export function useOfferRedemptions() {
   return useQuery<RedemptionRow[]>({
@@ -45,6 +46,9 @@ export function useActivateOffer() {
         .single();
       if (error) throw error;
 
+      // Aktiveringstiden är serverns tid just nu — appens nedräkning ställs efter den
+      const activatedAt = new Date(data.activated_at).getTime();
+      syncServerClock(activatedAt);
       return {
         offerId: offer.id,
         title: offer.title,
@@ -52,7 +56,7 @@ export function useActivateOffer() {
         placeLogoUrl: offer.place?.logo_url ?? null,
         category: offer.category,
         savingsLabel: offer.savings_label,
-        activatedAt: new Date(data.activated_at).getTime(),
+        activatedAt,
       };
     },
 

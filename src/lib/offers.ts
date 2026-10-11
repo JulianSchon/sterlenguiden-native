@@ -7,6 +7,7 @@
  */
 import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
+import { serverNow } from "@/lib/serverClock";
 
 export type RedemptionInterval = "once" | "daily" | "weekly" | "monthly" | "unlimited";
 
@@ -88,8 +89,8 @@ export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibili
   const windowMs = INTERVAL_MS[interval];
   if (windowMs && mine[0]) {
     const nextAt = +new Date(mine[0].activated_at) + windowMs;
-    if (Date.now() < nextAt) {
-      const hours = Math.ceil((nextAt - Date.now()) / 3_600_000);
+    if (serverNow() < nextAt) {
+      const hours = Math.ceil((nextAt - serverNow()) / 3_600_000);
       const reason = hours >= 24
         ? i18n.t("offers.reason.againDays", { n: Math.ceil(hours / 24) })
         : i18n.t("offers.reason.againHours", { n: hours });
@@ -165,5 +166,5 @@ export function splitSavings(label: string): { before: string; big: string; afte
 export function isActiveOffer(offer: { is_active: boolean; expires_at: string | null }): boolean {
   if (!offer.is_active) return false;
   if (!offer.expires_at) return true;
-  return new Date(offer.expires_at).getTime() >= Date.now();
+  return new Date(offer.expires_at).getTime() >= serverNow();
 }
