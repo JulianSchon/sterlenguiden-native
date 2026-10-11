@@ -21,7 +21,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import type { Trophy } from "@/lib/achievements";
+import type { Tier, Trophy } from "@/lib/achievements";
 import { playSound } from "@/lib/sounds";
 import { RadialGlow, TrophyMedal } from "@/components/trophies/TrophyMedal";
 import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
@@ -29,6 +29,14 @@ import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } fr
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.62)";
 const MEDAL = 190;
+
+/** Ljuset följer nivån: brons glöder kopparrött, silver vitt, guld guld — så varje nivå känns
+ * som sin egen och guld blir det stora. */
+const TIER_LIGHT: Record<Tier, { light: string; ink: string; confetti: string[] }> = {
+  bronze: { light: "#E0A374", ink: "#E6A97A", confetti: ["#F6D2B4", "#E0A374", "#C47A45", "#8E4F24", "#FFFFFF"] },
+  silver: { light: "#E4E8EE", ink: "#DDE2EA", confetti: ["#FFFFFF", "#E9ECF1", "#C6CCD5", "#9AA2AE", "#F4F4F4"] },
+  gold: { light: "#F5D88A", ink: GOLD, confetti: ["#FFF1C1", "#F5D88A", "#E9C46A", "#C9A24C", "#FFFFFF"] },
+};
 const T_MEDAL = 200;
 const T_BUILD = 700;
 const T_IMPACT = 1650;
@@ -59,6 +67,7 @@ export function TrophyCelebration({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const tierLight = TIER_LIGHT[trophy.tier];
   const [lit, setLit] = useState(false);
   const [ready, setReady] = useState(false);
   const [skip, setSkip] = useState(false);
@@ -175,10 +184,10 @@ export function TrophyCelebration({
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
         <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">
           <View style={[s.anchor, { top: lightY - raysSize / 2, left: (width - raysSize) / 2, width: raysSize, height: raysSize }]}>
-            <GoldRays size={raysSize} visible={rays} />
+            <GoldRays size={raysSize} visible={rays} color={tierLight.light} />
           </View>
           <Reanimated.View style={[s.anchor, { top: lightY - glowSize / 2, left: (width - glowSize) / 2, width: glowSize, height: glowSize }, glowStyle]}>
-            <RadialGlow size={glowSize} color={GOLD} opacity={0.34} radiusRatio={0.55} />
+            <RadialGlow size={glowSize} color={tierLight.light} opacity={0.34} radiusRatio={0.55} />
           </Reanimated.View>
         </Reanimated.View>
 
@@ -191,11 +200,11 @@ export function TrophyCelebration({
               <Reanimated.View style={medalStyle}>
                 <TrophyMedal size={MEDAL} tier={trophy.tier} Icon={trophy.Icon} unlocked={lit} groupId={trophy.groupId} />
               </Reanimated.View>
-              <Confetti progress={burst} count={36} power={1.1} />
+              <Confetti progress={burst} count={36} power={1.1} colors={tierLight.confetti} />
             </View>
 
             <Reanimated.View style={[s.texts, titleStyle]}>
-              <Text style={s.eyebrow}>UTMANING KLARAD!</Text>
+              <Text style={[s.eyebrow, { color: tierLight.ink }]}>UTMANING KLARAD!</Text>
               <Text style={s.title}>{trophy.identity}</Text>
               <View style={s.levelPill}>
                 <Text style={s.levelText}>{trophy.levelLabel} · {trophy.levelName}</Text>

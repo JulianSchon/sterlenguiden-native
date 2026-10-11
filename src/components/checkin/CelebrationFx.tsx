@@ -27,8 +27,8 @@ const CONFETTI_COLORS = ["#FFF1C1", "#F5D88A", "#E9C46A", "#C9A24C", "#FFFFFF"];
  * föräldern animerar; ligger osynlig på 0. Lägg komponenten i den punkt den ska skjutas ut från.
  */
 export function Confetti({
-  progress, count = 30, power = 1, durationS = 1.3,
-}: { progress: SharedValue<number>; count?: number; power?: number; durationS?: number }) {
+  progress, count = 30, power = 1, durationS = 1.3, colors = CONFETTI_COLORS,
+}: { progress: SharedValue<number>; count?: number; power?: number; durationS?: number; colors?: string[] }) {
   const pieces = useMemo(
     () => Array.from({ length: count }, (_, i) => {
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.5; // mest uppåt, ut åt sidorna
@@ -39,12 +39,12 @@ export function Confetti({
         vy: Math.sin(angle) * speed,
         w: strip ? 4 : 5 + Math.random() * 4,
         h: strip ? 10 + Math.random() * 4 : 0,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        color: colors[i % colors.length],
         rot0: Math.random() * 360,
         spin: (Math.random() - 0.5) * 900,
       };
     }),
-    [count, power],
+    [count, power, colors],
   );
   return (
     <View style={s.confettiOrigin} pointerEvents="none">
@@ -91,7 +91,9 @@ function ConfettiPiece({
  * Mjuka guldstrålar som långsamt roterar bakom en belöning (som i spel) — tonar ut mot kanten med
  * en radiell gradient. `visible` 0→1 styrs av föräldern; själva rotationen går av sig själv.
  */
-export function GoldRays({ size, visible, maxOpacity = 0.5 }: { size: number; visible: SharedValue<number>; maxOpacity?: number }) {
+export function GoldRays({
+  size, visible, maxOpacity = 0.5, color = "#F5D88A",
+}: { size: number; visible: SharedValue<number>; maxOpacity?: number; color?: string }) {
   const reduceMotion = useReducedMotion();
   const turn = useSharedValue(0);
   useEffect(() => {
@@ -116,9 +118,9 @@ export function GoldRays({ size, visible, maxOpacity = 0.5 }: { size: number; vi
       <Svg width={size} height={size}>
         <Defs>
           <RadialGradient id="raysFade" cx={c} cy={c} r={c} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="#F5D88A" stopOpacity={0.9} />
-            <Stop offset="0.55" stopColor="#F5D88A" stopOpacity={0.25} />
-            <Stop offset="1" stopColor="#F5D88A" stopOpacity={0} />
+            <Stop offset="0" stopColor={color} stopOpacity={0.9} />
+            <Stop offset="0.55" stopColor={color} stopOpacity={0.25} />
+            <Stop offset="1" stopColor={color} stopOpacity={0} />
           </RadialGradient>
         </Defs>
         {wedges.map((pts, i) => <Polygon key={i} points={pts} fill="url(#raysFade)" />)}
