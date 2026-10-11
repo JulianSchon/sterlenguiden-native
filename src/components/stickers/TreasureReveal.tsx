@@ -65,6 +65,18 @@ const T_FILL = 2100;
 const FILL_MS = 1300;
 const T_LEADER = 3700;
 const LEADER_MS = 2500;
+/** Skattens gung efter snurret: en och en halv pendelsvängning som klingar av */
+const SWAY_MS = 640;
+const SWAY_DEG = 7;
+
+/** Vinkeln (grader) för en avklingande pendel vid tiden x (0–1): jämn takt hela vägen — höger,
+ * vänster, ett nästan osynligt sista sväng — och både vinkel och fart är noll när den slutar,
+ * så den låser sig mjukt i stället för att tvärstanna. */
+function pendulum(x: number) {
+  "worklet";
+  if (x <= 0 || x >= 1) return 0;
+  return SWAY_DEG * Math.pow(1 - x, 1.5) * Math.sin(3 * Math.PI * x);
+}
 
 interface LeaderData { before: LeaderboardEntry; after: LeaderboardEntry; above: LeaderboardEntry | null }
 
@@ -138,6 +150,9 @@ export function TreasureReveal({
   const lid = useSharedValue(0);
   const chestOut = useSharedValue(0);
   const rise = useSharedValue(0);
+  // Snurret (ett varv) och gunget efteråt är skilda värden: snurret saktar in, och gunget — en
+  // avklingande pendel — startar redan innan snurret stannat, så rörelsen aldrig står still
+  const spin = useSharedValue(0);
   const sway = useSharedValue(0);
   const flash = useSharedValue(0);
   const rays = useSharedValue(0);
@@ -289,12 +304,9 @@ export function TreasureReveal({
     rise.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 750, easing: Easing.out(Easing.back(1.4)) }));
     later(BOOM_DELAY + 790, () => hit(Haptics.ImpactFeedbackStyle.Medium));
     // Efter landningen gungar den en gång till — åt höger, sist åt vänster — och låser sig
-    // (samma rappa takt som snurrets egen eftersvängning, så inget sväng känns segare än ett annat)
-    sway.value = withDelay(BOOM_DELAY + 790, withSequence(
-      withTiming(4, { duration: 170, easing: Easing.inOut(Easing.sin) }),
-      withTiming(-3, { duration: 230, easing: Easing.inOut(Easing.sin) }),
-      withTiming(0, { duration: 190, easing: Easing.out(Easing.sin) }),
-    ));
+    spin.value = withDelay(BOOM_DELAY + 40, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
+    // Pendeln: en jämn svängning som klingar av (se stickerStyle) — höger, vänster, stilla
+    sway.value = withDelay(BOOM_DELAY + 40 + 560, withTiming(1, { duration: SWAY_MS, easing: Easing.linear }));
     landGlow.value = withDelay(BOOM_DELAY + 700, withTiming(1, { duration: 500 }));
     text.value = withDelay(BOOM_DELAY + T_TITLE, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
     collection.value = withDelay(BOOM_DELAY + T_COLLECTION, withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) }));
@@ -353,7 +365,7 @@ export function TreasureReveal({
     transform: [
       { translateY: interpolate(rise.value, [0, 1], [chestY + seamOffset - finalY, 0]) },
       { scale: interpolate(rise.value, [0, 1], [0.2, 1]) },
-      { rotate: `${interpolate(rise.value, [0, 1], [0, -360]) + sway.value}deg` },
+      { rotate: `${-360 * spin.value + pendulum(sway.value)}deg` },
     ],
   }));
   const landGlowStyle = useAnimatedStyle(() => ({ opacity: landGlow.value }));
