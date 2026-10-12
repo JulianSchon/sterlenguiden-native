@@ -285,10 +285,10 @@ export default function AppearanceSettings() {
   } as Record<string, string>;
   const ringNames = {
     none: t("appearance.ring.none"),
-    skattletare: t("appearance.ring.skattletare"),
-    skattjagare: t("appearance.ring.skattjagare"),
-    skattmastare: t("appearance.ring.skattmastare"),
-    osterlenlegend: t("appearance.ring.osterlenlegend"),
+    gris: t("appearance.ring.gris"),
+    far: t("appearance.ring.far"),
+    ko: t("appearance.ring.ko"),
+    kronhjort: t("appearance.ring.kronhjort"),
   } as Record<string, string>;
   const rings = useRingUnlocks();
 

@@ -1,10 +1,12 @@
 /**
- * Profilringar: ramen runt profilbilden. Ringar tjänas in och säljs aldrig (annars kräver Apple köp
- * i appen). Varje ring har en regel för när den låses upp — upplåst eller inte räknas alltid ur
- * riktig data (antal hittade skatter, klarade utmaningar), precis som troféerna, så det kan aldrig
- * hamna ur synk. Se useRingUnlocks.
+ * Profilringar: ramen runt profilbilden — Österlens djur, från grisen till kronhjorten (Skånes
+ * landskapsdjur). Ringar tjänas in och säljs aldrig (annars kräver Apple köp i appen). Varje ring
+ * har en regel för när den låses upp — upplåst eller inte räknas alltid ur riktig data (antal
+ * hittade skatter, klarade utmaningar), precis som troféerna, så det kan aldrig hamna ur synk. Se
+ * useRingUnlocks. Databasen kontrollerar samma regler när en ring väljs (migration 029), så ingen
+ * kan välja en ring den inte låst upp.
  *
- * Ringarnas konst: spelramar gjorda i ChatGPT, beskurna så att hålet ligger exakt i bildens mitt
+ * Ringarnas konst: gjord i ChatGPT, beskuren så att hålet ligger exakt i bildens mitt
  * (assets/rings/ring-<id>.png). holeRatio = hålets diameter / bildens bredd, uppmätt vid
  * beskärningen och 4 % mindre, så ringen täcker profilbildens kant. Utan bild ritas ringen som en
  * enkel metallring i sina färger.
@@ -30,10 +32,10 @@ export interface AvatarRingDef {
 
 export const AVATAR_RINGS: AvatarRingDef[] = [
   { id: "none", rule: { kind: "free" } },
-  { id: "skattletare", rule: { kind: "treasures", count: 6 }, colors: ["#F0B98A", "#B8763E", "#6B3A18"], image: require("../../assets/rings/ring-skattletare.png"), holeRatio: 0.57 },
-  { id: "skattjagare", rule: { kind: "treasures", count: 12 }, colors: ["#F4F6F8", "#AEB6C0", "#5E6670"], image: require("../../assets/rings/ring-skattjagare.png"), holeRatio: 0.552 },
-  { id: "skattmastare", rule: { kind: "treasures", count: 18 }, colors: ["#FBE49B", "#D4A740", "#7A5418"], image: require("../../assets/rings/ring-skattmastare.png"), holeRatio: 0.529 },
-  { id: "osterlenlegend", rule: { kind: "allChallenges" }, colors: ["#E9D5FF", "#A855F7", "#4C1D95"], image: require("../../assets/rings/ring-osterlenlegend.png"), holeRatio: 0.513 },
+  { id: "gris", rule: { kind: "treasures", count: 6 }, colors: ["#FFC9D6", "#E58FA4", "#8C4A3A"], image: require("../../assets/rings/ring-gris.png"), holeRatio: 0.568 },
+  { id: "far", rule: { kind: "treasures", count: 12 }, colors: ["#FFF6E2", "#E8D9B8", "#8A6B45"], image: require("../../assets/rings/ring-far.png"), holeRatio: 0.537 },
+  { id: "ko", rule: { kind: "treasures", count: 18 }, colors: ["#C8F0A8", "#7DBE54", "#6B4A2A"], image: require("../../assets/rings/ring-ko.png"), holeRatio: 0.553 },
+  { id: "kronhjort", rule: { kind: "allChallenges" }, colors: ["#F2C98E", "#C27A3A", "#5A3A1E"], image: require("../../assets/rings/ring-kronhjort.png"), holeRatio: 0.467 },
 ];
 
 export function findRing(id: string | null | undefined): AvatarRingDef | undefined {
