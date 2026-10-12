@@ -52,8 +52,8 @@ const CARD_RADIUS = 16 * (ITEM_W / CARD_W);
 
 // Ringarna är spelramar som sticker ut nästan dubbla profilbildens storlek — liten bild i en
 // bredare ruta, så de får plats bredvid varandra utan att överlappa (även vald, uppskalad)
-const RING_AVATAR = 48;
-const RING_TILE = 112;
+const RING_AVATAR = 62;
+const RING_TILE = 136;
 
 /** Ett kort i raden. Storlek och mörkning följer avståndet till mitten. */
 function DesignCard({ index, scrollX, progress, onPress, children }: {
