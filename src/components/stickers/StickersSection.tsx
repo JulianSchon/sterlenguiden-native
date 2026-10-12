@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import { useAuth } from "@/hooks/useAuth";
 import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
 import { getTreasuresToPlace, removeTreasureToPlace } from "@/lib/treasurePlacement";
+import { holdTrophyMoments } from "@/lib/trophyMoments";
 import { PressableScale } from "@/components/PressableScale";
 import { StickerArt } from "./StickerArt";
 
@@ -91,6 +92,15 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
     firstDrop.current = false;
     return () => timers.forEach(clearTimeout);
   }, [waiting, dropping, imagesReady, scrollTo, winH]);
+
+  // Medan inklistringen pågår väntar övriga belöningar (t.ex. en ny profilring) — och en stund
+  // efter att sista skatten landat, så den hinner sätta sig innan nästa firande tar över skärmen
+  const placing = waiting.length > 0 || dropping !== null;
+  useEffect(() => {
+    if (!placing) return;
+    const release = holdTrophyMoments();
+    return () => { setTimeout(release, 900); };
+  }, [placing]);
 
   const handleLanded = () => {
     const id = dropping;
