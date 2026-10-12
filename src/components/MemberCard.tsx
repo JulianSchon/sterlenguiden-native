@@ -44,18 +44,6 @@ const shownBackgrounds = new Set<string>();
 /** Perspektiv vid vändningen; högre värde ger en svagare förstoring av den sida som närmar sig */
 const PERSPECTIVE = 1600;
 
-// Fallback-färger för icke-members
-const NON_MEMBER_COLORS = {
-  text:           "rgba(255,255,255,0.30)",
-  muted:          "rgba(255,255,255,0.20)",
-  accent:         "rgba(200,185,160,0.45)",
-  avatarBorder:   "rgba(200,185,160,0.30)",
-  avatarBg:       "rgba(255,255,255,0.05)",
-  avatarInitials: "rgba(255,255,255,0.30)",
-  border:         "rgba(200,185,160,0.08)",
-  sweep:          "rgba(255,255,255,0.02)",
-};
-
 // ─── MemberCard ───────────────────────────────────────────────────────────────
 export function MemberCard({
   displayName,
@@ -128,10 +116,11 @@ export function MemberCard({
   const backVisible = isMember && (showBackOnly || startOnBack || !disableFlip);
 
   // Variant + färgpalett
-  const variant = isMember ? cardVariant : null;
+  // Alla ser sin valda design på framsidan; baksidan (verifieringen) är bara för medlemmar
+  const variant = cardVariant;
   const hasPng  = !!(variant?.bgImage);          // alla varianter med bgImage får PNG
-  const colors  = variant ? cardColors(variant) : NON_MEMBER_COLORS;
-  const baseBg  = isMember ? (variant?.bg ?? "#0A0A0A") : "#110D07";
+  const colors  = cardColors(variant);
+  const baseBg  = variant.bg;
 
   // Byter kortet design ska den nya bilden tonas in på nytt
   useEffect(() => { bgFade.setValue(variant && shownBackgrounds.has(variant.id) ? 1 : 0); }, [variant?.id]);
@@ -144,9 +133,8 @@ export function MemberCard({
     setClockOn(true);
   }, [startOnBack, isMember]);
 
-  // Light sweep (member only)
+  // Light sweep
   useEffect(() => {
-    if (!isMember) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(sweepAnim, { toValue: 1, duration: 4500, useNativeDriver: true }),
@@ -156,7 +144,7 @@ export function MemberCard({
     );
     loop.start();
     return () => loop.stop();
-  }, [isMember]);
+  }, []);
 
   const sweepX = sweepAnim.interpolate({
     inputRange: [0, 1],
@@ -327,7 +315,7 @@ export function MemberCard({
       <View style={[StyleSheet.absoluteFill, { backgroundColor: baseBg }]} />
 
       {/* PNG-bakgrund – varianter med bgImage */}
-      {isMember && hasPng && variant?.bgImage && (
+      {hasPng && variant?.bgImage && (
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: bgFade }]}>
           <ImageBackground
             source={variant.bgImage}
@@ -343,7 +331,7 @@ export function MemberCard({
       )}
 
       {/* SVG-gradient – alla andra varianter */}
-      {isMember && !hasPng && variant && (
+      {!hasPng && variant && (
         <Svg style={StyleSheet.absoluteFill} width={cardW} height={cardH}>
           <Defs>
             <SvgGrad id="fg" x1="0" y1="0" x2="1" y2="1">
@@ -365,7 +353,7 @@ export function MemberCard({
       )}
 
       {/* Shimmer-sweep — gradient transparent→vit→transparent, inga hårda kanter */}
-      {isMember && (
+      {(
         <Animated.View
           style={[mc.sweep, { transform: [{ translateX: sweepX }, { skewX: "-20deg" }] }]}
           pointerEvents="none"
@@ -428,7 +416,7 @@ export function MemberCard({
               <Text style={[mc.passLabel, { color: colors.accent }, variant?.light && mc.onLight]}>ÖSTERLENPASSET</Text>
             </View>
           ) : (
-            <Text style={mc.ctaHint}>Tryck för att aktivera →</Text>
+            <Text style={[mc.ctaHint, { color: colors.accent }, variant?.light && mc.onLight]}>Tryck för att aktivera →</Text>
           )}
         </View>
       </View>
