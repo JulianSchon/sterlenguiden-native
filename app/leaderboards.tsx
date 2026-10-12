@@ -113,7 +113,7 @@ export default function LeaderboardsScreen() {
   const city = profile?.city?.trim() || null;
   const noCity = scope === "area" && !city;
   const month = format(new Date(), "LLLL", { locale: sv });
-  const boardKey = `${metric}-${scope}-${metric === "visits" ? period : "all"}`;
+  const boardKey = `${metric}-${scope}-${metric === "streak" ? "all" : period}`;
   const showSticky = !!me && !(me.rowPos && me.rowPos < STICKY_FROM);
   const showFooter = showSticky || !participating;
 
@@ -127,7 +127,7 @@ export default function LeaderboardsScreen() {
   const title =
     metric === "visits" ? "Flest besökta platser" : metric === "streak" ? "Längst streak just nu" : "Flest skatter";
   const when =
-    metric !== "visits" ? null : period === "month" ? `i ${month}` : period === "year" ? "i år" : "sedan start";
+    metric === "streak" ? null : period === "month" ? `i ${month}` : period === "year" ? "i år" : "sedan start";
   const where = scopes.find((sc) => sc.id === scope)?.label ?? "";
   const context = when ? `${when.charAt(0).toUpperCase()}${when.slice(1)} · ${where}` : where;
 
@@ -166,7 +166,7 @@ export default function LeaderboardsScreen() {
       {/* Omfång och tid under pallen — smalare och lugnare än huvudvalet överst */}
       <View style={s.controls}>
         <Segmented options={scopes} value={scope} onChange={setScope} />
-        {metric === "visits" && <Segmented options={PERIODS} value={period} onChange={setPeriod} />}
+        {metric !== "streak" && <Segmented options={PERIODS} value={period} onChange={setPeriod} />}
       </View>
     </View>
   );

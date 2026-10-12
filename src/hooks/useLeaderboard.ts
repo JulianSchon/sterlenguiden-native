@@ -67,8 +67,8 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
   return { entries: rows.filter((r) => !r.self_row).map(toEntry), me: self ? toEntry(self) : null, offset, limit };
 }
 
-// Perioden betyder bara något för besök — streak och samlarobjekt delar cache oavsett vad den står på
-const periodFor = (metric: LeaderboardMetric, period: Period): Period => (metric === "visits" ? period : "all");
+// Perioden betyder något för besök och skatter (migration 027) — streaken delar cache oavsett vad den står på
+const periodFor = (metric: LeaderboardMetric, period: Period): Period => (metric === "streak" ? "all" : period);
 
 /** Min egen rad i en topplista — antal, placering och radnummer (placering och rad är null om jag
  * inte syns i topplistorna, eller inte har något att räknas för än). Hämtas före och efter en
