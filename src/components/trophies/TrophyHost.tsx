@@ -15,14 +15,21 @@
  * Firandet väntar medan något viktigare visas (personalskärmen för ett aktivt erbjudande,
  * incheckningens belöning — se trophyMoments). Utmaningar som incheckningens belöning redan visat
  * upplåsas där firas inte igen. Klarar man flera samtidigt spelas de efter varandra ("1 av 2").
+ *
+ * Samma vakt firar nya profilringar (RingCelebration) — efter utmaningarna, aldrig samtidigt, så
+ * två helskärmar aldrig krockar. En ring räknas som ny när regeln (antal skatter, alla
+ * utmaningar) uppfylls medan appen är igång; det som redan var upplåst vid start firas inte.
  */
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useGrantNewTrophies, useTrophies } from "@/hooks/useTrophies";
 import type { Trophy } from "@/lib/achievements";
+import type { AvatarRingDef } from "@/lib/avatarRings";
+import { useRingUnlocks } from "@/hooks/useRingUnlocks";
 import { addTrophiesToPlace, useTrophyMomentsHeld, wasTrophyCelebrated } from "@/lib/trophyMoments";
 import { TrophyCelebration } from "./TrophyCelebration";
+import { RingCelebration } from "./RingCelebration";
 
 const TIERS = ["bronze", "silver", "gold"];
 
@@ -84,12 +91,53 @@ export function TrophyHost() {
     setShown((n) => n + 1);
     setQueue((q) => q.filter((t) => t.key !== current?.key && !wasTrophyCelebrated(t.key)));
   };
+  // ─── Profilringar ─────────────────────────────────────────────────────────
+  const rings = useRingUnlocks();
+  const [ringQueue, setRingQueue] = useState<AvatarRingDef[]>([]);
+  const ringSeen = useRef<{ userId: string | null; ids: Set<string>; silent: boolean }>({ userId: null, ids: new Set(), silent: true });
+  const unlockedKey = rings.unlocked.map((r) => r.id).join(",");
+  useEffect(() => {
+    if (!user || !rings.ready) return;
+    if (ringSeen.current.userId !== user.id) {
+      ringSeen.current = { userId: user.id, ids: new Set(), silent: true };
+      setRingQueue([]);
+    }
+    const silent = ringSeen.current.silent;
+    ringSeen.current.silent = false;
+    const fresh = rings.unlocked.filter((r) => r.rule.kind !== "free" && !ringSeen.current.ids.has(r.id));
+    fresh.forEach((r) => ringSeen.current.ids.add(r.id));
+    if (!silent && fresh.length > 0) setRingQueue((q) => [...q, ...fresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlockedKey, rings.ready, user]);
+
+  const ringCurrent = !current && !held ? ringQueue[0] ?? null : null;
+  const [ringArmed, setRingArmed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ringCurrent) return;
+    const t = setTimeout(() => setRingArmed(ringCurrent.id), 650);
+    return () => clearTimeout(t);
+  }, [ringCurrent?.id]);
+
   // När kön tömts börjar räkningen "1 av 2" om nästa gång
   useEffect(() => {
     if (queue.length === 0 && shown > 0) setShown(0);
   }, [queue.length, shown]);
 
-  if (!current || armed !== current.key) return null;
+  if (!current) {
+    if (!ringCurrent || ringArmed !== ringCurrent.id) return null;
+    const reason = ringCurrent.rule.kind === "treasures"
+      ? `Du har hittat ${ringCurrent.rule.count} av Österlens skatter.`
+      : "Du har klarat alla utmaningar.";
+    return (
+      <RingCelebration
+        key={ringCurrent.id}
+        ring={ringCurrent}
+        reason={reason}
+        onClose={() => setRingQueue((q) => q.filter((r) => r.id !== ringCurrent.id))}
+      />
+    );
+  }
+  if (armed !== current.key) return null;
   const next = trophies.find((t) => t.groupId === current.groupId && !t.done) ?? null;
 
   return (

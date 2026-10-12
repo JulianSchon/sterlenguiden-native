@@ -4,10 +4,10 @@
  * src/lib/avatarRings.ts.
  */
 import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import Animated, { useAnimatedStyle, withTiming, type SharedValue } from "react-native-reanimated";
 import Svg, { Circle, Defs, G, LinearGradient, Path, Stop } from "react-native-svg";
-import { AVATAR_RINGS } from "@/lib/avatarRings";
+import { AVATAR_RINGS, findRing } from "@/lib/avatarRings";
 
 /** En blixt ritad i en ruta på 10 × 10 */
 const BOLT = "M6 0 L1.5 5.8 H4.8 L3.6 10 L8.8 3.6 H5.5 Z";
@@ -15,6 +15,19 @@ const BOLT_COUNT = 8;
 
 /** Själva ringen, ritad utanför en bild med diametern `size`. Ritar inget för "none". */
 function RingOverlay({ ring, size }: { ring: string; size: number }) {
+  const def = findRing(ring);
+  // Ringar med egen bild (spelramar): bilden skalas så att hålet precis omsluter profilbilden
+  if (def?.image) {
+    const full = size / (def.holeRatio ?? 0.72);
+    const pad = (full - size) / 2;
+    return (
+      <View style={{ position: "absolute", left: -pad, top: -pad, width: full, height: full }} pointerEvents="none">
+        <Image source={def.image} style={{ width: full, height: full }} resizeMode="contain" />
+      </View>
+    );
+  }
+  // Reservring i ringens egna färger tills bilden finns
+  if (def?.colors) return <MetalRing size={size} colors={def.colors} id={def.id} />;
   if (ring !== "gold" && ring !== "lightning") return null;
 
   const stroke = Math.max(2, size * 0.05);
@@ -48,8 +61,33 @@ function RingOverlay({ ring, size }: { ring: string; size: number }) {
   );
 }
 
+/** Enkel tjock metallring (ljus → mörk) med tunna kanter — reserv tills ringens bild finns. */
+function MetalRing({ size, colors, id }: { size: number; colors: [string, string, string]; id: string }) {
+  const stroke = Math.max(3, size * 0.09);
+  const gap = size * 0.03;
+  const radius = size / 2 + gap + stroke / 2;
+  const pad = gap + stroke + 2;
+  const total = size + pad * 2;
+  const c = total / 2;
+  const grad = `ringMetal-${id}`;
+  return (
+    <Svg width={total} height={total} style={{ position: "absolute", left: -pad, top: -pad }} pointerEvents="none">
+      <Defs>
+        <LinearGradient id={grad} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={colors[0]} />
+          <Stop offset="0.5" stopColor={colors[1]} />
+          <Stop offset="1" stopColor={colors[2]} />
+        </LinearGradient>
+      </Defs>
+      <Circle cx={c} cy={c} r={radius} stroke={`url(#${grad})`} strokeWidth={stroke} fill="none" />
+      <Circle cx={c} cy={c} r={radius - stroke / 2 + 0.6} stroke="rgba(0,0,0,0.35)" strokeWidth={1.2} fill="none" />
+      <Circle cx={c} cy={c} r={radius + stroke / 2 - 0.6} stroke="rgba(255,255,255,0.35)" strokeWidth={1} fill="none" />
+    </Svg>
+  );
+}
+
 export function AvatarRing({ ring, size, children }: { ring?: string | null; size: number; children: ReactNode }) {
-  if (ring !== "gold" && ring !== "lightning") return <>{children}</>;
+  if (!ring || ring === "none" || !findRing(ring)) return <>{children}</>;
   return (
     <View style={{ width: size, height: size }}>
       {children}

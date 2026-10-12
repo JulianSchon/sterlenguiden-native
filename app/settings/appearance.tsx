@@ -22,6 +22,7 @@ import { useUpdateProfile } from "@/hooks/useAccount";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { CARD_VARIANTS } from "@/lib/cardVariants";
 import { AVATAR_RINGS, type AvatarRingDef } from "@/lib/avatarRings";
+import { useRingUnlocks } from "@/hooks/useRingUnlocks";
 import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
@@ -93,9 +94,13 @@ function DesignCard({ index, scrollX, progress, onPress, children }: {
  * de andra är lite dämpade: bocken ger ett tydligt svar på vad som är valt, och
  * rörelsen visar att det just ändrades.
  */
-function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, circleColor, progress, onPress }: {
+function RingOption({ def, name, unlocked, requirement, index, selectedIdx, avatarUrl, displayName, circleColor, progress, onPress }: {
   def: AvatarRingDef;
   name: string;
+  /** Upplåst just nu (räknas ur skatter/utmaningar, se useRingUnlocks) */
+  unlocked: boolean;
+  /** Vad som krävs, visas under låsta ringar: "6 skatter" */
+  requirement: string;
   index: number;
   /** Vald ring (index). Sätts direkt vid tryck så rörelsen inte väntar på att sidan ritas om. */
   selectedIdx: SharedValue<number>;
@@ -105,7 +110,6 @@ function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, cir
   progress: SharedValue<number>;
   onPress: () => void;
 }) {
-  const { t } = useTranslation();
   const mFaint = useMorphStyle(progress, "color", "faint");
   const mBadgeBg = useMorphStyle(progress, "backgroundColor", "bg");
   const mBadgeBorder = useMorphStyle(progress, "borderColor", "borderStrong");
@@ -127,7 +131,7 @@ function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, cir
   }));
 
   const avatarStyle = useAnimatedStyle(() => ({
-    opacity: def.unlocked ? interpolate(on.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) : 0.35,
+    opacity: unlocked ? interpolate(on.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) : 0.35,
     transform: [{ scale: 1 + 0.14 * on.value }],
   }));
   const checkStyle = useAnimatedStyle(() => ({
@@ -144,7 +148,7 @@ function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, cir
         <Animated.View style={[st.checkBadge, checkStyle]}>
           <Check size={14} color="#121212" strokeWidth={3} />
         </Animated.View>
-        {!def.unlocked && (
+        {!unlocked && (
           <Animated.View style={[st.lockBadge, mBadgeBg, mBadgeBorder]}>
             {/* Låset finns i båda temats färger och tonas över i takt med temaknappen */}
             <Animated.View style={[StyleSheet.absoluteFill, st.lockCenter, lockDark]}>
@@ -157,7 +161,7 @@ function RingOption({ def, name, index, selectedIdx, avatarUrl, displayName, cir
         )}
       </View>
       <Animated.Text style={[st.ringName, nameStyle]} numberOfLines={1}>{name}</Animated.Text>
-      <Animated.Text style={[st.ringState, mFaint]} numberOfLines={1}>{def.unlocked ? " " : t("appearance.ring.lockedTitle")}</Animated.Text>
+      <Animated.Text style={[st.ringState, mFaint]} numberOfLines={1}>{unlocked ? " " : requirement}</Animated.Text>
     </TouchableOpacity>
   );
 }
@@ -281,7 +285,12 @@ export default function AppearanceSettings() {
     none: t("appearance.ring.none"),
     gold: t("appearance.ring.gold"),
     lightning: t("appearance.ring.lightning"),
+    skattletare: t("appearance.ring.skattletare"),
+    skattjagare: t("appearance.ring.skattjagare"),
+    skattmastare: t("appearance.ring.skattmastare"),
+    osterlenlegend: t("appearance.ring.osterlenlegend"),
   } as Record<string, string>;
+  const rings = useRingUnlocks();
 
   const current = CARD_VARIANTS[index];
 
@@ -350,6 +359,8 @@ export default function AppearanceSettings() {
               key={r.id}
               def={r}
               name={ringNames[r.id]}
+              unlocked={rings.isUnlocked(r)}
+              requirement={rings.requirement(r)}
               index={i}
               selectedIdx={selectedRing}
               avatarUrl={avatarUrl}
@@ -358,7 +369,7 @@ export default function AppearanceSettings() {
               progress={progress}
               onPress={() => {
                 Haptics.selectionAsync().catch(() => {});
-                if (!r.unlocked) return Alert.alert(t("appearance.ring.lockedTitle"), t("appearance.ring.lockedBody"));
+                if (!rings.isUnlocked(r)) return Alert.alert(t("appearance.ring.lockedTitle"), rings.requirementSentence(r));
                 chooseRing(i, r.id);
               }}
             />
@@ -393,7 +404,8 @@ const st = StyleSheet.create({
   designName: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3 },
 
   // Ringarna ligger direkt mot bakgrunden, utan ruta
-  ringRow: { flexDirection: "row", justifyContent: "space-evenly", paddingTop: 4 },
+  // Sju ringar: bryts över flera rader, centrerade
+  ringRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", paddingTop: 4, rowGap: 8 },
   ringItem: { alignItems: "center", gap: 4, width: RING_TILE },
   ringStage: { width: RING_TILE, height: RING_TILE, alignItems: "center", justifyContent: "center" },
   ringAvatar: { width: RING_AVATAR, height: RING_AVATAR },
