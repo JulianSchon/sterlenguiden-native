@@ -3,6 +3,9 @@
  * ringfirandet faller ringen ner över profilbilden och sätter sig — stor och lite vriden in, en
  * smäll, en studs och en vibration (en mindre version av firandet, som skatten i samlingen).
  * Annars ritas ringen som vanligt.
+ *
+ * Spelas när ringlagret skapas eller får ringen medan signalen gäller (se ringSnap.ts). Profil bygger
+ * om kortet när signalen kommer, så den spelas även om kortet redan visade samma ring.
  */
 import { useEffect, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
@@ -10,7 +13,7 @@ import Reanimated, {
   Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { RING_SNAP_DELAY, claimSnapBuzz, ringSnapAt } from "@/lib/ringSnap";
+import { RING_SNAP_DELAY, ringSnapAt } from "@/lib/ringSnap";
 import { AvatarRing } from "./AvatarRing";
 
 export function SnapRing({ ring, size, children }: { ring?: string | null; size: number; children: ReactNode }) {
@@ -18,11 +21,9 @@ export function SnapRing({ ring, size, children }: { ring?: string | null; size:
   const drop = useSharedValue(ringSnapAt(ring) != null ? 0 : 1);
   const squash = useSharedValue(0);
 
-  const landed = (at: number) => {
-    if (claimSnapBuzz(at)) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-      setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 140);
-    }
+  const landed = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 140);
     squash.value = withSequence(withTiming(1, { duration: 70 }), withSpring(0, { damping: 9, stiffness: 260 }));
   };
 
@@ -33,7 +34,7 @@ export function SnapRing({ ring, size, children }: { ring?: string | null; size:
     drop.value = 0;
     const wait = Math.max(0, at + RING_SNAP_DELAY - Date.now());
     drop.value = withDelay(wait, withTiming(1, { duration: 420, easing: Easing.in(Easing.cubic) }, (fin) => {
-      if (fin) runOnJS(landed)(at);
+      if (fin) runOnJS(landed)();
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ring]);

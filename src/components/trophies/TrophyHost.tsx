@@ -21,7 +21,7 @@
  * utmaningar) uppfylls medan appen är igång; det som redan var upplåst vid start firas inte.
  */
 import { useEffect, useRef, useState } from "react";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter, usePathname, useSegments } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useGrantNewTrophies, useTrophies } from "@/hooks/useTrophies";
 import type { Trophy } from "@/lib/achievements";
@@ -36,6 +36,7 @@ const TIERS = ["bronze", "silver", "gold"];
 export function TrophyHost() {
   const router = useRouter();
   const pathname = usePathname();
+  const segments = useSegments();
   const { user } = useAuth();
   const { trophies, allLoaded } = useTrophies();
   const held = useTrophyMomentsHeld();
@@ -133,7 +134,13 @@ export function TrophyHost() {
         key={ringCurrent.id}
         ring={ringCurrent}
         reason={reason}
-        onNavigate={() => router.navigate("/(tabs)/profile" as any)}
+        onNavigate={() => {
+          // Profil är en flik. Står man bland flikarna byts bara fliken; annars stängs sidorna ovanpå
+          // flikarna (t.ex. Mitt Österlen). router.navigate därifrån lade i stället en helt ny kopia av
+          // alla flikar ovanpå, med en egen ny Profil.
+          if (segments[0] === "(tabs)") router.navigate("/(tabs)/profile" as any);
+          else router.dismissTo("/(tabs)/profile" as any);
+        }}
         onClose={() => setRingQueue((q) => q.filter((r) => r.id !== ringCurrent.id))}
       />
     );

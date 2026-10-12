@@ -6,7 +6,7 @@
  * Historik (senaste besöken), Statistik (mest besökta kategorier, med en kant som fylls efter
  * hur mycket man besökt) och Utmaningar (senast klarade, med kant i brons, silver eller guld).
  */
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -17,6 +17,7 @@ import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-
 import * as Haptics from "expo-haptics";
 import { MemberCard } from "@/components/MemberCard";
 import { SnapRing } from "@/components/profile/SnapRing";
+import { subscribeRingSnap } from "@/lib/ringSnap";
 import { FadeImage } from "@/components/FadeImage";
 import { FadeOnChange } from "@/components/FadeOnChange";
 import { floatingNavSolidHeight } from "@/components/navigation/FloatingNav";
@@ -228,6 +229,17 @@ export default function ProfileScreen() {
   const avatarUrl = useAvatarUrl();
   const cardPhotoUrl = useCardPhotoUrl();
 
+  // "Använd ringen" i ringfirandet: medan firandet ännu täcker skärmen rullas sidan upp och
+  // medlemskortet byggs om — framsidan upp och ringen redo att falla ner över profilbilden (se
+  // SnapRing). Annars syntes ingen smäll om kortet redan visade samma ring, var vänt eller låg
+  // utanför skärmen.
+  const scrollRef = useRef<ScrollView>(null);
+  const [cardKey, setCardKey] = useState(0);
+  useEffect(() => subscribeRingSnap(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setCardKey((k) => k + 1);
+  }), []);
+
   const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? "";
   const memberSince = profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null;
 
@@ -293,12 +305,14 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         alwaysBounceVertical={false}
         style={s.scroll}
         contentContainerStyle={s.body}
       >
         <MemberCard
+          key={cardKey}
           displayName={displayName}
           isMember={isMember}
           memberSince={memberSince}
