@@ -165,7 +165,7 @@ export function RingCelebration({ ring, reason, onClose }: {
 
             <Reanimated.View style={[s.texts, { top: centerY + AV / 2 + 44 }, textStyle]} pointerEvents="none">
               <Text style={[s.eyebrow, { color: ring.colors?.[0] ?? GOLD }]}>NY PROFILRING!</Text>
-              <Text style={s.name}>{t(`appearance.ring.${ring.id}` as "appearance.ring.gold")}</Text>
+              <Text style={s.name}>{t(`appearance.ring.${ring.id}` as "appearance.ring.none")}</Text>
               <Text style={s.reason}>{reason}</Text>
             </Reanimated.View>
           </Pressable>

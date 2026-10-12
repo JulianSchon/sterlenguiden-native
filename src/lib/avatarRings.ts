@@ -15,9 +15,7 @@ export type RingRule =
   /** Låses upp vid så här många hittade skatter */
   | { kind: "treasures"; count: number }
   /** Låses upp när alla utmaningar är klarade */
-  | { kind: "allChallenges" }
-  /** Finns men går inte att låsa upp än */
-  | { kind: "later" };
+  | { kind: "allChallenges" };
 
 export interface AvatarRingDef {
   id: string;
@@ -32,12 +30,10 @@ export interface AvatarRingDef {
 
 export const AVATAR_RINGS: AvatarRingDef[] = [
   { id: "none", rule: { kind: "free" } },
-  { id: "gold", rule: { kind: "free" } },
   { id: "skattletare", rule: { kind: "treasures", count: 6 }, colors: ["#F0B98A", "#B8763E", "#6B3A18"], image: require("../../assets/rings/ring-skattletare.png"), holeRatio: 0.57 },
   { id: "skattjagare", rule: { kind: "treasures", count: 12 }, colors: ["#F4F6F8", "#AEB6C0", "#5E6670"], image: require("../../assets/rings/ring-skattjagare.png"), holeRatio: 0.552 },
   { id: "skattmastare", rule: { kind: "treasures", count: 18 }, colors: ["#FBE49B", "#D4A740", "#7A5418"], image: require("../../assets/rings/ring-skattmastare.png"), holeRatio: 0.529 },
   { id: "osterlenlegend", rule: { kind: "allChallenges" }, colors: ["#E9D5FF", "#A855F7", "#4C1D95"], image: require("../../assets/rings/ring-osterlenlegend.png"), holeRatio: 0.513 },
-  { id: "lightning", rule: { kind: "later" } },
 ];
 
 export function findRing(id: string | null | undefined): AvatarRingDef | undefined {

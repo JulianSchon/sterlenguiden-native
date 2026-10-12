@@ -23,26 +23,15 @@ export function useRingUnlocks() {
     }
   }, [treasures, allChallenges]);
 
-  /** Vad som krävs, kort: "6 skatter", "Alla utmaningar", "Kommer snart" */
+  /** Vad som krävs, kort: "6 skatter", "Alla utmaningar" */
   const requirement = (def: AvatarRingDef): string => {
     switch (def.rule.kind) {
       case "treasures": return `${def.rule.count} skatter`;
       case "allChallenges": return "Alla utmaningar";
-      case "later": return "Kommer snart";
-      default: return "";
-    }
-  };
-
-  /** Hela meningen, för låst-rutan och firandet */
-  const requirementSentence = (def: AvatarRingDef): string => {
-    switch (def.rule.kind) {
-      case "treasures": return `Hitta ${def.rule.count} av Österlens skatter för att låsa upp den här ringen. Du har ${treasures}.`;
-      case "allChallenges": return `Klara alla ${trophies.length} utmaningar för att låsa upp den här ringen.`;
-      case "later": return "Den här ringen låses upp längre fram.";
       default: return "";
     }
   };
 
   const unlocked = AVATAR_RINGS.filter(isUnlocked);
-  return { isUnlocked, requirement, requirementSentence, unlocked, ready: collectedLoaded && allLoaded };
+  return { isUnlocked, requirement, unlocked, ready: collectedLoaded && allLoaded };
 }

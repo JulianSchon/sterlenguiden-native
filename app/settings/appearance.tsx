@@ -9,7 +9,7 @@
  * eftersom det är den enda sida där man ser knappen röra sig.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { View, TouchableOpacity, Alert, Dimensions, InteractionManager, ScrollView, StyleSheet } from "react-native";
+import { View, TouchableOpacity, Dimensions, InteractionManager, ScrollView, StyleSheet } from "react-native";
 import Animated, {
   Extrapolation, FadeIn, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
   interpolateColor, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, type SharedValue,
@@ -50,8 +50,10 @@ const SIDE_DIM = 0.55;
 /** Kortets hörnradie vid den storlek det ritas här (16 vid full bredd) */
 const CARD_RADIUS = 16 * (ITEM_W / CARD_W);
 
-const RING_AVATAR = 72;
-const RING_TILE = 104;
+// Ringarna är spelramar som sticker ut nästan dubbla profilbildens storlek — liten bild i en
+// bredare ruta, så de får plats bredvid varandra utan att överlappa (även vald, uppskalad)
+const RING_AVATAR = 48;
+const RING_TILE = 112;
 
 /** Ett kort i raden. Storlek och mörkning följer avståndet till mitten. */
 function DesignCard({ index, scrollX, progress, onPress, children }: {
@@ -132,7 +134,7 @@ function RingOption({ def, name, unlocked, requirement, index, selectedIdx, avat
 
   const avatarStyle = useAnimatedStyle(() => ({
     opacity: unlocked ? interpolate(on.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) : 0.35,
-    transform: [{ scale: 1 + 0.14 * on.value }],
+    transform: [{ scale: 1 + 0.08 * on.value }],
   }));
   const checkStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, on.value),
@@ -283,8 +285,6 @@ export default function AppearanceSettings() {
   } as Record<string, string>;
   const ringNames = {
     none: t("appearance.ring.none"),
-    gold: t("appearance.ring.gold"),
-    lightning: t("appearance.ring.lightning"),
     skattletare: t("appearance.ring.skattletare"),
     skattjagare: t("appearance.ring.skattjagare"),
     skattmastare: t("appearance.ring.skattmastare"),
@@ -368,8 +368,8 @@ export default function AppearanceSettings() {
               circleColor={circleColor}
               progress={progress}
               onPress={() => {
+                if (!rings.isUnlocked(r)) return; // låst: inget händer alls, kravet står under ringen
                 Haptics.selectionAsync().catch(() => {});
-                if (!rings.isUnlocked(r)) return Alert.alert(t("appearance.ring.lockedTitle"), rings.requirementSentence(r));
                 chooseRing(i, r.id);
               }}
             />
