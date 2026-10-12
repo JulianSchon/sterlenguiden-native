@@ -124,8 +124,3 @@ export const CARD_VARIANTS: CardVariant[] = [
     light: true,
   },
 ];
-
-/** Slår upp variant på ID – faller tillbaka på Midnatt. */
-export function getVariant(id?: string | null): CardVariant {
-  return CARD_VARIANTS.find((v) => v.id === id) ?? CARD_VARIANTS[0];
-}

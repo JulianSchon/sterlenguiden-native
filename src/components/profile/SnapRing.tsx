@@ -4,7 +4,7 @@
  * smäll, en studs och en vibration (en mindre version av firandet, som skatten i samlingen).
  * Annars ritas ringen som vanligt.
  *
- * Spelas när ringlagret skapas eller får ringen medan signalen gäller (se ringSnap.ts). Profil bygger
+ * Spelas när ringlagret skapas eller får ringen medan signalen gäller (se profileReveal.ts). Profil bygger
  * om kortet när signalen kommer, så den spelas även om kortet redan visade samma ring.
  */
 import { useEffect, type ReactNode } from "react";
@@ -13,12 +13,12 @@ import Reanimated, {
   Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { RING_SNAP_DELAY, ringSnapAt } from "@/lib/ringSnap";
+import { REVEAL_DELAY, revealAt } from "@/lib/profileReveal";
 import { AvatarRing } from "./AvatarRing";
 
 export function SnapRing({ ring, size, children }: { ring?: string | null; size: number; children: ReactNode }) {
   // Dold redan från första bilden om ringen ska smälla fast — annars syns den en bildruta först
-  const drop = useSharedValue(ringSnapAt(ring) != null ? 0 : 1);
+  const drop = useSharedValue(revealAt("ring", ring) != null ? 0 : 1);
   const squash = useSharedValue(0);
 
   const landed = () => {
@@ -29,10 +29,10 @@ export function SnapRing({ ring, size, children }: { ring?: string | null; size:
 
   // Nyss vald i ringfirandet: dölj ringen och låt den falla ner när firandet tonats bort
   useEffect(() => {
-    const at = ringSnapAt(ring);
+    const at = revealAt("ring", ring);
     if (at == null) return;
     drop.value = 0;
-    const wait = Math.max(0, at + RING_SNAP_DELAY - Date.now());
+    const wait = Math.max(0, at + REVEAL_DELAY - Date.now());
     drop.value = withDelay(wait, withTiming(1, { duration: 420, easing: Easing.in(Easing.cubic) }, (fin) => {
       if (fin) runOnJS(landed)();
     }));

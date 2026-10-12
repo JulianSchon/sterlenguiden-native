@@ -34,7 +34,9 @@ export const de: typeof sv = {
     themeLight: "Hell",
     themeDark: "Dunkel",
     cardDesign: "Kartendesign",
-    designs: { forest: "Wald", rapeseed: "Rapsfeld", ocean: "Meer", grapes: "Trauben", obsidian: "Obsidian", copper: "Kupfer", sand: "Sand" },
+    designs: { forest: "Wald", rapeseed: "Rapsfeld", ocean: "Meer", grapes: "Trauben", obsidian: "Obsidian", copper: "Kupfer", sand: "Sand",
+      skattjagare: "Schatzjäger", visitsMonth: "Besucher des Monats {{period}}", visitsYear: "Besucher des Jahres {{period}}" },
+    cardLocked: "Finde alle {{count}} Schätze, um diese Karte zu bekommen",
     ring: {
       title: "Profilring",
       none: "Keiner",

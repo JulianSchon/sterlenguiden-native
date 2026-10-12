@@ -24,7 +24,8 @@ import Svg, {
   Rect as SvgRect,
 } from "react-native-svg";
 import { Crown, Radio, Camera } from "lucide-react-native";
-import { cardColors, getVariant } from "@/lib/cardVariants";
+import { cardColors } from "@/lib/cardVariants";
+import { useCardVariant } from "@/hooks/useRewardCards";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import * as Haptics from "expo-haptics";
@@ -119,13 +120,15 @@ export function MemberCard({
   const flippedRef                          = useRef(showBackOnly || (startOnBack && isMember));
   const [time, setTime]                     = useState(() => new Date(serverNow()));
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
-  const bgFade                              = useRef(new Animated.Value(shownBackgrounds.has(getVariant(cardColor).id) ? 1 : 0)).current;
+  // Vald design — en vanlig eller ett belöningskort (som hämtas från servern)
+  const cardVariant                         = useCardVariant(cardColor);
+  const bgFade                              = useRef(new Animated.Value(shownBackgrounds.has(cardVariant.id) ? 1 : 0)).current;
 
   // Baksidan ritas bara när den kan bli synlig; kort som är låsta till framsidan slipper dess animationer
   const backVisible = isMember && (showBackOnly || startOnBack || !disableFlip);
 
   // Variant + färgpalett
-  const variant = isMember ? getVariant(cardColor) : null;
+  const variant = isMember ? cardVariant : null;
   const hasPng  = !!(variant?.bgImage);          // alla varianter med bgImage får PNG
   const colors  = variant ? cardColors(variant) : NON_MEMBER_COLORS;
   const baseBg  = isMember ? (variant?.bg ?? "#0A0A0A") : "#110D07";

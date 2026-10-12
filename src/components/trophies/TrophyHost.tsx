@@ -19,6 +19,10 @@
  * Samma vakt firar nya profilringar (RingCelebration) — efter utmaningarna, aldrig samtidigt, så
  * två helskärmar aldrig krockar. En ring räknas som ny när regeln (antal skatter, alla
  * utmaningar) uppfylls medan appen är igång; det som redan var upplåst vid start firas inte.
+ *
+ * Sist kommer presenterna för nya belöningskort (CardPresent). Korten delas ut av servern (alla
+ * skatter, eller en vunnen topplista — även medan appen är stängd), och en present väntar tills den
+ * öppnats (user_cards.seen_at), så den visas vid nästa start om den inte hann öppnas.
  */
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSegments } from "expo-router";
@@ -30,6 +34,8 @@ import { useRingUnlocks } from "@/hooks/useRingUnlocks";
 import { addTrophiesToPlace, useTrophyMomentsHeld, wasTrophyCelebrated } from "@/lib/trophyMoments";
 import { TrophyCelebration } from "./TrophyCelebration";
 import { RingCelebration } from "./RingCelebration";
+import { CardPresent } from "./CardPresent";
+import { useMyCards, useRewardCards, type RewardCard } from "@/hooks/useRewardCards";
 
 const TIERS = ["bronze", "silver", "gold"];
 
@@ -124,6 +130,46 @@ export function TrophyHost() {
     if (queue.length === 0 && shown > 0) setShown(0);
   }, [queue.length, shown]);
 
+  // ─── Belöningskort ────────────────────────────────────────────────────────
+  const { data: rewardCards = [] } = useRewardCards();
+  const { data: myCards = [] } = useMyCards();
+  // Öppnade presenter i den här körningen — räknas bort direkt, utan att vänta på servern
+  const [opened, setOpened] = useState<string[]>([]);
+  const waitingCard = !current && !held && !ringCurrent
+    ? rewardCards.find((c) => myCards.some((m) => m.cardId === c.id && !m.seenAt) && !opened.includes(c.id)) ?? null
+    : null;
+  // Presenten som visas. Den ligger kvar tills den stängts, även när servern hunnit svara att den
+  // öppnats (då försvinner den ur waitingCard mitt i animationen)
+  const [presenting, setPresenting] = useState<RewardCard | null>(null);
+  useEffect(() => {
+    if (!waitingCard || presenting) return;
+    const t = setTimeout(() => setPresenting(waitingCard), 650);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingCard?.id, presenting]);
+
+  // Profil är en flik. Står man bland flikarna byts bara fliken; annars stängs sidorna ovanpå
+  // flikarna (t.ex. Mitt Österlen). router.navigate därifrån lade i stället en helt ny kopia av
+  // alla flikar ovanpå, med en egen ny Profil.
+  const goToProfile = () => {
+    if (segments[0] === "(tabs)") router.navigate("/(tabs)/profile" as any);
+    else router.dismissTo("/(tabs)/profile" as any);
+  };
+
+  if (presenting) {
+    return (
+      <CardPresent
+        key={presenting.id}
+        card={presenting}
+        onNavigate={goToProfile}
+        onClose={() => {
+          setOpened((o) => [...o, presenting.id]);
+          setPresenting(null);
+        }}
+      />
+    );
+  }
+
   if (!current) {
     if (!ringCurrent || ringArmed !== ringCurrent.id) return null;
     const reason = ringCurrent.rule.kind === "treasures"
@@ -134,13 +180,7 @@ export function TrophyHost() {
         key={ringCurrent.id}
         ring={ringCurrent}
         reason={reason}
-        onNavigate={() => {
-          // Profil är en flik. Står man bland flikarna byts bara fliken; annars stängs sidorna ovanpå
-          // flikarna (t.ex. Mitt Österlen). router.navigate därifrån lade i stället en helt ny kopia av
-          // alla flikar ovanpå, med en egen ny Profil.
-          if (segments[0] === "(tabs)") router.navigate("/(tabs)/profile" as any);
-          else router.dismissTo("/(tabs)/profile" as any);
-        }}
+        onNavigate={goToProfile}
         onClose={() => setRingQueue((q) => q.filter((r) => r.id !== ringCurrent.id))}
       />
     );

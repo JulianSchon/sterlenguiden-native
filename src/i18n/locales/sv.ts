@@ -37,7 +37,9 @@ export const sv = {
     themeLight: "Ljust",
     themeDark: "Mörkt",
     cardDesign: "Kortdesign",
-    designs: { forest: "Skog", rapeseed: "Rapsfält", ocean: "Hav", grapes: "Druvor", obsidian: "Obsidian", copper: "Koppar", sand: "Sand" },
+    designs: { forest: "Skog", rapeseed: "Rapsfält", ocean: "Hav", grapes: "Druvor", obsidian: "Obsidian", copper: "Koppar", sand: "Sand",
+      skattjagare: "Skattjägare", visitsMonth: "Månadens besökare {{period}}", visitsYear: "Årets besökare {{period}}" },
+    cardLocked: "Hitta alla {{count}} skatter för att få kortet",
     ring: {
       title: "Profilring",
       none: "Ingen",

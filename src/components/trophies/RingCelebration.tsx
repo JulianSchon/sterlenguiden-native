@@ -25,7 +25,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { playSound } from "@/lib/sounds";
 import { useOnModalShown } from "@/hooks/useOnModalShown";
 import type { AvatarRingDef } from "@/lib/avatarRings";
-import { requestRingSnap } from "@/lib/ringSnap";
+import { requestProfileReveal } from "@/lib/profileReveal";
 import { Avatar } from "@/components/profile/Avatar";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
@@ -121,7 +121,7 @@ export function RingCelebration({ ring, reason, onNavigate, onClose }: {
     // syns) sparas ringen och Profil öppnas; bakgrunden tonas bort när sidan hunnit bli klar, och
     // där faller ringen ner över profilbilden (SnapRing)
     setTimeout(() => {
-      requestRingSnap(ring.id);
+      requestProfileReveal("ring", ring.id);
       updateProfile.mutate({ avatar_ring: ring.id });
       onNavigate();
     }, 300);

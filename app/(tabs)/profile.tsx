@@ -17,7 +17,8 @@ import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-
 import * as Haptics from "expo-haptics";
 import { MemberCard } from "@/components/MemberCard";
 import { SnapRing } from "@/components/profile/SnapRing";
-import { subscribeRingSnap } from "@/lib/ringSnap";
+import { CardReveal } from "@/components/profile/CardReveal";
+import { subscribeProfileReveal } from "@/lib/profileReveal";
 import { FadeImage } from "@/components/FadeImage";
 import { FadeOnChange } from "@/components/FadeOnChange";
 import { floatingNavSolidHeight } from "@/components/navigation/FloatingNav";
@@ -229,13 +230,13 @@ export default function ProfileScreen() {
   const avatarUrl = useAvatarUrl();
   const cardPhotoUrl = useCardPhotoUrl();
 
-  // "Använd ringen" i ringfirandet: medan firandet ännu täcker skärmen rullas sidan upp och
-  // medlemskortet byggs om — framsidan upp och ringen redo att falla ner över profilbilden (se
-  // SnapRing). Annars syntes ingen smäll om kortet redan visade samma ring, var vänt eller låg
-  // utanför skärmen.
+  // "Använd ringen" / "Använd kortet" i ett belöningsfirande: medan firandet ännu täcker skärmen
+  // rullas sidan upp och medlemskortet byggs om — framsidan upp, och ringen eller det nya kortet
+  // redo att falla på plats (SnapRing, CardReveal). Annars syntes ingen smäll om kortet redan
+  // visade samma ring, var vänt eller låg utanför skärmen.
   const scrollRef = useRef<ScrollView>(null);
   const [cardKey, setCardKey] = useState(0);
-  useEffect(() => subscribeRingSnap(() => {
+  useEffect(() => subscribeProfileReveal(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     setCardKey((k) => k + 1);
   }), []);
@@ -311,8 +312,8 @@ export default function ProfileScreen() {
         style={s.scroll}
         contentContainerStyle={s.body}
       >
+        <CardReveal key={cardKey} cardId={profile?.card_color}>
         <MemberCard
-          key={cardKey}
           displayName={displayName}
           isMember={isMember}
           memberSince={memberSince}
@@ -324,6 +325,7 @@ export default function ProfileScreen() {
           profileImageUrl={cardPhotoUrl}
           onBuyPress={() => router.push("/settings/pass-buy" as any)}
         />
+        </CardReveal>
 
         {/* Dit vi vill leda användaren: Förmåner (där pengarna finns) och Mitt Österlen */}
         <View style={s.primaryRow}>

@@ -4,6 +4,10 @@
  * temat (svepknapp, mörkt förvalt). Ringar tjänas in och säljs aldrig; låsta ringar
  * syns gråa med lås (src/lib/avatarRings.ts). Cirkelns färg ändras på Konto, inte här.
  *
+ * Efter de vanliga designerna kommer belöningskorten (useRewardCards): Skattjägare syns alltid —
+ * låst, med kravet under, tills man hittat alla skatter — och topplistekorten bara när man vunnit
+ * dem. Ett låst kort går att titta på men inte välja.
+ *
  * Sidans färger följer temaknappen medan man sveper (`progress`, 0 = mörkt, 1 = ljust),
  * så bakgrund och text går över i samma takt som knappen. Övergången finns bara här,
  * eftersom det är den enda sida där man ser knappen röra sig.
@@ -20,7 +24,9 @@ import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpdateProfile } from "@/hooks/useAccount";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
-import { CARD_VARIANTS } from "@/lib/cardVariants";
+import { CARD_VARIANTS, type CardVariant } from "@/lib/cardVariants";
+import { rewardCardName, rewardCardVariant, useMyCards, useRewardCards } from "@/hooks/useRewardCards";
+import { useCollectibles } from "@/hooks/useCollectibles";
 import { AVATAR_RINGS, type AvatarRingDef } from "@/lib/avatarRings";
 import { useRingUnlocks } from "@/hooks/useRingUnlocks";
 import { formatDate } from "@/i18n/dates";
@@ -54,6 +60,14 @@ const CARD_RADIUS = 16 * (ITEM_W / CARD_W);
 // bredare ruta, så de får plats bredvid varandra utan att överlappa (även vald, uppskalad)
 const RING_AVATAR = 62;
 const RING_TILE = 136;
+
+/** En design i kortraden: en vanlig eller ett belöningskort */
+interface Design {
+  variant: CardVariant;
+  name: string;
+  /** Belöningskort man inte har än — syns, men går inte att välja */
+  locked: boolean;
+}
 
 /** Ett kort i raden. Storlek och mörkning följer avståndet till mitten. */
 function DesignCard({ index, scrollX, progress, onPress, children }: {
@@ -182,7 +196,26 @@ export default function AppearanceSettings() {
   const mGold = useMorphStyle(progress, "color", "goldText");
   const mRule = useMorphStyle(progress, "backgroundColor", "goldBorder");
 
-  const savedIndex = Math.max(0, CARD_VARIANTS.findIndex((v) => v.id === (profile?.card_color ?? CARD_VARIANTS[0].id)));
+  // Designerna: de vanliga, sen Skattjägare (låst tills man hittat alla skatter) och de topplistekort
+  // man vunnit, äldst först
+  const rewardCards = useRewardCards();
+  const myCards = useMyCards();
+  const { data: collectibles = [] } = useCollectibles();
+  const designs = useMemo<Design[]>(() => {
+    const owned = new Set((myCards.data ?? []).map((c) => c.cardId));
+    const rewards = (rewardCards.data ?? [])
+      .filter((c) => c.kind === "treasures" || owned.has(c.id))
+      .sort((a, b) => (a.kind === "treasures" ? -1 : b.kind === "treasures" ? 1 : (a.period ?? "").localeCompare(b.period ?? "")));
+    return [
+      ...CARD_VARIANTS.map((v) => ({ variant: v, name: t(`appearance.designs.${v.id}` as "appearance.designs.forest"), locked: false })),
+      ...rewards.map((c) => ({ variant: rewardCardVariant(c), name: rewardCardName(c, t), locked: !owned.has(c.id) })),
+    ];
+  }, [rewardCards.data, myCards.data, t]);
+  // Raden ställs in först när belöningskorten hämtats — annars hittas inte ett valt belöningskort
+  const rewardsReady = !rewardCards.isPending && !myCards.isPending;
+  const savedIndex = Math.max(0, designs.findIndex((d) => d.variant.id === (profile?.card_color ?? CARD_VARIANTS[0].id)));
+  const lastDesign = useSharedValue(designs.length - 1);
+  useEffect(() => { lastDesign.value = designs.length - 1; }, [designs.length, lastDesign]);
   const ring = profile?.avatar_ring ?? "none";
   const ringIndex = Math.max(0, AVATAR_RINGS.findIndex((r) => r.id === ring));
   const selectedRing = useSharedValue(ringIndex);
@@ -237,52 +270,45 @@ export default function AppearanceSettings() {
 
   // Raden startar på det kort som är valt; profilen kan komma efter första bilden
   useEffect(() => {
-    if (!profile || !ready || positioned.current) return;
+    if (!profile || !ready || !rewardsReady || positioned.current) return;
     positioned.current = true;
     setIndex(savedIndex);
     lastIndex.value = savedIndex;
     scrollX.value = savedIndex * STEP;
     scroller.current?.scrollTo({ x: savedIndex * STEP, animated: false });
-  }, [profile, ready, savedIndex, scroller, scrollX, lastIndex]);
+  }, [profile, ready, rewardsReady, savedIndex, scroller, scrollX, lastIndex]);
 
   const onIndexChange = useCallback((next: number) => {
     Haptics.selectionAsync().catch(() => {});
     setIndex(next);
   }, []);
-  // Designen sparas när raden stannat
+  // Designen sparas när raden stannat (ett låst kort sparas inte)
   const save = useCallback((next: number) => {
-    if (CARD_VARIANTS[next].id !== profile?.card_color) updateProfile.mutate({ card_color: CARD_VARIANTS[next].id });
-  }, [profile?.card_color, updateProfile]);
+    const design = designs[next];
+    if (!design || design.locked) return;
+    if (design.variant.id !== profile?.card_color) updateProfile.mutate({ card_color: design.variant.id });
+  }, [designs, profile?.card_color, updateProfile]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => {
       scrollX.value = e.contentOffset.x;
-      const next = Math.min(CARD_VARIANTS.length - 1, Math.max(0, Math.round(e.contentOffset.x / STEP)));
+      const next = Math.min(lastDesign.value, Math.max(0, Math.round(e.contentOffset.x / STEP)));
       if (next !== lastIndex.value) {
         lastIndex.value = next;
         runOnJS(onIndexChange)(next);
       }
     },
     onMomentumEnd: (e) => {
-      runOnJS(save)(Math.min(CARD_VARIANTS.length - 1, Math.max(0, Math.round(e.contentOffset.x / STEP))));
+      runOnJS(save)(Math.min(lastDesign.value, Math.max(0, Math.round(e.contentOffset.x / STEP))));
     },
     onEndDrag: (e) => {
       // Utan sväng efter släppet kommer ingen momentum-händelse
       if (Math.abs(e.velocity?.x ?? 0) < 0.05) {
-        runOnJS(save)(Math.min(CARD_VARIANTS.length - 1, Math.max(0, Math.round(e.contentOffset.x / STEP))));
+        runOnJS(save)(Math.min(lastDesign.value, Math.max(0, Math.round(e.contentOffset.x / STEP))));
       }
     },
   });
 
-  const designNames = {
-    forest: t("appearance.designs.forest"),
-    rapeseed: t("appearance.designs.rapeseed"),
-    ocean: t("appearance.designs.ocean"),
-    grapes: t("appearance.designs.grapes"),
-    obsidian: t("appearance.designs.obsidian"),
-    copper: t("appearance.designs.copper"),
-    sand: t("appearance.designs.sand"),
-  } as Record<string, string>;
   const ringNames = {
     none: t("appearance.ring.none"),
     gris: t("appearance.ring.gris"),
@@ -292,7 +318,7 @@ export default function AppearanceSettings() {
   } as Record<string, string>;
   const rings = useRingUnlocks();
 
-  const current = CARD_VARIANTS[index];
+  const current = designs[index] ?? designs[0];
 
   return (
     <SettingsScreen title={t("appearance.title")} morph={progress}>
@@ -308,34 +334,39 @@ export default function AppearanceSettings() {
           contentContainerStyle={{ paddingHorizontal: SIDE, paddingVertical: 16, alignItems: "center" }}
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
-          snapToOffsets={CARD_VARIANTS.map((_, i) => i * STEP)}
+          snapToOffsets={designs.map((_, i) => i * STEP)}
           snapToAlignment="start"
           scrollEventThrottle={16}
           onScroll={scrollHandler}
         >
-          {CARD_VARIANTS.map((v, i) => (
+          {designs.map((d, i) => (
             <DesignCard
-              key={v.id}
+              key={d.variant.id}
               index={i}
               scrollX={scrollX}
               progress={progress}
               onPress={() => scroller.current?.scrollTo({ x: i * STEP, animated: true })}
             >
-              {({ onCardPress }) => (
+              {({ onCardPress }) => (<>
                 <MemberCard
                   width={ITEM_W}
                   displayName={displayName}
                   isMember
                   disableFlip
                   memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
-                  cardColor={v.id}
+                  cardColor={d.variant.id}
                   avatarUrl={avatarUrl}
                   circleColor={circleColor}
                   ringComponent={CardRing}
                   onBuyPress={() => {}}
                   onCardPress={onCardPress}
                 />
-              )}
+                {d.locked && (
+                  <View style={st.cardLock} pointerEvents="none">
+                    <View style={st.cardLockBadge}><Lock size={20} color="#F5F1E8" strokeWidth={2.2} /></View>
+                  </View>
+                )}
+              </>)}
             </DesignCard>
           ))}
         </Animated.ScrollView>
@@ -346,9 +377,13 @@ export default function AppearanceSettings() {
         {/* Namnet på valt kort, mellan två fina guldlinjer */}
         <View style={st.designFooter}>
           <Animated.View style={[st.rule, mRule]} />
-          <Animated.Text style={[st.designName, mGold]}>{(designNames[current.id] ?? current.name).toUpperCase()}</Animated.Text>
+          <Animated.Text style={[st.designName, mGold]}>{current.name.toUpperCase()}</Animated.Text>
           <Animated.View style={[st.rule, mRule]} />
         </View>
+        {/* Kravet för ett låst kort; raden finns alltid, så sidan inte hoppar när man sveper */}
+        <Animated.Text style={[st.cardRequirement, mFaint]} numberOfLines={1}>
+          {current.locked ? t("appearance.cardLocked", { count: collectibles.length }) : " "}
+        </Animated.Text>
       </View>
 
       <View>
@@ -403,6 +438,13 @@ const st = StyleSheet.create({
   designFooter: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 },
   rule: { flex: 1, height: StyleSheet.hairlineWidth },
   designName: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3 },
+  cardRequirement: { fontFamily: "Inter_500Medium", fontSize: 12.5, textAlign: "center", marginTop: 6 },
+  // Låst belöningskort: ett tydligt lås mitt på kortet (solid, inte genomskinligt)
+  cardLock: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  cardLockBadge: {
+    width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center",
+    backgroundColor: "#16140F", borderWidth: 1, borderColor: "rgba(232,198,116,0.6)",
+  },
 
   // Ringarna ligger direkt mot bakgrunden, utan ruta
   // Horisontell rad som scrollar i sidled — alla ringar på en rad

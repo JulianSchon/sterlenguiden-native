@@ -45,7 +45,7 @@ import { computeCategoryStats } from "@/lib/categories";
 import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
 import { CATEGORIES } from "@/theme/categories";
 import { TrophyMedal, RadialGlow } from "@/components/trophies/TrophyMedal";
-import { getVariant } from "@/lib/cardVariants";
+import { useCardVariant } from "@/hooks/useRewardCards";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
 const BG    = "#121212";
@@ -106,8 +106,8 @@ export default function FriendProfileScreen() {
   // används som glödens färg bakom profilringen. Exakt samma färg som kortet, INGEN toning mot
   // vitt — Viktor vill att den matchar kortet exakt (en tidigare lyft-mot-vitt-version läste som
   // en märkbart ljusare, fel färg, inte samma).
-  const variant = friend ? getVariant(friend.cardColor) : null;
-  const glowColor = variant?.bg ?? GOLD;
+  const friendVariant = useCardVariant(friend?.cardColor);
+  const glowColor = friend ? friendVariant.bg : GOLD;
 
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;

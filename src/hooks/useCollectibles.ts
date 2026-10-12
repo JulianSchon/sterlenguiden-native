@@ -77,7 +77,11 @@ export function useCollectSticker() {
       if (error) throw new Error(error.message.includes("too_far") ? "too_far" : error.message);
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["collected"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["collected"] });
+      // Sista skatten ger Skattjägarkortet (delas ut av servern, se migration 031)
+      queryClient.invalidateQueries({ queryKey: ["my-cards"] });
+    },
   });
 }
 

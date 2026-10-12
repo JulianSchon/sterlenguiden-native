@@ -31,7 +31,7 @@ import { ArrowLeft, Plus, Image as ImageIcon } from "lucide-react-native";
 import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { useProfile } from "@/hooks/useProfile";
 import { formatMemoryDate } from "@/lib/memories";
-import { getVariant } from "@/lib/cardVariants";
+import { useCardVariant } from "@/hooks/useRewardCards";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { LoadingImage } from "@/components/LoadingImage";
 import { PressableScale } from "@/components/PressableScale";
@@ -73,7 +73,7 @@ export default function MemoriesBookScreen() {
   const { data: urls = {} } = useSignedUrls(memories.map((m) => m.photoPaths[0]).filter(Boolean));
 
   // Exakt samma färg som kortet, ingen toning mot vitt — se samma fix i friend/[id].tsx.
-  const glowColor = useMemo(() => getVariant(profile?.card_color).bg, [profile?.card_color]);
+  const glowColor = useCardVariant(profile?.card_color).bg;
 
   // Storlekarna är satta i förhållande till skärmbredden (den aktiva cirkeln ska dominera ytan,
   // som i referensen, men inte så stor att titeln knappt får plats bredvid den), inte fasta

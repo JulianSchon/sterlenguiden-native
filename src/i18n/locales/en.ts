@@ -34,7 +34,9 @@ export const en: typeof sv = {
     themeLight: "Light",
     themeDark: "Dark",
     cardDesign: "Card design",
-    designs: { forest: "Forest", rapeseed: "Rapeseed field", ocean: "Sea", grapes: "Grapes", obsidian: "Obsidian", copper: "Copper", sand: "Sand" },
+    designs: { forest: "Forest", rapeseed: "Rapeseed field", ocean: "Sea", grapes: "Grapes", obsidian: "Obsidian", copper: "Copper", sand: "Sand",
+      skattjagare: "Treasure Hunter", visitsMonth: "Visitor of the month {{period}}", visitsYear: "Visitor of the year {{period}}" },
+    cardLocked: "Find all {{count}} treasures to get this card",
     ring: {
       title: "Profile ring",
       none: "None",
