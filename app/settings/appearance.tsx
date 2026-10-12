@@ -353,7 +353,8 @@ export default function AppearanceSettings() {
 
       <View>
         <Animated.Text style={[st.label, mMuted]}>{t("appearance.ring.title")}</Animated.Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.ringRow}>
+        {/* Kant i kant, som kortraden — ingen marginal längst ut till vänster och höger */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -BODY_MARGIN }} contentContainerStyle={st.ringRow}>
           {AVATAR_RINGS.map((r, i) => (
             <RingOption
               key={r.id}
@@ -405,7 +406,7 @@ const st = StyleSheet.create({
 
   // Ringarna ligger direkt mot bakgrunden, utan ruta
   // Horisontell rad som scrollar i sidled — alla ringar på en rad
-  ringRow: { flexDirection: "row", paddingTop: 4, paddingHorizontal: 8 },
+  ringRow: { flexDirection: "row", paddingTop: 4 },
   ringItem: { alignItems: "center", gap: 4, width: RING_TILE },
   ringStage: { width: RING_TILE, height: RING_TILE, alignItems: "center", justifyContent: "center" },
   ringAvatar: { width: RING_AVATAR, height: RING_AVATAR },
