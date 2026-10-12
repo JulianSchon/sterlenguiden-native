@@ -20,6 +20,7 @@ import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup"
 import { LanguageMenu } from "@/components/settings/LanguageMenu";
 import { RoundFlag } from "@/components/RoundFlag";
 import { Avatar } from "@/components/profile/Avatar";
+import { ringOverflow } from "@/components/profile/AvatarRing";
 import { GradientCard } from "@/components/GradientCard";
 import { Rise } from "@/components/Rise";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -73,7 +74,8 @@ export default function SettingsHub() {
       <SettingsScreen title={t("settings.title")} right={flagButton} compact>
         {/* Blocken tonas in ett i taget: sidan veckas ut uppifrån och ner */}
         <Rise index={0}>
-          <TouchableOpacity style={s.profile} activeOpacity={0.8} onPress={() => router.push("/settings/account" as any)}>
+          {/* En profilring sticker ut utanför bilden: lika mycket luft runt den, så den inte hamnar under rubriken */}
+          <TouchableOpacity style={[s.profile, { paddingVertical: 2 + ringOverflow(profile?.avatar_ring, 76) }]} activeOpacity={0.8} onPress={() => router.push("/settings/account" as any)}>
             <Avatar size={76} uri={photo} name={displayName} color={profile?.circle_color ?? "#2A2A2A"} ring={profile?.avatar_ring} />
             <Text style={s.name} numberOfLines={1}>{displayName}</Text>
           </TouchableOpacity>

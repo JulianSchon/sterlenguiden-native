@@ -9,13 +9,25 @@ import Animated, { useAnimatedStyle, withTiming, type SharedValue } from "react-
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { AVATAR_RINGS, findRing } from "@/lib/avatarRings";
 
+/**
+ * Hur långt ringen sticker ut utanför en profilbild med diametern `size`, på varje sida. 0 utan
+ * ring. Ringen påverkar inte layouten, så sidor där profilbilden ligger nära något ovanför (t.ex.
+ * en rubrik) lägger till så här mycket luft runt den.
+ */
+export function ringOverflow(ring: string | null | undefined, size: number): number {
+  const def = ring && ring !== "none" ? findRing(ring) : undefined;
+  if (def?.image) return (size / (def.holeRatio ?? 0.72) - size) / 2;
+  if (def?.colors) return metalRingPad(size);
+  return 0;
+}
+
 /** Själva ringen, ritad utanför en bild med diametern `size`. Ritar inget för "none". */
 function RingOverlay({ ring, size }: { ring: string; size: number }) {
   const def = findRing(ring);
   // Ringar med egen bild (spelramar): bilden skalas så att hålet precis omsluter profilbilden
   if (def?.image) {
-    const full = size / (def.holeRatio ?? 0.72);
-    const pad = (full - size) / 2;
+    const pad = ringOverflow(ring, size);
+    const full = size + pad * 2;
     return (
       <View style={{ position: "absolute", left: -pad, top: -pad, width: full, height: full }} pointerEvents="none">
         <Image source={def.image} style={{ width: full, height: full }} resizeMode="contain" />
@@ -28,11 +40,15 @@ function RingOverlay({ ring, size }: { ring: string; size: number }) {
 }
 
 /** Enkel tjock metallring (ljus → mörk) med tunna kanter — reserv tills ringens bild finns. */
+const metalRingStroke = (size: number) => Math.max(3, size * 0.09);
+const metalRingGap = (size: number) => size * 0.03;
+const metalRingPad = (size: number) => metalRingGap(size) + metalRingStroke(size) + 2;
+
 function MetalRing({ size, colors, id }: { size: number; colors: [string, string, string]; id: string }) {
-  const stroke = Math.max(3, size * 0.09);
-  const gap = size * 0.03;
+  const stroke = metalRingStroke(size);
+  const gap = metalRingGap(size);
   const radius = size / 2 + gap + stroke / 2;
-  const pad = gap + stroke + 2;
+  const pad = metalRingPad(size);
   const total = size + pad * 2;
   const c = total / 2;
   const grad = `ringMetal-${id}`;

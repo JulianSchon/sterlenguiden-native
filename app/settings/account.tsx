@@ -28,6 +28,7 @@ import { GradientCard } from "@/components/GradientCard";
 import { IconSwitch } from "@/components/IconSwitch";
 import { QuietButton } from "@/components/QuietButton";
 import { Avatar } from "@/components/profile/Avatar";
+import { ringOverflow } from "@/components/profile/AvatarRing";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -158,7 +159,8 @@ export default function AccountSettings() {
   return (
     <SettingsScreen title={t("account.title")}>
       {/* Profilbild och cirkelfärger */}
-      <View style={s.profile}>
+      {/* En profilring sticker ut utanför bilden: lika mycket luft runt den, så den inte hamnar under rubriken */}
+      <View style={[s.profile, { paddingVertical: 4 + ringOverflow(profile?.avatar_ring, 96) }]}>
         <View>
           <Avatar size={96} uri={avatarUrl} name={displayName || user?.email || ""} color={circleColor} ring={profile?.avatar_ring} />
           {busyPhoto && <View style={s.busy}><ActivityIndicator color="#FFFFFF" /></View>}
