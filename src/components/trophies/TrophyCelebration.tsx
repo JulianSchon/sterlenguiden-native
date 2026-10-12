@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import type { Tier, Trophy } from "@/lib/achievements";
 import { playSound } from "@/lib/sounds";
+import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { RadialGlow, TrophyMedal } from "@/components/trophies/TrophyMedal";
 import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
 
@@ -101,7 +102,8 @@ export function TrophyCelebration({
     later(130, () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}));
   };
 
-  useEffect(() => {
+  // Startar först när fönstret faktiskt syns (se useOnModalShown)
+  const onShow = useOnModalShown(() => {
     backdrop.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
     if (reduceMotion) {
       medalIn.value = 1; glow.value = 0.6; rays.value = 1; title.value = 1; nextIn.value = 1;
@@ -130,9 +132,8 @@ export function TrophyCelebration({
     title.value = withDelay(T_TITLE, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
     nextIn.value = withDelay(T_NEXT, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
     later(T_READY, () => setReady(true));
-    return () => timers.current.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   // Tryck under animationen: hoppa till slutläget (men smällen ska ändå kännas en gång)
   const tapToSkip = () => {
@@ -182,7 +183,7 @@ export function TrophyCelebration({
   const bottomPad = Math.max(insets.bottom, 16) + 8;
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo(false)}>
+    <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={() => exitTo(false)}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
         <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">

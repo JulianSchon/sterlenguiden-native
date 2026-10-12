@@ -42,6 +42,7 @@ import { ProgressScene, type CategoryProgress, type HeroProgress, type ProgressI
 import { ClimbScene, MAX_PASSED, type ClimbData } from "./ClimbScene";
 import { NextStopScene, type NextStop } from "./NextStopScene";
 import { holdTrophyMoments, markTrophiesCelebrated } from "@/lib/trophyMoments";
+import { useOnModalShown } from "@/hooks/useOnModalShown";
 
 export interface CelebrationState {
   /** "pending" medan servern bekräftar — kortet hinner resa sig under tiden */
@@ -140,6 +141,11 @@ export function CheckInCelebration({
 
   // Utmaningsögonblicket (TrophyHost) väntar medan belöningen visas
   useEffect(() => holdTrophyMoments(), []);
+
+  // Stämpelscenen (som startar sin animation när den skapas) visas först när fönstret faktiskt
+  // syns — annars kunde kortets ankomst hinna spelas innan fönstret visades (se useOnModalShown)
+  const [shown, setShown] = useState(false);
+  const onShow = useOnModalShown(() => setShown(true));
 
   useEffect(() => {
     backdrop.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) });
@@ -325,7 +331,7 @@ export function CheckInCelebration({
   const enter = FadeIn.delay(220).duration(420);
   const exit = FadeOutUp.duration(320);
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo()}>
+    <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={() => exitTo()}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
 
@@ -345,7 +351,7 @@ export function CheckInCelebration({
 
         <Reanimated.View style={[s.stage, contentStyle]} pointerEvents={leaving ? "none" : "auto"}>
           <Pressable style={[s.stage, { paddingTop: insets.top }]} onPress={tapToSkip}>
-            {step === "stamp" && (
+            {shown && step === "stamp" && (
               <Reanimated.View key="stamp" style={s.stage} exiting={exit}>
                 <StampScene
                   place={place}

@@ -13,6 +13,7 @@ import Reanimated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { playSound } from "@/lib/sounds";
+import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { Confetti, FlipNumber, GhostButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
 import { Flame, FLAME_COLORS } from "./Flame";
@@ -70,7 +71,8 @@ export function StreakMilestone({ days, onClose }: { days: number; onClose: () =
     later(130, () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}));
   };
 
-  useEffect(() => {
+  // Startar först när fönstret faktiskt syns (se useOnModalShown)
+  const onShow = useOnModalShown(() => {
     backdrop.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
     if (reduceMotion) {
       flameIn.value = 1; lit.value = 1; glow.value = 0.6; rays.value = 1; text.value = 1;
@@ -98,9 +100,8 @@ export function StreakMilestone({ days, onClose }: { days: number; onClose: () =
     glow.value = withDelay(T_IMPACT, withSequence(withTiming(1, { duration: 140 }), withTiming(0.65, { duration: 900 })));
     text.value = withDelay(T_TEXT, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
     later(T_READY, () => setReady(true));
-    return () => timers.current.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const tapToSkip = () => {
     if (ready) return;
@@ -144,7 +145,7 @@ export function StreakMilestone({ days, onClose }: { days: number; onClose: () =
   const bottomPad = Math.max(insets.bottom, 16) + 8;
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={close}>
+    <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={close}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
         <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">

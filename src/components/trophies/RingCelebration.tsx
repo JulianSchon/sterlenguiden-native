@@ -23,6 +23,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useUpdateProfile } from "@/hooks/useAccount";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { playSound } from "@/lib/sounds";
+import { useOnModalShown } from "@/hooks/useOnModalShown";
 import type { AvatarRingDef } from "@/lib/avatarRings";
 import { requestRingSnap } from "@/lib/ringSnap";
 import { Avatar } from "@/components/profile/Avatar";
@@ -72,7 +73,8 @@ export function RingCelebration({ ring, reason, onNavigate, onClose }: {
   const text = useSharedValue(0);
   const buttons = useSharedValue(0);
 
-  useEffect(() => {
+  // Startar först när fönstret faktiskt syns (se useOnModalShown)
+  const onShow = useOnModalShown(() => {
     backdrop.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) });
     avatarIn.value = withDelay(T_AVATAR, withTiming(1, { duration: 450, easing: Easing.out(Easing.back(1.4)) }));
     drop.value = withDelay(T_DROP, withTiming(1, { duration: DROP_MS, easing: Easing.in(Easing.cubic) }));
@@ -92,9 +94,8 @@ export function RingCelebration({ ring, reason, onNavigate, onClose }: {
       setReady(true);
       buttons.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
     });
-    return () => timers.current.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const tapToSkip = () => {
     if (ready) return;
@@ -153,7 +154,7 @@ export function RingCelebration({ ring, reason, onNavigate, onClose }: {
   const buttonsStyle = useAnimatedStyle(() => ({ opacity: buttons.value, transform: [{ translateY: interpolate(buttons.value, [0, 1], [14, 0]) }] }));
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exit(false)}>
+    <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={() => exit(false)}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
         <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">

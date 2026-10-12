@@ -41,6 +41,7 @@ import { stickerImageUrl, useCollectibles, useCollectSticker, type Collectible }
 import { fetchMyStanding, fetchRows, type LeaderboardEntry } from "@/hooks/useLeaderboard";
 import { playSound } from "@/lib/sounds";
 import { holdTrophyMoments } from "@/lib/trophyMoments";
+import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { addTreasureToPlace } from "@/lib/treasurePlacement";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
@@ -114,9 +115,15 @@ export function TreasureReveal({
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
   // Svar från servern som kommer medan kistan faller och landar sparas och används först när
   // landningen är klar — en omritning mitt i studsen tappade en bildruta
-  const mountedAt = useRef(Date.now());
+  // (räknat från när kistan faktiskt började falla — svar som kommer innan dess köas)
+  const settleAt = useRef<number | null>(null);
+  const waitingForLanding = useRef<(() => void)[]>([]);
   const afterLanding = (fn: () => void) => {
-    const wait = mountedAt.current + LAND_AT + 450 - Date.now();
+    if (settleAt.current == null) {
+      waitingForLanding.current.push(fn);
+      return;
+    }
+    const wait = settleAt.current - Date.now();
     if (wait > 0) later(wait, fn);
     else fn();
   };
@@ -177,10 +184,9 @@ export function TreasureReveal({
     );
   };
 
-  // 1. In: kistan dundrar ner, och servern frågas direkt. Skattens bild förhämtas, så den är
-  // laddad när kistan exploderar även om man trycker blixtsnabbt
-  useEffect(() => {
-    if (collectible.imagePath) Image.prefetch(stickerImageUrl(collectible.imagePath)).catch(() => {});
+  // 1. In: kistan dundrar ner — startar först när fönstret faktiskt syns (se useOnModalShown;
+  // annars kunde fallet hinna spelas klart innan fönstret visades)
+  const onShow = useOnModalShown(() => {
     backdrop.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
     chestIn.value = withDelay(DROP_AT, withTiming(1, { duration: DROP_MS, easing: Easing.in(Easing.cubic) }));
     // Landningen — allt det visuella på animationstråden, i exakt rätt bildruta
@@ -193,6 +199,14 @@ export function TreasureReveal({
     glow.value = withDelay(LAND_AT, withTiming(0.2, { duration: 400 }));
     rays.value = withDelay(LAND_AT, withTiming(0.12, { duration: 600 }));
     hint.value = withDelay(LAND_AT + 250, withTiming(1, { duration: 300 }));
+    settleAt.current = Date.now() + LAND_AT + 450;
+    waitingForLanding.current.splice(0).forEach((fn) => later(LAND_AT + 450, fn));
+  });
+
+  // Servern frågas direkt när kistan skapas, så svaret hinner komma medan man trycker. Skattens
+  // bild förhämtas, så den är laddad när kistan exploderar även om man trycker blixtsnabbt
+  useEffect(() => {
+    if (collectible.imagePath) Image.prefetch(stickerImageUrl(collectible.imagePath)).catch(() => {});
     let before: LeaderboardEntry | null = null;
     atMost(standingBefore ?? fetchMyStanding("stickers"))
       .then((b) => {
@@ -405,7 +419,7 @@ export function TreasureReveal({
   const showDescription = !!collectible.description && height >= 760 && !leader;
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={() => exitTo(false)}>
+    <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={() => exitTo(false)}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
         {!cleared && (<>

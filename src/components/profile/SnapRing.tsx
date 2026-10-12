@@ -10,27 +10,30 @@ import Reanimated, {
   Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { RING_SNAP_DELAY, takeRingSnap } from "@/lib/ringSnap";
+import { RING_SNAP_DELAY, claimSnapBuzz, ringSnapAt } from "@/lib/ringSnap";
 import { AvatarRing } from "./AvatarRing";
 
 export function SnapRing({ ring, size, children }: { ring?: string | null; size: number; children: ReactNode }) {
-  const drop = useSharedValue(1);
+  // Dold redan från första bilden om ringen ska smälla fast — annars syns den en bildruta först
+  const drop = useSharedValue(ringSnapAt(ring) != null ? 0 : 1);
   const squash = useSharedValue(0);
 
-  const landed = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-    setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 140);
+  const landed = (at: number) => {
+    if (claimSnapBuzz(at)) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 140);
+    }
     squash.value = withSequence(withTiming(1, { duration: 70 }), withSpring(0, { damping: 9, stiffness: 260 }));
   };
 
   // Nyss vald i ringfirandet: dölj ringen och låt den falla ner när firandet tonats bort
   useEffect(() => {
-    const at = takeRingSnap(ring);
+    const at = ringSnapAt(ring);
     if (at == null) return;
     drop.value = 0;
     const wait = Math.max(0, at + RING_SNAP_DELAY - Date.now());
     drop.value = withDelay(wait, withTiming(1, { duration: 420, easing: Easing.in(Easing.cubic) }, (fin) => {
-      if (fin) runOnJS(landed)();
+      if (fin) runOnJS(landed)(at);
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ring]);
