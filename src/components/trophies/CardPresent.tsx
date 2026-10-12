@@ -331,7 +331,7 @@ export function CardPresent({ card, onNavigate, onClose }: {
                 </Reanimated.View>
                 <Reanimated.View style={[{ width: PRESENT, height: presentH }, presentStyle]}>
                   <View style={StyleSheet.absoluteFill}><PresentBase size={PRESENT} /></View>
-                  <Reanimated.View style={[s.seam, { top: presentH / 2 + seamOffset - 4, left: PRESENT * 0.18, width: PRESENT * 0.64 }, seamStyle]} />
+                  <Reanimated.View style={[s.seam, { top: presentH / 2 + seamOffset - 4, left: PRESENT * 0.13, width: PRESENT * 0.74 }, seamStyle]} />
                   <Reanimated.View style={[StyleSheet.absoluteFill, lidStyle]}><PresentLid size={PRESENT} /></Reanimated.View>
                   <Reanimated.View style={[s.anchor, { top: presentH / 2 + seamOffset - PRESENT * 0.4, left: PRESENT * 0.1, width: PRESENT * 0.8, height: PRESENT * 0.8 }, hotStyle]}>
                     <RadialGlow size={PRESENT * 0.8} color="#FFF4D6" opacity={1} radiusRatio={0.6} />
