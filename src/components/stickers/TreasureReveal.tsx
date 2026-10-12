@@ -106,6 +106,8 @@ export function TreasureReveal({
   // Utgången: allt tungt bort när innehållet tonats ut, så bakgrunden kan tonas mjukt
   const [cleared, setCleared] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tryck efter att kistan öppnats: hoppa direkt till slutläget (som på besöket)
+  const [skipped, setSkipped] = useState(false);
   const [leader, setLeader] = useState<LeaderData | null>(null);
   const leaderRef = useRef<LeaderData | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -244,7 +246,21 @@ export function TreasureReveal({
     if (ready) buttonsIn.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
   }, [ready, buttonsIn]);
 
+  const skipToEnd = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    setTremble(0);
+    hot.value = 0; lid.value = 1; chestOut.value = 1; flash.value = 0; zoom.value = 0; screenShake.value = 0;
+    rays.value = 1; glow.value = 0.65; burst.value = 1; hint.value = 0;
+    rise.value = 1; tilt.value = 0; landGlow.value = 1; text.value = 1; collection.value = 1;
+    allCollectibles.forEach((c) => { if (c.imagePath) Image.prefetch(stickerImageUrl(c.imagePath)).catch(() => {}); });
+    hit(Haptics.ImpactFeedbackStyle.Heavy);
+    setSkipped(true);
+    setReady(true);
+  };
+
   const tap = () => {
+    if (opened && !ready && !skipped && !leaving) { skipToEnd(); return; }
     if (opened || error || leaving || chestIn.value < 1 || taps >= TAPS) return;
     const n = taps + 1;
     setTaps(n);
@@ -471,11 +487,11 @@ export function TreasureReveal({
                   to={(haveBefore + 1) / Math.max(1, total)}
                   startAt={BOOM_DELAY + T_FILL}
                   durationMs={FILL_MS}
-                  skip={false}
+                  skip={skipped}
                   play={opened}
                 />
               </Reanimated.View>
-              <LeaderRow data={leader} opened={opened} />
+              <LeaderRow data={leader} opened={opened} skip={skipped} />
               {showDescription ? <Text style={s.description} numberOfLines={3}>{collectible.description}</Text> : null}
             </View>
           </Pressable>
@@ -509,7 +525,7 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0];
  * och startar SIG SJÄLV vid rätt tidpunkt efter smällen — så att inget annat behöver ritas om,
  * och inga nya textbitar skapas (båda siffrorna finns redan, den ena tonas över i den andra).
  * Utan data (man syns inte i topplistan) förblir den osynlig. */
-function LeaderRow({ data, opened }: { data: LeaderData | null; opened: boolean }) {
+function LeaderRow({ data, opened, skip }: { data: LeaderData | null; opened: boolean; skip: boolean }) {
   const inV = useSharedValue(0);
   const roll = useSharedValue(0);
   const chip = useSharedValue(0);
@@ -521,6 +537,8 @@ function LeaderRow({ data, opened }: { data: LeaderData | null; opened: boolean 
   const above = data?.above ?? null;
   const fromPlace = before?.placement ?? after?.placement ?? 0;
   const toPlace = after?.placement ?? 0;
+  // Ligger man kvar på samma plats (t.ex. etta) finns inget att byta — siffran står bara still
+  const samePlace = fromPlace === toPlace;
   const isNew = !!data && before?.placement == null;
   const gained = data && !isNew ? fromPlace - toPlace : 0;
   const chipText = isNew ? "Ny på topplistan!" : gained > 0 ? `↑ ${gained} ${gained === 1 ? "placering" : "placeringar"}` : null;
@@ -539,8 +557,11 @@ function LeaderRow({ data, opened }: { data: LeaderData | null; opened: boolean 
     timers.push(setTimeout(() => {
       if (!dataRef.current) return;
       inV.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
-      roll.value = withDelay(450, withTiming(1, { duration: 300, easing: Easing.inOut(Easing.quad) }));
-      timers.push(setTimeout(() => hit(Haptics.ImpactFeedbackStyle.Medium), 650));
+      if (samePlace) roll.value = 1;
+      else {
+        roll.value = withDelay(450, withTiming(1, { duration: 300, easing: Easing.inOut(Easing.quad) }));
+        timers.push(setTimeout(() => hit(Haptics.ImpactFeedbackStyle.Medium), 650));
+      }
       timers.push(setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         chip.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.back(1.8)) });
@@ -550,6 +571,13 @@ function LeaderRow({ data, opened }: { data: LeaderData | null; opened: boolean 
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
+
+  // Framspolat: allt direkt i slutläget
+  useEffect(() => {
+    if (!skip || !dataRef.current) return;
+    inV.value = 1; roll.value = 1; chip.value = 1; gapIn.value = 1;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skip]);
 
   const rowStyle = useAnimatedStyle(() => ({ opacity: inV.value, transform: [{ translateY: interpolate(inV.value, [0, 1], [16, 0]) }] }));
   const oldStyle = useAnimatedStyle(() => ({ opacity: 1 - roll.value, transform: [{ translateY: -roll.value * 16 }] }));

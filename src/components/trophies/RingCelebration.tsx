@@ -105,11 +105,15 @@ export function RingCelebration({ ring, reason, onClose }: {
   const exit = (use: boolean) => {
     if (leaving) return;
     setLeaving(true);
-    if (use) updateProfile.mutate({ avatar_ring: ring.id });
     leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) });
     rays.value = withTiming(0, { duration: 260 });
     backdrop.value = withDelay(140, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
-    setTimeout(onClose, 480);
+    // Ringen sparas först när firandet tonat ut — sparandet ritar om profilbilden på flera ställen
+    // i appen, och det mitt i toningen tappade bildrutor
+    setTimeout(() => {
+      if (use) updateProfile.mutate({ avatar_ring: ring.id });
+      onClose();
+    }, 480);
   };
 
   const AV = Math.min(160, Math.round(width * 0.4));
