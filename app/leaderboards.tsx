@@ -55,6 +55,10 @@ const METRICS: { id: LeaderboardMetric; label: string }[] = [
   { id: "streak", label: "Streak" },
   { id: "stickers", label: "Skatter" },
 ];
+const STREAK_PERIODS: { id: LeaderboardPeriod; label: string }[] = [
+  { id: "all", label: "Just nu" },
+  { id: "best", label: "Någonsin" },
+];
 const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
   { id: "month", label: "Denna månad" },
   { id: "year", label: "I år" },
@@ -71,7 +75,10 @@ export default function LeaderboardsScreen() {
   const [metric, setMetric] = useState<LeaderboardMetric>("visits");
   const [scope, setScope] = useState<LeaderboardScope>("all");
   const [period, setPeriod] = useState<LeaderboardPeriod>("month");
-  const list = useLeaderboardList(metric, scope, period);
+  // Streaken har egna val (Just nu / Någonsin) och ett eget minne av vilket som valts
+  const [streakPeriod, setStreakPeriod] = useState<LeaderboardPeriod>("all");
+  const activePeriod = metric === "streak" ? streakPeriod : period;
+  const list = useLeaderboardList(metric, scope, activePeriod);
   const { entries, me, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } = list;
 
   // Fråga bara en gång per besök på sidan, och bara om man aldrig tagit ställning (null)
@@ -113,7 +120,7 @@ export default function LeaderboardsScreen() {
   const city = profile?.city?.trim() || null;
   const noCity = scope === "area" && !city;
   const month = format(new Date(), "LLLL", { locale: sv });
-  const boardKey = `${metric}-${scope}-${metric === "streak" ? "all" : period}`;
+  const boardKey = `${metric}-${scope}-${activePeriod}`;
   const showSticky = !!me && !(me.rowPos && me.rowPos < STICKY_FROM);
   const showFooter = showSticky || !participating;
 
@@ -125,7 +132,7 @@ export default function LeaderboardsScreen() {
 
   // Rubriken säger VAD som räknas; raden under säger NÄR och VAR
   const title =
-    metric === "visits" ? "Flest besökta platser" : metric === "streak" ? "Längst streak just nu" : "Flest skatter";
+    metric === "visits" ? "Flest besökta platser" : metric === "streak" ? (streakPeriod === "best" ? "Längsta streak någonsin" : "Längst streak just nu") : "Flest skatter";
   const when =
     metric === "streak" ? null : period === "month" ? `i ${month}` : period === "year" ? "i år" : "sedan start";
   const where = scopes.find((sc) => sc.id === scope)?.label ?? "";
@@ -166,7 +173,9 @@ export default function LeaderboardsScreen() {
       {/* Omfång och tid under pallen — smalare och lugnare än huvudvalet överst */}
       <View style={s.controls}>
         <Segmented options={scopes} value={scope} onChange={setScope} />
-        {metric !== "streak" && <Segmented options={PERIODS} value={period} onChange={setPeriod} />}
+        {metric === "streak"
+          ? <Segmented options={STREAK_PERIODS} value={streakPeriod} onChange={setStreakPeriod} />
+          : <Segmented options={PERIODS} value={period} onChange={setPeriod} />}
       </View>
     </View>
   );

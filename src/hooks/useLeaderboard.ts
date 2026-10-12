@@ -13,7 +13,8 @@ export const LEADERBOARD_PAGE = 50;
 
 export type LeaderboardMetric = "visits" | "streak" | "stickers";
 export type LeaderboardScope = "all" | "area" | "friends";
-export type LeaderboardPeriod = "month" | "year" | "all";
+/** Besök och skatter: month/year/all. Streak: all = just nu, best = längsta någonsin (migration 028). */
+export type LeaderboardPeriod = "month" | "year" | "all" | "best";
 
 export interface LeaderboardEntry {
   userId: string;
@@ -67,8 +68,9 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
   return { entries: rows.filter((r) => !r.self_row).map(toEntry), me: self ? toEntry(self) : null, offset, limit };
 }
 
-// Perioden betyder något för besök och skatter (migration 027) — streaken delar cache oavsett vad den står på
-const periodFor = (metric: LeaderboardMetric, period: Period): Period => (metric === "streak" ? "all" : period);
+// Streaken har bara "just nu" (all) och "någonsin" (best); besök och skatter har inget "best"
+const periodFor = (metric: LeaderboardMetric, period: Period): Period =>
+  metric === "streak" ? (period === "best" ? "best" : "all") : period === "best" ? "all" : period;
 
 /** Min egen rad i en topplista — antal, placering och radnummer (placering och rad är null om jag
  * inte syns i topplistorna, eller inte har något att räknas för än). Hämtas före och efter en
