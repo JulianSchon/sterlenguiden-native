@@ -6,14 +6,14 @@
  *
  * Efter de vanliga designerna kommer belöningskorten (useRewardCards): Skattjägare syns alltid —
  * låst, med kravet under, tills man hittat alla skatter — och topplistekorten bara när man vunnit
- * dem. Ett låst kort går att titta på men inte välja.
+ * dem. Ett låst kort syns bara suddigt, med ett lås, och går inte att välja.
  *
  * Sidans färger följer temaknappen medan man sveper (`progress`, 0 = mörkt, 1 = ljust),
  * så bakgrund och text går över i samma takt som knappen. Övergången finns bara här,
  * eftersom det är den enda sida där man ser knappen röra sig.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { View, TouchableOpacity, Dimensions, InteractionManager, ScrollView, StyleSheet } from "react-native";
+import { View, Image, TouchableOpacity, Dimensions, InteractionManager, ScrollView, StyleSheet } from "react-native";
 import Animated, {
   Extrapolation, FadeIn, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
   interpolateColor, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, type SharedValue,
@@ -347,7 +347,16 @@ export default function AppearanceSettings() {
               progress={progress}
               onPress={() => scroller.current?.scrollTo({ x: i * STEP, animated: true })}
             >
-              {({ onCardPress }) => (<>
+              {({ onCardPress }) => d.locked ? (
+                // Låst: bara en suddig aning om designen — hela kortet ser man först när man fått det
+                <TouchableOpacity activeOpacity={0.9} onPress={onCardPress} style={[st.lockedCard, { backgroundColor: d.variant.bg }]}>
+                  {d.variant.bgImage && (
+                    <Image source={d.variant.bgImage} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={22} />
+                  )}
+                  <View style={st.lockedShade} />
+                  <View style={st.cardLockBadge}><Lock size={20} color="#F5F1E8" strokeWidth={2.2} /></View>
+                </TouchableOpacity>
+              ) : (
                 <MemberCard
                   width={ITEM_W}
                   displayName={displayName}
@@ -361,12 +370,7 @@ export default function AppearanceSettings() {
                   onBuyPress={() => {}}
                   onCardPress={onCardPress}
                 />
-                {d.locked && (
-                  <View style={st.cardLock} pointerEvents="none">
-                    <View style={st.cardLockBadge}><Lock size={20} color="#F5F1E8" strokeWidth={2.2} /></View>
-                  </View>
-                )}
-              </>)}
+              )}
             </DesignCard>
           ))}
         </Animated.ScrollView>
@@ -439,8 +443,12 @@ const st = StyleSheet.create({
   rule: { flex: 1, height: StyleSheet.hairlineWidth },
   designName: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3 },
   cardRequirement: { fontFamily: "Inter_500Medium", fontSize: 12.5, textAlign: "center", marginTop: 6 },
-  // Låst belöningskort: ett tydligt lås mitt på kortet (solid, inte genomskinligt)
-  cardLock: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  // Låst belöningskort: suddig bild, mörkare, och ett tydligt lås i mitten (solid, inte genomskinligt)
+  lockedCard: {
+    width: ITEM_W, height: (CARD_H * ITEM_W) / CARD_W, borderRadius: CARD_RADIUS, overflow: "hidden",
+    alignItems: "center", justifyContent: "center",
+  },
+  lockedShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.35)" },
   cardLockBadge: {
     width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center",
     backgroundColor: "#16140F", borderWidth: 1, borderColor: "rgba(232,198,116,0.6)",
