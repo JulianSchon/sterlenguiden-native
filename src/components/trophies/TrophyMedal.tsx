@@ -2,6 +2,7 @@
  * Ritningen av en trofé — delad mellan Utmaningar-sidan och incheckningens
  * belöningsskärm, så en trofé ser likadan ut överallt den visas.
  */
+import { memo } from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import {
   Canvas, Circle, SweepGradient, RadialGradient, BlurMask, vec,
@@ -82,7 +83,9 @@ export function GlowCanvas({
 const GLOW_STOP_COUNT = 32;
 const GLOW_STOPS = Array.from({ length: GLOW_STOP_COUNT + 1 }, (_, i) => i / GLOW_STOP_COUNT);
 
-export function RadialGlow({
+// memo: glöden (en Skia-yta) ritas bara om när dess värden ändras — inte varje gång ett firande
+// ritas om mitt i en animation
+export const RadialGlow = memo(function RadialGlow({
   size, color, opacity = 0.3, radiusRatio = 1.1,
 }: { size: number; color: string; opacity?: number; radiusRatio?: number }) {
   const r = size * radiusRatio;
@@ -99,7 +102,7 @@ export function RadialGlow({
       </Circle>
     </Canvas>
   );
-}
+});
 
 export function TrophyMedal({
   size, tier, Icon, unlocked, groupId,

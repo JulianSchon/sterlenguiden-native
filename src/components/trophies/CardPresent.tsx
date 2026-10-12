@@ -14,12 +14,16 @@
  *     sen landar på sin plats (CardReveal) — eller "Fortsätt".
  *
  * Presenten räknas som öppnad (visas inte igen) i smällen. Ett tryck efter smällen spolar fram.
- * Allt tungt (kortet, konfettin) byggs medan skärmen mörknar, och paketet släpps först efter det.
+ *
+ * Prestanda: allt (kortet, konfettin, knapparna) byggs medan skärmen mörknar, och paketet släpps
+ * först när dess bilder laddats — annars föll ett osynligt paket och bilden dök upp efteråt.
+ * Medlemskortet byggs EN gång: varje omritning av det (tryck, knapparna, utgången) tappade
+ * bildrutor. Vid utgången tas allt tungt bort först när innehållet tonats ut helt.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Reanimated, {
-  Easing, cancelAnimation, interpolate, useAnimatedStyle, useSharedValue, withDelay, withRepeat,
+  Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withRepeat,
   withSequence, withSpring, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +32,7 @@ import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpdateProfile } from "@/hooks/useAccount";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
-import { rewardCardName, useMarkCardSeen, type RewardCard } from "@/hooks/useRewardCards";
+import { markCardSeen, rewardCardName, type RewardCard } from "@/hooks/useRewardCards";
 import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { playSound } from "@/lib/sounds";
 import { requestProfileReveal } from "@/lib/profileReveal";
@@ -36,7 +40,7 @@ import { formatDate } from "@/i18n/dates";
 import { MemberCard, CARD_W, CARD_H } from "@/components/MemberCard";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { Confetti, GOLD, GhostButton, GoldButton, GoldRays } from "@/components/checkin/CelebrationFx";
-import { PresentBase, PresentLid, PRESENT_H, PRESENT_SEAM_Y, PRESENT_W } from "./PresentBox";
+import { PresentBase, PresentLid, PRESENT_H, PRESENT_SEAM_Y, PRESENT_W, prefetchPresentImages } from "./PresentBox";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
@@ -45,10 +49,9 @@ const HINTS = ["Tryck på paketet!", "Igen!", "Nästan…!"];
 const SPARKS = ["#FFF1C1", "#F5D88A", "#E9C46A", "#FFFFFF"];
 const DUST = ["#C9B38A", "#A88E62", "#E2D3B0"];
 const BOOM_DELAY = 300;
-// Paketet släpps först när allt hunnit byggas bakom den mörknande skärmen
+// Paketet släpps tidigast så här länge efter att fönstret syns (allt hinner byggas bakom den mörknande skärmen)
 const DROP_AT = 420;
 const DROP_MS = 380;
-const LAND_AT = DROP_AT + DROP_MS;
 const T_TEXT = 1000;
 const T_READY = 2000;
 /** Kortet kommer upp lutat och fjädrar på plats — samma rörelse som skatten ur kistan */
@@ -56,6 +59,13 @@ const TILT_START = -28;
 const TILT_SPRING = { stiffness: 195, damping: 7.8, mass: 1 };
 
 const hit = (style: Haptics.ImpactFeedbackStyle) => Haptics.impactAsync(style).catch(() => {});
+const noop = () => {};
+
+/** Hämtar presentens bilder i förväg — anropas när en present väntar, innan den visas. */
+export function prefetchCardPresent(card: RewardCard) {
+  prefetchPresentImages();
+  if (card.imageUrl) Image.prefetch(card.imageUrl).catch(() => {});
+}
 
 export function CardPresent({ card, onNavigate, onClose }: {
   card: RewardCard;
@@ -70,7 +80,6 @@ export function CardPresent({ card, onNavigate, onClose }: {
   const { data: profile } = useProfile();
   const avatarUrl = useAvatarUrl();
   const updateProfile = useUpdateProfile();
-  const markSeen = useMarkCardSeen();
   const [taps, setTaps] = useState(0);
   const [opened, setOpened] = useState(false);
   const [ready, setReady] = useState(false);
@@ -78,7 +87,6 @@ export function CardPresent({ card, onNavigate, onClose }: {
   // Utgången: allt tungt bort när innehållet tonats ut, så bakgrunden kan tonas mjukt
   const [cleared, setCleared] = useState(false);
   const [skipped, setSkipped] = useState(false);
-  const [landed, setLanded] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
 
@@ -116,11 +124,7 @@ export function CardPresent({ card, onNavigate, onClose }: {
   const hint = useSharedValue(0);
   const buttons = useSharedValue(0);
 
-  useEffect(() => {
-    if (card.imageUrl) Image.prefetch(card.imageUrl).catch(() => {});
-    return () => timers.current.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const shakeScreen = (px: number) => {
     screenShake.value = withSequence(
@@ -135,22 +139,45 @@ export function CardPresent({ card, onNavigate, onClose }: {
     );
   };
 
-  // 1. In: paketet dunsar ner — startar först när fönstret faktiskt syns (se useOnModalShown)
-  const onShow = useOnModalShown(() => {
-    backdrop.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
-    presentIn.value = withDelay(DROP_AT, withTiming(1, { duration: DROP_MS, easing: Easing.in(Easing.cubic) }));
+  // 1. In: skärmen mörknar när fönstret faktiskt syns (se useOnModalShown). Paketet släpps när
+  // fönstret syns OCH paketets två bilder laddats — tidigast DROP_AT efter att fönstret syntes.
+  // (Laddas bilderna aldrig släpps det ändå efter en stund.)
+  const shownAt = useRef<number | null>(null);
+  const imagesLoaded = useRef(new Set<"lid" | "base">());
+  const dropped = useRef(false);
+  const landed = useRef(false);
+  const dropWhenReady = () => {
+    if (dropped.current || shownAt.current == null || imagesLoaded.current.size < 2) return;
+    dropped.current = true;
+    const dropAt = Math.max(0, DROP_AT - (Date.now() - shownAt.current));
+    const landAt = dropAt + DROP_MS;
+    presentIn.value = withDelay(dropAt, withTiming(1, { duration: DROP_MS, easing: Easing.in(Easing.cubic) }));
     // Landningen — allt det visuella på animationstråden, i exakt rätt bildruta
-    later(LAND_AT, () => hit(Haptics.ImpactFeedbackStyle.Heavy));
-    screenShake.value = withDelay(LAND_AT, withSequence(
+    later(landAt, () => hit(Haptics.ImpactFeedbackStyle.Heavy));
+    screenShake.value = withDelay(landAt, withSequence(
       withTiming(6, { duration: 40 }), withTiming(-4.8, { duration: 50 }), withTiming(3, { duration: 50 }), withTiming(0, { duration: 60 }),
     ));
-    squash.value = withDelay(LAND_AT, withSequence(withTiming(1, { duration: 70 }), withTiming(0, { duration: 280, easing: Easing.out(Easing.back(2.5)) })));
-    dust.value = withDelay(LAND_AT, withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) }));
-    glow.value = withDelay(LAND_AT, withTiming(0.2, { duration: 400 }));
-    rays.value = withDelay(LAND_AT, withTiming(0.12, { duration: 600 }));
-    hint.value = withDelay(LAND_AT + 250, withTiming(1, { duration: 300 }));
-    later(LAND_AT + 300, () => setLanded(true));
+    squash.value = withDelay(landAt, withSequence(withTiming(1, { duration: 70 }), withTiming(0, { duration: 280, easing: Easing.out(Easing.back(2.5)) })));
+    dust.value = withDelay(landAt, withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) }));
+    glow.value = withDelay(landAt, withTiming(0.2, { duration: 400 }));
+    rays.value = withDelay(landAt, withTiming(0.12, { duration: 600 }));
+    hint.value = withDelay(landAt + 250, withTiming(1, { duration: 300 }));
+    later(landAt + 300, () => { landed.current = true; });
+  };
+  const onShow = useOnModalShown(() => {
+    backdrop.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
+    shownAt.current = Date.now();
+    dropWhenReady();
   });
+  const imageLoaded = (part: "lid" | "base") => {
+    imagesLoaded.current.add(part);
+    dropWhenReady();
+  };
+  useEffect(() => {
+    const t = setTimeout(() => { imagesLoaded.current.add("lid").add("base"); dropWhenReady(); }, 2000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 2. Ett tryck: hopp, skak, gnistor
   const punch = (n: number) => {
@@ -186,7 +213,7 @@ export function CardPresent({ card, onNavigate, onClose }: {
 
   const tap = () => {
     if (opened && !ready && !skipped && !leaving) { skipToEnd(); return; }
-    if (opened || leaving || !landed || taps >= TAPS) return;
+    if (opened || leaving || !landed.current || taps >= TAPS) return;
     const n = taps + 1;
     setTaps(n);
     punch(n);
@@ -212,7 +239,7 @@ export function CardPresent({ card, onNavigate, onClose }: {
   useEffect(() => {
     if (opened || taps < TAPS) return;
     setOpened(true);
-    markSeen(card.id);
+    markCardSeen(card.id);
     hot.value = withTiming(1, { duration: BOOM_DELAY, easing: Easing.in(Easing.quad) });
     setTremble(5);
     [0, 60, 120, 170, 215, 255].forEach((at, i) => later(at, () => hit(i < 3 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Rigid)));
@@ -242,10 +269,12 @@ export function CardPresent({ card, onNavigate, onClose }: {
   const exit = (use: boolean) => {
     if (leaving) return;
     setLeaving(true);
-    leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) });
+    // Innehållet tonas ut (260 ms); först när det är helt borta tas allt tungt bort, bakom den
+    // stilla mörka bakgrunden (en fast tid kunde klippa en sen toning mitt i)
+    leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) }, (fin) => {
+      if (fin) runOnJS(setCleared)(true);
+    });
     rays.value = withTiming(0, { duration: 260 });
-    // Innehållet tonas ut (260 ms), sen tas allt tungt bort bakom den stilla mörka bakgrunden
-    setTimeout(() => setCleared(true), 280);
     if (!use) {
       backdrop.value = withDelay(360, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
       setTimeout(onClose, 700);
@@ -296,6 +325,22 @@ export function CardPresent({ card, onNavigate, onClose }: {
   const textStyle = useAnimatedStyle(() => ({ opacity: text.value, transform: [{ translateY: interpolate(text.value, [0, 1], [18, 0]) }] }));
   const buttonsStyle = useAnimatedStyle(() => ({ opacity: buttons.value, transform: [{ translateY: interpolate(buttons.value, [0, 1], [14, 0]) }] }));
 
+  // Medlemskortet byggs en gång (se överst) — samma element varje gång komponenten ritas om
+  const cardElement = useMemo(() => (
+    <MemberCard
+      width={cardW}
+      displayName={profile?.display_name ?? ""}
+      isMember
+      disableFlip
+      memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
+      cardColor={card.id}
+      avatarUrl={avatarUrl}
+      circleColor={profile?.circle_color}
+      avatarRing={profile?.avatar_ring}
+      onBuyPress={noop}
+    />
+  ), [cardW, card.id, profile?.display_name, profile?.created_at, profile?.circle_color, profile?.avatar_ring, avatarUrl]);
+
   const raysSize = Math.hypot(width, height) * 1.05;
   const glowSize = width * 1.4;
   const bottomPad = Math.max(insets.bottom, 16) + 8;
@@ -330,9 +375,9 @@ export function CardPresent({ card, onNavigate, onClose }: {
                   <GoldRays size={PRESENT * 2} visible={seam} maxOpacity={0.9} />
                 </Reanimated.View>
                 <Reanimated.View style={[{ width: PRESENT, height: presentH }, presentStyle]}>
-                  <View style={StyleSheet.absoluteFill}><PresentBase size={PRESENT} /></View>
+                  <View style={StyleSheet.absoluteFill}><PresentBase size={PRESENT} onLoad={() => imageLoaded("base")} /></View>
                   <Reanimated.View style={[s.seam, { top: presentH / 2 + seamOffset - 4, left: PRESENT * 0.13, width: PRESENT * 0.74 }, seamStyle]} />
-                  <Reanimated.View style={[StyleSheet.absoluteFill, lidStyle]}><PresentLid size={PRESENT} /></Reanimated.View>
+                  <Reanimated.View style={[StyleSheet.absoluteFill, lidStyle]}><PresentLid size={PRESENT} onLoad={() => imageLoaded("lid")} /></Reanimated.View>
                   <Reanimated.View style={[s.anchor, { top: presentH / 2 + seamOffset - PRESENT * 0.4, left: PRESENT * 0.1, width: PRESENT * 0.8, height: PRESENT * 0.8 }, hotStyle]}>
                     <RadialGlow size={PRESENT * 0.8} color="#FFF4D6" opacity={1} radiusRatio={0.6} />
                   </Reanimated.View>
@@ -354,18 +399,7 @@ export function CardPresent({ card, onNavigate, onClose }: {
               style={[s.anchor, { top: finalY - cardH / 2, left: (width - cardW) / 2, width: cardW, height: cardH }, cardStyle]}
               pointerEvents="none"
             >
-              <MemberCard
-                width={cardW}
-                displayName={profile?.display_name ?? ""}
-                isMember
-                disableFlip
-                memberSince={profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null}
-                cardColor={card.id}
-                avatarUrl={avatarUrl}
-                circleColor={profile?.circle_color}
-                avatarRing={profile?.avatar_ring}
-                onBuyPress={() => {}}
-              />
+              {cardElement}
             </Reanimated.View>
 
             <View style={[s.below, { top: presentY + presentH / 2 + 4 }]} pointerEvents="none">

@@ -34,7 +34,7 @@ import { useRingUnlocks } from "@/hooks/useRingUnlocks";
 import { addTrophiesToPlace, useTrophyMomentsHeld, wasTrophyCelebrated } from "@/lib/trophyMoments";
 import { TrophyCelebration } from "./TrophyCelebration";
 import { RingCelebration } from "./RingCelebration";
-import { CardPresent } from "./CardPresent";
+import { CardPresent, prefetchCardPresent } from "./CardPresent";
 import { useMyCards, useRewardCards, type RewardCard } from "@/hooks/useRewardCards";
 
 const TIERS = ["bronze", "silver", "gold"];
@@ -143,6 +143,8 @@ export function TrophyHost() {
   const [presenting, setPresenting] = useState<RewardCard | null>(null);
   useEffect(() => {
     if (!waitingCard || presenting) return;
+    // Bilderna hämtas under pausen, så paketet och kortet är laddade när presenten visas
+    prefetchCardPresent(waitingCard);
     const t = setTimeout(() => setPresenting(waitingCard), 650);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps

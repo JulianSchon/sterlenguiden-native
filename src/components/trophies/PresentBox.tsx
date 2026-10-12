@@ -13,10 +13,19 @@ export const PRESENT_SEAM_Y = 336;
 const LID = require("../../../assets/present/present-lid.png");
 const BASE = require("../../../assets/present/present-base.png");
 
-export function PresentLid({ size }: { size: number }) {
-  return <Image source={LID} style={{ width: size, height: (size * PRESENT_H) / PRESENT_W }} resizeMode="contain" />;
+export function PresentLid({ size, onLoad }: { size: number; onLoad?: () => void }) {
+  return <Image source={LID} style={{ width: size, height: (size * PRESENT_H) / PRESENT_W }} resizeMode="contain" onLoad={onLoad} />;
 }
 
-export function PresentBase({ size }: { size: number }) {
-  return <Image source={BASE} style={{ width: size, height: (size * PRESENT_H) / PRESENT_W }} resizeMode="contain" />;
+export function PresentBase({ size, onLoad }: { size: number; onLoad?: () => void }) {
+  return <Image source={BASE} style={{ width: size, height: (size * PRESENT_H) / PRESENT_W }} resizeMode="contain" onLoad={onLoad} />;
+}
+
+/** I utvecklingsläget serveras bilderna av Metro över nätet — hämta dem i förväg (som kortens
+ * bilder, se cardImages.ts). I en färdig app ligger de i själva appen. */
+export function prefetchPresentImages() {
+  for (const source of [LID, BASE]) {
+    const uri = Image.resolveAssetSource(source)?.uri;
+    if (uri?.startsWith("http")) Image.prefetch(uri).catch(() => {});
+  }
 }

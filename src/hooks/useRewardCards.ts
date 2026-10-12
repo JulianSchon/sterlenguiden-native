@@ -5,7 +5,7 @@
  * "cards"), så ett nytt kort kräver ingen ny version av appen. Vilka man äger står i user_cards;
  * dit skriver bara servern.
  */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { CARD_VARIANTS, type CardVariant } from "@/lib/cardVariants";
@@ -80,14 +80,15 @@ export function useMyCards() {
   });
 }
 
-/** Presenten för kortet har öppnats — visas inte igen. */
-export function useMarkCardSeen() {
-  const queryClient = useQueryClient();
-  return (cardId: string) => {
-    (supabase as any).rpc("mark_card_seen", { p_card_id: cardId })
-      .then(() => queryClient.invalidateQueries({ queryKey: ["my-cards"] }));
-  };
+/**
+ * Presenten för kortet har öppnats — visas inte igen. Mina kort hämtas INTE om direkt: svaret kom
+ * mitt i presenten och ritade om (TrophyHost håller själv reda på öppnade presenter till dess).
+ */
+export function markCardSeen(cardId: string) {
+  (supabase as any).rpc("mark_card_seen", { p_card_id: cardId }).then(noop, noop);
 }
+
+const noop = () => {};
 
 /** Belöningskortet som en kortvariant, så medlemskortet kan ritas med det. */
 export function rewardCardVariant(card: RewardCard): CardVariant {
