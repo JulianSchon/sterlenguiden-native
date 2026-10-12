@@ -133,6 +133,7 @@ export function TrophyHost() {
         key={ringCurrent.id}
         ring={ringCurrent}
         reason={reason}
+        onNavigate={() => router.navigate("/(tabs)/profile" as any)}
         onClose={() => setRingQueue((q) => q.filter((r) => r.id !== ringCurrent.id))}
       />
     );

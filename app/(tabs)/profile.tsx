@@ -16,6 +16,7 @@ import Svg, { Path } from "react-native-svg";
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { MemberCard } from "@/components/MemberCard";
+import { SnapRing } from "@/components/profile/SnapRing";
 import { FadeImage } from "@/components/FadeImage";
 import { FadeOnChange } from "@/components/FadeOnChange";
 import { floatingNavSolidHeight } from "@/components/navigation/FloatingNav";
@@ -305,6 +306,7 @@ export default function ProfileScreen() {
           avatarUrl={avatarUrl}
           circleColor={profile?.circle_color}
           avatarRing={profile?.avatar_ring}
+          ringComponent={SnapRing}
           profileImageUrl={cardPhotoUrl}
           onBuyPress={() => router.push("/settings/pass-buy" as any)}
         />

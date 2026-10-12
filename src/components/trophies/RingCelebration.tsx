@@ -6,7 +6,8 @@
  *  2. Ringen faller ner över den, stor och snurrande, och smäller fast: blixt, strålkrans i ringens
  *     färg, konfetti och en kraftig vibration följd av en "klar"-vibration.
  *  3. "Ny profilring!", ringens namn och vad du gjorde för att få den.
- *  4. "Använd ringen" (sätter den direkt) eller "Fortsätt".
+ *  4. "Använd ringen" — sparar ringen och öppnar Profil bakom den mörka bakgrunden, där ringen
+ *     sen faller ner över profilbilden på medlemskortet (SnapRing) — eller "Fortsätt".
  *
  * Ett tryck under animationen spolar fram den. Avslutet tonar ut som övriga belöningar.
  */
@@ -23,6 +24,7 @@ import { useUpdateProfile } from "@/hooks/useAccount";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { playSound } from "@/lib/sounds";
 import type { AvatarRingDef } from "@/lib/avatarRings";
+import { requestRingSnap } from "@/lib/ringSnap";
 import { Avatar } from "@/components/profile/Avatar";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
@@ -37,8 +39,10 @@ const T_IMPACT = T_DROP + DROP_MS;
 const T_TEXT = T_IMPACT + 450;
 const T_READY = T_IMPACT + 1500;
 
-export function RingCelebration({ ring, reason, onClose }: {
+export function RingCelebration({ ring, reason, onNavigate, onClose }: {
   ring: AvatarRingDef;
+  /** Öppna Profil — anropas medan firandet fortfarande täcker skärmen */
+  onNavigate: () => void;
   /** Vad man gjorde: "Du har hittat 6 av Österlens skatter." */
   reason: string;
   onClose: () => void;
@@ -107,13 +111,21 @@ export function RingCelebration({ ring, reason, onClose }: {
     setLeaving(true);
     leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) });
     rays.value = withTiming(0, { duration: 260 });
-    backdrop.value = withDelay(140, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
-    // Ringen sparas först när firandet tonat ut — sparandet ritar om profilbilden på flera ställen
-    // i appen, och det mitt i toningen tappade bildrutor
+    if (!use) {
+      backdrop.value = withDelay(140, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
+      setTimeout(onClose, 480);
+      return;
+    }
+    // "Använd ringen": när innehållet tonats ut (bakom den stilla mörka ytan, där en omritning inte
+    // syns) sparas ringen och Profil öppnas; bakgrunden tonas bort när sidan hunnit bli klar, och
+    // där faller ringen ner över profilbilden (SnapRing)
     setTimeout(() => {
-      if (use) updateProfile.mutate({ avatar_ring: ring.id });
-      onClose();
-    }, 480);
+      requestRingSnap(ring.id);
+      updateProfile.mutate({ avatar_ring: ring.id });
+      onNavigate();
+    }, 300);
+    backdrop.value = withDelay(1150, withTiming(0, { duration: 480, easing: Easing.inOut(Easing.quad) }));
+    setTimeout(onClose, 1650);
   };
 
   const AV = Math.min(160, Math.round(width * 0.4));
