@@ -9,7 +9,7 @@
  * eftersom det är den enda sida där man ser knappen röra sig.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { View, TouchableOpacity, Alert, Dimensions, InteractionManager, StyleSheet } from "react-native";
+import { View, TouchableOpacity, Alert, Dimensions, InteractionManager, ScrollView, StyleSheet } from "react-native";
 import Animated, {
   Extrapolation, FadeIn, interpolate, runOnJS, useAnimatedRef, useAnimatedScrollHandler,
   interpolateColor, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, type SharedValue,
@@ -353,7 +353,7 @@ export default function AppearanceSettings() {
 
       <View>
         <Animated.Text style={[st.label, mMuted]}>{t("appearance.ring.title")}</Animated.Text>
-        <View style={st.ringRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.ringRow}>
           {AVATAR_RINGS.map((r, i) => (
             <RingOption
               key={r.id}
@@ -374,7 +374,7 @@ export default function AppearanceSettings() {
               }}
             />
           ))}
-        </View>
+        </ScrollView>
         <Animated.Text style={[st.ringHint, mFaint]}>{t("appearance.ring.hint")}</Animated.Text>
       </View>
 
@@ -404,8 +404,8 @@ const st = StyleSheet.create({
   designName: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3 },
 
   // Ringarna ligger direkt mot bakgrunden, utan ruta
-  // Sju ringar: bryts över flera rader, centrerade
-  ringRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", paddingTop: 4, rowGap: 8 },
+  // Horisontell rad som scrollar i sidled — alla ringar på en rad
+  ringRow: { flexDirection: "row", paddingTop: 4, paddingHorizontal: 8 },
   ringItem: { alignItems: "center", gap: 4, width: RING_TILE },
   ringStage: { width: RING_TILE, height: RING_TILE, alignItems: "center", justifyContent: "center" },
   ringAvatar: { width: RING_AVATAR, height: RING_AVATAR },
