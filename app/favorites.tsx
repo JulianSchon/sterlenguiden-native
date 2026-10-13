@@ -198,6 +198,14 @@ export default function FavoritesScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
+  // När man lämnar sidan försvinner de avmarkerade ur den sparade listan, så de inte syns (med
+  // ifyllt hjärta) nästa gång sidan öppnas medan den hämtas på nytt
+  useEffect(() => () => {
+    if (toggledRef.current.size === 0) return;
+    queryClient.setQueryData<FavItem[]>(["favorites-detail"], (old) => old?.filter((i) => !toggledRef.current.has(i.key)));
+    queryClient.invalidateQueries({ queryKey: ["favorites-detail"], refetchType: "none" });
+  }, [queryClient]);
+
   const openItem = useCallback((item: FavItem) => pushOnce(router, item.route), [router]);
 
   const handleToggleFavorite = useCallback(async (item: FavItem) => {
