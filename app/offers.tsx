@@ -15,7 +15,7 @@ import { useMemo, useRef, useState } from "react";
 import { View, Text, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  useSharedValue, useAnimatedStyle, useDerivedValue, withTiming, cancelAnimation, runOnJS,
+  FadeInDown, useSharedValue, useAnimatedStyle, useDerivedValue, withTiming, cancelAnimation, runOnJS,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -309,6 +309,9 @@ export default function OffersScreen() {
   );
 }
 
+/** Snabb inglidning för de första biljetterna, kort efter varandra (samma som korten på Favoriter) */
+const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).duration(300) : undefined);
+
 /** En kategorisida: listorna "Att använda" och "Inlösta" (eller ett tomt-meddelande) */
 function OfferPage({
   data, hiddenOfferId, edge, onArm, onOpen,
@@ -321,15 +324,19 @@ function OfferPage({
       {empty && <Text style={[s.muted, s.noneInFilter]}>{t("offers.noneInFilter")}</Text>}
       {data.available.length > 0 && (
         <Section title={t("offers.sections.available")}>
-          {data.available.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
+          {data.available.map((offer, i) => (
+            <Animated.View key={offer.id} entering={enterAt(i)}>
+              <OfferListCard offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
+            </Animated.View>
           ))}
         </Section>
       )}
       {data.redeemed.length > 0 && (
         <Section title={t("offers.sections.redeemed")}>
-          {data.redeemed.map((offer) => (
-            <OfferListCard key={offer.id} offer={offer} used stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
+          {data.redeemed.map((offer, i) => (
+            <Animated.View key={offer.id} entering={enterAt(data.available.length + i)}>
+              <OfferListCard offer={offer} used stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
+            </Animated.View>
           ))}
         </Section>
       )}

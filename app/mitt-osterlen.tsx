@@ -5,17 +5,20 @@
  * Streaken räknas ur app_days (en rad per svensk kalenderdag med appöppning),
  * se src/lib/streak.ts.
  */
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
+import Reanimated, {
+  Easing, useAnimatedStyle, useDerivedValue, useReducedMotion, useSharedValue, withTiming,
+} from "react-native-reanimated";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { ArrowLeft } from "lucide-react-native";
-import { Canvas, Circle, Group, RadialGradient, SweepGradient, vec } from "@shopify/react-native-skia";
+import { Canvas, Circle, Group, LinearGradient, RadialGradient, vec } from "@shopify/react-native-skia";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Users, ChevronRight, X } from "lucide-react-native";
-import { StreakFlame } from "@/components/streak/StreakFlame";
+import { StreakFlame, stage } from "@/components/streak/StreakFlame";
 import { useFriendRequestCount } from "@/hooks/useFriends";
 import { PressableScale } from "@/components/PressableScale";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
@@ -34,6 +37,9 @@ const WEEKDAY_LABELS = ["MÅN", "TIS", "ONS", "TOR", "FRE", "LÖR", "SÖN"];
 // Gradientringen runt Vänner-ikonen — se friendsIconWrap
 const FRIENDS_RING_SIZE = 56;
 const FRIENDS_RING_R = 25;
+// Elden tänds när sidan glidit klart in (högst så här länge efter att den öppnats)
+const IGNITE_MS = 1250;
+const IGNITE_FALLBACK_MS = 650;
 
 export default function MittOsterlenScreen() {
   const router = useRouter();
@@ -49,6 +55,27 @@ export default function MittOsterlenScreen() {
   const scrollRef = useRef<ScrollView>(null);
   // Stabil funktion — annars startar skatternas inklistring om varje gång sidan ritas om
   const scrollTo = useCallback((y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true }), []);
+
+  // Elden tänds nerifrån när sidan glidit in: blå gaslåga, sen swooshar den upp. Glöden bakom
+  // och skuggan vid foten kommer med lågan.
+  const navigation = useNavigation();
+  const reduceMotion = useReducedMotion();
+  const ignite = useSharedValue(reduceMotion ? 1 : 0);
+  useEffect(() => {
+    if (reduceMotion) return;
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      ignite.value = withTiming(1, { duration: IGNITE_MS, easing: Easing.linear });
+    };
+    const fallback = setTimeout(start, IGNITE_FALLBACK_MS);
+    const unsubscribe = navigation.addListener("transitionEnd" as any, start);
+    return () => { clearTimeout(fallback); unsubscribe(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const glowStyle = useAnimatedStyle(() => ({ opacity: stage(ignite.value, 0.14, 0.65) }));
+  const footShadow = useDerivedValue(() => stage(ignite.value, 0.14, 0.65));
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -75,17 +102,17 @@ export default function MittOsterlenScreen() {
           <View style={{ width: 320, height: 238, alignItems: "center" }}>
             {/* Varm glöd bakom elden plus en mjuk skugga vid dess fot, så den känns som att den
                 svävar en liten bit ovanför bakgrunden i stället för att ligga platt mot den. */}
-            <View style={s.flameGlowAnchor} pointerEvents="none">
+            <Reanimated.View style={[s.flameGlowAnchor, glowStyle]} pointerEvents="none">
               <RadialGlow size={320} color="#FF9A1F" opacity={0.38} radiusRatio={0.55} />
-            </View>
+            </Reanimated.View>
             <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Group origin={vec(107.5, 216)} transform={[{ scaleY: 0.22 }]}>
+              <Group origin={vec(107.5, 216)} transform={[{ scaleY: 0.22 }]} opacity={footShadow}>
                 <Circle cx={107.5} cy={216} r={80}>
                   <RadialGradient c={vec(107.5, 216)} r={80} colors={["rgba(0,0,0,0.5)", "rgba(0,0,0,0)"]} positions={[0, 1]} />
                 </Circle>
               </Group>
             </Canvas>
-            <StreakFlame size={215} />
+            <StreakFlame size={215} ignite={ignite} />
           </View>
           <View style={s.numberWrap}>
             {/* Mörkt, mjukt sken bakom siffran så den syns mot elden. Tonar ut
@@ -151,11 +178,17 @@ export default function MittOsterlenScreen() {
 
         <PressableScale style={s.friendsTile} scale={0.97} onPress={() => router.push("/friends")}>
           <View style={s.friendsIconWrap}>
-            {/* Gradientring runt ikonen i berättelsernas egna färger (gult → orange, samma som
-                ringen runt nya berättelser på Hem) — ingen rosa, så den inte liknar Instagram. */}
+            {/* Gradientring runt ikonen i berättelsernas egna färger och riktning, exakt som ringen
+                runt nya berättelser på Hem: gult nere till vänster → orange uppe till höger. Ingen
+                rosa, så den inte liknar Instagram. */}
             <Canvas style={{ position: "absolute", width: FRIENDS_RING_SIZE, height: FRIENDS_RING_SIZE }} pointerEvents="none">
               <Circle cx={FRIENDS_RING_SIZE / 2} cy={FRIENDS_RING_SIZE / 2} r={FRIENDS_RING_R} style="stroke" strokeWidth={2.5}>
-                <SweepGradient c={vec(FRIENDS_RING_SIZE / 2, FRIENDS_RING_SIZE / 2)} colors={[...STORY_GRADIENT.stops.map((st) => st.color), STORY_GRADIENT.stops[0].color]} />
+                <LinearGradient
+                  start={vec(FRIENDS_RING_SIZE / 2 - FRIENDS_RING_R, FRIENDS_RING_SIZE / 2 + FRIENDS_RING_R)}
+                  end={vec(FRIENDS_RING_SIZE / 2 + FRIENDS_RING_R, FRIENDS_RING_SIZE / 2 - FRIENDS_RING_R)}
+                  colors={STORY_GRADIENT.stops.map((st) => st.color)}
+                  positions={STORY_GRADIENT.stops.map((st) => parseFloat(st.offset) / 100)}
+                />
               </Circle>
             </Canvas>
             <View style={s.friendsIcon}>
