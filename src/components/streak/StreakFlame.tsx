@@ -8,8 +8,8 @@
  * som lossnar och stiger samt gnistor med mjuk gloria. Lugn takt — det här är en
  * avkopplande app.
  *
- * Med `ignite` tänds elden: en liten blå gaslåga vid foten, sen swooshar lågan upp nerifrån,
- * lite för högt först, och sätter sig. Den ljusa kärnan kommer strax efter, gnistorna sist.
+ * Med `ignite` tänds elden: en liten blå gaslåga vid foten, sen smäller lågan upp nerifrån som
+ * när gas tar fyr — på ett ögonblick, för högt — och studsar ner på plats. Gnistorna kommer sist.
  */
 import { useDerivedValue, type SharedValue } from "react-native-reanimated";
 import {
@@ -62,12 +62,14 @@ export function stage(p: number, from: number, to: number) {
   return Math.min(1, Math.max(0, (p - from) / (to - from)));
 }
 
-/** Skjuter förbi målet (~13 %) och sätter sig — lågan swooshar upp lite för högt först */
-function overshoot(q: number) {
+/**
+ * Gasens "whoomp": smäller upp nästan direkt (38 % redan efter 5 % av fönstret), skjuter förbi
+ * målet och studsar ner på plats. Lägre `damping` = högre topp (7 ≈ 14 %, 5 ≈ 23 %).
+ */
+function whoomp(q: number, damping: number) {
   "worklet";
-  const c = 2.0;
-  const x = q - 1;
-  return 1 + (c + 1) * x * x * x + c * x * x;
+  if (q >= 1) return 1;
+  return 1 - Math.exp(-damping * q) * Math.cos(10 * q);
 }
 
 function easeOut(q: number) {
@@ -101,8 +103,8 @@ type Body = {
 
 // Yttre kropp + ett mindre, ljusare eko av samma form inuti
 const BODIES: Body[] = [
-  { sx: 0.86, sy: 1, speed: 0.6, phase: 0, colors: ["#F2452F", "#F97A22", "#FF9A1F"], rise: [0.14, 0.6] },
-  { sx: 0.6, sy: 0.62, speed: 0.8, phase: 2.2, colors: ["#FF9A21", "#FFC24A"], rise: [0.2, 0.66] },
+  { sx: 0.86, sy: 1, speed: 0.6, phase: 0, colors: ["#F2452F", "#F97A22", "#FF9A1F"], rise: [0.15, 0.6] },
+  { sx: 0.6, sy: 0.62, speed: 0.8, phase: 2.2, colors: ["#FF9A21", "#FFC24A"], rise: [0.17, 0.62] },
 ];
 
 type Inner = {
@@ -112,8 +114,8 @@ type Inner = {
 
 // Den ljusa lågan i mitten, lyft en bit över botten
 const INNERS: Inner[] = [
-  { width: 38, height: 125, lift: 16, phase: 5.2, speed: 1.05, sway: 8, colors: ["#FFE082", "#FFF3C0"], rise: [0.28, 0.74] },
-  { width: 21, height: 72,  lift: 22, phase: 0.7, speed: 1.25, sway: 4, colors: ["#FFF4C4", "#FFFBEA"], rise: [0.33, 0.8] },
+  { width: 38, height: 125, lift: 16, phase: 5.2, speed: 1.05, sway: 8, colors: ["#FFE082", "#FFF3C0"], rise: [0.19, 0.64] },
+  { width: 21, height: 72,  lift: 22, phase: 0.7, speed: 1.25, sway: 4, colors: ["#FFF4C4", "#FFFBEA"], rise: [0.21, 0.66] },
 ];
 
 const DROPLETS = 4;
@@ -125,8 +127,10 @@ function BodyLayer({ t, body, ignite }: { t: SharedValue<number>; body: Body; ig
   const path = useDerivedValue(() => {
     const g = ignite ? ignite.value : 1;
     const [from, to] = body.rise;
-    const gy = overshoot(stage(g, from, to));
-    const gx = 0.4 + 0.6 * easeOut(stage(g, from, to + 0.12));
+    // Yttre lågan får lite lägre topp — mer ryms inte ovanför den på sidan. Bredden kommer strax
+    // efter höjden, så den skjuter upp smal och sen breder ut sig.
+    const gy = whoomp(stage(g, from, to), body.sy === 1 ? 7 : 5);
+    const gx = 0.4 + 0.6 * easeOut(stage(g, from, from + (to - from) * 0.6));
     const p = Skia.Path.Make();
     silhouette(p, (t.value / 1000) * body.speed + body.phase, body.sx * gx, body.sy * gy);
     return p;
@@ -148,7 +152,7 @@ function InnerFlame({ t, inner, ignite }: { t: SharedValue<number>; inner: Inner
     const g = ignite ? ignite.value : 1;
     const q = stage(g, inner.rise[0], inner.rise[1]);
     const a = (t.value / 1000) * speed + phase;
-    const h = height * overshoot(q) * (1 + 0.1 * Math.sin(a * 1.6 + 1) + 0.04 * Math.sin(a * 2.7));
+    const h = height * whoomp(q, 5) * (1 + 0.1 * Math.sin(a * 1.6 + 1) + 0.04 * Math.sin(a * 2.7));
     const tipX = CX + Math.sin(a) * sway + Math.sin(a * 2.3) * sway * 0.35;
     const lean = Math.sin(a - 0.6) * sway * 0.7;
     const p = Skia.Path.Make();
@@ -176,7 +180,7 @@ function Droplet({ t, index, ignite }: { t: SharedValue<number>; index: number; 
     return p;
   });
   const opacity = useDerivedValue(
-    () => Math.min(1, life.value * 6) * Math.min(1, (1 - life.value) * 2) * (ignite ? stage(ignite.value, 0.5, 0.9) : 1)
+    () => Math.min(1, life.value * 6) * Math.min(1, (1 - life.value) * 2) * (ignite ? stage(ignite.value, 0.3, 0.7) : 1)
   );
   return <Path path={path} color="#FF9F45" opacity={opacity} />;
 }
@@ -192,7 +196,7 @@ function Ember({ t, index, ignite }: { t: SharedValue<number>; index: number; ig
   const haloR = useDerivedValue(() => r.value * 3);
   const opacity = useDerivedValue(
     () => Math.min(1, (1 - life.value) * 1.8) * (0.75 + 0.25 * Math.sin(t.value / 300 + index * 3))
-      * (ignite ? stage(ignite.value, 0.5, 0.9) : 1)
+      * (ignite ? stage(ignite.value, 0.3, 0.7) : 1)
   );
   const haloOpacity = useDerivedValue(() => opacity.value * 0.45);
   const color = index % 3 ? "#FFD98A" : "#FF9A4A";
@@ -213,12 +217,12 @@ function Ember({ t, index, ignite }: { t: SharedValue<number>; index: number; ig
 function GasFlame({ ignite }: { ignite: SharedValue<number> }) {
   const path = useDerivedValue(() => {
     const g = ignite.value;
-    const grow = easeOut(stage(g, 0, 0.14));
+    const grow = easeOut(stage(g, 0, 0.13));
     const p = Skia.Path.Make();
     teardrop(p, CX, BASE - 8, 14 + 10 * grow, 26 + 50 * grow, CX + Math.sin(g * 80) * 2, 0);
     return p;
   });
-  const opacity = useDerivedValue(() => stage(ignite.value, 0, 0.03) * (1 - stage(ignite.value, 0.22, 0.42)));
+  const opacity = useDerivedValue(() => stage(ignite.value, 0, 0.03) * (1 - stage(ignite.value, 0.17, 0.3)));
   return (
     <Group opacity={opacity}>
       <Path path={path}>
@@ -235,7 +239,7 @@ const VIEW_FULL = { x: 0, y: TOP_CROP, w: W, h: H };
 // canvasens pixelhöjd kunde då nypa av lågans understa, antialiserade kant. Mer marginal (20 enheter
 // till) håller kanten ordentligt innanför duken oavsett storlek, utan att flytta eller skala lågan.
 const VIEW_COMPACT = { x: 40, y: 58, w: 220, h: 316 };
-// Under tändningen skjuter lågan upp lite för högt (se overshoot) — ritytan växer så här mycket
+// Under tändningen skjuter lågan upp lite för högt (se whoomp) — ritytan växer så här mycket
 // uppåt så toppen inte klipps, utan att lågan flyttar sig på sidan (negativ marginal tar ut den)
 const IGNITE_HEADROOM = 30;
 

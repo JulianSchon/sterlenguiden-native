@@ -10,7 +10,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRouter } from "expo-router";
 import Reanimated, {
-  Easing, useAnimatedStyle, useDerivedValue, useReducedMotion, useSharedValue, withTiming,
+  Easing, FadeInDown, useAnimatedStyle, useDerivedValue, useReducedMotion, useSharedValue, withTiming,
 } from "react-native-reanimated";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { ArrowLeft } from "lucide-react-native";
@@ -38,7 +38,7 @@ const WEEKDAY_LABELS = ["MÅN", "TIS", "ONS", "TOR", "FRE", "LÖR", "SÖN"];
 const FRIENDS_RING_SIZE = 56;
 const FRIENDS_RING_R = 25;
 // Elden tänds när sidan glidit klart in (högst så här länge efter att den öppnats)
-const IGNITE_MS = 1250;
+const IGNITE_MS = 1200;
 const IGNITE_FALLBACK_MS = 650;
 
 export default function MittOsterlenScreen() {
@@ -56,8 +56,8 @@ export default function MittOsterlenScreen() {
   // Stabil funktion — annars startar skatternas inklistring om varje gång sidan ritas om
   const scrollTo = useCallback((y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true }), []);
 
-  // Elden tänds nerifrån när sidan glidit in: blå gaslåga, sen swooshar den upp. Glöden bakom
-  // och skuggan vid foten kommer med lågan.
+  // Elden tänds nerifrån när sidan glidit in: blå gaslåga, sen smäller den upp. Glöden bakom
+  // blossar upp med smällen och skuggan vid foten kommer med lågan.
   const navigation = useNavigation();
   const reduceMotion = useReducedMotion();
   const ignite = useSharedValue(reduceMotion ? 1 : 0);
@@ -74,8 +74,16 @@ export default function MittOsterlenScreen() {
     return () => { clearTimeout(fallback); unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const glowStyle = useAnimatedStyle(() => ({ opacity: stage(ignite.value, 0.14, 0.65) }));
-  const footShadow = useDerivedValue(() => stage(ignite.value, 0.14, 0.65));
+  const glowStyle = useAnimatedStyle(() => {
+    const flare = stage(ignite.value, 0.15, 0.24) * (1 - stage(ignite.value, 0.24, 0.6));
+    return { opacity: stage(ignite.value, 0.15, 0.24), transform: [{ scale: 1 + 0.18 * flare }] };
+  });
+  const footShadow = useDerivedValue(() => stage(ignite.value, 0.15, 0.35));
+
+  // Skatterna mäter sin plats inuti sitt omslag (inglidningen nedan) — omslagets egen plats läggs till
+  const stickersY = useRef(0);
+  const scrollToSticker = useCallback((y: number) => scrollTo(stickersY.current + y), [scrollTo]);
+
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -114,6 +122,7 @@ export default function MittOsterlenScreen() {
             </Canvas>
             <StreakFlame size={215} ignite={ignite} />
           </View>
+          <Reanimated.View entering={enterAt(0)} style={{ alignItems: "center" }}>
           <View style={s.numberWrap}>
             {/* Mörkt, mjukt sken bakom siffran så den syns mot elden. Tonar ut
                 till helt transparent långt innan ytans kant — ingen synlig ruta. */}
@@ -133,20 +142,21 @@ export default function MittOsterlenScreen() {
           </View>
           <Text style={s.label}>Streak</Text>
           <Text style={s.hint}>Öppna appen varje dag</Text>
+          </Reanimated.View>
         </View>
 
         {/* Nyckeltal */}
-        <View style={s.stats}>
+        <Reanimated.View entering={enterAt(1)} style={s.stats}>
           <Stat
             value={streak.startedOn ? format(new Date(streak.startedOn), "d MMM yyyy", { locale: sv }) : "–"}
             label="Streak startade"
           />
           <View style={s.statDivider} />
           <Stat value={String(streak.longest)} label="Längsta streak" />
-        </View>
+        </Reanimated.View>
 
         {/* Veckan */}
-        <View style={s.card}>
+        <Reanimated.View entering={enterAt(2)} style={s.card}>
           <Text style={s.cardTitle}>DEN HÄR VECKAN</Text>
           <View style={s.weekRow}>
             {week.map((d, i) => {
@@ -174,8 +184,9 @@ export default function MittOsterlenScreen() {
               );
             })}
           </View>
-        </View>
+        </Reanimated.View>
 
+        <Reanimated.View entering={enterAt(3)}>
         <PressableScale style={s.friendsTile} scale={0.97} onPress={() => router.push("/friends")}>
           <View style={s.friendsIconWrap}>
             {/* Gradientring runt ikonen i berättelsernas egna färger och riktning, exakt som ringen
@@ -212,17 +223,23 @@ export default function MittOsterlenScreen() {
               kommer synas här", inte en ren navigeringsrad */}
           <ChevronRight size={20} color={MUTED} strokeWidth={2} />
         </PressableScale>
+        </Reanimated.View>
 
         {/* Direkt under Vänner — det sociala ("jag och andra") samlat överst, före det egna
             innehållet (listor, minnen, samlarobjekt) */}
-        <LeaderboardSection />
-        <ListsSection />
-        <MemoriesSection />
-        <StickersSection scrollTo={scrollTo} />
+        <Reanimated.View entering={enterAt(4)}><LeaderboardSection /></Reanimated.View>
+        <Reanimated.View entering={enterAt(5)}><ListsSection /></Reanimated.View>
+        <Reanimated.View entering={enterAt(6)}><MemoriesSection /></Reanimated.View>
+        <Reanimated.View entering={enterAt(7)} onLayout={(e) => { stickersY.current = e.nativeEvent.layout.y; }}>
+          <StickersSection scrollTo={scrollToSticker} />
+        </Reanimated.View>
       </ScrollView>
     </View>
   );
 }
+
+/** Snabb inglidning uppifrån och ner, kort efter varandra (samma som Favoriter och Förmåner) */
+const enterAt = (index: number) => FadeInDown.delay(index * 45).duration(300);
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
