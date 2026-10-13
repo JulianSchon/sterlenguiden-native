@@ -186,7 +186,7 @@ function TrophyBadge({
             </Animated.View>
           )}
         </View>
-        <Text style={[badge.name, !unlocked && badge.nameLocked]} numberOfLines={1}>{trophy.identity}</Text>
+        <Text style={[badge.name, !unlocked && badge.nameLocked]} numberOfLines={1}>{trophy.levelName}</Text>
         <Text style={badge.desc} numberOfLines={2}>{trophy.requirementText}</Text>
       </Animated.View>
     </Pressable>
@@ -333,7 +333,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
               ) : (
                 <>
                   <Text style={dm.progressText}>{trophy.requirementText}</Text>
-                  <Text style={dm.progressText}>{trophy.progress} av {trophy.target} besökta</Text>
+                  <Text style={dm.progressText}>{trophy.progressText}</Text>
                 </>
               )}
             </>

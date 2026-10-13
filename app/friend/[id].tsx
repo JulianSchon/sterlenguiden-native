@@ -356,7 +356,7 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
           return (
             <PressableScale key={i} style={{ width: itemWidth, alignItems: "center" }} scale={0.94} onPress={() => setSelected(t)}>
               <TrophyMedal size={medalSize} tier={t.level} Icon={info.Icon} unlocked groupId={t.achievementType} />
-              <Text style={s.trophyLabel} numberOfLines={1}>{info.identity}</Text>
+              <Text style={s.trophyLabel} numberOfLines={1}>{info.levelName}</Text>
             </PressableScale>
           );
         })}

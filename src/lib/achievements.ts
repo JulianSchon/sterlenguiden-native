@@ -110,6 +110,8 @@ interface TierSpec {
   progress: (s: UserStats) => number;
   requirementText: string;
   levelName: string;
+  /** Vad som räknas, för framsteget "17 av 30 favoriter sparade": [ental, flertal] */
+  unit: [string, string];
 }
 
 interface GroupDef {
@@ -127,9 +129,9 @@ const GROUPS: GroupDef[] = [
     tagline: "De första stegen på Österlen",
     Icon: Sparkles,
     tiers: [
-      { target: 1, progress: (s) => Math.min(s.uniqueVisits, 1), requirementText: "Besök en plats", levelName: "Första besöket" },
-      { target: 1, progress: (s) => Math.min(s.listsCreated, 1), requirementText: "Skapa en lista", levelName: "Första listan" },
-      { target: 1, progress: (s) => Math.min(s.memoriesCount, 1), requirementText: "Spara ett minne", levelName: "Första minnet" },
+      { target: 1, progress: (s) => Math.min(s.uniqueVisits, 1), requirementText: "Besök en plats", levelName: "Första besöket", unit: ["plats besökt", "platser besökta"] },
+      { target: 1, progress: (s) => Math.min(s.listsCreated, 1), requirementText: "Skapa en lista", levelName: "Första listan", unit: ["lista skapad", "listor skapade"] },
+      { target: 1, progress: (s) => Math.min(s.memoriesCount, 1), requirementText: "Spara ett minne", levelName: "Första minnet", unit: ["minne sparat", "minnen sparade"] },
     ],
   },
   {
@@ -138,9 +140,9 @@ const GROUPS: GroupDef[] = [
     tagline: "Ju fler platser, desto bättre",
     Icon: Compass,
     tiers: [
-      { target: 5,  progress: (s) => s.uniqueVisits, requirementText: "Besök 5 platser",  levelName: "Nykomling" },
-      { target: 20, progress: (s) => s.uniqueVisits, requirementText: "Besök 20 platser", levelName: "Reserutinerad" },
-      { target: 50, progress: (s) => s.uniqueVisits, requirementText: "Besök 50 platser", levelName: "Österlenkännare" },
+      { target: 5,  progress: (s) => s.uniqueVisits, requirementText: "Besök 5 platser",  levelName: "Nykomling", unit: ["plats besökt", "platser besökta"] },
+      { target: 20, progress: (s) => s.uniqueVisits, requirementText: "Besök 20 platser", levelName: "Reserutinerad", unit: ["plats besökt", "platser besökta"] },
+      { target: 50, progress: (s) => s.uniqueVisits, requirementText: "Besök 50 platser", levelName: "Österlenkännare", unit: ["plats besökt", "platser besökta"] },
     ],
   },
   {
@@ -149,9 +151,9 @@ const GROUPS: GroupDef[] = [
     tagline: "Bygg din egen guldgruva",
     Icon: Heart,
     tiers: [
-      { target: 5,  progress: (s) => s.favoritesCount, requirementText: "Spara 5 favoriter",  levelName: "Samlarsugen" },
-      { target: 15, progress: (s) => s.favoritesCount, requirementText: "Spara 15 favoriter", levelName: "Listbyggare" },
-      { target: 30, progress: (s) => s.favoritesCount, requirementText: "Spara 30 favoriter", levelName: "Kurator" },
+      { target: 5,  progress: (s) => s.favoritesCount, requirementText: "Spara 5 favoriter",  levelName: "Samlarsugen", unit: ["favorit sparad", "favoriter sparade"] },
+      { target: 15, progress: (s) => s.favoritesCount, requirementText: "Spara 15 favoriter", levelName: "Listbyggare", unit: ["favorit sparad", "favoriter sparade"] },
+      { target: 30, progress: (s) => s.favoritesCount, requirementText: "Spara 30 favoriter", levelName: "Kurator", unit: ["favorit sparad", "favoriter sparade"] },
     ],
   },
   {
@@ -160,9 +162,9 @@ const GROUPS: GroupDef[] = [
     tagline: "Österlenpasset i praktiken",
     Icon: Tag,
     tiers: [
-      { target: 1, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 1 erbjudande",  levelName: "Fyndaren" },
-      { target: 3, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 3 erbjudanden", levelName: "Förmånsjägare" },
-      { target: 6, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 6 erbjudanden", levelName: "Rabattkung" },
+      { target: 1, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 1 erbjudande",  levelName: "Fyndaren", unit: ["erbjudande inlöst", "erbjudanden inlösta"] },
+      { target: 3, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 3 erbjudanden", levelName: "Förmånsjägare", unit: ["erbjudande inlöst", "erbjudanden inlösta"] },
+      { target: 6, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 6 erbjudanden", levelName: "Rabattkung", unit: ["erbjudande inlöst", "erbjudanden inlösta"] },
     ],
   },
   {
@@ -171,9 +173,9 @@ const GROUPS: GroupDef[] = [
     tagline: "Bredd, inte bara djup",
     Icon: Shuffle,
     tiers: [
-      { target: 3, progress: (s) => s.categoriesVisited, requirementText: "Besök platser i 3 olika kategorier",     levelName: "Nyfiken" },
-      { target: 5, progress: (s) => s.categoriesVisited, requirementText: "Besök platser i 5 olika kategorier",     levelName: "Allätare" },
-      { target: TOTAL_CATEGORY_COUNT, progress: (s) => s.categoriesVisited, requirementText: `Besök platser i alla ${TOTAL_CATEGORY_COUNT} kategorier`, levelName: "Mångsidig mästare" },
+      { target: 3, progress: (s) => s.categoriesVisited, requirementText: "Besök platser i 3 olika kategorier",     levelName: "Nyfiken", unit: ["kategori besökt", "kategorier besökta"] },
+      { target: 5, progress: (s) => s.categoriesVisited, requirementText: "Besök platser i 5 olika kategorier",     levelName: "Allätare", unit: ["kategori besökt", "kategorier besökta"] },
+      { target: TOTAL_CATEGORY_COUNT, progress: (s) => s.categoriesVisited, requirementText: `Besök platser i alla ${TOTAL_CATEGORY_COUNT} kategorier`, levelName: "Mångsidig mästare", unit: ["kategori besökt", "kategorier besökta"] },
     ],
   },
   {
@@ -182,9 +184,9 @@ const GROUPS: GroupDef[] = [
     tagline: "Svep dig igenom hela katalogen",
     Icon: Layers,
     tiers: [
-      { target: 15,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 15 platser i Upptäck",  levelName: "Bläddrare" },
-      { target: 60,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 60 platser i Upptäck",  levelName: "Katalogkännare" },
-      { target: 150, progress: (s) => s.swipedCount, requirementText: "Svep igenom 150 platser i Upptäck", levelName: "Hela högen" },
+      { target: 15,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 15 platser i Upptäck",  levelName: "Bläddrare", unit: ["plats svept", "platser svepta"] },
+      { target: 60,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 60 platser i Upptäck",  levelName: "Katalogkännare", unit: ["plats svept", "platser svepta"] },
+      { target: 150, progress: (s) => s.swipedCount, requirementText: "Svep igenom 150 platser i Upptäck", levelName: "Hela högen", unit: ["plats svept", "platser svepta"] },
     ],
   },
   {
@@ -198,18 +200,21 @@ const GROUPS: GroupDef[] = [
         progress: (s) => [s.uniqueVisits >= 1, s.favoritesCount >= 1, s.redemptionsDistinct >= 1].filter(Boolean).length,
         requirementText: "1 besök, 1 favorit, 1 inlöst förmån",
         levelName: "Nyfrälst",
+        unit: ["delmål klart", "delmål klara"],
       },
       {
         target: 3,
         progress: (s) => [s.uniqueVisits >= 10, s.favoritesCount >= 5, s.redemptionsDistinct >= 2].filter(Boolean).length,
         requirementText: "10 besök, 5 favoriter, 2 inlösta förmåner",
         levelName: "Helhjärtad",
+        unit: ["delmål klart", "delmål klara"],
       },
       {
         target: 3,
         progress: (s) => [s.uniqueVisits >= 30, s.favoritesCount >= 15, s.redemptionsDistinct >= 5].filter(Boolean).length,
         requirementText: "30 besök, 15 favoriter, 5 inlösta förmåner",
         levelName: "Österlenlegend",
+        unit: ["delmål klart", "delmål klara"],
       },
     ],
   },
@@ -253,6 +258,8 @@ export interface Trophy {
   levelLabel: string;    // "Brons"/"Silver"/"Guld"
   tagline: string;
   requirementText: string;
+  /** Framsteget i ord, med rätt sak: "17 av 30 favoriter sparade" */
+  progressText: string;
   done: boolean;
   percent: number;
   progress: number;
@@ -282,6 +289,7 @@ export function buildTrophies(stats: UserStats, achievements: Achievement[]): Tr
         levelLabel: TIER_LABEL[tier],
         tagline: group.tagline,
         requirementText: spec.requirementText,
+        progressText: `${progress} av ${spec.target} ${spec.target === 1 ? spec.unit[0] : spec.unit[1]}`,
         done,
         percent,
         progress,
