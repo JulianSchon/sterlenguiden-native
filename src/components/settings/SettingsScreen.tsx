@@ -9,15 +9,17 @@ import { View, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { ArrowLeft, ChevronLeft } from "lucide-react-native";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { darkColors, lightColors, type ThemeColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
 
 export function SettingsScreen({
-  title, right, compact = false, morph, scrollRef, onScroll, overlay, children,
+  title, right, compact = false, morph, scrollRef, onScroll, overlay, page = false, children,
 }: {
   title: string; right?: ReactNode; compact?: boolean; morph?: SharedValue<number>;
+  /** Rubriken i samma storlek som Profils övriga sidor (Mitt Österlen, Favoriter …) i stället för Inställningars */
+  page?: boolean;
   /** För sidor som själva behöver scrolla eller veta var i listan man är */
   scrollRef?: RefObject<ScrollView | null>; onScroll?: (y: number) => void;
   /** Lager ovanpå hela sidan, rubriken inräknad (t.ex. en panel som flyger in från en lista) */
@@ -40,9 +42,9 @@ export function SettingsScreen({
 
   return (
     <Animated.View style={[s.root, morph ? rootMorph : null]}>
-      <Animated.View style={[s.header, { paddingTop: Math.max(insets.top, 44) }, morph ? [rootMorph, borderMorph] : null]}>
+      <Animated.View style={[s.header, page ? [s.headerPage, { paddingTop: insets.top, minHeight: insets.top + 64 }] : { paddingTop: Math.max(insets.top, 44) }, morph ? [rootMorph, borderMorph] : null]}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Animated.View style={[s.backBtn, morph ? backMorph : null]}>
+          <Animated.View style={[s.backBtn, page && s.backBtnPage, morph ? backMorph : null]}>
             {morph ? (
               <>
                 <Animated.View style={[StyleSheet.absoluteFill, s.center, chevronDark]}>
@@ -52,6 +54,8 @@ export function SettingsScreen({
                   <ChevronLeft size={20} color={lightColors.text} strokeWidth={2} />
                 </Animated.View>
               </>
+            ) : page ? (
+              <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
             ) : (
               <ChevronLeft size={20} color={colors.text} strokeWidth={2} />
             )}
@@ -89,6 +93,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     width: 38, height: 38, borderRadius: 19, backgroundColor: c.fill,
     alignItems: "center", justifyContent: "center",
   },
+  // Sidrubriken: samma mått som Mitt Österlen, Favoriter, Historik … (64 hög rad, 48 rund pil)
+  headerPage: { paddingBottom: 0, borderBottomWidth: 0 },
+  backBtnPage: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: c.borderStrong },
   center: { alignItems: "center", justifyContent: "center" },
   // Samma rubrikstil som Mitt Österlen: versal Montserrat med luft mellan bokstäverna
   title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, textTransform: "uppercase", color: c.text },

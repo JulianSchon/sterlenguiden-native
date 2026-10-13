@@ -208,6 +208,7 @@ export default function OffersScreen() {
   return (
     <SettingsScreen
       title={t("offers.title")}
+      page
       scrollRef={scrollRef}
       overlay={
         <OfferDrawer
