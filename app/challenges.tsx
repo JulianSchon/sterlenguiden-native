@@ -30,9 +30,9 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Reanimated, { Easing as ReEasing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Reanimated, { Easing as ReEasing, FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { ArrowLeft, X, Check, Leaf } from "lucide-react-native";
+import { ArrowLeft, X, Check, Tractor } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useTrophies } from "@/hooks/useTrophies";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,10 +74,10 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
   return (
     <Pressable onPress={onPress} style={{ alignItems: "center" }}>
       <View style={feat.eyebrowRow}>
-        {/* Ett grönt löv på var sida, spegelvända — som en liten lagerkrans */}
-        <Leaf size={14} color={LEAF_GREEN} fill={LEAF_GREEN} strokeWidth={1.6} style={{ transform: [{ rotate: "-35deg" }] }} />
+        {/* En grön traktor på var sida, vända mot texten */}
+        <Tractor size={17} color={TRACTOR_GREEN} strokeWidth={2} />
         <Text style={feat.eyebrow}>{unlocked ? "SENASTE UTMÄRKELSEN" : "NÄRMAST ATT LÅSA UPP"}</Text>
-        <Leaf size={14} color={LEAF_GREEN} fill={LEAF_GREEN} strokeWidth={1.6} style={{ transform: [{ scaleX: -1 }, { rotate: "-35deg" }] }} />
+        <Tractor size={17} color={TRACTOR_GREEN} strokeWidth={2} style={{ transform: [{ scaleX: -1 }] }} />
       </View>
       <View style={{ marginTop: 28, width: medalSize, height: medalSize, alignItems: "center", justifyContent: "center" }}>
         <GlowCanvas size={medalSize} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
@@ -319,7 +319,7 @@ function TrophyGrid({
 
 // ─── Detaljmodal ────────────────────────────────────────────────────────────────
 const DONE_GREEN = "#4ADE80";
-const LEAF_GREEN = "#4ADE80";
+const TRACTOR_GREEN = "#4ADE80";
 /** Framstegets färg efter hur nära man är: glider från vinrött (långt kvar) via rött, orange och gult
  * till grönt, så att 59 av 60 redan är nästan grönt. Färgstopp i HSL (nyansen räknas vidare förbi
  * 360 så att vinrött → rött går åt rätt håll). */
@@ -343,7 +343,10 @@ const progressColor = (ratio: number) => {
 
 function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose: () => void }) {
   return (
-    <Modal visible={!!trophy} transparent animationType="fade" onRequestClose={onClose}>
+    // Ingen inbyggd toning: den gjorde att ett tryck utanför rutan inte gick fram förrän toningen
+    // (och sidans egen inglidning) var klar. Nu tonas innehållet in själv och går att trycka bort direkt.
+    <Modal visible={!!trophy} transparent animationType="none" onRequestClose={onClose}>
+      <Reanimated.View entering={FadeIn.duration(180)} style={{ flex: 1 }}>
       <Pressable style={dm.overlay} onPress={onClose}>
         <Pressable style={dm.card} onPress={(e) => e.stopPropagation()}>
           {trophy && (
@@ -400,6 +403,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
           )}
         </Pressable>
       </Pressable>
+      </Reanimated.View>
     </Modal>
   );
 }
