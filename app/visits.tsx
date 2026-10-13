@@ -240,7 +240,7 @@ const s = StyleSheet.create({
   // Tidslinjen: linjen ritas i varje rad, så den löper obruten genom hela listan
   line: { position: "absolute", left: LINE_X - 1, width: 2, backgroundColor: LINE },
   yearRow: { paddingLeft: LINE_X + DOT / 2 + DOT_GAP + 4, paddingTop: 26, paddingBottom: 14 },
-  year: { fontFamily: "Montserrat_700Bold", fontSize: 48, letterSpacing: -1, color: FG },
+  year: { fontFamily: "Montserrat_700Bold", fontSize: 48, letterSpacing: -1, color: FG, opacity: 0.6 },
 
   row: { flexDirection: "row", alignItems: "center", paddingLeft: PAD, paddingRight: 16, height: ROW_H },
   content: { flex: 1, flexDirection: "row", alignItems: "center", transformOrigin: "left center" },
