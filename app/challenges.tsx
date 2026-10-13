@@ -32,7 +32,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, { Easing as ReEasing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { ArrowLeft, X, Check } from "lucide-react-native";
+import { ArrowLeft, X, Check, Leaf } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useTrophies } from "@/hooks/useTrophies";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,8 +74,10 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
   return (
     <Pressable onPress={onPress} style={{ alignItems: "center" }}>
       <View style={feat.eyebrowRow}>
-        <Text style={feat.star}>★</Text>
+        {/* Ett grönt löv på var sida, spegelvända — som en liten lagerkrans */}
+        <Leaf size={14} color={LEAF_GREEN} fill={LEAF_GREEN} strokeWidth={1.6} style={{ transform: [{ rotate: "-35deg" }] }} />
         <Text style={feat.eyebrow}>{unlocked ? "SENASTE UTMÄRKELSEN" : "NÄRMAST ATT LÅSA UPP"}</Text>
+        <Leaf size={14} color={LEAF_GREEN} fill={LEAF_GREEN} strokeWidth={1.6} style={{ transform: [{ scaleX: -1 }, { rotate: "-35deg" }] }} />
       </View>
       <View style={{ marginTop: 28, width: medalSize, height: medalSize, alignItems: "center", justifyContent: "center" }}>
         <GlowCanvas size={medalSize} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
@@ -317,9 +319,27 @@ function TrophyGrid({
 
 // ─── Detaljmodal ────────────────────────────────────────────────────────────────
 const DONE_GREEN = "#4ADE80";
-/** Framstegets färg efter hur nära man är: glider från rött via orange och gult till grönt, så att
- * 59 av 60 redan är nästan grönt */
-const progressColor = (ratio: number) => `hsl(${Math.round(Math.max(0, Math.min(1, ratio)) * 115)}, 85%, 60%)`;
+const LEAF_GREEN = "#4ADE80";
+/** Framstegets färg efter hur nära man är: glider från vinrött (långt kvar) via rött, orange och gult
+ * till grönt, så att 59 av 60 redan är nästan grönt. Färgstopp i HSL (nyansen räknas vidare förbi
+ * 360 så att vinrött → rött går åt rätt håll). */
+const PROGRESS_STOPS: [number, number, number, number][] = [
+  // [andel, nyans, mättnad %, ljushet %]
+  [0, 342, 62, 46],    // vinröd
+  [0.2, 360, 82, 60],  // röd
+  [0.5, 388, 90, 58],  // orange
+  [0.8, 412, 88, 57],  // gul
+  [1, 475, 70, 55],    // grön
+];
+const progressColor = (ratio: number) => {
+  const r = Math.max(0, Math.min(1, ratio));
+  const i = Math.max(0, PROGRESS_STOPS.findIndex((stop) => stop[0] >= r) - 1);
+  const [a, h1, s1, l1] = PROGRESS_STOPS[i];
+  const [b, h2, s2, l2] = PROGRESS_STOPS[Math.min(i + 1, PROGRESS_STOPS.length - 1)];
+  const t = b > a ? (r - a) / (b - a) : 0;
+  const mix = (x: number, y: number) => x + (y - x) * t;
+  return `hsl(${Math.round(mix(h1, h2)) % 360}, ${Math.round(mix(s1, s2))}%, ${Math.round(mix(l1, l2))}%)`;
+};
 
 function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose: () => void }) {
   return (
@@ -621,8 +641,7 @@ const sec = StyleSheet.create({
 });
 
 const feat = StyleSheet.create({
-  eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  star: { fontSize: 12, color: GOLD },
+  eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, color: FG, letterSpacing: 1.4 },
   name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 26, color: FG, marginTop: 18, textAlign: "center" },
   desc: {
