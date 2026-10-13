@@ -15,10 +15,12 @@
  * - Ingenting hämtas när den öppnas: eventet (med arrangören) finns redan i eventlistan som Hem
  *   hämtar vid start. Förut kom svaret mitt i animationen, allt ritades om och arrangörsraden
  *   hoppade in och knuffade ner resten.
- * - Den glider upp först när bilden visas (högst en kort stund), så inget dyker upp under rörelsen.
+ * - Den börjar glida upp direkt (två bildrutor efter att innehållet bytts), och bilden tonar in när
+ *   den är klar — att vänta på bilden gjorde att den kändes trög att öppna.
+ * - Gesterna byggs en gång, inte om vid varje öppning.
  * - Panelen byggs när appen startat klart (useAppSettled), inte under den tunga starten.
  */
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, Image, Pressable, StyleSheet, Linking, Platform, Share, BackHandler, useWindowDimensions,
 } from "react-native";
@@ -61,11 +63,6 @@ const CLOSE_VELOCITY = 900;
 const BAR_H = 56 + 32;
 /** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
 const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.97)"];
-/** Så länge panelen högst väntar på att bilden ska visas innan den glider upp: kort om bilden
- * redan finns i telefonens minne, längre om den måste hämtas — hellre en kort paus före än att
- * bilden dyker upp mitt i rörelsen */
-const IMAGE_WAIT_MS = 160;
-const IMAGE_WAIT_UNCACHED_MS = 450;
 
 interface Shown { request: EventSheetRequest; event: Event }
 
@@ -173,13 +170,11 @@ export function EventSheetHost() {
   const slideIn = useCallback((key: number) => {
     if (startedKey.current === key || shownRef.current?.request.key !== key) return;
     startedKey.current = key;
-    requestAnimationFrame(() => {
-      backdrop.value = withTiming(1, { duration: reduceMotion ? 0 : 260 });
-      translateY.value = reduceMotion ? 0 : withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
-    });
+    backdrop.value = withTiming(1, { duration: reduceMotion ? 0 : 260 });
+    translateY.value = reduceMotion ? 0 : withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
   }, [reduceMotion, backdrop, translateY]);
 
-  // Nytt innehåll på plats: börja överst, krysset grått igen, och glid upp när bilden visas
+  // Nytt innehåll på plats: börja överst, krysset grått igen, och glid upp direkt
   useEffect(() => {
     if (!shown) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -187,22 +182,12 @@ export function EventSheetHost() {
     xAnim.value = 0;
     const key = shown.request.key;
     openKey.value = key;
-    const uri = shown.event.image_url;
-    let t = setTimeout(() => slideIn(key), uri ? IMAGE_WAIT_MS : 0);
-    let alive = true;
-    if (uri) {
-      Image.queryCache?.([uri]).then((cache) => {
-        if (!alive || cache[uri]) return;
-        clearTimeout(t);
-        t = setTimeout(() => slideIn(key), IMAGE_WAIT_UNCACHED_MS);
-      }).catch(() => {});
-    }
-    return () => { alive = false; clearTimeout(t); };
+    // Två bildrutor efter att det nya innehållet lagts på plats, så rörelsen inte delar bildruta
+    // med själva bytet
+    let second = 0;
+    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => slideIn(key)); });
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
   }, [shown, slideIn, scrollY, xAnim, openKey]);
-  const onHeroReady = useCallback(() => {
-    const key = shownRef.current?.request.key;
-    if (key != null) slideIn(key);
-  }, [slideIn]);
 
   const afterClose = useRef<(() => void) | null>(null);
   const onClosed = useCallback((key: number) => {
@@ -247,29 +232,32 @@ export function EventSheetHost() {
 
   // ── Dra ner för att stänga: från bilden direkt, från texten när den är uppscrollad ──
   const dragOffset = useSharedValue(0);
-  const settle = (velocityY: number) => {
-    "worklet";
-    if (translateY.value > CLOSE_DISTANCE || (velocityY > CLOSE_VELOCITY && translateY.value > 0)) {
-      backdrop.value = withTiming(0, { duration: 220 });
-      translateY.value = withTiming(sheetH, { duration: 220 }, (done) => {
-        if (done) runOnJS(onClosed)(openKey.value);
-      });
-    } else {
-      translateY.value = withSpring(0, { damping: 32, stiffness: 300 });
-    }
-  };
-  const nativeScroll = Gesture.Native();
-  const pan = Gesture.Pan()
-    .activeOffsetY([-10, 10])
-    .failOffsetX([-14, 14])
-    .simultaneousWithExternalGesture(nativeScroll)
-    .onStart(() => { dragOffset.value = 0; })
-    .onUpdate((e) => {
-      // Så länge texten är nedscrollad är det texten som rör sig; panelen följer först vid toppen
-      if (scrollY.value > 0.5) { dragOffset.value = e.translationY; return; }
-      translateY.value = Math.max(0, e.translationY - dragOffset.value);
-    })
-    .onEnd((e) => settle(e.velocityY));
+  const { nativeScroll, pan } = useMemo(() => {
+    const settle = (velocityY: number) => {
+      "worklet";
+      if (translateY.value > CLOSE_DISTANCE || (velocityY > CLOSE_VELOCITY && translateY.value > 0)) {
+        backdrop.value = withTiming(0, { duration: 220 });
+        translateY.value = withTiming(sheetH, { duration: 220 }, (done) => {
+          if (done) runOnJS(onClosed)(openKey.value);
+        });
+      } else {
+        translateY.value = withSpring(0, { damping: 32, stiffness: 300 });
+      }
+    };
+    const native = Gesture.Native();
+    const drag = Gesture.Pan()
+      .activeOffsetY([-10, 10])
+      .failOffsetX([-14, 14])
+      .simultaneousWithExternalGesture(native)
+      .onStart(() => { dragOffset.value = 0; })
+      .onUpdate((e) => {
+        // Så länge texten är nedscrollad är det texten som rör sig; panelen följer först vid toppen
+        if (scrollY.value > 0.5) { dragOffset.value = e.translationY; return; }
+        translateY.value = Math.max(0, e.translationY - dragOffset.value);
+      })
+      .onEnd((e) => settle(e.velocityY));
+    return { nativeScroll: native, pan: drag };
+  }, [sheetH, onClosed, translateY, backdrop, openKey, dragOffset, scrollY]);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
 
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
@@ -346,7 +334,7 @@ export function EventSheetHost() {
               >
                 {/* ── Bilden, rubriken, datumrutan och Dela ── */}
                 <View style={{ height: heroH }}>
-                  {shown && <HeroImage key={shown.request.key} uri={shown.event.image_url} onReady={onHeroReady} />}
+                  {shown && <HeroImage key={shown.request.key} uri={shown.event.image_url} />}
                   {/* Riktig mjuk toning ner i panelens bakgrund, så rubriken ligger på mörkret */}
                   <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
                     <Rect x={0} y={0} width={width} height={heroH}>
@@ -401,14 +389,27 @@ export function EventSheetHost() {
   );
 }
 
-/** Eventets bild — säger till när den visas, så panelen kan glida upp med bilden redan på plats */
-function HeroImage({ uri, onReady }: { uri: string | null; onReady: () => void }) {
-  useEffect(() => {
-    if (!uri) onReady();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  if (!uri) return <View style={[StyleSheet.absoluteFill, { backgroundColor: "#2A2A2A" }]} />;
-  return <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" onLoad={onReady} onError={onReady} />;
+/** Eventets bild. Fanns den redan i minnet syns den direkt, annars tonar den in när den laddats */
+function HeroImage({ uri }: { uri: string | null }) {
+  const opacity = useSharedValue(0);
+  const mountedAt = useRef(Date.now());
+  const fade = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: "#2A2A2A" }]}>
+      {uri && (
+        <Reanimated.View style={[StyleSheet.absoluteFill, fade]}>
+          <Image
+            source={{ uri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            onLoad={() => {
+              opacity.value = Date.now() - mountedAt.current < 80 ? 1 : withTiming(1, { duration: 220 });
+            }}
+          />
+        </Reanimated.View>
+      )}
+    </View>
+  );
 }
 
 const HeroText = memo(function HeroText({ event, onShare }: { event: Event; onShare: () => void }) {
