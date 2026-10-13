@@ -191,7 +191,7 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: BG,
   },
   thumb: { width: THUMB, height: THUMB, borderRadius: 14, overflow: "hidden", backgroundColor: "#2A2A2A", marginRight: 16 },
-  name: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: -0.3, color: FG },
+  name: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG },
   time: { fontFamily: "Inter_500Medium", fontSize: 15, color: MUTED, marginTop: 6 },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 },
