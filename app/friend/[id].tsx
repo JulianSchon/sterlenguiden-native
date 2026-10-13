@@ -32,6 +32,8 @@ import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { StickerArt } from "@/components/stickers/StickerArt";
+import { useCollectibles } from "@/hooks/useCollectibles";
+import Reanimated, { ZoomIn } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
@@ -386,11 +388,14 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
   );
 }
 
-// Samma sorts horisontella rad som troféerna, fast i en box i stället för direkt på bakgrunden —
-// och inte klickbar: stickers hör hemma på kartan, som inte har en tillbaka-pil (samma resonemang
-// som aktivitetsradens "samlade in"-rader). Senast insamlad först (rpc_friend_stats sorterar redan så).
+// Samma sorts horisontella rad som troféerna, fast i en box i stället för direkt på bakgrunden.
+// Senast insamlad först (rpc_friend_stats sorterar redan så). Ett tryck visar skatten stort mitt på
+// en mörk skärm, med namn, ort och kuriosa — inte kartan (den har ingen tillbaka-pil hit).
 function CollectiblesSection({ collectibles }: { collectibles: FriendStats["collectibles"] }) {
   const { width: winW } = useWindowDimensions();
+  const { data: all = [] } = useCollectibles();
+  const [selected, setSelected] = useState<FriendStats["collectibles"][number] | null>(null);
+  const info = selected ? all.find((c) => c.id === selected.id) : null;
   const pageW = winW - 32 - 32; // s.section-marginal (16+16) + boxens egen padding (16+16)
   const gap = 16;
   const itemWidth = (pageW - gap * 2) / 3;
@@ -408,13 +413,26 @@ function CollectiblesSection({ collectibles }: { collectibles: FriendStats["coll
           contentContainerStyle={{ gap }}
         >
           {collectibles.map((c) => (
-            <View key={c.id} style={{ width: itemWidth, alignItems: "center" }}>
+            <PressableScale key={c.id} style={{ width: itemWidth, alignItems: "center" }} scale={0.94} onPress={() => setSelected(c)}>
               <StickerArt imagePath={c.imagePath} size={artSize} silhouette={false} />
               <Text style={s.trophyLabel} numberOfLines={2}>{c.name}</Text>
-            </View>
+            </PressableScale>
           ))}
         </ScrollView>
       </View>
+
+      <Modal visible={!!selected} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSelected(null)}>
+        <Pressable style={s.treasureOverlay} onPress={() => setSelected(null)}>
+          {selected && (
+            <Reanimated.View entering={ZoomIn.springify().damping(14).stiffness(170)} style={{ alignItems: "center" }}>
+              <StickerArt imagePath={selected.imagePath} size={Math.round(Math.min(winW * 0.72, 300))} silhouette={false} />
+              <Text style={s.treasureName}>{selected.name}</Text>
+              {info?.town ? <Text style={s.treasureTown}>{info.town}</Text> : null}
+              {info?.description ? <Text style={s.treasureText}>{info.description}</Text> : null}
+            </Reanimated.View>
+          )}
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -727,6 +745,11 @@ const s = StyleSheet.create({
   // Beskrivningskortet som öppnas vid klick — samma mönster som troféernas detaljmodal på
   // Utmaningar (app/challenges.tsx), men Montserrat i stället för Playfair på rubriken (Playfair
   // är bara för personnamn i den här appen, se vänprofilens övriga typsnittsbeslut).
+  // Skatten i stort: mörk bakgrund, tryck var som helst för att stänga
+  treasureOverlay: { flex: 1, backgroundColor: "rgba(8,8,8,0.88)", alignItems: "center", justifyContent: "center", padding: 28 },
+  treasureName: { fontFamily: "Montserrat_700Bold", fontSize: 24, color: FG, textAlign: "center", marginTop: 18 },
+  treasureTown: { fontFamily: "Inter_500Medium", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 4 },
+  treasureText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: "rgba(245,241,232,0.8)", textAlign: "center", marginTop: 14, maxWidth: 340 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center", padding: 24 },
   modalCard: {
     width: "100%", maxWidth: 340, borderRadius: 24,
