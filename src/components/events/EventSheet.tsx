@@ -50,7 +50,13 @@ function useEventDetail(id: number | null) {
 }
 
 // ─── EventBottomSheet ─────────────────────────────────────────────────────────
-export function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClose: () => void }) {
+export function EventBottomSheet({ eventId, onClose, saved, onToggleSave }: {
+  eventId: number | null;
+  onClose: () => void;
+  /** En sida som håller koll på sparade event själv (Kalender) skickar sitt läge och sin knapp */
+  saved?: boolean;
+  onToggleSave?: (id: number) => void;
+}) {
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [closeIconWhite, setCloseIconWhite] = useState(false);
@@ -64,7 +70,8 @@ export function EventBottomSheet({ eventId, onClose }: { eventId: number | null;
   const calBtnScale     = useRef(new Animated.Value(1)).current;
 
   const { data: event, isLoading } = useEventDetail(eventId);
-  const isFav     = useIsFavorite(undefined, eventId ?? 0);
+  const isFavCache = useIsFavorite(undefined, eventId ?? 0);
+  const isFav     = saved ?? isFavCache;
   const toggleFav = useToggleEventFavorite();
 
   useEffect(() => {
@@ -123,7 +130,8 @@ export function EventBottomSheet({ eventId, onClose }: { eventId: number | null;
       Animated.timing(heartScale, { toValue: 1.08, duration: 60,  useNativeDriver: true }),
       Animated.timing(heartScale, { toValue: 1,    duration: 60,  useNativeDriver: true }),
     ]).start();
-    toggleFav.mutate({ eventId, save: !isFav });
+    if (onToggleSave) onToggleSave(eventId);
+    else toggleFav.mutate({ eventId, save: !isFav });
   };
 
   const closeRotateDeg = closeRotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });

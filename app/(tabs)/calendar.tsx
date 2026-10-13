@@ -15,6 +15,8 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
 import Reanimated, {
   Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
@@ -24,7 +26,7 @@ import * as Haptics from "expo-haptics";
 import { addMonths, format, max as maxDate, min as minDate, parseISO, startOfMonth } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useEvents, type Event } from "@/hooks/useEvents";
-import { useFavorites, useToggleEventFavorite } from "@/hooks/useFavorites";
+import { saveEventFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
 import { usePlaces } from "@/hooks/usePlaces";
 import { useProfile } from "@/hooks/useProfile";
@@ -72,29 +74,80 @@ export default function CalendarScreen() {
   const { data: profile } = useProfile();
   const location = useKnownLocation();
 
-  // Sparade event, och vad man gillar (favoritplatser, besök) — det "För dig" rankar efter
-  const savedIds = useMemo(() => new Set(favorites.flatMap((f) => (f.event_id != null ? [f.event_id] : []))), [favorites]);
+  // Sparade event. Ett tryck på hjärtat ändras bara här på sidan (bara det kortet ritas om) och
+  // skrivs till servern direkt — resten av appen (Hem, Profil, troféerna …) får veta det först när
+  // man lämnar Kalender. Att uppdatera allt det mitt i hjärtanimationen gav ett hack.
+  const queryClient = useQueryClient();
+  const serverSaved = useMemo(() => new Set(favorites.flatMap((f) => (f.event_id != null ? [f.event_id] : []))), [favorites]);
+  const [overrides, setOverrides] = useState<Map<number, boolean>>(() => new Map());
+  const savedIds = useMemo(() => {
+    const set = new Set(serverSaved);
+    overrides.forEach((saved, id) => (saved ? set.add(id) : set.delete(id)));
+    return set;
+  }, [serverSaved, overrides]);
+  const savedRef = useRef(savedIds);
+  savedRef.current = savedIds;
+  const pending = useRef(new Map<number, Promise<unknown>>());
+  const toggleSave = useCallback((id: number) => {
+    const save = !savedRef.current.has(id);
+    setOverrides((prev) => new Map(prev).set(id, save));
+    // Ett tryck i taget per event, i ordning, även om man trycker snabbt flera gånger
+    const next = (pending.current.get(id) ?? Promise.resolve())
+      .then(() => saveEventFavorite(id, save))
+      .catch(() => setOverrides((prev) => new Map(prev).set(id, !save)));
+    pending.current.set(id, next);
+  }, []);
+  // När man lämnar sidan: hämta favoriterna på nytt (när allt sparats) så resten av appen stämmer
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
+  useFocusEffect(useCallback(() => () => {
+    if (overridesRef.current.size === 0) return;
+    Promise.allSettled(pending.current.values())
+      .then(() => queryClient.invalidateQueries({ queryKey: ["favorites"] }))
+      .then(() => setOverrides(new Map()));
+  }, [queryClient]));
+
+  // Vad man gillar (favoritplatser, besök) — det "För dig" rankar efter. Sparar man något här
+  // rankas inte listan om medan man tittar (korten hade hoppat), först nästa gång.
   const favoritePlaceIds = useMemo(() => new Set(favorites.flatMap((f) => (f.place_id != null ? [f.place_id] : []))), [favorites]);
   const visitedPlaceIds = useMemo(() => new Set(visits.map((v) => v.place_id)), [visits]);
   const picks = useMemo(() => recommendEvents({
     events,
     places,
     favoritePlaceIds,
-    savedEventIds: savedIds,
+    savedEventIds: serverSaved,
     visitedPlaceIds,
     categoryCounts: likedCategories(places, visitedPlaceIds, favoritePlaceIds),
     location,
-  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, savedIds, visitedPlaceIds, location]);
+  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location]);
 
-  // Spara-hjärtat: samma som på Favoriter, sparas direkt
+  // Spara-hjärtats ring och prickar, samma som på Favoriter
   const { burst, show: showBurst } = useLikeBurst();
-  const toggle = useToggleEventFavorite();
-  const savedRef = useRef(savedIds);
-  savedRef.current = savedIds;
-  const toggleSave = useCallback((id: number) => {
-    toggle.mutate({ eventId: id, save: !savedRef.current.has(id) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  // Båda lägena ligger kvar monterade; att byta är bara att tona fram det andra (inget byggs om,
+  // det var det som hackade). "Alla" byggs i förväg strax efter att sidan öppnats.
+  const [allMounted, setAllMounted] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setAllMounted(true), 900);
+    return () => clearTimeout(t);
   }, []);
+  const forYouIn = useSharedValue(1);
+  const allIn = useSharedValue(0);
+  const firstMode = useRef(true);
+  useEffect(() => {
+    if (firstMode.current) { firstMode.current = false; return; }
+    if (mode === "all") setAllMounted(true);
+    const [incoming, outgoing] = mode === "foryou" ? [forYouIn, allIn] : [allIn, forYouIn];
+    outgoing.value = 0;
+    incoming.value = 0;
+    incoming.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
+  }, [mode, forYouIn, allIn]);
+  const forYouStyle = useAnimatedStyle(() => ({
+    opacity: forYouIn.value, transform: [{ translateY: (1 - forYouIn.value) * 14 }],
+  }));
+  const allStyle = useAnimatedStyle(() => ({
+    opacity: allIn.value, transform: [{ translateY: (1 - allIn.value) * 14 }],
+  }));
 
   // Fliktrycket i navigeringen scrollar upp det läge som visas
   const forYouRef = useRef<ScrollView>(null);
@@ -116,8 +169,8 @@ export default function CalendarScreen() {
         <ModeTabs value={mode} onChange={setMode} />
       </View>
 
-      {mode === "foryou" ? (
-        <Reanimated.View key="foryou" entering={FadeIn.duration(200)} style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
+        <Reanimated.View style={[StyleSheet.absoluteFill, forYouStyle]} pointerEvents={mode === "foryou" ? "auto" : "none"}>
           <ForYouView
             scrollRef={forYouRef}
             loading={isLoading}
@@ -131,22 +184,28 @@ export default function CalendarScreen() {
             onShowAll={() => setMode("all")}
           />
         </Reanimated.View>
-      ) : (
-        <Reanimated.View key="all" entering={FadeIn.duration(200)} style={{ flex: 1 }}>
-          <AllEventsView
-            scrollRef={allRef}
-            loading={isLoading}
-            events={events}
-            savedIds={savedIds}
-            bottomPad={bottomPad}
-            onOpen={setOpenId}
-            onToggleSave={toggleSave}
-            onBurst={showBurst}
-          />
-        </Reanimated.View>
-      )}
+        {allMounted && (
+          <Reanimated.View style={[StyleSheet.absoluteFill, allStyle]} pointerEvents={mode === "all" ? "auto" : "none"}>
+            <AllEventsView
+              scrollRef={allRef}
+              loading={isLoading}
+              events={events}
+              savedIds={savedIds}
+              bottomPad={bottomPad}
+              onOpen={setOpenId}
+              onToggleSave={toggleSave}
+              onBurst={showBurst}
+            />
+          </Reanimated.View>
+        )}
+      </View>
 
-      <EventBottomSheet eventId={openId} onClose={() => setOpenId(null)} />
+      <EventBottomSheet
+        eventId={openId}
+        onClose={() => setOpenId(null)}
+        saved={openId != null ? savedIds.has(openId) : undefined}
+        onToggleSave={toggleSave}
+      />
       <LikeBurst burst={burst} />
     </View>
   );
@@ -396,18 +455,21 @@ function AllEventsView({
     const want = listY.current + 170 - visibleH;
     if (want > scrollY.current) scrollRef.current?.scrollTo({ y: want, animated: true });
   };
-  const selectDay = (day: string) => {
-    if (day === selected) {
+  const latest = useRef({ selected, eventsByDay, matches, onOpen, showList });
+  latest.current = { selected, eventsByDay, matches, onOpen, showList };
+  const selectDay = useCallback((day: string) => {
+    const cur = latest.current;
+    if (day === cur.selected) {
       // Andra trycket: en dag med ett enda event öppnar det, annars visas hela månaden igen
-      const dayEvents = (eventsByDay.get(day) ?? []).filter(matches);
-      if (dayEvents.length === 1) onOpen(dayEvents[0].id);
+      const dayEvents = (cur.eventsByDay.get(day) ?? []).filter(cur.matches);
+      if (dayEvents.length === 1) cur.onOpen(dayEvents[0].id);
       else setSelected(null);
       return;
     }
     Haptics.selectionAsync().catch(() => {});
     setSelected(day);
-    showList();
-  };
+    cur.showList();
+  }, []);
 
   const monthName = format(month, "LLLL", { locale: sv });
   const isThisMonth = monthKey === format(thisMonth, "yyyy-MM");

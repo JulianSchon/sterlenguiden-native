@@ -71,25 +71,32 @@ export function useToggleFavorite() {
 }
 
 /**
+ * Spara eller ta bort ett event på servern — utan att röra favoritlistan i appen. För sidor som
+ * själva visar hjärtat direkt och uppdaterar resten av appen senare (Kalender): att uppdatera
+ * favoritlistan ritar om Hem, Profil, troféräkningen m.fl., och mitt i hjärtanimationen gav det ett hack.
+ */
+export async function saveEventFavorite(eventId: number, save: boolean) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  if (save) {
+    const { error } = await supabase.from("favorites").insert({
+      user_id: user.id, event_id: eventId, place_id: null, service_point_id: null,
+    });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("favorites").delete().eq("user_id", user.id).eq("event_id", eventId);
+    if (error) throw error;
+  }
+}
+
+/**
  * Spara eller ta bort ett event. Hjärtat ändras direkt (listan uppdateras innan servern svarat)
  * och hoppar tillbaka om sparandet misslyckas.
  */
 export function useToggleEventFavorite() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ eventId, save }: { eventId: number; save: boolean }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-      if (save) {
-        const { error } = await supabase.from("favorites").insert({
-          user_id: user.id, event_id: eventId, place_id: null, service_point_id: null,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("favorites").delete().eq("user_id", user.id).eq("event_id", eventId);
-        if (error) throw error;
-      }
-    },
+    mutationFn: ({ eventId, save }: { eventId: number; save: boolean }) => saveEventFavorite(eventId, save),
     onMutate: async ({ eventId, save }) => {
       await queryClient.cancelQueries({ queryKey: ["favorites"], exact: true });
       const prev = queryClient.getQueryData<Favorite[]>(["favorites"]);

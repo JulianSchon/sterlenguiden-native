@@ -6,7 +6,7 @@
  *
  * När månaden visas poppar bildcirklarna in en i taget (kort efter varandra).
  */
-import { memo, useEffect } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Reanimated, { ZoomIn, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
@@ -52,20 +52,19 @@ export function MonthCalendar({
         {Array.from({ length: offset }, (_, i) => <View key={`blank-${i}`} style={{ width: cell, height: cell }} />)}
         {days.map((d) => {
           const key = dayKey(d);
-          const events = eventsByDay.get(key) ?? [];
-          const visible = events.filter(matches);
+          const events = eventsByDay.get(key) ?? NONE;
           return (
             <DayCell
               key={key}
               day={key}
               label={format(d, "d")}
               size={cell}
-              events={visible.length > 0 ? visible : events}
-              dimmed={events.length > 0 && visible.length === 0}
+              events={events}
+              matches={matches}
               isToday={key === today}
               isPast={key < today}
               isSelected={key === selected}
-              saved={visible.some((e) => savedIds.has(e.id))}
+              saved={events.some((e) => savedIds.has(e.id) && matches(e))}
               order={events.length > 0 ? order++ : 0}
               onPress={onSelect}
             />
@@ -76,13 +75,21 @@ export function MonthCalendar({
   );
 }
 
+// Samma tomma lista för alla dagar utan event, så dagens ruta inte ritas om i onödan
+const NONE: Event[] = [];
+
+/** En dag. Ritas bara om när just den dagen ändras (vald, sparad, filtret) — inte vid varje tryck */
 const DayCell = memo(function DayCell({
-  day, label, size, events, dimmed, isToday, isPast, isSelected, saved, order, onPress,
+  day, label, size, events: all, matches, isToday, isPast, isSelected, saved, order, onPress,
 }: {
-  day: string; label: string; size: number; events: Event[]; dimmed: boolean;
+  day: string; label: string; size: number; events: Event[]; matches: (e: Event) => boolean;
   isToday: boolean; isPast: boolean; isSelected: boolean; saved: boolean; order: number;
   onPress: (day: string) => void;
 }) {
+  // Filtret: matchar inget av dagens event dämpas dagen (men bilden ligger kvar)
+  const visible = useMemo(() => all.filter(matches), [all, matches]);
+  const events = visible.length > 0 ? visible : all;
+  const dimmed = all.length > 0 && visible.length === 0;
   const circle = size - 8;
   const ring = circle + RING_GAP * 2;
   const first = events[0];
