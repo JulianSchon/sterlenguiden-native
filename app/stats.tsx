@@ -5,10 +5,10 @@
  *  1. Hur mycket av Österlen man upptäckt: stort tal, en stapel och andel i procent.
  *  2. Sex rutor, var och en med appens egen symbol i färg: besök (kartans gröna nål), favoriter
  *     (det röda hjärtat), minnen (ett litet polaroidkort), skatter (skatternas lila nål med guld-
- *     stjärna), utmaningar (guldpokal) och längsta streak (den riktiga elden).
+ *     stjärna), utmaningar (Österlenlegendens guldtrofé) och längsta streak (den riktiga elden).
  *  3. Besök per månad (sex månader): en mjuk kurva med fylld yta under, den här månaden markerad
- *     och en streckad linje för snittet. Kurvan ritas fram när sidan öppnas (Skia). Håll in på
- *     kurvan och dra för att se varje månads besök.
+ *     och en streckad linje för snittet. Kurvan ritas fram när sidan öppnas (Skia). Nudda kurvan
+ *     och dra åt sidan för att se varje månads besök.
  *  4. Dina dagar: besök per veckodag som staplar, den vanligaste dagen i guld.
  *  5. Kategorierna: alla åtta i sina egna färger, hur många man besökt av hur många som finns.
  *  6. Mest besökta platsen.
@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, type LayoutChangeEvent } from "react-native";
 import Reanimated, {
-  Easing, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withTiming,
+  Easing, Extrapolation, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withTiming,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Canvas, Circle, DashPathEffect, LinearGradient, Path, Skia, vec, BlurMask } from "@shopify/react-native-skia";
@@ -27,7 +27,7 @@ import Svg, { Path as SvgPath, Polygon, Rect, Circle as SvgCircle } from "react-
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { ArrowLeft, MapPin, Heart, Trophy } from "lucide-react-native";
+import { ArrowLeft, Heart } from "lucide-react-native";
 import { format, subMonths } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useVisits } from "@/hooks/useVisits";
@@ -42,6 +42,10 @@ import { computeCategoryStats, type CategoryStat } from "@/lib/categories";
 import { pushOnce } from "@/lib/navigateOnce";
 import { POLAROID_PAPER, POLAROID_TAPE } from "@/lib/polaroid";
 import { StreakFlame } from "@/components/streak/StreakFlame";
+import { PlacePin } from "@/components/PlacePin";
+
+// Österlenlegendens guldtrofé — den man får för att klara allt
+const TROPHY_ART = require("../assets/badges/osterlenlegend-gold.png");
 
 const BG     = "#121212";
 const CARD   = "#1A1A1D";
@@ -51,8 +55,7 @@ const GOLD   = "#C5A059";
 const GOLD_LT = "#E8C674";
 const BORDER = "rgba(255,255,255,0.08)";
 const TRACK  = "rgba(255,255,255,0.08)";
-// Samma färger som på kartan (nålen) och Favoriter (hjärtat)
-const PIN_GREEN = "hsl(150,30%,28%)";
+// Samma röda som hjärtat på Favoriter
 const HEART_RED = "#EF4444";
 
 const WEEKDAYS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
@@ -154,11 +157,11 @@ export default function StatsScreen() {
 
           {/* 2. Rutorna */}
           <View style={s.tiles}>
-            <Tile icon={<MapPin size={22} color="#FFFFFF" fill={PIN_GREEN} strokeWidth={1.6} />} value={stats.visitCount} label="Besök" />
+            <Tile icon={<PlacePin height={25} />} value={stats.visitCount} label="Besök" />
             <Tile icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label="Favoriter" />
             <Tile icon={<MiniPolaroid />} value={memories.length} label="Minnen" />
             <Tile icon={<TreasurePin />} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
-            <Tile icon={<Trophy size={21} color="#B8892E" fill={GOLD_LT} strokeWidth={1.8} />} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
+            <Tile icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
             <Tile icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label="Längsta streak" />
           </View>
 
@@ -326,9 +329,10 @@ const PAD_BOTTOM = 10;
 
 /**
  * Besök per månad: mjuk kurva med fylld yta, den här månaden markerad, snittet streckat.
- * Håll in på kurvan (en kort stund, så att sidan fortfarande går att scrolla) och dra: en lodrät
- * linje och en punkt följer fingret från månad till månad, med en liten vibration för varje,
- * och siffrorna överst visar den månaden. Släpper man visas den här månaden igen.
+ * Nudda kurvan: månaden under fingret väljs direkt — en lodrät linje och en punkt, och siffrorna
+ * överst visar den månaden. Drar man åt sidan följer den med från månad till månad, med en liten
+ * vibration för varje (sidan scrollar inte under tiden). Drar man uppåt eller nedåt scrollar
+ * sidan som vanligt. Släpper man visas den här månaden igen.
  */
 function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing: (on: boolean) => void }) {
   const [w, setW] = useState(0);
@@ -358,12 +362,15 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
   useEffect(() => {
     if (!geo) return;
     draw.value = 0;
-    draw.value = withDelay(250, withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) }));
+    draw.value = withDelay(250, withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.cubic) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [w]);
   const areaOpacity = useDerivedValue(() => draw.value * 0.9);
-  const dotR = useDerivedValue(() => (draw.value > 0.97 ? 6 : 0));
-  const glowR = useDerivedValue(() => (draw.value > 0.97 ? 13 : 0));
+  // Pricken (och glöden) växer fram i samma rörelse som kurvans sista bit, i stället för att
+  // dyka upp på en gång när den är klar
+  const dotR = useDerivedValue(() => interpolate(draw.value, [0.82, 1], [0, 6], Extrapolation.CLAMP));
+  const glowR = useDerivedValue(() => interpolate(draw.value, [0.88, 1], [0, 13], Extrapolation.CLAMP));
+  const glowOpacity = useDerivedValue(() => interpolate(draw.value, [0.88, 1], [0, 1], Extrapolation.CLAMP));
 
   // Hålla in och dra
   const select = (i: number | null) => {
@@ -374,12 +381,16 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
   const step = geo?.step ?? 1;
   const count = months.length;
   const scrub = Gesture.Pan()
-    .activateAfterLongPress(160)
-    .onStart((e) => {
-      runOnJS(onScrubbing)(true);
+    .activeOffsetX([-4, 4])
+    .failOffsetY([-14, 14])
+    // Redan vid beröringen, innan fingret rört sig
+    .onBegin((e) => {
       const i = Math.min(count - 1, Math.max(0, Math.round((e.x - PAD_X) / step)));
       lastPicked.value = i;
       runOnJS(select)(i);
+    })
+    .onStart(() => {
+      runOnJS(onScrubbing)(true);
     })
     .onUpdate((e) => {
       const i = Math.min(count - 1, Math.max(0, Math.round((e.x - PAD_X) / step)));
@@ -424,7 +435,7 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
               </Path>
               <Path path={geo.line} style="stroke" strokeWidth={3} strokeCap="round" strokeJoin="round" color={GOLD} start={0} end={draw} />
               {/* Den här månaden: en lysande prick i slutet av kurvan */}
-              <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={glowR} color="rgba(232,198,116,0.45)">
+              <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={glowR} color="rgba(232,198,116,0.45)" opacity={glowOpacity}>
                 <BlurMask blur={5} style="normal" />
               </Circle>
               <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={dotR} color={GOLD_LT} />

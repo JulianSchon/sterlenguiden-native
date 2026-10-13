@@ -45,6 +45,7 @@ import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
 import { CATEGORIES } from "@/theme/categories";
 import { TrophyMedal, RadialGlow } from "@/components/trophies/TrophyMedal";
 import { MemberCard, CARD_H, CARD_W } from "@/components/MemberCard";
+import { PlacePin } from "@/components/PlacePin";
 import { useOtherAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useFriendLists, type FriendList } from "@/hooks/useLists";
 import { ListCover } from "@/components/lists/ListCover";
@@ -56,7 +57,6 @@ const MUTED = "rgba(245,241,232,0.55)";
 const CARD  = "#1A1A1D";
 const GOLD  = "#C5A059";
 const RED   = "#B83434"; // samma röd som hjärtat på platssidan när den är favoritmarkerad
-const GREEN = "hsl(150,30%,28%)"; // exakt samma mörkgröna som StandardPin på kartan (app/(tabs)/map.tsx)
 
 const noop = () => {};
 
@@ -182,7 +182,7 @@ export default function FriendProfileScreen() {
               />
               <View style={s.identityColDivider} />
               <IdentityStat
-                icon={<MapPin size={19} color="#FFFFFF" fill={GREEN} strokeWidth={1.5} />}
+                icon={<PlacePin height={21} />}
                 value={isFriend && stats ? stats.visitsTotal : null}
                 label="Besök"
               />
