@@ -133,8 +133,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
             onLanded={handleLanded}
             onLayout={(e) => { cellY.current[c.id] = e.nativeEvent.layout.y; }}
             onLoaded={() => markLoaded(c.id)}
-            // returnTo: Profil i menyn tar en tillbaka hit (se FloatingNav), inte till Profil-fliken
-            onPress={() => router.push({ pathname: "/map", params: { sticker: c.id, returnTo: "mitt-osterlen" } } as any)}
+            onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } } as any)}
           />
         ))}
       </View>

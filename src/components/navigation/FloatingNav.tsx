@@ -13,7 +13,7 @@ import {
   Animated,
   StyleSheet,
 } from "react-native";
-import { useGlobalSearchParams, useNavigation, usePathname, useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
   Defs,
@@ -128,9 +128,6 @@ export default function FloatingNav() {
   const { colors } = useTheme();
   const router    = useRouter();
   const pathname  = usePathname();
-  const { returnTo } = useGlobalSearchParams<{ returnTo?: string }>();
-  // Flikarnas egen skärm i sidstacken (FloatingNav ligger i flikarnas layout)
-  const tabsScreen = useNavigation();
   const insets    = useSafeAreaInsets();
   const { isBusiness }  = useIsBusiness();
   const { count: unseen } = useUnseenAchievements();
@@ -187,21 +184,7 @@ export default function FloatingNav() {
       : {
           id: "profile",
           label: "Profil",
-          // Kartan öppnad från en skatt på Mitt Österlen: Profil stänger kartan och går tillbaka
-          // dit (Mitt Österlen ligger kvar under, nere vid skatterna) — tillbaka-pilen där leder
-          // sen till Profil. dismissTo, inte back(): back() hanterades av flikarna, som gick till Hem.
-          // Kartan glider ut åt vänster, så att Mitt Österlen kommer in från höger som en ny sida
-          // (inte från vänster som när man går tillbaka).
-          onPress: () => {
-            if (active === "map" && returnTo === "mitt-osterlen") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              tabsScreen.setOptions({ animation: "slide_from_left" } as any);
-              // (en kort stund, så att det nya glidet hunnit sättas på skärmen innan den stängs)
-              setTimeout(() => router.dismissTo("/mitt-osterlen" as any), 60);
-              return;
-            }
-            go("/(tabs)/profile", "profile");
-          },
+          onPress: () => go("/(tabs)/profile", "profile"),
           icon: <NavProfile active={active === "profile"} />,
           showBadge: unseen > 0,
         },
