@@ -49,7 +49,6 @@ const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 const GOLD_LT = "#E8C674";
-const GOLD_SOFT = "rgba(197,160,89,0.14)";
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 900;
 /** Bottenradens höjd (knapparna + luft), så sista texten aldrig hamnar bakom den */
@@ -333,21 +332,21 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                           <InfoRow
                             icon={place.logo_url
                               ? <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
-                              : <Store size={20} color={GOLD} strokeWidth={2} />}
+                              : <Store size={20} color={FG} strokeWidth={2} />}
                             title={place.name}
                             sub="Arrangör"
                             onPress={goToPlace}
                           />
                         ) : websiteHost ? (
                           <InfoRow
-                            icon={<Globe size={20} color={GOLD} strokeWidth={2} />}
+                            icon={<Globe size={20} color={FG} strokeWidth={2} />}
                             title={websiteHost}
                             sub="Arrangörens webbplats"
                             onPress={() => Linking.openURL(event.website_url!).catch(() => {})}
                           />
                         ) : null}
                         <InfoRow
-                          icon={<CalendarDays size={20} color={GOLD} strokeWidth={2} />}
+                          icon={<CalendarDays size={20} color={FG} strokeWidth={2} />}
                           title={dateLong(event)}
                           sub={[event.time, relative].filter(Boolean).join("  ·  ") || null}
                           subLive={relative === "I dag" || relative === "Pågår nu"}
@@ -355,7 +354,7 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                         />
                         {(event.location || place) && (
                           <InfoRow
-                            icon={<MapPin size={20} color={GOLD} strokeWidth={2} />}
+                            icon={<MapPin size={20} color={FG} strokeWidth={2} />}
                             title={event.location ?? place!.name}
                             sub="Visa på kartan"
                             onPress={openMaps}
@@ -483,7 +482,8 @@ const s = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingTop: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14 },
   rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.12)" },
-  rowIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: GOLD_SOFT, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  // Neutrala (vit på grått) — guldet sparas till faktaremsan och datumrutan
+  rowIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.07)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   logo: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF" },
   rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
