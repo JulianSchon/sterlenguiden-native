@@ -67,7 +67,13 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Österlenappen behöver tillgång till din kalender för att kunna lägga in evenemang du vill gå på."
+        }
+      ]
     ],
     "scheme": "sterlenguiden",
     "experiments": {

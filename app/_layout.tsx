@@ -1,6 +1,7 @@
 import { Stack, router } from "expo-router";
 import { ActiveOfferHost } from "@/components/offers/ActiveOfferHost";
 import { TrophyHost } from "@/components/trophies/TrophyHost";
+import { EventSheetHost } from "@/components/events/EventSheet";
 import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -110,7 +111,6 @@ function AppStack() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="category/[categoryId]" options={{ headerShown: false }} />
         <Stack.Screen name="place/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="discover" options={{ headerShown: false }} />
         <Stack.Screen name="news/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="StoryViewer" options={{ headerShown: false }} />
@@ -146,6 +146,8 @@ function AppStack() {
       <ActiveOfferHost />
       {/* Utmaningsögonblicket: när en utmaning klaras, var man än är (väntar på personalskärmen) */}
       <TrophyHost />
+      {/* Eventets panel — evenemang öppnas alltid här, var man än är (se lib/eventSheet) */}
+      <EventSheetHost />
       </GestureHandlerRootView>
     </NavigationThemeProvider>
   );

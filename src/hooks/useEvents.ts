@@ -13,6 +13,11 @@ export type Event = Tables<"events"> & {
   ticket_url?: string | null;
   booking_required?: boolean | null;
   is_sold_out?: boolean | null;
+  /** När biljetterna släpps (om de inte gått att köpa än) */
+  tickets_release_at?: string | null;
+  is_indoor?: boolean | null;
+  has_food_drink?: boolean | null;
+  has_parking?: boolean | null;
 };
 
 export function useEvents() {

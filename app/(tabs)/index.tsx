@@ -49,7 +49,7 @@ import { useStoryViews } from "@/hooks/useStoryViews";
 import { StoryViewer, type StoryGroupData, type StoryType } from "@/components/StoryViewer";
 import { NearbyCheckInPrompt } from "@/components/checkin/NearbyCheckInPrompt";
 import { NearbyStickerPrompt } from "@/components/stickers/NearbyStickerPrompt";
-import { EventBottomSheet } from "@/components/events/EventSheet";
+import { openEvent } from "@/lib/eventSheet";
 import { useNews, type NewsItem } from "@/hooks/useNews";
 import { colors } from "@/lib/colors";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
@@ -523,7 +523,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [storyGroupIndex, setStoryGroupIndex] = useState<number | null>(null);
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLng, setUserLng] = useState<number | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -752,7 +751,7 @@ export default function HomeScreen() {
             <View style={s.section}>
               <Text style={s.sectionTitle}>Vad händer på Österlen?</Text>
               <Text style={s.sectionSub}>Nästa stora evenemang nära dig</Text>
-              <UpcomingEventCard event={upcomingEvent} onPress={() => setSelectedEventId(upcomingEvent.id)} />
+              <UpcomingEventCard event={upcomingEvent} onPress={() => openEvent(upcomingEvent.id, { event: upcomingEvent })} />
             </View>
           )}
 
@@ -833,11 +832,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Event bottom sheet */}
-      <EventBottomSheet
-        eventId={selectedEventId}
-        onClose={() => setSelectedEventId(null)}
-      />
 
       {/* Story viewer */}
       <Modal

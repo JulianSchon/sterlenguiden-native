@@ -35,6 +35,7 @@ import { StickerArt } from "@/components/stickers/StickerArt";
 import { useCollectibles } from "@/hooks/useCollectibles";
 import Reanimated, { ZoomIn, Easing as REasing } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
+import { openEvent } from "@/lib/eventSheet";
 import { Skeleton } from "@/components/Skeleton";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
@@ -544,12 +545,12 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
   // platshållare som resten av appen (Utmaningar, kartan) tills konstfilen finns i Supabase.
   const photoUri = activity.kind === "sticker" ? null : firstImageUrl(activity.imagePath);
 
-  // Besök/favoriter leder till platsens/eventets egen sida (med en riktig tillbaka-pil hit igen).
+  // Besök/favoriter leder till platsens egen sida (med en riktig tillbaka-pil hit igen), ett
+  // event öppnas i eventpanelen.
   // Stickers leder ingenstans — de hör hemma på kartan, som inte har en tillbaka-pil att ta sig
   // därifrån igen.
   const target =
     activity.placeId ? `/place/${activity.placeId}` :
-    activity.eventId ? `/event/${activity.eventId}` :
     null;
 
   const content = (
@@ -576,7 +577,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
 
   // Bara besök/favoriter (har ett mål) får tryckåterkoppling — stickers är inte klickbara alls,
   // se target ovan.
-  if (!target) {
+  if (!target && !activity.eventId) {
     return <View style={[s.activityRow, bordered && s.activityRowBorder]}>{content}</View>;
   }
   // Ingen fördröjning — navigerar direkt (samma känsla som Vänner-knappen på Mitt Österlen), och
@@ -585,7 +586,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
     <PressableScale
       style={[s.activityRow, bordered && s.activityRowBorder]}
       scale={0.94}
-      onPress={() => router.push(target as any)}
+      onPress={() => (target ? router.push(target as any) : openEvent(activity.eventId!))}
     >
       {content}
     </PressableScale>

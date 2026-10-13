@@ -35,7 +35,7 @@ import { registerScrollCallback } from "@/lib/scrollRefs";
 import {
   EVENT_CATEGORIES, dayKey, eventDays, lastDay, likedCategories, recommendEvents, type EventPick,
 } from "@/lib/events";
-import { EventBottomSheet } from "@/components/events/EventSheet";
+import { openEvent } from "@/lib/eventSheet";
 import { EventHeroCard, EventRow } from "@/components/events/EventCards";
 import { MonthCalendar } from "@/components/events/MonthCalendar";
 import { LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
@@ -65,7 +65,6 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>("foryou");
-  const [openId, setOpenId] = useState<number | null>(null);
 
   const { data: events = [], isLoading } = useEvents();
   const { data: favorites = [] } = useFavorites();
@@ -120,6 +119,17 @@ export default function CalendarScreen() {
     categoryCounts: likedCategories(places, visitedPlaceIds, favoritePlaceIds),
     location,
   }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location]);
+
+  // Eventets panel: får eventet direkt (ingen väntan) och sidans eget sparat-läge
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+  const openEventSheet = useCallback((id: number) => {
+    openEvent(id, {
+      event: eventsRef.current.find((e) => e.id === id),
+      saved: savedRef.current.has(id),
+      onToggleSave: toggleSave,
+    });
+  }, [toggleSave]);
 
   // Spara-hjärtats ring och prickar, samma som på Favoriter
   const { burst, show: showBurst } = useLikeBurst();
@@ -178,7 +188,7 @@ export default function CalendarScreen() {
             firstName={firstName}
             savedIds={savedIds}
             bottomPad={bottomPad}
-            onOpen={setOpenId}
+            onOpen={openEventSheet}
             onToggleSave={toggleSave}
             onBurst={showBurst}
             onShowAll={() => setMode("all")}
@@ -192,7 +202,7 @@ export default function CalendarScreen() {
               events={events}
               savedIds={savedIds}
               bottomPad={bottomPad}
-              onOpen={setOpenId}
+              onOpen={openEventSheet}
               onToggleSave={toggleSave}
               onBurst={showBurst}
             />
@@ -200,12 +210,6 @@ export default function CalendarScreen() {
         )}
       </View>
 
-      <EventBottomSheet
-        eventId={openId}
-        onClose={() => setOpenId(null)}
-        saved={openId != null ? savedIds.has(openId) : undefined}
-        onToggleSave={toggleSave}
-      />
       <LikeBurst burst={burst} />
     </View>
   );

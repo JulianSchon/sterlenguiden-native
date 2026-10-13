@@ -34,6 +34,7 @@ import { ShareIcon } from "@/components/ShareIcon";
 import { CategoryHeader } from "@/components/CategoryHeader";
 import { darkColors } from "@/theme/colors";
 import { pushOnce } from "@/lib/navigateOnce";
+import { openEvent } from "@/lib/eventSheet";
 import { DateBox } from "@/components/events/EventCards";
 import { HeartButton, LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
 
@@ -136,7 +137,7 @@ function useFavoritesDetailed() {
             description: row.events.location ?? "",
             categories: null,
             imageUrl: row.events.image_url?.split(",")[0]?.trim() ?? null,
-            route: `/event/${row.events.id}`,
+            route: "",
             date: { date: row.events.date, end_date: row.events.end_date },
           });
         }
@@ -196,7 +197,18 @@ export default function FavoritesScreen() {
     queryClient.invalidateQueries({ queryKey: ["favorites-detail"], refetchType: "none" });
   }, [queryClient]);
 
-  const openItem = useCallback((item: FavItem) => pushOnce(router, item.route), [router]);
+  // Platser är sidor, evenemang öppnas i panelen (med samma hjärta som kortet här)
+  const handleToggleRef = useRef<(item: FavItem) => void>(() => {});
+  const openItem = useCallback((item: FavItem) => {
+    if (item.kind === "event") {
+      openEvent(item.id, {
+        saved: !toggledRef.current.has(item.key),
+        onToggleSave: () => handleToggleRef.current(item),
+      });
+      return;
+    }
+    pushOnce(router, item.route);
+  }, [router]);
 
   const handleToggleFavorite = useCallback(async (item: FavItem) => {
     const wasFav = !toggledRef.current.has(item.key);
@@ -223,6 +235,7 @@ export default function FavoritesScreen() {
     // Synka resten av appen (t.ex. räknaren på Profil) — men inte den här listan, se överst
     queryClient.invalidateQueries({ queryKey: ["favorites"] });
   }, [queryClient]);
+  handleToggleRef.current = handleToggleFavorite;
 
   const handleShare = () => {
     if (items.length === 0) return;

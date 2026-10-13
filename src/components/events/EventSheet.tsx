@@ -1,291 +1,509 @@
 /**
- * Eventets panel: glider upp nerifrån med bild, datum, plats, beskrivning och knapparna Lägg till i
- * kalender, spara (hjärtat) och stäng. Används av Kalender och Hem.
+ * Eventets panel — det enda sättet ett evenemang visas på (platser är sidor, evenemang är paneler).
+ * Finns en gång i appens rot (EventSheetHost); sidorna öppnar den med openEvent() (lib/eventSheet).
+ *
+ * Uppifrån: bilden med rubriken och datumrutan (samma 30/OKT som på korten), en ruta med
+ * arrangör, datum och tid, adress och Dela, faktarutorna (bokning/biljett, inomhus, mat & dryck,
+ * parkering — bock eller kryss, ifyllt av företaget), Köp biljett om det finns en länk, och
+ * beskrivningen. Längst ner, alltid synligt: Lägg till i kalender, spara (hjärtat) och stäng.
+ *
+ * Man stänger med krysset, genom att trycka bredvid, eller genom att dra ner panelen.
  */
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Modal,
-  Dimensions, Pressable, Animated, Linking,
+  View, Text, Image, Pressable, StyleSheet, Modal, Linking, Platform, Share, useWindowDimensions,
 } from "react-native";
+import Reanimated, {
+  Easing, interpolate, interpolateColor, runOnJS, useAnimatedScrollHandler, useAnimatedStyle,
+  useReducedMotion, useSharedValue, withSpring, withTiming,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, X, MapPin, Globe, Heart, CalendarPlus, CalendarDays } from "lucide-react-native";
-import { format } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { Canvas, LinearGradient, Rect, vec } from "@shopify/react-native-skia";
+import {
+  CalendarCheck, CalendarDays, CalendarPlus, Car, Check, ChevronRight, Globe, Home, MapPin,
+  Share2, Store, Ticket, UtensilsCrossed, X, type LucideIcon,
+} from "lucide-react-native";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { sv } from "date-fns/locale";
 import type { Event } from "@/hooks/useEvents";
-import { useIsFavorite, useToggleEventFavorite } from "@/hooks/useFavorites";
+import { saveEventFavorite, useIsFavorite } from "@/hooks/useFavorites";
 import { supabase } from "@/integrations/supabase/client";
+import { useOnModalShown } from "@/hooks/useOnModalShown";
+import { closeEvent, useEventSheetRequest, type EventSheetRequest } from "@/lib/eventSheet";
+import { addEventToCalendar } from "@/lib/addToCalendar";
+import { eventWhen, lastDay } from "@/lib/events";
+import { DateBox } from "@/components/events/EventCards";
+import { HeartButton, LikeBurst, useLikeBurst } from "@/components/LikeHeart";
+import { PressableScale } from "@/components/PressableScale";
 import { Skeleton } from "@/components/Skeleton";
 
-const { width: SW, height: SH } = Dimensions.get("window");
-const SHEET_HEIGHT = SH * 0.93;
-const GOLD         = "#C5A059";
-const CHARCOAL     = "#121212";
-const BG           = "#121212";
-const FG           = "#F5F1E8";
-const MUTED        = "rgba(245,241,232,0.55)";
-const BORDER       = "rgba(255,255,255,0.10)";
+const BG = "#121212";
+const CARD = "#1A1A1D";
+const FG = "#F5F1E8";
+const MUTED = "rgba(245,241,232,0.55)";
+const GOLD = "#C5A059";
+const GOLD_LT = "#E8C674";
+const GOLD_SOFT = "rgba(197,160,89,0.14)";
+const YES = "#34D399";
+const NO = "#F87171";
+const CLOSE_DISTANCE = 120;
+const CLOSE_VELOCITY = 900;
+/** Bottenradens höjd (knapparna + luft), så sista texten aldrig hamnar bakom den */
+const BAR_H = 56 + 32;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type EventDetail = Event & {
-  place?: { name: string; logo_url: string | null; lat: number | null; lng: number | null } | null;
+  place?: { id: number; name: string; logo_url: string | null; lat: number | null; lng: number | null } | null;
 };
 
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-function useEventDetail(id: number | null) {
+function useEventDetail(id: number) {
   return useQuery({
     queryKey: ["event", id],
     queryFn: async () => {
-      if (!id) return null;
       const { data, error } = await supabase
         .from("events")
-        .select("*, place:places!events_place_id_fkey(name, logo_url, lat, lng)")
+        .select("*, place:places!events_place_id_fkey(id, name, logo_url, lat, lng)")
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as EventDetail;
+      return data as unknown as EventDetail;
     },
-    enabled: !!id,
   });
 }
 
-// ─── EventBottomSheet ─────────────────────────────────────────────────────────
-export function EventBottomSheet({ eventId, onClose, saved, onToggleSave }: {
-  eventId: number | null;
-  onClose: () => void;
-  /** En sida som håller koll på sparade event själv (Kalender) skickar sitt läge och sin knapp */
-  saved?: boolean;
-  onToggleSave?: (id: number) => void;
-}) {
+/** Panelen finns en gång, i appens rot */
+export function EventSheetHost() {
+  const request = useEventSheetRequest();
+  if (!request) return null;
+  return <EventSheet key={request.key} request={request} />;
+}
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** "Måndag 10 augusti 2026", eller "14 – 16 maj 2026" */
+function dateLong(e: Event): string {
+  if (!e.date) return "";
+  const start = parseISO(e.date);
+  if (e.end_date && e.end_date > e.date) {
+    const end = parseISO(e.end_date);
+    const sameMonth = start.getMonth() === end.getMonth();
+    return `${format(start, sameMonth ? "d" : "d MMMM", { locale: sv })} – ${format(end, "d MMMM yyyy", { locale: sv })}`;
+  }
+  return cap(format(start, "EEEE d MMMM yyyy", { locale: sv }));
+}
+
+/** "I dag", "I morgon", "Om 4 dagar", "Pågår nu", "Har varit" */
+function relativeDay(e: Event): string | null {
+  if (!e.date) return null;
+  const now = new Date();
+  const toStart = differenceInCalendarDays(parseISO(e.date), now);
+  const toEnd = differenceInCalendarDays(parseISO(lastDay(e) ?? e.date), now);
+  if (toEnd < 0) return "Har varit";
+  if (toStart < 0) return "Pågår nu";
+  if (toStart === 0) return "I dag";
+  if (toStart === 1) return "I morgon";
+  if (toStart <= 13) return `Om ${toStart} dagar`;
+  return null;
+}
+
+function EventSheet({ request }: { request: EventSheetRequest }) {
+  const { height: winH, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [visible, setVisible] = useState(false);
-  const [closeIconWhite, setCloseIconWhite] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
+  const sheetH = Math.round(winH * 0.93);
+  const heroH = Math.round(width * 0.78);
 
-  const translateY      = useRef(new Animated.Value(SHEET_HEIGHT)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const heartScale      = useRef(new Animated.Value(1)).current;
-  const closeRotate     = useRef(new Animated.Value(0)).current;
-  const closeBgAnim     = useRef(new Animated.Value(0)).current;
-  const shimmerX        = useRef(new Animated.Value(-200)).current;
-  const calBtnScale     = useRef(new Animated.Value(1)).current;
+  const { data: fetched } = useEventDetail(request.id);
+  const event: EventDetail | null = fetched ?? (request.event as EventDetail | undefined) ?? null;
+  const place = fetched?.place ?? null;
+  const placeName = place?.name ?? request.event?.place?.name ?? null;
 
-  const { data: event, isLoading } = useEventDetail(eventId);
-  const isFavCache = useIsFavorite(undefined, eventId ?? 0);
-  const isFav     = saved ?? isFavCache;
-  const toggleFav = useToggleEventFavorite();
+  // ── Spara: ändras direkt i panelen. Har sidan som öppnade den ett eget sparat-läge (Kalender,
+  // Favoriter) får den veta; annars sparar panelen själv och resten av appen uppdateras när den stängs
+  const savedInCache = useIsFavorite(undefined, request.id);
+  const [saved, setSaved] = useState(request.saved ?? savedInCache);
+  const savedDirty = useRef(false);
+  const { burst, show: showBurst } = useLikeBurst();
+  const toggleSave = () => {
+    const next = !saved;
+    setSaved(next);
+    if (request.onToggleSave) { request.onToggleSave(request.id); return; }
+    savedDirty.current = true;
+    saveEventFavorite(request.id, next).catch(() => setSaved(!next));
+  };
 
-  useEffect(() => {
-    if (eventId !== null) {
-      setVisible(true);
-      setCloseIconWhite(false);
-      translateY.setValue(SHEET_HEIGHT);
-      backdropOpacity.setValue(0);
-      closeRotate.setValue(0);
-      closeBgAnim.setValue(0);
-      shimmerX.setValue(-200);
-      Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(translateY, { toValue: 0, damping: 30, stiffness: 300, mass: 0.8, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [eventId]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(2000),
-        Animated.timing(shimmerX, { toValue: SW + 100, duration: 700, useNativeDriver: true }),
-        Animated.timing(shimmerX, { toValue: -200, duration: 0, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [visible]);
-
-  const closeSheet = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-      Animated.spring(translateY, { toValue: SHEET_HEIGHT, damping: 30, stiffness: 300, useNativeDriver: true }),
-    ]).start(() => {
-      setVisible(false);
-      // Small delay ensures the Modal fully unmounts before touches reach the
-      // underlying screen – prevents the "first tap does nothing" ghost touch.
-      setTimeout(onClose, 30);
+  // ── Öppna / stäng ──
+  const translateY = useSharedValue(sheetH);
+  const backdrop = useSharedValue(0);
+  const onShow = useOnModalShown(() => {
+    backdrop.value = withTiming(1, { duration: reduceMotion ? 0 : 260 });
+    translateY.value = reduceMotion ? 0 : withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
+  });
+  const afterClose = useRef<(() => void) | null>(null);
+  const finish = () => {
+    closeEvent();
+    if (savedDirty.current) queryClient.invalidateQueries({ queryKey: ["favorites"] });
+    afterClose.current?.();
+  };
+  const close = (then?: () => void) => {
+    afterClose.current = then ?? null;
+    backdrop.value = withTiming(0, { duration: reduceMotion ? 0 : 220 });
+    translateY.value = withTiming(sheetH, { duration: reduceMotion ? 0 : 240, easing: Easing.in(Easing.quad) }, (done) => {
+      if (done) runOnJS(finish)();
     });
-  }, []);
-
-  const handleClose = () => {
-    setCloseIconWhite(true);
-    Animated.timing(closeRotate, { toValue: 1, duration: 280, useNativeDriver: true }).start();
-    Animated.timing(closeBgAnim, { toValue: 1, duration: 280, useNativeDriver: false }).start();
-    setTimeout(() => { closeRotate.setValue(0); closeBgAnim.setValue(0); setCloseIconWhite(false); closeSheet(); }, 280);
   };
 
-  const handleHeart = () => {
-    if (!eventId) return;
-    Animated.sequence([
-      Animated.timing(heartScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
-      Animated.timing(heartScale, { toValue: 0.95, duration: 70,  useNativeDriver: true }),
-      Animated.timing(heartScale, { toValue: 1.08, duration: 60,  useNativeDriver: true }),
-      Animated.timing(heartScale, { toValue: 1,    duration: 60,  useNativeDriver: true }),
-    ]).start();
-    if (onToggleSave) onToggleSave(eventId);
-    else toggleFav.mutate({ eventId, save: !isFav });
+  // Krysset: blir rött och vrider sig ett halvt varv, sen glider panelen ner
+  const xAnim = useSharedValue(0);
+  const pressX = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    xAnim.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }, (done) => {
+      if (done) runOnJS(close)();
+    });
+  };
+  const xBtnStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(xAnim.value, [0, 1], [CARD, "rgba(220,38,38,0.75)"]),
+  }));
+  const xIconStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${xAnim.value * 180}deg` }] }));
+
+  // ── Dra ner för att stänga: från bilden direkt, från texten när den är uppscrollad ──
+  const scrollY = useSharedValue(0);
+  const dragOffset = useSharedValue(0);
+  const settle = (velocityY: number) => {
+    "worklet";
+    if (translateY.value > CLOSE_DISTANCE || (velocityY > CLOSE_VELOCITY && translateY.value > 0)) {
+      backdrop.value = withTiming(0, { duration: 220 });
+      translateY.value = withTiming(sheetH, { duration: 220 }, (done) => {
+        if (done) runOnJS(finish)();
+      });
+    } else {
+      translateY.value = withSpring(0, { damping: 32, stiffness: 300 });
+    }
+  };
+  const nativeScroll = Gesture.Native();
+  const pan = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-14, 14])
+    .simultaneousWithExternalGesture(nativeScroll)
+    .onStart(() => { dragOffset.value = 0; })
+    .onUpdate((e) => {
+      // Så länge texten är nedscrollad är det texten som rör sig; panelen följer först vid toppen
+      if (scrollY.value > 0.5) { dragOffset.value = e.translationY; return; }
+      translateY.value = Math.max(0, e.translationY - dragOffset.value);
+    })
+    .onEnd((e) => settle(e.velocityY));
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+
+  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdrop.value * interpolate(translateY.value, [0, sheetH], [1, 0.2]),
+  }));
+
+  // ── Handlingar ──
+  const goToPlace = () => {
+    if (!place) return;
+    close(() => router.push(`/place/${place.id}` as any));
+  };
+  const openMaps = () => {
+    if (!event?.location && !place) return;
+    const label = event?.location ?? place?.name ?? "";
+    const hasCoords = place?.lat != null && place?.lng != null;
+    const url = Platform.OS === "ios"
+      ? `maps://?q=${encodeURIComponent(label)}${hasCoords ? `&ll=${place!.lat},${place!.lng}` : `, Österlen`}`
+      : hasCoords
+        ? `geo:${place!.lat},${place!.lng}?q=${place!.lat},${place!.lng}(${encodeURIComponent(label)})`
+        : `geo:0,0?q=${encodeURIComponent(`${label}, Österlen`)}`;
+    Linking.openURL(url).catch(() => {});
+  };
+  const share = () => {
+    if (!event) return;
+    const link = event.ticket_url ?? event.website_url;
+    const lines = [
+      "Följ med?",
+      event.title,
+      [eventWhen(event), event.location ?? placeName].filter(Boolean).join(" · "),
+      link,
+      "",
+      "Hittat i Österlenappen",
+    ].filter((l) => l !== null && l !== undefined) as string[];
+    Share.share({ message: lines.join("\n") }).catch(() => {});
+  };
+  const addToCalendar = () => {
+    if (!event) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    addEventToCalendar(event, event.location ?? placeName).catch(() => {});
   };
 
-  const closeRotateDeg = closeRotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
-  const closeBgColor   = closeBgAnim.interpolate({ inputRange: [0, 1], outputRange: ["#1F1F1F", "rgba(220,38,38,0.7)"] });
-
-  if (!visible) return null;
-
-  const location     = (event as any)?.location as string | null;
-  const websiteUrl   = (event as any)?.website_url as string | null;
-  const logoUrl      = event?.place?.logo_url ?? null;
-  const websiteHost  = websiteUrl
-    ? (() => { try { return new URL(websiteUrl).hostname.replace(/^www\./, ""); } catch { return websiteUrl.replace(/^https?:\/\//, "").split("/")[0]; } })()
+  const websiteHost = event?.website_url
+    ? event.website_url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
+    : null;
+  const relative = event ? relativeDay(event) : null;
+  const facts: { Icon: LucideIcon; label: string; yes: boolean }[] = event ? [
+    event.booking_required
+      ? { Icon: CalendarCheck, label: "Bokning krävs", yes: true }
+      : { Icon: Ticket, label: "Biljett krävs", yes: !!event.tickets_required },
+    { Icon: Home, label: "Inomhus", yes: !!event.is_indoor },
+    { Icon: UtensilsCrossed, label: "Mat & dryck", yes: !!event.has_food_drink },
+    { Icon: Car, label: "Parkering", yes: !!event.has_parking },
+  ] : [];
+  const releaseAt = event?.tickets_release_at ? new Date(event.tickets_release_at) : null;
+  const ticketState: "buy" | "soldOut" | "release" | null = !event ? null
+    : event.is_sold_out ? "soldOut"
+    : event.ticket_url && releaseAt && releaseAt > new Date() ? "release"
+    : event.ticket_url ? "buy"
     : null;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
-      <Animated.View style={[bs.backdrop, { opacity: backdropOpacity }]}>
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-        <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
-      </Animated.View>
+    <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={() => close()}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} />
+        </Reanimated.View>
 
-      <Animated.View style={[bs.sheet, { transform: [{ translateY }] }]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-          {/* Hero */}
-          <View style={bs.heroContainer}>
-            {event?.image_url
-              ? <Image source={{ uri: event.image_url }} style={bs.heroImage} resizeMode="cover" />
-              : <View style={[bs.heroImage, bs.heroPlaceholder]} />
-            }
-            <View style={bs.heroGradient} />
-            {event && <Text style={bs.heroTitle}>{event.title}</Text>}
-          </View>
-
-          {isLoading && (
-            <View style={{ marginTop: 16, paddingHorizontal: 20, gap: 18 }} pointerEvents="none">
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <Skeleton tone="dark" width={48} height={48} radius={24} />
-                  <Skeleton tone="dark" width={i === 0 ? "60%" : "45%"} height={14} radius={5} />
-                </View>
-              ))}
-            </View>
-          )}
-
-          {event && (
-            <View style={{ marginTop: 16 }}>
-              {websiteUrl && (
-                <TouchableOpacity style={bs.infoRow} onPress={() => Linking.openURL(websiteUrl)}>
-                  <View style={bs.iconCircle}>
-                    {logoUrl
-                      ? <Image source={{ uri: logoUrl }} style={bs.iconCircleImg} resizeMode="cover" />
-                      : <Globe size={20} color={GOLD} strokeWidth={2} />
-                    }
-                  </View>
-                  <Text style={bs.infoText} numberOfLines={1}>{websiteHost}</Text>
-                  <ChevronRight size={16} color={MUTED} />
-                </TouchableOpacity>
-              )}
-              {event.date && (
-                <View style={bs.infoRow}>
-                  <View style={bs.iconCircle}><CalendarDays size={20} color={GOLD} strokeWidth={2} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={bs.infoText}>
-                      {format(new Date(event.date + "T00:00"), "EEEE d MMMM yyyy", { locale: sv })}
-                    </Text>
-                    {(event as any).time && <Text style={bs.infoSub}>{(event as any).time}</Text>}
-                  </View>
-                </View>
-              )}
-              {location && (
-                <TouchableOpacity
-                  style={bs.infoRow}
-                  onPress={() => Linking.openURL(`maps://maps.apple.com/?q=${encodeURIComponent(location + ", Österlen")}`)}
+        <Reanimated.View style={[s.sheet, { height: sheetH }, sheetStyle]}>
+          <GestureDetector gesture={pan}>
+            <View style={{ flex: 1 }}>
+              <GestureDetector gesture={nativeScroll}>
+                <Reanimated.ScrollView
+                  onScroll={onScroll}
+                  scrollEventThrottle={16}
+                  bounces={false}
+                  overScrollMode="never"
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{ paddingBottom: BAR_H + insets.bottom + 24 }}
                 >
-                  <View style={bs.iconCircle}><MapPin size={20} color={GOLD} strokeWidth={2} /></View>
-                  <Text style={bs.infoText} numberOfLines={1}>{location}</Text>
-                  <ChevronRight size={16} color={MUTED} />
-                </TouchableOpacity>
-              )}
-              {event.description && (
-                <View style={bs.section}>
-                  <Text style={bs.sectionTitle}>Om evenemanget</Text>
-                  <Text style={bs.sectionBody}>{event.description}</Text>
-                </View>
-              )}
+                  {/* ── Bilden, rubriken och datumrutan ── */}
+                  <View style={{ height: heroH }}>
+                    {event?.image_url
+                      ? <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                      : <View style={[StyleSheet.absoluteFill, { backgroundColor: "#2A2A2A" }]} />}
+                    {/* Riktig mjuk toning ner i panelens bakgrund, så rubriken ligger på mörkret */}
+                    <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+                      <Rect x={0} y={0} width={width} height={heroH}>
+                        <LinearGradient
+                          start={vec(0, heroH * 0.35)}
+                          end={vec(0, heroH)}
+                          colors={["rgba(18,18,18,0)", "rgba(18,18,18,0.72)", BG]}
+                          positions={[0, 0.6, 1]}
+                        />
+                      </Rect>
+                    </Canvas>
+                    <View style={s.handle} />
+                    {event && <DateBox event={event} style={s.heroDate} />}
+                    <View style={s.heroText}>
+                      {event?.is_featured && (
+                        <View style={s.featured}>
+                          <Text style={s.featuredText}>UTVALT</Text>
+                        </View>
+                      )}
+                      {event
+                        ? <Text style={s.title} numberOfLines={3}>{event.title}</Text>
+                        : <Skeleton tone="dark" width="70%" height={28} radius={8} />}
+                    </View>
+                  </View>
+
+                  {!event ? (
+                    <View style={s.body} pointerEvents="none">
+                      <Skeleton tone="dark" height={220} radius={20} />
+                    </View>
+                  ) : (
+                    <View style={s.body}>
+                      {/* ── Var och när ── */}
+                      <View style={s.infoCard}>
+                        {place ? (
+                          <InfoRow
+                            icon={place.logo_url
+                              ? <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
+                              : <Store size={20} color={GOLD} strokeWidth={2} />}
+                            title={place.name}
+                            sub="Arrangör"
+                            onPress={goToPlace}
+                          />
+                        ) : websiteHost ? (
+                          <InfoRow
+                            icon={<Globe size={20} color={GOLD} strokeWidth={2} />}
+                            title={websiteHost}
+                            sub="Arrangörens webbplats"
+                            onPress={() => Linking.openURL(event.website_url!).catch(() => {})}
+                          />
+                        ) : null}
+                        <InfoRow
+                          icon={<CalendarDays size={20} color={GOLD} strokeWidth={2} />}
+                          title={dateLong(event)}
+                          sub={[event.time, relative].filter(Boolean).join("  ·  ") || null}
+                          subLive={relative === "I dag" || relative === "Pågår nu"}
+                        />
+                        {(event.location || place) && (
+                          <InfoRow
+                            icon={<MapPin size={20} color={GOLD} strokeWidth={2} />}
+                            title={event.location ?? place!.name}
+                            sub="Visa på kartan"
+                            onPress={openMaps}
+                          />
+                        )}
+                        <InfoRow
+                          icon={<Share2 size={19} color={GOLD} strokeWidth={2} />}
+                          title="Dela med en vän"
+                          onPress={share}
+                          last
+                        />
+                      </View>
+
+                      {/* ── Bra att veta: bock eller kryss, ifyllt av företaget ── */}
+                      <View style={s.facts}>
+                        {facts.map(({ Icon, label, yes }) => (
+                          <View key={label} style={[s.fact, { width: (width - 40 - 10) / 2 }]}>
+                            <Icon size={18} color={GOLD} strokeWidth={2.2} />
+                            <Text style={s.factText} numberOfLines={1}>{label}</Text>
+                            <View style={[s.status, { backgroundColor: yes ? "rgba(16,185,129,0.22)" : "rgba(239,68,68,0.20)" }]}>
+                              {yes
+                                ? <Check size={13} color={YES} strokeWidth={3.4} />
+                                : <X size={13} color={NO} strokeWidth={3.4} />}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+
+                      {ticketState && (
+                        <PressableScale
+                          style={[s.ticketBtn, ticketState !== "buy" && s.ticketBtnOff]}
+                          scale={0.98}
+                          disabled={ticketState !== "buy"}
+                          onPress={() => event.ticket_url && Linking.openURL(event.ticket_url).catch(() => {})}
+                        >
+                          <Ticket size={18} color={ticketState === "buy" ? GOLD_LT : MUTED} strokeWidth={2.2} />
+                          <Text style={[s.ticketText, ticketState !== "buy" && { color: MUTED }]}>
+                            {ticketState === "buy" ? "Köp biljett"
+                              : ticketState === "soldOut" ? "Slutsålt"
+                              : `Biljettsläpp ${format(releaseAt!, "d MMM 'kl.' HH:mm", { locale: sv }).replace(".", "")}`}
+                          </Text>
+                        </PressableScale>
+                      )}
+
+                      {!!event.description && (
+                        <View style={{ marginTop: 28 }}>
+                          <Text style={s.aboutTitle}>Om evenemanget</Text>
+                          <Text style={s.aboutText}>{event.description.trim()}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </Reanimated.ScrollView>
+              </GestureDetector>
             </View>
-          )}
-        </ScrollView>
+          </GestureDetector>
 
-        {/* Bottom bar */}
-        <View style={[bs.bottomBar, { paddingBottom: 20 + insets.bottom }]}>
-          <TouchableOpacity
-            activeOpacity={1}
-            style={{ flex: 1 }}
-            onPressIn={() => Animated.timing(calBtnScale, { toValue: 0.97, duration: 80, useNativeDriver: true }).start()}
-            onPressOut={() => Animated.timing(calBtnScale, { toValue: 1, duration: 80, useNativeDriver: true }).start()}
-            onPress={() => {
-              if (!event?.date) return;
-              const d = format(new Date(event.date + "T00:00"), "yyyyMMdd");
-              const p = new URLSearchParams({ action: "TEMPLATE", text: event.title, dates: `${d}/${d}`, details: event.description ?? "", location: location ?? "Österlen" });
-              Linking.openURL(`https://calendar.google.com/calendar/render?${p}`);
-            }}
-          >
-            <Animated.View style={[bs.calBtn, { transform: [{ scale: calBtnScale }] }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <CalendarPlus size={20} color={CHARCOAL} strokeWidth={2} />
-                <Text style={bs.calBtnText}>Lägg till i kalender</Text>
-              </View>
-              <Animated.View style={[bs.shimmer, { transform: [{ translateX: shimmerX }, { skewX: "-20deg" }] }]} />
-            </Animated.View>
-          </TouchableOpacity>
+          {/* ── Alltid synligt längst ner: kalender, spara, stäng ── */}
+          <View style={[s.bar, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Rect x={0} y={0} width={width} height={BAR_H + insets.bottom + 40}>
+                <LinearGradient start={vec(0, 0)} end={vec(0, 28)} colors={["rgba(18,18,18,0)", BG]} />
+              </Rect>
+            </Canvas>
+            <PressableScale style={s.calBtn} scale={0.97} onPress={addToCalendar} disabled={!event}>
+              <CalendarPlus size={20} color={BG} strokeWidth={2} />
+              <Text style={s.calText}>Lägg till i kalender</Text>
+            </PressableScale>
+            <View style={s.roundBtn}>
+              <HeartButton isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={22} label="sparade" />
+            </View>
+            <Pressable onPress={pressX} hitSlop={6} accessibilityLabel="Stäng">
+              <Reanimated.View style={[s.roundBtn, xBtnStyle]}>
+                <Reanimated.View style={xIconStyle}>
+                  <X size={20} color={FG} strokeWidth={2} />
+                </Reanimated.View>
+              </Reanimated.View>
+            </Pressable>
+          </View>
+        </Reanimated.View>
 
-          <TouchableOpacity onPress={handleHeart} activeOpacity={1}>
-            <Animated.View style={[bs.iconBtn, { transform: [{ scale: heartScale }] }]}>
-              <Heart size={20} color={isFav ? "#EF4444" : MUTED} fill={isFav ? "#EF4444" : "transparent"} strokeWidth={2} />
-            </Animated.View>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleClose} activeOpacity={1}>
-            <Animated.View style={[bs.iconBtn, { backgroundColor: closeBgColor as any }]}>
-              <Animated.View style={{ transform: [{ rotate: closeRotateDeg }] }}>
-                <X size={20} color={closeIconWhite ? "#FFF" : MUTED} strokeWidth={2} />
-              </Animated.View>
-            </Animated.View>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+        <LikeBurst burst={burst} />
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
-const bs = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, zIndex: 200 },
+function InfoRow({ icon, title, sub, subLive, onPress, last }: {
+  icon: React.ReactNode; title: string; sub?: string | null; subLive?: boolean; onPress?: () => void; last?: boolean;
+}) {
+  const content = (
+    <View style={[s.row, !last && s.rowDivider]}>
+      <View style={s.rowIcon}>{icon}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle} numberOfLines={2}>{title}</Text>
+        {!!sub && <Text style={[s.rowSub, subLive && { color: "#FF8000" }]} numberOfLines={1}>{sub}</Text>}
+      </View>
+      {onPress && <ChevronRight size={18} color={MUTED} strokeWidth={2} />}
+    </View>
+  );
+  if (!onPress) return content;
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && { backgroundColor: "rgba(255,255,255,0.04)" }}>
+      {content}
+    </Pressable>
+  );
+}
+
+const s = StyleSheet.create({
+  backdrop: { backgroundColor: "rgba(0,0,0,0.65)" },
   sheet: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: SHEET_HEIGHT,
-    backgroundColor: BG, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    overflow: "hidden", zIndex: 201,
+    position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: BG,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden",
+    borderTopWidth: 1, borderColor: "rgba(255,255,255,0.08)",
   },
-  heroContainer: { width: "100%", aspectRatio: 4 / 3, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" },
-  heroImage: { width: "100%", height: "100%", position: "absolute" },
-  heroPlaceholder: { backgroundColor: "#2A2A2A" },
-  heroGradient: { position: "absolute", bottom: 0, left: 0, right: 0, height: "50%", backgroundColor: "rgba(0,0,0,0.55)" },
-  heroTitle: { position: "absolute", bottom: 12, left: 20, right: 20, fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: FG },
-  infoRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 20, gap: 12 },
-  iconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(197,160,89,0.15)", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 },
-  iconCircleImg: { width: 48, height: 48, borderRadius: 24 },
-  infoText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 15, color: FG },
-  infoSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
-  section: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 },
-  sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: FG, marginBottom: 8 },
-  sectionBody: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 22, color: MUTED },
-  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 20, gap: 12, backgroundColor: BG, zIndex: 202 },
-  calBtn: { height: 56, borderRadius: 999, backgroundColor: GOLD, overflow: "hidden", justifyContent: "center" },
-  calBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: CHARCOAL },
-  shimmer: { position: "absolute", top: 0, bottom: 0, width: 60, backgroundColor: "rgba(255,255,255,0.24)" },
-  iconBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#1F1F1F", borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center" },
+  handle: {
+    position: "absolute", top: 10, alignSelf: "center", width: 40, height: 5, borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.55)",
+  },
+  heroDate: { position: "absolute", top: 22, right: 16 },
+  heroText: { position: "absolute", left: 20, right: 20, bottom: 14, gap: 10, alignItems: "flex-start" },
+  featured: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: GOLD },
+  featuredText: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 1.4, color: BG },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.4, color: "#FFFFFF" },
+
+  body: { paddingHorizontal: 20, paddingTop: 10 },
+  infoCard: { borderRadius: 20, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
+  row: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)" },
+  rowIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: GOLD_SOFT, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  logo: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF" },
+  rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
+  rowSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
+
+  facts: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
+  fact: {
+    flexDirection: "row", alignItems: "center", gap: 10, height: 52, paddingHorizontal: 12, borderRadius: 16,
+    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(197,160,89,0.18)",
+  },
+  factText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
+  status: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+
+  ticketBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 52, marginTop: 14,
+    borderRadius: 16, backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.45)",
+  },
+  ticketBtnOff: { backgroundColor: CARD, borderColor: "rgba(255,255,255,0.08)" },
+  ticketText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: GOLD_LT },
+
+  aboutTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG, marginBottom: 10 },
+  aboutText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, color: "rgba(245,241,232,0.72)" },
+
+  bar: {
+    position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 20, paddingTop: 22,
+  },
+  calBtn: {
+    flex: 1, height: 56, borderRadius: 28, backgroundColor: GOLD,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+  },
+  calText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: BG },
+  roundBtn: {
+    width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
+    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+  },
 });
