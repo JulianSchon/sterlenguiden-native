@@ -1213,7 +1213,22 @@ export type Database = {
       accept_list_invite: { Args: { target_list_id: string }; Returns: undefined }
       rpc_pending_list_invites: {
         Args: never
-        Returns: { list_id: string; list_name: string; owner_name: string }[]
+        Returns: {
+          list_id: string
+          list_name: string
+          owner_id: string
+          owner_name: string
+          owner_circle_color: string | null
+          owner_ring: string | null
+          owner_avatar_path: string | null
+          cover_image_url: string | null
+          first_place_ids: number[]
+          place_count: number
+        }[]
+      }
+      rpc_my_last_leaderboard: {
+        Args: { p_period: string }
+        Returns: { period_start: string; placement: number; visit_count: number; participants: number }[]
       }
       rpc_list_profiles_public: {
         Args: { target_user_ids: string[] }

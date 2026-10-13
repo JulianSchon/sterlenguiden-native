@@ -20,7 +20,6 @@ import { PressableScale } from "@/components/PressableScale";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { StickersSection } from "@/components/stickers/StickersSection";
 import { ListsSection } from "@/components/lists/ListsSection";
-import { PendingListInviteModal } from "@/components/lists/PendingListInviteModal";
 import { MemoriesSection } from "@/components/memories/MemoriesSection";
 import { LeaderboardSection } from "@/components/leaderboard/LeaderboardSection";
 import { useAppDays } from "@/hooks/useAppDays";
@@ -52,7 +51,6 @@ export default function MittOsterlenScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <PendingListInviteModal />
       {/* Fast header — ligger utanför ScrollView så den stannar kvar vid scroll */}
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>

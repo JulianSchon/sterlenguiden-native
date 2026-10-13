@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useProfile } from "@/hooks/useProfile";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
+import { devShowMonthResetAgain } from "@/hooks/useMonthReset";
 import { PressableScale } from "@/components/PressableScale";
 import { Podium } from "./Podium";
 import { LeaderboardRow } from "./LeaderboardRow";
@@ -39,7 +40,8 @@ export function LeaderboardSection() {
   return (
     <View style={s.section}>
       <View style={s.head}>
-        <Text style={s.title}>Topplistor</Text>
+        {/* Utvecklingsläget: håll in rubriken för att se "ny månad"-ögonblicket igen (test) */}
+        <Text style={s.title} onLongPress={__DEV__ && profile ? () => devShowMonthResetAgain(profile.user_id) : undefined}>Topplistor</Text>
         <TouchableOpacity onPress={open} hitSlop={8}>
           <Text style={s.action}>Visa alla</Text>
         </TouchableOpacity>

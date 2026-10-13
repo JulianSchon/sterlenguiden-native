@@ -39,6 +39,11 @@ import { RingCelebration } from "./RingCelebration";
 import { CardPresent, prefetchCardPresent } from "./CardPresent";
 import { useMyCards, useRewardCards, type RewardCard } from "@/hooks/useRewardCards";
 import { markAppSettled, useAppSettled } from "@/lib/appSettled";
+import { useProfile } from "@/hooks/useProfile";
+import { usePendingListInvites, type PendingListInvite } from "@/hooks/useLists";
+import { useMonthReset } from "@/hooks/useMonthReset";
+import { ListInviteMoment } from "@/components/lists/ListInviteMoment";
+import { MonthResetMoment } from "@/components/leaderboard/MonthResetMoment";
 
 const TIERS = ["bronze", "silver", "gold"];
 
@@ -174,6 +179,58 @@ export function TrophyHost() {
     if (segments[0] === "(tabs)") router.navigate("/(tabs)/profile" as any);
     else router.dismissTo("/(tabs)/profile" as any);
   };
+
+  // ─── Listinbjudningar och ny månad på topplistan ──────────────────────────
+  // Sist i kön: bara när inget annat firande visas eller väntar, och appen lugnat ner sig
+  const idle = settled && !current && !held && !ringCurrent && !presenting && !waitingCard;
+  const { data: invites = [] } = usePendingListInvites();
+  const { data: profile } = useProfile();
+  // Besvarade inbjudningar i den här körningen — räknas bort direkt, utan att vänta på servern
+  const [answered, setAnswered] = useState<string[]>([]);
+  // Inbjudan som visas ligger kvar tills den stängts, även när servern hunnit svara
+  const [inviting, setInviting] = useState<PendingListInvite | null>(null);
+  const waitingInvite = idle && !inviting ? invites.find((i) => !answered.includes(i.listId)) ?? null : null;
+  useEffect(() => {
+    if (!waitingInvite) return;
+    const t = setTimeout(() => setInviting(waitingInvite), 650);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingInvite?.listId]);
+  const monthReset = useMonthReset(user?.id, profile?.show_in_leaderboard === true, settled);
+  const [showReset, setShowReset] = useState(false);
+  const resetReady = idle && !inviting && !waitingInvite && !!monthReset.moment;
+  useEffect(() => {
+    if (!resetReady) return;
+    const t = setTimeout(() => setShowReset(true), 650);
+    return () => clearTimeout(t);
+  }, [resetReady]);
+
+  if (inviting) {
+    return (
+      <ListInviteMoment
+        key={inviting.listId}
+        invite={inviting}
+        onOpenList={(listId) => router.push(`/lists/${listId}` as any)}
+        onClose={() => {
+          setAnswered((a) => [...a, inviting.listId]);
+          setInviting(null);
+        }}
+      />
+    );
+  }
+
+  if (showReset && monthReset.moment) {
+    return (
+      <MonthResetMoment
+        reset={monthReset.moment}
+        onOpenLeaderboard={() => router.push("/leaderboards" as any)}
+        onClose={() => {
+          monthReset.done();
+          setShowReset(false);
+        }}
+      />
+    );
+  }
 
   if (presenting) {
     return (

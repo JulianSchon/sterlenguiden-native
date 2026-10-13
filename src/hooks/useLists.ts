@@ -487,16 +487,35 @@ export interface PendingListInvite {
   listId: string;
   listName: string;
   ownerName: string;
+  ownerCircleColor: string | null;
+  ownerRing: string | null;
+  /** Inbjudarens profilbild (en vän) — sökväg i bildmappen */
+  ownerAvatarPath: string | null;
+  coverImageUrl: string | null;
+  /** De första platserna, till omslagets kollage när listan saknar egen omslagsbild */
+  firstPlaceIds: number[];
+  placeCount: number;
 }
 
-/** Listinbjudningar TILL mig som väntar på svar — visas som en stor kort-popup på Mitt Österlen. */
+/** Listinbjudningar TILL mig som väntar på svar — visas som ett eget ögonblick (ListInviteMoment,
+ * via belöningsvakten TrophyHost), var man än är i appen. */
 export function usePendingListInvites() {
   return useQuery({
     queryKey: ["lists", "pending-invites"],
     queryFn: async (): Promise<PendingListInvite[]> => {
       const { data, error } = await supabase.rpc("rpc_pending_list_invites");
       if (error) throw error;
-      return (data ?? []).map((r) => ({ listId: r.list_id, listName: r.list_name, ownerName: r.owner_name }));
+      return (data ?? []).map((r) => ({
+        listId: r.list_id,
+        listName: r.list_name,
+        ownerName: r.owner_name,
+        ownerCircleColor: r.owner_circle_color,
+        ownerRing: r.owner_ring,
+        ownerAvatarPath: r.owner_avatar_path,
+        coverImageUrl: r.cover_image_url,
+        firstPlaceIds: (r.first_place_ids ?? []).map(Number),
+        placeCount: r.place_count,
+      }));
     },
   });
 }
