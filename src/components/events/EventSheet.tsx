@@ -2,11 +2,11 @@
  * Eventets panel — det enda sättet ett evenemang visas på (platser är sidor, evenemang är paneler).
  * Finns en gång i appens rot (EventSheetHost); sidorna öppnar den med openEvent() (lib/eventSheet).
  *
- * Uppifrån: bilden med rubriken och datumrutan (samma 30/OKT som på korten), raderna arrangör,
- * datum och tid, adress och Dela (fritt mot bakgrunden, tunna linjer emellan), "Bra att veta"
- * (entré, inne/ute, mat & dryck, parkering — ifyllt av företaget), Köp biljett om det finns en
- * länk, och beskrivningen. Längst ner, alltid synligt och genomskinligt: Lägg till i kalender,
- * spara (hjärtat) och stäng.
+ * Uppifrån: bilden med rubriken, datumrutan (samma 30/OKT som på korten) och Dela; raderna
+ * arrangör, datum och tid och adress (fritt mot bakgrunden, tunna linjer emellan); en remsa med
+ * fyra snabba fakta (entré, inne/ute, mat & dryck, parkering — ifyllt av företaget); Köp biljett
+ * om det finns en länk; och beskrivningen. Längst ner, alltid synligt över en genomskinlig tona:
+ * Lägg till i kalender, spara (hjärtat) och stäng.
  *
  * Man stänger med krysset, genom att trycka bredvid, eller genom att dra ner panelen.
  */
@@ -54,7 +54,7 @@ const CLOSE_VELOCITY = 900;
 /** Bottenradens höjd (knapparna + luft), så sista texten aldrig hamnar bakom den */
 const BAR_H = 56 + 32;
 /** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
-const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.6)", "rgba(18,18,18,0.92)"];
+const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.97)"];
 
 type EventDetail = Event & {
   place?: { id: number; name: string; logo_url: string | null; lat: number | null; lng: number | null } | null;
@@ -116,7 +116,7 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const reduceMotion = useReducedMotion();
-  const sheetH = Math.round(winH * 0.86);
+  const sheetH = Math.round(winH * 0.9);
   const heroH = Math.round(width * 0.78);
 
   const { data: fetched } = useEventDetail(request.id);
@@ -254,8 +254,8 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
     event.is_indoor
       ? { Icon: Home, label: "Inomhus", has: true }
       : { Icon: Sun, label: "Utomhus", has: true },
-    { Icon: UtensilsCrossed, label: event.has_food_drink ? "Mat & dryck finns" : "Ingen servering", has: !!event.has_food_drink },
-    { Icon: Car, label: event.has_parking ? "Parkering finns" : "Ingen parkering", has: !!event.has_parking },
+    { Icon: UtensilsCrossed, label: event.has_food_drink ? "Mat & dryck" : "Ingen servering", has: !!event.has_food_drink },
+    { Icon: Car, label: event.has_parking ? "Parkering" : "Ingen parkering", has: !!event.has_parking },
   ] : [];
   const releaseAt = event?.tickets_release_at ? new Date(event.tickets_release_at) : null;
   const ticketState: "buy" | "soldOut" | "release" | null = !event ? null
@@ -302,14 +302,21 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                     <View style={s.handle} />
                     {event && <DateBox event={event} style={s.heroDate} />}
                     <View style={s.heroText}>
-                      {event?.is_featured && (
-                        <View style={s.featured}>
-                          <Text style={s.featuredText}>UTVALT</Text>
-                        </View>
+                      <View style={{ flex: 1, gap: 10, alignItems: "flex-start" }}>
+                        {event?.is_featured && (
+                          <View style={s.featured}>
+                            <Text style={s.featuredText}>UTVALT</Text>
+                          </View>
+                        )}
+                        {event
+                          ? <Text style={s.title} numberOfLines={3}>{event.title}</Text>
+                          : <Skeleton tone="dark" width="70%" height={28} radius={8} />}
+                      </View>
+                      {event && (
+                        <PressableScale style={s.shareBtn} scale={0.9} onPress={share} accessibilityLabel="Dela med en vän">
+                          <Share2 size={19} color={FG} strokeWidth={2} />
+                        </PressableScale>
                       )}
-                      {event
-                        ? <Text style={s.title} numberOfLines={3}>{event.title}</Text>
-                        : <Skeleton tone="dark" width="70%" height={28} radius={8} />}
                     </View>
                   </View>
 
@@ -343,6 +350,7 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                           title={dateLong(event)}
                           sub={[event.time, relative].filter(Boolean).join("  ·  ") || null}
                           subLive={relative === "I dag" || relative === "Pågår nu"}
+                          last={!event.location && !place}
                         />
                         {(event.location || place) && (
                           <InfoRow
@@ -350,25 +358,18 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                             title={event.location ?? place!.name}
                             sub="Visa på kartan"
                             onPress={openMaps}
+                            last
                           />
                         )}
-                        <InfoRow
-                          icon={<Share2 size={19} color={GOLD} strokeWidth={2} />}
-                          title="Dela med en vän"
-                          onPress={share}
-                          last
-                        />
                       </View>
 
-                      {/* ── Bra att veta: ifyllt av företaget ── */}
-                      <Text style={[s.sectionTitle, { marginTop: 30 }]}>Bra att veta</Text>
-                      <View style={s.facts}>
-                        {facts.map(({ Icon, label, has }) => (
-                          <View key={label} style={[s.fact, { width: (width - 40 - 16) / 2 }]}>
-                            <View style={[s.factIcon, !has && s.factIconOff]}>
-                              <Icon size={18} color={has ? GOLD_LT : "rgba(245,241,232,0.35)"} strokeWidth={2} />
-                            </View>
-                            <Text style={[s.factText, !has && s.factTextOff]} numberOfLines={2}>{label}</Text>
+                      {/* ── Fyra snabba fakta i en remsa, ifyllt av företaget. Det som saknas står
+                          kvar nedtonat, så man ser det också ── */}
+                      <View style={s.strip}>
+                        {facts.map(({ Icon, label, has }, i) => (
+                          <View key={label} style={[s.stripItem, i > 0 && s.stripDivider]}>
+                            <Icon size={22} color={has ? GOLD_LT : "rgba(245,241,232,0.28)"} strokeWidth={1.8} />
+                            <Text style={[s.stripText, !has && s.stripTextOff]} numberOfLines={2}>{label}</Text>
                           </View>
                         ))}
                       </View>
@@ -409,11 +410,15 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                 <LinearGradient start={vec(0, 0)} end={vec(0, BAR_H + insets.bottom + 22)} colors={BAR_FADE} positions={[0, 0.45, 1]} />
               </Rect>
             </Canvas>
-            <PressableScale style={s.calBtn} scale={0.97} onPress={addToCalendar} disabled={!event}>
-              <CalendarPlus size={20} color={BG} strokeWidth={2} />
-              <Text style={s.calText}>Lägg till i kalender</Text>
-            </PressableScale>
-            <View style={[s.roundBtn, { marginLeft: 4 }]}>
+            {/* Egen behållare som växer: PressableScale lägger stilen på sitt inre lager, så flex: 1
+                där fick aldrig knappen att ta platsen */}
+            <View style={{ flex: 1 }}>
+              <PressableScale style={s.calBtn} scale={0.97} onPress={addToCalendar} disabled={!event}>
+                <CalendarPlus size={20} color={BG} strokeWidth={2} />
+                <Text style={s.calText}>Lägg till i kalender</Text>
+              </PressableScale>
+            </View>
+            <View style={s.roundBtn}>
               <HeartButton isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={22} label="sparade" />
             </View>
             <Pressable onPress={pressX} hitSlop={6} accessibilityLabel="Stäng">
@@ -465,7 +470,11 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.55)",
   },
   heroDate: { position: "absolute", top: 22, right: 16 },
-  heroText: { position: "absolute", left: 20, right: 20, bottom: 14, gap: 10, alignItems: "flex-start" },
+  heroText: { position: "absolute", left: 20, right: 16, bottom: 14, flexDirection: "row", alignItems: "flex-end", gap: 14 },
+  shareBtn: {
+    width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
+    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  },
   featured: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: GOLD },
   featuredText: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 1.4, color: BG },
   title: { fontFamily: "Montserrat_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.4, color: "#FFFFFF" },
@@ -479,12 +488,15 @@ const s = StyleSheet.create({
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
 
   sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG, marginBottom: 14 },
-  facts: { flexDirection: "row", flexWrap: "wrap", columnGap: 16, rowGap: 16 },
-  fact: { flexDirection: "row", alignItems: "center", gap: 12 },
-  factIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: GOLD_SOFT },
-  factIconOff: { backgroundColor: "rgba(255,255,255,0.05)" },
-  factText: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 14, lineHeight: 18, color: FG },
-  factTextOff: { fontFamily: "Inter_500Medium", color: "rgba(245,241,232,0.42)" },
+  // Faktaremsan: fyra lika breda kolumner, ikon över ett eller två ord, tunna streck emellan
+  strip: {
+    flexDirection: "row", marginTop: 22, paddingVertical: 16, borderRadius: 20,
+    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(197,160,89,0.22)",
+  },
+  stripItem: { flex: 1, alignItems: "center", gap: 8, paddingHorizontal: 4 },
+  stripDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: "rgba(255,255,255,0.12)" },
+  stripText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, lineHeight: 16, color: FG, textAlign: "center" },
+  stripTextOff: { fontFamily: "Inter_500Medium", color: "rgba(245,241,232,0.4)" },
 
   ticketBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 52, marginTop: 22,
@@ -496,16 +508,16 @@ const s = StyleSheet.create({
   aboutText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, color: "rgba(245,241,232,0.72)" },
 
   bar: {
-    position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8,
+    position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10,
     paddingHorizontal: 16, paddingTop: 22,
   },
   calBtn: {
-    flex: 1, height: 56, borderRadius: 28, backgroundColor: GOLD,
+    height: 56, borderRadius: 28, backgroundColor: GOLD,
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
   },
   calText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: BG },
   roundBtn: {
-    width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center",
+    width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
     backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
 });
