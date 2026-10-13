@@ -44,6 +44,19 @@ export function eventWhen(e: Pick<Event, "date" | "end_date" | "time">): string 
   return e.time ? `${day} · ${e.time}` : day;
 }
 
+/** Datumrutan på eventets bild: "30" över "OKT" (flera dagar: "14–16" över "MAJ") */
+export function dateBadge(e: Pick<Event, "date" | "end_date">): { day: string; month: string } | null {
+  if (!e.date) return null;
+  const start = parseISO(e.date);
+  const month = (d: Date) => short(d, "MMM").toUpperCase();
+  if (!e.end_date || e.end_date <= e.date) return { day: format(start, "d"), month: month(start) };
+  const end = parseISO(e.end_date);
+  return {
+    day: `${format(start, "d")}–${format(end, "d")}`,
+    month: start.getMonth() === end.getMonth() ? month(start) : `${month(start)}–${month(end)}`,
+  };
+}
+
 /** Eventkategorierna företagen väljer bland */
 export const EVENT_CATEGORIES = [
   "Musik", "Matupplevelse", "Konst & Kultur", "Marknad", "Familj", "Natur", "Guidning", "Hälsa & Välmående", "Övrigt",

@@ -1,5 +1,6 @@
 /**
- * Kalender — två lägen:
+ * Kalender — två lägen, valda med rubriken överst (FÖR DIG · ALLA, som topp-flikarna i de stora
+ * apparna):
  *
  * - För dig: EN lista rankad för just den här användaren (src/lib/events.ts), med ett skäl per
  *   event ("Hos en av dina favoritplatser", "Du gillar mat & dryck" …). Överst det bästa valet
@@ -14,7 +15,9 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Reanimated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import Reanimated, {
+  Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming,
+} from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { CalendarHeart, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -34,7 +37,6 @@ import { EventBottomSheet } from "@/components/events/EventSheet";
 import { EventHeroCard, EventRow } from "@/components/events/EventCards";
 import { MonthCalendar } from "@/components/events/MonthCalendar";
 import { LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
-import { Segmented } from "@/components/Segmented";
 import { CategoryHeader } from "@/components/CategoryHeader";
 import { Skeleton } from "@/components/Skeleton";
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
@@ -111,12 +113,7 @@ export default function CalendarScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <View style={{ paddingTop: Math.max(insets.top, 44), paddingHorizontal: 16, backgroundColor: BG }}>
-        <View style={s.titleRow}>
-          <Text style={s.pageTitle}>Kalender</Text>
-        </View>
-        <View style={{ marginTop: 6, marginBottom: 12 }}>
-          <Segmented options={MODES} value={mode} onChange={setMode} />
-        </View>
+        <ModeTabs value={mode} onChange={setMode} />
       </View>
 
       {mode === "foryou" ? (
@@ -152,6 +149,77 @@ export default function CalendarScreen() {
       <EventBottomSheet eventId={openId} onClose={() => setOpenId(null)} />
       <LikeBurst burst={burst} />
     </View>
+  );
+}
+
+// ─── Lägena ───────────────────────────────────────────────────────────────────
+
+/**
+ * FÖR DIG · ALLA som sidans rubrik: det valda i vitt med ett guldstreck under som glider dit man
+ * trycker, det andra nedtonat.
+ */
+function ModeTabs({ value, onChange }: { value: Mode; onChange: (m: Mode) => void }) {
+  const layouts = useRef<Partial<Record<Mode, { x: number; w: number }>>>({});
+  const barX = useSharedValue(0);
+  const barW = useSharedValue(0);
+  const place = (m: Mode, animate: boolean) => {
+    const l = layouts.current[m];
+    if (!l) return;
+    // Strecket är halva ordets bredd, centrerat under det
+    const x = l.x + l.w * 0.25;
+    const w = l.w * 0.5;
+    const cfg = { duration: 280, easing: Easing.out(Easing.cubic) };
+    barX.value = animate ? withTiming(x, cfg) : x;
+    barW.value = animate ? withTiming(w, cfg) : w;
+  };
+  useEffect(() => {
+    place(value, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  const bar = useAnimatedStyle(() => ({ width: barW.value, transform: [{ translateX: barX.value }] }));
+
+  return (
+    <View style={s.tabs}>
+      {MODES.map((m) => (
+        <ModeLabel
+          key={m.id}
+          label={m.label}
+          active={m.id === value}
+          onPress={() => {
+            if (m.id === value) return;
+            Haptics.selectionAsync().catch(() => {});
+            onChange(m.id);
+          }}
+          onLayout={(x, w) => {
+            layouts.current[m.id] = { x, w };
+            if (m.id === value) place(m.id, false);
+          }}
+        />
+      ))}
+      <Reanimated.View style={[s.tabBar, bar]} />
+    </View>
+  );
+}
+
+function ModeLabel({ label, active, onPress, onLayout }: {
+  label: string; active: boolean; onPress: () => void; onLayout: (x: number, w: number) => void;
+}) {
+  const on = useSharedValue(active ? 1 : 0);
+  useEffect(() => {
+    on.value = withTiming(active ? 1 : 0, { duration: 220 });
+  }, [active, on]);
+  const style = useAnimatedStyle(() => ({ opacity: 0.32 + on.value * 0.68 }));
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+      onLayout={(e) => onLayout(e.nativeEvent.layout.x, e.nativeEvent.layout.width)}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+    >
+      <Reanimated.Text style={[s.tabText, style]}>{label}</Reanimated.Text>
+    </TouchableOpacity>
   );
 }
 
@@ -449,9 +517,10 @@ function ArrowButton({ dir, disabled, onPress }: { dir: 1 | -1; disabled: boolea
 }
 
 const s = StyleSheet.create({
-  // Samma rubrik som Profil
-  titleRow: { height: 38, justifyContent: "center" },
-  pageTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: FG },
+  // Lägena som rubrik — samma typsnitt och storlek som PROFIL
+  tabs: { flexDirection: "row", alignItems: "center", gap: 26, height: 44, marginBottom: 10 },
+  tabText: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: FG },
+  tabBar: { position: "absolute", left: 0, bottom: 2, height: 3, borderRadius: 1.5, backgroundColor: GOLD_LT },
 
   greeting: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: FG },
   greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: GOLD_LT },

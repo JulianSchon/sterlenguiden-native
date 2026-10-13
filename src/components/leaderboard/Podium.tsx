@@ -48,9 +48,10 @@ export function Podium({
   const spot = width * 0.95;
   return (
     <View style={[s.row, { width }]}>
-      {/* Strålkastarljus uppifrån bakom ettan — en riktig radial gradient som tonar ut helt */}
+      {/* Strålkastarljus uppifrån bakom ettan — en riktig radial gradient som tonar ut helt. Lila,
+          appens färg för allt som har med spel och tävling att göra. */}
       <View style={[s.spotAnchor, { width: spot, height: spot, left: (width - spot) / 2, top: -spot * 0.12 }]} pointerEvents="none">
-        <RadialGlow size={spot} color="#FFFFFF" opacity={0.09} radiusRatio={0.75} />
+        <RadialGlow size={spot} color="#A855F7" opacity={0.24} radiusRatio={0.75} />
       </View>
       {([2, 1, 3] as Place[]).map((place) => (
         <PodiumColumn key={place} place={place} entry={entries[place - 1]} metric={metric} width={colW} onSelect={onSelect} />

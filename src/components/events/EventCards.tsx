@@ -2,6 +2,9 @@
  * Eventkorten på Kalender. Samma regler som korten på Favoriter: bilden med rundade hörn, all
  * text UNDER/BREDVID bilden (inget ovanpå), hjärtat till höger.
  *
+ * Undantaget från "inget ovanpå bilden" är datumrutan i hörnet (30 / OKT) — den gör att man ser
+ * när varje event är direkt, även när man bara skummar listan med ögonen.
+ *
  * - EventHeroCard: det stora kortet överst på "För dig"
  * - EventRow: en kompakt rad (resten av "För dig", och dagens/månadens event på "Alla")
  *
@@ -17,7 +20,7 @@ import {
   CalendarDays, Compass, Footprints, Heart, MapPin, Navigation, Sparkles, type LucideIcon,
 } from "lucide-react-native";
 import type { Event } from "@/hooks/useEvents";
-import { eventWhen, type Reason, type ReasonKind } from "@/lib/events";
+import { dateBadge, eventWhen, type Reason, type ReasonKind } from "@/lib/events";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 
 const CARD = "#1A1A1D";
@@ -58,6 +61,7 @@ export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved,
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(event.id)}>
       <View style={s.heroImage}>
         {event.image_url ? <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        <DateBox event={event} style={s.heroDate} />
       </View>
       <View style={s.heroInfo}>
         <View style={{ flex: 1 }}>
@@ -79,6 +83,7 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
     <TouchableOpacity style={[s.row, past && { opacity: 0.55 }]} activeOpacity={0.9} onPress={() => onOpen(event.id)}>
       <View style={s.thumb}>
         {event.image_url ? <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        <DateBox event={event} small style={s.thumbDate} />
       </View>
       <View style={{ flex: 1, gap: 4 }}>
         {reason ? <ReasonLine reason={reason} size={12} /> : <Text style={s.rowWhen} numberOfLines={1}>{eventWhen(event).toUpperCase()}</Text>}
@@ -96,6 +101,18 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
     </TouchableOpacity>
   );
 });
+
+/** Datumrutan i bildens hörn: dagen stort, månaden i guld under. Solid, så den syns mot alla bilder */
+function DateBox({ event, small, style }: { event: Event; small?: boolean; style: object }) {
+  const badge = dateBadge(event);
+  if (!badge) return null;
+  return (
+    <View style={[s.date, small && s.dateSmall, style]}>
+      <Text style={[s.dateDay, small && s.dateDaySmall]} numberOfLines={1}>{badge.day}</Text>
+      <Text style={[s.dateMonth, small && s.dateMonthSmall]} numberOfLines={1}>{badge.month}</Text>
+    </View>
+  );
+}
 
 /** Varför eventet visas. "I dag" och "Pågår nu" får en lugnt pulserande prick i stället för en ikon */
 function ReasonLine({ reason, size }: { reason: Reason; size: number }) {
@@ -133,6 +150,17 @@ function LiveDot() {
 
 const s = StyleSheet.create({
   heroImage: { width: "100%", aspectRatio: 1.3, borderRadius: 22, overflow: "hidden", backgroundColor: "#2A2A2A" },
+  heroDate: { position: "absolute", top: 12, right: 12 },
+  thumbDate: { position: "absolute", top: 5, left: 5 },
+  date: {
+    minWidth: 54, paddingHorizontal: 10, paddingTop: 7, paddingBottom: 8, borderRadius: 14, alignItems: "center",
+    backgroundColor: "#121212", borderWidth: 1, borderColor: "rgba(197,160,89,0.30)",
+  },
+  dateSmall: { minWidth: 34, paddingHorizontal: 5, paddingTop: 3, paddingBottom: 4, borderRadius: 9 },
+  dateDay: { fontFamily: "Montserrat_700Bold", fontSize: 22, lineHeight: 26, color: FG },
+  dateDaySmall: { fontSize: 14, lineHeight: 17 },
+  dateMonth: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.5, color: GOLD_LT },
+  dateMonthSmall: { fontSize: 8, letterSpacing: 1 },
   heroInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 14, paddingHorizontal: 2 },
   heroTitle: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.3, color: FG, marginTop: 6 },
   heroMeta: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 6 },

@@ -1,5 +1,5 @@
 /**
- * Segmentkontroll med en glidande markering — Kalenderns lägen och de mindre valen på topplistesidan
+ * Segmentkontroll med en glidande markering — för de mindre valen på topplistesidan
  * (omfång, tid) och, med variant="primary", huvudvalet överst. Markeringen glider med withTiming,
  * inte en fjäder, så den aldrig studsar.
  */
