@@ -32,7 +32,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, { Easing as ReEasing, FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { ArrowLeft, X, Check, Tractor } from "lucide-react-native";
+import { ArrowLeft, X, Check } from "lucide-react-native";
+import { GradientTractor } from "@/components/GradientTractor";
 import * as Haptics from "expo-haptics";
 import { useTrophies } from "@/hooks/useTrophies";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,10 +75,10 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
   return (
     <Pressable onPress={onPress} style={{ alignItems: "center" }}>
       <View style={feat.eyebrowRow}>
-        {/* En grön traktor på var sida, vända mot texten */}
-        <Tractor size={17} color={TRACTOR_GREEN} strokeWidth={2} />
+        {/* En traktor på var sida i berättelsernas gradient, vända mot texten */}
+        <GradientTractor size={18} />
         <Text style={feat.eyebrow}>{unlocked ? "SENASTE UTMÄRKELSEN" : "NÄRMAST ATT LÅSA UPP"}</Text>
-        <Tractor size={17} color={TRACTOR_GREEN} strokeWidth={2} style={{ transform: [{ scaleX: -1 }] }} />
+        <GradientTractor size={18} flip />
       </View>
       <View style={{ marginTop: 28, width: medalSize, height: medalSize, alignItems: "center", justifyContent: "center" }}>
         <GlowCanvas size={medalSize} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
@@ -319,7 +320,6 @@ function TrophyGrid({
 
 // ─── Detaljmodal ────────────────────────────────────────────────────────────────
 const DONE_GREEN = "#4ADE80";
-const TRACTOR_GREEN = "#4ADE80";
 /** Framstegets färg efter hur nära man är: glider från vinrött (långt kvar) via rött, orange och gult
  * till grönt, så att 59 av 60 redan är nästan grönt. Färgstopp i HSL (nyansen räknas vidare förbi
  * 360 så att vinrött → rött går åt rätt håll). */

@@ -13,6 +13,7 @@
   Animated,
 } from "react-native";
 import { registerScroll } from "@/lib/scrollRefs";
+import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import heroOsterlen from "../../assets/hero-osterlen.jpg";
 import { useRouter } from "expo-router";
@@ -150,16 +151,8 @@ const SEGMENTS: SegInfo[] = (() => {
   return out;
 })();
 
-// OSEDD – gult kickar igång men orange dominerar och poppar
-const GRAD_ACTIVE = {
-  stops: [
-    { offset: "0%",   color: "#FFF200" },   // starkt citrongult
-    { offset: "35%",  color: "#FFB000" },   // guldorange – mjuk övergång
-    { offset: "75%",  color: "#FF5000" },   // het orange som poppar
-    { offset: "100%", color: "#FF8000" },   // levande orange avslutar
-  ],
-  x1: "0", y1: "1", x2: "1", y2: "0",
-};
+// OSEDD – gult kickar igång men orange dominerar och poppar (delad, se storyGradient.ts)
+const GRAD_ACTIVE = STORY_GRADIENT;
 
 // SEDD – diskret mörkgrå
 const GRAD_SEEN = {
