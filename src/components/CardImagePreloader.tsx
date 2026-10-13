@@ -28,7 +28,7 @@ export function CardImagePreloader() {
   useEffect(() => {
     if (!ready) return;
     setStage(1);
-    const timers = [setTimeout(() => setStage(2), 3000), setTimeout(() => setStage(3), 6000), setTimeout(() => setStage(4), 9000)];
+    const timers = [setTimeout(() => setStage(2), 2000), setTimeout(() => setStage(3), 4000), setTimeout(() => setStage(4), 6000)];
     return () => timers.forEach(clearTimeout);
   }, [ready]);
 

@@ -145,18 +145,21 @@ export function CardPresent({ card, onNavigate, onClose }: {
     );
   };
 
-  // 1. In: skärmen mörknar när fönstret faktiskt syns (se useOnModalShown). Paketet släpps när
-  // fönstret syns OCH paketets två bilder laddats — tidigast DROP_AT efter att fönstret syntes.
-  // (Laddas bilderna aldrig släpps det ändå efter en stund.)
-  const shownAt = useRef<number | null>(null);
+  // 1. In: ingenting rör sig förrän fönstret faktiskt syns (se useOnModalShown) OCH paketets två
+  // bilder laddats — fönstret är helt genomskinligt tills dess, så väntan syns inte, men bygget och
+  // bildavkodningen hackade annars till i början av toningen. Sen mörknar skärmen och paketet
+  // släpps. (Laddas bilderna aldrig startar det ändå efter en stund.)
+  const shown = useRef(false);
   const imagesLoaded = useRef(new Set<"lid" | "base">());
   const dropped = useRef(false);
   const landed = useRef(false);
   const dropWhenReady = () => {
-    if (dropped.current || shownAt.current == null || imagesLoaded.current.size < 2) return;
+    if (dropped.current || !shown.current || imagesLoaded.current.size < 2) return;
     dropped.current = true;
-    const dropAt = Math.max(0, DROP_AT - (Date.now() - shownAt.current));
+    // En bildruta extra, så att det sista bygget hunnit ritas innan något rör sig
+    const dropAt = DROP_AT + 16;
     const landAt = dropAt + DROP_MS;
+    backdrop.value = withDelay(16, withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) }));
     presentIn.value = withDelay(dropAt, withTiming(1, { duration: DROP_MS, easing: Easing.in(Easing.cubic) }));
     // Landningen — allt det visuella på animationstråden, i exakt rätt bildruta
     later(landAt, () => hit(Haptics.ImpactFeedbackStyle.Heavy));
@@ -171,8 +174,7 @@ export function CardPresent({ card, onNavigate, onClose }: {
     later(landAt + 300, () => { landed.current = true; });
   };
   const onShow = useOnModalShown(() => {
-    backdrop.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
-    shownAt.current = Date.now();
+    shown.current = true;
     dropWhenReady();
   });
   const imageLoaded = (part: "lid" | "base") => {
@@ -288,12 +290,17 @@ export function CardPresent({ card, onNavigate, onClose }: {
     rays.value = withTiming(0, { duration: 260 });
   };
 
+  // Fönstret stängs först när bakgrunden VERKLIGEN tonats bort helt (inte efter en fast tid, som
+  // kunde ta bort det en bildruta för tidigt), och en bildruta efter det
+  const close = () => { later(50, onClose); };
+
   // Resten av utgången, när det tunga väl tagits bort
   useEffect(() => {
     if (!cleared) return;
     if (!toProfile.current) {
-      backdrop.value = withDelay(60, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
-      later(400, onClose);
+      backdrop.value = withDelay(60, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }, (fin) => {
+        if (fin) runOnJS(close)();
+      }));
       return;
     }
     // "Använd kortet": designen sparas och Profil öppnas bakom den mörka ytan; bakgrunden tonas bort
@@ -301,8 +308,9 @@ export function CardPresent({ card, onNavigate, onClose }: {
     requestProfileReveal("card", card.id);
     updateProfile.mutate({ card_color: card.id });
     onNavigate();
-    backdrop.value = withDelay(850, withTiming(0, { duration: 480, easing: Easing.inOut(Easing.quad) }));
-    later(850 + 480 + 20, onClose);
+    backdrop.value = withDelay(850, withTiming(0, { duration: 480, easing: Easing.inOut(Easing.quad) }, (fin) => {
+      if (fin) runOnJS(close)();
+    }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleared]);
 
