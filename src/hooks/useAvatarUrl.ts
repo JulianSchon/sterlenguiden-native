@@ -47,6 +47,11 @@ export function useAvatarUrl(): string | null {
   return useSignedImageUrl("avatar-url", profile?.avatar_url ?? null);
 }
 
+/** Någon annans profilbild — sökvägen kommer bara för vänner (rpc_get_profile, migration 032). */
+export function useOtherAvatarUrl(entry: string | null): string | null {
+  return useSignedImageUrl("avatar-url", entry);
+}
+
 /** Kortfotot på baksidan av medlemskortet. */
 export function useCardPhotoUrl(): string | null {
   const { data: profile } = useProfile();

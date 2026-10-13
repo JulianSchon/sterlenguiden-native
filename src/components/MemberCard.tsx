@@ -60,6 +60,7 @@ export function MemberCard({
   startOnBack = false,
   disableFlip = false,
   onCardPress,
+  readOnly = false,
   width = CARD_W,
 }: {
   displayName: string;
@@ -87,6 +88,8 @@ export function MemberCard({
   disableFlip?: boolean;
   /** Tryck när disableFlip är på och man ÄR medlem — t.ex. navigera till profilen. */
   onCardPress?: () => void;
+  /** Någon annans kort (deras profilsida): bara framsidan, inget tryck och ingen uppmaning att köpa. */
+  readOnly?: boolean;
   /** Kortets bredd; höjden och alla mått följer med. */
   width?: number;
 }) {
@@ -244,7 +247,7 @@ export function MemberCard({
   };
 
   const handlePress = () => {
-    if (swiping.current) return;
+    if (swiping.current || readOnly) return;
     if (!isMember) { onBuyPress(); return; }
     if (disableFlip) { onCardPress?.(); return; }
     flip();
@@ -257,7 +260,7 @@ export function MemberCard({
   const swipeRange = cardW * 0.7;
   const startProgress = useSharedValue(0);
   const swipe = Gesture.Pan()
-    .enabled(isMember && !disableFlip && !showBackOnly)
+    .enabled(isMember && !disableFlip && !showBackOnly && !readOnly)
     .activeOffsetX([-16, 16])
     .failOffsetY([-24, 24])
     .onStart(() => {
@@ -415,7 +418,7 @@ export function MemberCard({
               <Crown size={12 * k} color={colors.accent} strokeWidth={2} />
               <Text style={[mc.passLabel, { color: colors.accent }, variant?.light && mc.onLight]}>ÖSTERLENPASSET</Text>
             </View>
-          ) : (
+          ) : readOnly ? null : (
             <Text style={[mc.ctaHint, { color: colors.accent }, variant?.light && mc.onLight]}>Tryck för att aktivera →</Text>
           )}
         </View>

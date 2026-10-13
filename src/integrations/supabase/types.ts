@@ -1280,6 +1280,7 @@ export type Database = {
           status: string | null
           direction: string | null
           friends_since: string | null
+          avatar_path: string | null
         }[]
       }
       rpc_list_friendships: {

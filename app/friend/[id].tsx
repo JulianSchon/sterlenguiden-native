@@ -2,20 +2,18 @@
  * En persons profil, öppnad från Vänner (sökträff, förfrågan eller vän).
  * Samma hårdkodat mörka stil som resten av Mitt Österlen.
  *
- * Ingen egen bakgrundsbild/toning längre (det höll aldrig, fyra försök) — i stället samma mönster
- * som troféerna på Utmaningar: en mjuk, suddig glöd (GlowCanvas) bakom profilringen, färgad efter
- * personens eget Österlenpass-kort. Enklare, och håller ihop med resten av appens formspråk.
- * Headern är sticky (som Mitt Österlen/Vänner), namnet står i den. Under den ligger profilbilden
- * ovanpå en identitetsbox (Streak/Besök/Favoriter) — samma mönster som en typisk profilsida.
+ * Överst framsidan av personens medlemskort — designen (även vunna belöningskort), profilringen och
+ * namnet, så att det man tjänat in syns för andra. Bara framsidan: baksidan är personalens
+ * verifieringsyta. Headern är sticky (som Mitt Österlen/Vänner), namnet står i den. Under kortet
+ * en identitetsbox (användarnamn, ort, Streak/Besök/Favoriter).
  *
  * Innan ni är vänner är statistiken och aktivitetsloggen en igenkännbar men blurrad förhandstitt
  * (expo-blur, redan inbyggt sedan tidigare bygge) — riktiga rader och rutor i rätt form, men med
  * grå platshållarstaplar i stället för siffror, aldrig påhittade tal. "Lägg till vän" ligger ovanpå.
  * Först när relationen är accepterad hämtas och visas den riktiga statistiken (rpc_friend_stats).
  *
- * Profilbilden i ringen är initialer även för vänner — medvetet, se friends-grundens
- * integritetsbeslut. Att visa en väns riktiga foto kräver att den privata bild-mappens
- * åtkomstregler öppnas för vänner, vilket är en egen, medveten säkerhetsändring.
+ * Profilbilden på kortet syns bara för vänner (migration 032 öppnar exakt den bilden för dem);
+ * alla andra ser initialerna.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -32,7 +30,6 @@ import {
 } from "lucide-react-native";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import { Avatar } from "@/components/profile/Avatar";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { StickerArt } from "@/components/stickers/StickerArt";
 import { PressableScale } from "@/components/PressableScale";
@@ -45,7 +42,8 @@ import { computeCategoryStats } from "@/lib/categories";
 import { getTrophyMeta, TIER_PALETTE } from "@/lib/achievements";
 import { CATEGORIES } from "@/theme/categories";
 import { TrophyMedal, RadialGlow } from "@/components/trophies/TrophyMedal";
-import { useCardVariant } from "@/hooks/useRewardCards";
+import { MemberCard, CARD_H, CARD_W } from "@/components/MemberCard";
+import { useOtherAvatarUrl } from "@/hooks/useAvatarUrl";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
 const BG    = "#121212";
@@ -55,7 +53,8 @@ const CARD  = "#1A1A1D";
 const GOLD  = "#C5A059";
 const RED   = "#B83434"; // samma röd som hjärtat på platssidan när den är favoritmarkerad
 const GREEN = "hsl(150,30%,28%)"; // exakt samma mörkgröna som StandardPin på kartan (app/(tabs)/map.tsx)
-const AVATAR_SIZE = 108;
+
+const noop = () => {};
 
 /** Grå stapel i skelettet — aldrig text, bara form, så den aldrig kan tas för en riktig siffra */
 function SkelBar({ w, h }: { w: number; h: number }) {
@@ -102,12 +101,9 @@ export default function FriendProfileScreen() {
     return cat && cat.visited > 0 ? cat : null;
   }, [places, stats]);
 
-  // Samma kortfärg som personens eget Österlenpass, fritt valt oavsett medlemskap, bara kosmetik —
-  // används som glödens färg bakom profilringen. Exakt samma färg som kortet, INGEN toning mot
-  // vitt — Viktor vill att den matchar kortet exakt (en tidigare lyft-mot-vitt-version läste som
-  // en märkbart ljusare, fel färg, inte samma).
-  const friendVariant = useCardVariant(friend?.cardColor);
-  const glowColor = friend ? friendVariant.bg : GOLD;
+  // Profilbilden bara för vänner — andra får ingen sökväg från servern och ser initialerna
+  const avatarUrl = useOtherAvatarUrl(isFriend ? friend?.avatarPath ?? null : null);
+  const { width } = useWindowDimensions();
 
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;
@@ -141,24 +137,35 @@ export default function FriendProfileScreen() {
         contentContainerStyle={[{ paddingBottom: Math.max(insets.bottom, 16) + 24 }, !isFriend && friend && { flexGrow: 1 }]}
       >
         <View style={s.hero}>
-          <View style={{ zIndex: 2 }}>
-            {/* Riktig radial gradient (RadialGlow), inte en suddad kant — garanterat noll vid sin
-                egen kant så den aldrig syns klippt mot headern ovanför, oavsett scrollposition. */}
-            <RadialGlow size={AVATAR_SIZE} color={glowColor} opacity={0.6} radiusRatio={1.1} />
-            <Avatar size={AVATAR_SIZE} uri={null} name={who} color={friend?.circleColor ?? "#2A2A2A"} ring={friend?.avatarRing} />
-          </View>
+          {/* Framsidan av personens kort (bara titta). Ritas när profilen hämtats, annars en tom yta i
+              kortets storlek så att sidan inte hoppar. */}
+          {friend ? (
+            <MemberCard
+              width={width - 32}
+              readOnly
+              disableFlip
+              displayName={who}
+              isMember={friend.isMember}
+              memberSince={friend.memberSince ? format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv }) : null}
+              cardColor={friend.cardColor}
+              avatarUrl={avatarUrl}
+              circleColor={friend.circleColor}
+              avatarRing={friend.avatarRing}
+              onBuyPress={noop}
+            />
+          ) : (
+            <View style={{ height: (width - 32) * (CARD_H / CARD_W) }} />
+          )}
 
-          {/* Profilbilden ligger ovanpå den här boxen (negativ marginal), som på referensbilden */}
           <View style={s.identityCard}>
-            <Text style={s.name}>{who}</Text>
-            {friend?.username && <Text style={[s.meta, s.metaFirst]}>@{friend.username}</Text>}
+            {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
             {friend?.city && (
-              <View style={[s.metaItem, !friend?.username && s.metaFirst]}>
+              <View style={[s.metaItem, !friend?.username && { marginTop: 0 }]}>
                 <MapPin size={12} color="rgba(255,255,255,0.6)" strokeWidth={2} />
                 <Text style={s.meta}>{friend.city}</Text>
               </View>
             )}
-            <View style={s.identityDivider} />
+            {(friend?.username || friend?.city) && <View style={s.identityDivider} />}
 
             {/* Streak/besök/favoriter — bara riktiga siffror när ni är vänner, annars platshållare.
                 Etikett ovanför, ifylld symbol + siffra i en rad under, precis som referensbilden. */}
@@ -624,28 +631,19 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // RadialGlow (radiusRatio 1.1) bleder ~65px ovanför avataren innan den är helt utfasad — 70px
-  // ger den precis plats att tona ut i utan att klippas, med lite marginal, utan onödigt dödutrymme.
-  hero: { alignItems: "center", paddingTop: 70 },
+  hero: { alignItems: "center", paddingTop: 16 },
 
   // Kortet identitetsboxen ligger på — profilbilden (92px, zIndex 2) sticker upp genom det övre
   // hålet (negativ marginTop = halva avatarstorleken), samma överlapp som referensbilden.
   identityCard: {
-    alignSelf: "stretch", marginHorizontal: 16, marginTop: -(AVATAR_SIZE / 2),
-    paddingTop: AVATAR_SIZE / 2 + 14, paddingBottom: 20, paddingHorizontal: 20,
+    alignSelf: "stretch", marginHorizontal: 16, marginTop: 14,
+    paddingTop: 18, paddingBottom: 20, paddingHorizontal: 20,
     alignItems: "center", borderRadius: 20,
     backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
   },
-  // Playfair bort härifrån också — samma sans-serif (Inter) som resten av sidan, bara större och
-  // fetare, som en riktig rubrik i stället för en bruten skrivstil.
-  // Samma typsnitt som "Senaste aktivitet" och de andra sektionsrubrikerna (s.sectionTitle),
-  // fast utan versaler/spårning — det är ett namn, inte en rubrik.
-  name: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.2, color: "#FFFFFF" },
-  // Ersätter den gamla "Medlem sedan"-raden här — användarnamn och ort på var sin rad under namnet,
-  // datumet flyttat längst ner på sidan
+  // Användarnamn och ort på var sin rad överst i boxen (namnet står på kortet)
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
-  metaFirst: { marginTop: 6 },
 
   identityDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginTop: 18 },
   identityStats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginTop: 16 },
