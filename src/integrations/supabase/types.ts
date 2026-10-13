@@ -1217,7 +1217,7 @@ export type Database = {
       }
       rpc_list_profiles_public: {
         Args: { target_user_ids: string[] }
-        Returns: { user_id: string; display_name: string | null; username: string | null; circle_color: string | null; avatar_ring: string | null }[]
+        Returns: { user_id: string; display_name: string | null; username: string | null; circle_color: string | null; avatar_ring: string | null; avatar_path: string | null }[]
       }
       reorder_list_places: { Args: { target_list_id: string; ordered_row_ids: string[] }; Returns: undefined }
       rpc_leaderboard: {
@@ -1301,6 +1301,17 @@ export type Database = {
           status: string
           direction: string
           created_at: string
+          avatar_path: string | null
+        }[]
+      }
+      rpc_friend_list_places: {
+        Args: { target_list_id: string }
+        Returns: {
+          row_id: string
+          place_id: number
+          added_by: string
+          created_at: string
+          position: number
         }[]
       }
       rpc_friend_lists: {

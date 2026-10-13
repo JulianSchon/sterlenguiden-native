@@ -35,7 +35,7 @@ export interface ListPlace {
   addedAt: string;
   /** Dra-och-släpp-ordning */
   position: number;
-  addedBy: { userId: string; name: string; isMe: boolean; circleColor: string | null; avatarRing: string | null };
+  addedBy: { userId: string; name: string; isMe: boolean; circleColor: string | null; avatarRing: string | null; avatarPath: string | null };
   place: {
     id: number;
     name: string;
@@ -54,6 +54,8 @@ export interface ListMember {
   name: string;
   circleColor: string | null;
   avatarRing: string | null;
+  /** Profilbilden — bara för en själv och vänner (rpc_list_profiles_public), annars null */
+  avatarPath: string | null;
 }
 
 export interface ListDetail {
@@ -181,6 +183,7 @@ export function useList(id: string | undefined) {
             isMe: lp.added_by === userId,
             circleColor: byId.get(lp.added_by)?.circle_color ?? null,
             avatarRing: byId.get(lp.added_by)?.avatar_ring ?? null,
+            avatarPath: byId.get(lp.added_by)?.avatar_path ?? null,
           },
           place: { ...lp.places!, image_url: firstImageUrl(lp.places!.image_url), opening_hours: lp.places!.opening_hours as Record<string, string> | null },
         }))
@@ -209,6 +212,7 @@ export function useList(id: string | undefined) {
           name: nameOf(m.user_id),
           circleColor: byId.get(m.user_id)?.circle_color ?? null,
           avatarRing: byId.get(m.user_id)?.avatar_ring ?? null,
+          avatarPath: byId.get(m.user_id)?.avatar_path ?? null,
         })),
       };
     },
@@ -274,6 +278,75 @@ export function useFriendLists(friendUserId: string | null) {
         coverImageUrl: l.cover_image_url,
         placeIds: (l.place_ids ?? []).map(Number),
       }));
+    },
+  });
+}
+
+/**
+ * En väns lista i samma form som de egna (ListDetail), så att den visas på den vanliga listsidan —
+ * bara titta (se app/lists/[id].tsx, view=friend). Bara listor ägaren visar för vänner; null annars.
+ * Inga medlemmar: vem som är med i listan syns inte för vänner.
+ */
+export function useFriendListDetail(listId: string | undefined, ownerId: string | undefined) {
+  return useQuery({
+    queryKey: ["lists", "friend-detail", listId],
+    enabled: !!listId && !!ownerId,
+    queryFn: async (): Promise<ListDetail | null> => {
+      const userId = await requireUserId();
+      const { data: lists, error } = await supabase.rpc("rpc_friend_lists", { target_user_id: ownerId! });
+      if (error) throw error;
+      const meta = (lists ?? []).find((l) => l.id === listId);
+      if (!meta) return null;
+
+      const { data: rows, error: rowsError } = await supabase.rpc("rpc_friend_list_places", { target_list_id: listId! });
+      if (rowsError) throw rowsError;
+      const placeIds = [...new Set((rows ?? []).map((r) => Number(r.place_id)))];
+      const addedByIds = [...new Set((rows ?? []).map((r) => r.added_by))];
+      const [{ data: placeRows }, { data: profiles }] = await Promise.all([
+        placeIds.length > 0
+          ? supabase.from("places").select("id, name, image_url, nearest_town, categories, opening_hours").in("id", placeIds)
+          : Promise.resolve({ data: [] as never[] }),
+        addedByIds.length > 0
+          ? supabase.rpc("rpc_list_profiles_public", { target_user_ids: addedByIds })
+          : Promise.resolve({ data: [] as never[] }),
+      ]);
+      const placeById = new Map((placeRows ?? []).map((p) => [p.id, p]));
+      const byId = new Map((profiles ?? []).map((p) => [p.user_id, p]));
+
+      const places: ListPlace[] = (rows ?? [])
+        .filter((r) => placeById.has(Number(r.place_id)))
+        .map((r) => {
+          const p = placeById.get(Number(r.place_id))!;
+          const who = byId.get(r.added_by);
+          return {
+            rowId: r.row_id,
+            addedAt: r.created_at,
+            position: r.position,
+            addedBy: {
+              userId: r.added_by,
+              name: who?.display_name || who?.username || "Medlem",
+              isMe: r.added_by === userId,
+              circleColor: who?.circle_color ?? null,
+              avatarRing: who?.avatar_ring ?? null,
+              avatarPath: who?.avatar_path ?? null,
+            },
+            place: { ...p, image_url: firstImageUrl(p.image_url), opening_hours: p.opening_hours as Record<string, string> | null },
+          };
+        });
+
+      const lastUpdatedAt = places.reduce((latest, p) => (p.addedAt > latest ? p.addedAt : latest), meta.created_at);
+      return {
+        id: meta.id,
+        name: meta.name,
+        description: meta.description,
+        ownerId: ownerId!,
+        inviteCode: "",
+        coverImageUrl: meta.cover_image_url,
+        visibleToFriends: true,
+        lastUpdatedAt,
+        places,
+        members: [],
+      };
     },
   });
 }

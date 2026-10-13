@@ -163,7 +163,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
 
   return (
     <PressableScale style={s.row} scale={0.96} onPress={tap}>
-      <Avatar size={50} uri={null} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
+      <Avatar size={50} path={friend.avatarPath} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
       <View style={{ flex: 1 }}>
         <Text style={s.rowName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
         <Text style={s.rowSub} numberOfLines={1}>

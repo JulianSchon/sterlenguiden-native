@@ -6,6 +6,9 @@
  *
  * Bakgrundsfärgad ring runt varje cirkel (samma färg som ytan den ligger på) så överlappen läses
  * som separata cirklar i stället för att smälta ihop.
+ *
+ * onPress: ett tryck på avatarerna (t.ex. öppna medlemmarna). onAddPress: "+" — bara för den som får
+ * bjuda in (listans ägare).
  */
 import { View, TouchableOpacity } from "react-native";
 import { Plus } from "lucide-react-native";
@@ -16,8 +19,10 @@ const GOLD = "#C5A059";
 export interface StackMember {
   userId: string;
   name: string;
-  /** Bara satt för mig själv — andras avatarer visar alltid initialer, integritetsbeslut sedan Vänner-grunden */
+  /** Färdig adress till fotot (t.ex. det egna i ett formulär) … */
   avatarUri?: string | null;
+  /** … eller sökvägen i bildmappen — bara satt för en själv och vänner, annars initialer */
+  avatarPath?: string | null;
   circleColor: string | null;
   avatarRing: string | null;
   /** Inbjuden men inte accepterat än — ritas nedtonad */
@@ -25,12 +30,13 @@ export interface StackMember {
 }
 
 export function MemberAvatarStack({
-  members, size = 40, overlap = 16, ringColor, onAddPress,
-}: { members: StackMember[]; size?: number; overlap?: number; ringColor: string; onAddPress?: () => void }) {
+  members, size = 40, overlap = 16, ringColor, onPress, onAddPress,
+}: { members: StackMember[]; size?: number; overlap?: number; ringColor: string; onPress?: () => void; onAddPress?: () => void }) {
   const ringSize = size + 4;
 
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <TouchableOpacity style={{ flexDirection: "row", alignItems: "center" }} onPress={onPress} disabled={!onPress} activeOpacity={0.75}>
       {members.map((m, i) => (
         <View
           key={m.userId}
@@ -42,10 +48,11 @@ export function MemberAvatarStack({
         >
           {/* Ringen runt ligger kvar i full färg så överlappet fortfarande läses rätt — bara själva cirkeln tonas ned */}
           <View style={m.pending && { opacity: 0.35 }}>
-            <Avatar size={size} uri={m.avatarUri ?? null} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
+            <Avatar size={size} uri={m.avatarUri ?? null} path={m.avatarPath} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
           </View>
         </View>
       ))}
+      </TouchableOpacity>
       {onAddPress && (
         <TouchableOpacity
           style={{

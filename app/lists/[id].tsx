@@ -11,6 +11,10 @@
  * ListHeaderComponent, annars går det inte att nästla en egen scrollyta i en ScrollView.
  * containerStyle={{ flex: 1 }} krävs på DraggableFlatList självt (annars ärver dess interna
  * FlatList ingen bestämd höjd av sin flex-förälder och man kan inte scrolla hela vägen ner).
+ *
+ * En väns lista (från vännens profilsida, ?view=friend&owner=…) visas på samma sida, så den ser
+ * exakt likadan ut — men bara för att titta: ingen meny, inga medlemmar, ingen "Lägg till plats",
+ * ingen dra-och-släpp och inga minus-knappar. Data från useFriendListDetail.
  */
 import { useEffect, useState } from "react";
 import {
@@ -24,11 +28,10 @@ import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical, LogOut } f
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useResetListCover,
-  useDuplicateList, useReorderListPlaces, useMarkListOpened, useSetListVisibleToFriends, type ListPlace,
+  useDuplicateList, useReorderListPlaces, useMarkListOpened, useSetListVisibleToFriends, useFriendListDetail, type ListPlace,
 } from "@/hooks/useLists";
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
-import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { Avatar } from "@/components/profile/Avatar";
 import { ListCover } from "@/components/lists/ListCover";
 import { AddPlaceSheet } from "@/components/lists/AddPlaceSheet";
@@ -47,14 +50,17 @@ const CARD = "#1A1A1D";
 const HERO_MARGIN = 36;
 
 export default function ListDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, view, owner } = useLocalSearchParams<{ id: string; view?: string; owner?: string }>();
+  // En väns lista: bara titta
+  const viewOnly = view === "friend";
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const { user } = useAuth();
-  const { data: list, isLoading } = useList(id);
+  const ownList = useList(viewOnly ? undefined : id);
+  const friendList = useFriendListDetail(viewOnly ? id : undefined, owner);
+  const { data: list, isLoading } = viewOnly ? friendList : ownList;
   const { data: offers = [] } = useOffers();
-  const avatarUrl = useAvatarUrl();
   const removePlace = useRemovePlaceFromList();
   const removeMember = useRemoveMember();
   const deleteList = useDeleteList();
@@ -67,7 +73,7 @@ export default function ListDetailScreen() {
   // Styr bara ordningen i Mitt Österlens listrad (senast öppnad längst till vänster) — inget i
   // den här vyn beror på det.
   useEffect(() => {
-    if (id) markOpened.mutate(id);
+    if (id && !viewOnly) markOpened.mutate(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -175,7 +181,7 @@ export default function ListDetailScreen() {
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{list?.name ?? ""}</Text>
-          {list && (
+          {list && !viewOnly && (
             isOwner ? (
               <TouchableOpacity style={s.headerBtn} onPress={() => setOptionsOpen(true)}>
                 <MoreHorizontal size={22} color={FG} strokeWidth={2} />
@@ -203,7 +209,7 @@ export default function ListDetailScreen() {
           data={list.places}
           keyExtractor={(lp) => lp.rowId}
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 32 }}
-          onDragEnd={({ data }) => reorderPlaces.mutate({ listId: list.id, orderedRowIds: data.map((lp) => lp.rowId) })}
+          onDragEnd={({ data }) => !viewOnly && reorderPlaces.mutate({ listId: list.id, orderedRowIds: data.map((lp) => lp.rowId) })}
           ListHeaderComponent={
             <>
               {/* ── Omslag: stor kvadrat med luft runt om (som Spotifys spellista) ── */}
@@ -219,20 +225,22 @@ export default function ListDetailScreen() {
               <View style={{ paddingHorizontal: 16 }}>
                 <Text style={s.title}>{list.name}</Text>
 
-                <View style={{ marginTop: 16 }}>
+                {!viewOnly && <View style={{ marginTop: 16 }}>
+                  {/* Alla kan trycka på avatarerna och se medlemmarna; bara ägaren kan bjuda in (+) */}
                   <MemberAvatarStack
                     ringColor={BG}
-                    onAddPress={() => setMembersOpen(true)}
+                    onPress={() => setMembersOpen(true)}
+                    onAddPress={isOwner ? () => setMembersOpen(true) : undefined}
                     members={list.members.map((m) => ({
                       userId: m.userId,
                       name: m.name,
-                      avatarUri: m.userId === user?.id ? avatarUrl : null,
+                      avatarPath: m.avatarPath,
                       circleColor: m.circleColor,
                       avatarRing: m.avatarRing,
                       pending: m.pending,
                     }))}
                   />
-                </View>
+                </View>}
 
                 {/* Beskrivning: en riktig text om listan, tydligt skild från statistikraden nedanför */}
                 {list.description ? <Text style={s.description}>{list.description}</Text> : null}
@@ -244,20 +252,23 @@ export default function ListDetailScreen() {
 
               <View style={s.sectionHead}>
                 <Text style={s.sectionTitle}>Platser · {list.places.length}</Text>
-                <TouchableOpacity style={s.addBtn} onPress={() => setAddOpen(true)}>
-                  <Plus size={16} color={GOLD} strokeWidth={2.5} />
-                  <Text style={s.addText}>Lägg till plats</Text>
-                </TouchableOpacity>
+                {!viewOnly && (
+                  <TouchableOpacity style={s.addBtn} onPress={() => setAddOpen(true)}>
+                    <Plus size={16} color={GOLD} strokeWidth={2.5} />
+                    <Text style={s.addText}>Lägg till plats</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </>
           }
-          ListEmptyComponent={<Text style={s.empty}>Inga platser än. Lägg till den första!</Text>}
+          ListEmptyComponent={<Text style={s.empty}>{viewOnly ? "Inga platser än." : "Inga platser än. Lägg till den första!"}</Text>}
           renderItem={({ item, drag, isActive }: RenderItemParams<ListPlace>) => (
             <ScaleDecorator>
               <PlaceRow
                 listPlace={item}
                 hasOffer={offerPlaceIds.has(item.place.id)}
                 isActive={isActive}
+                viewOnly={viewOnly}
                 onPress={() => router.push(`/place/${item.place.id}` as any)}
                 onDrag={drag}
                 onRemove={() =>
@@ -271,7 +282,7 @@ export default function ListDetailScreen() {
         />
       )}
 
-      {list && (
+      {list && !viewOnly && (
         <>
           <AddPlaceSheet
             visible={addOpen}
@@ -311,17 +322,18 @@ function formatShortDate(iso: string): string {
 }
 
 function PlaceRow({
-  listPlace, hasOffer, isActive, onPress, onDrag, onRemove,
+  listPlace, hasOffer, isActive, viewOnly, onPress, onDrag, onRemove,
 }: {
   listPlace: ListPlace;
   hasOffer: boolean;
   isActive: boolean;
+  /** En väns lista: inga dra- eller ta bort-knappar */
+  viewOnly: boolean;
   onPress: () => void;
   onDrag: () => void;
   onRemove: () => void;
 }) {
   const { place, addedBy } = listPlace;
-  const avatarUrl = useAvatarUrl();
   const open = isPlaceOpen(place.opening_hours);
 
   return (
@@ -337,7 +349,7 @@ function PlaceRow({
       <View style={s.placeBody}>
         <View style={s.topLine}>
           <View style={s.addedByRow}>
-            <Avatar size={16} uri={addedBy.isMe ? avatarUrl : null} name={addedBy.name} color={addedBy.circleColor ?? "#2A2A2A"} ring={addedBy.avatarRing} />
+            <Avatar size={16} path={addedBy.avatarPath} name={addedBy.name} color={addedBy.circleColor ?? "#2A2A2A"} ring={addedBy.avatarRing} />
             <Text style={s.addedByText} numberOfLines={1}>{addedBy.name}</Text>
           </View>
           {hasOffer && (
@@ -358,13 +370,15 @@ function PlaceRow({
           )}
         </View>
       </View>
-      <TouchableOpacity hitSlop={12} onLongPress={onDrag} delayLongPress={150} style={s.dragHandle}>
-        <GripVertical size={20} color={MUTED} strokeWidth={2} />
-      </TouchableOpacity>
+      {!viewOnly && (<>
+        <TouchableOpacity hitSlop={12} onLongPress={onDrag} delayLongPress={150} style={s.dragHandle}>
+          <GripVertical size={20} color={MUTED} strokeWidth={2} />
+        </TouchableOpacity>
 
-      <TouchableOpacity hitSlop={10} onPress={onRemove} style={s.removeBadge}>
-        <Minus size={14} color="#fff" strokeWidth={3} />
-      </TouchableOpacity>
+        <TouchableOpacity hitSlop={10} onPress={onRemove} style={s.removeBadge}>
+          <Minus size={14} color="#fff" strokeWidth={3} />
+        </TouchableOpacity>
+      </>)}
     </TouchableOpacity>
   );
 }

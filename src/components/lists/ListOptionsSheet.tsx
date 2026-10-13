@@ -3,14 +3,14 @@
  * numera alltid ägaren. Inget isOwner-villkor kvar att gissa på här.
  *
  * Överst "Synlig för vänner": ett reglage som slås av och på direkt, utan att menyn stängs. */
-import { View, Text, Switch, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Image as ImageIcon, Pencil, Share2, Copy, Trash2, Users } from "lucide-react-native";
 import { Sheet } from "@/components/Sheet";
 import { PressableScale } from "@/components/PressableScale";
+import { IconSwitch } from "@/components/IconSwitch";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.6)";
-const GOLD = "#C5A059";
 
 export function ListOptionsSheet({
   visible, onClose, visibleToFriends, onToggleVisibleToFriends, onChangeCover, onEdit, onShare, onDuplicate, onDelete,
@@ -34,12 +34,8 @@ export function ListOptionsSheet({
             <Text style={s.label}>Synlig för vänner</Text>
             <Text style={s.hint}>Dina vänner ser listan på din profil men kan inte ändra den</Text>
           </View>
-          <Switch
-            value={visibleToFriends}
-            onValueChange={onToggleVisibleToFriends}
-            trackColor={{ false: "rgba(255,255,255,0.15)", true: GOLD }}
-            thumbColor="#FFFFFF"
-          />
+          {/* Samma reglage som på Notiser (grön bock / rött kryss) */}
+          <IconSwitch value={visibleToFriends} onChange={onToggleVisibleToFriends} />
         </View>
         <OptionRow icon={<ImageIcon size={18} color={FG} strokeWidth={2} />} label="Byt omslagsbild" onPress={onChangeCover} />
         <OptionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label="Redigera lista" onPress={onEdit} />

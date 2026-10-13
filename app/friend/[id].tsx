@@ -283,8 +283,8 @@ function RealContent({
   );
 }
 
-// Vännens listor som hen valt att visa för vänner — öppnas på en egen sida där man bara kan titta
-// (app/friend-list). Samma kort som Mitt Österlens listrad.
+// Vännens listor som hen valt att visa för vänner — öppnas på den vanliga listsidan i läget där man
+// bara kan titta (app/lists/[id].tsx, view=friend). Samma kort som Mitt Österlens listrad.
 function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }) {
   const router = useRouter();
   const { data: places = [] } = usePlaces();
@@ -302,7 +302,7 @@ function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }
             key={l.id}
             style={{ width: 140 }}
             activeOpacity={0.8}
-            onPress={() => router.push(`/friend-list/${l.id}?owner=${friendId}` as any)}
+            onPress={() => router.push(`/lists/${l.id}?view=friend&owner=${friendId}` as any)}
           >
             <ListCover coverImageUrl={l.coverImageUrl} images={imageOf(l.placeIds)} size={140} />
             <Text style={s.listName} numberOfLines={1}>{l.name}</Text>

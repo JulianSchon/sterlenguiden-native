@@ -31,7 +31,7 @@ export function FriendPickerRow({ friend, selected, onToggle }: { friend: Friend
 
   return (
     <PressableScale style={[s.friendRow, rowStyle]} scale={0.98} onPress={onToggle}>
-      <Avatar size={36} uri={null} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
+      <Avatar size={36} path={friend.avatarPath} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
       <Text style={s.friendName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
       <Reanimated.View style={[s.checkCircle, checkStyle]}>
         <Reanimated.View style={checkIconStyle}>
