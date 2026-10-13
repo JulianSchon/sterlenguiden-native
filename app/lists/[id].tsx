@@ -14,7 +14,8 @@
  *
  * En väns lista (från vännens profilsida, ?view=friend&owner=…) visas på samma sida, så den ser
  * exakt likadan ut — men bara för att titta: ingen meny, inga medlemmar, ingen "Lägg till plats",
- * ingen dra-och-släpp och inga minus-knappar. Data från useFriendListDetail.
+ * ingen dra-och-släpp och inga minus-knappar. Data från useFriendListDetail. I stället finns
+ * "Spara en kopia", som gör en egen lista av den.
  */
 import { useEffect, useState } from "react";
 import {
@@ -24,11 +25,12 @@ import {
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical, LogOut } from "lucide-react-native";
+import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical, LogOut, Copy } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useResetListCover,
-  useDuplicateList, useReorderListPlaces, useMarkListOpened, useSetListVisibleToFriends, useFriendListDetail, type ListPlace,
+  useDuplicateList, useReorderListPlaces, useMarkListOpened, useSetListVisibleToFriends, useFriendListDetail, useCopyFriendList, type ListPlace,
 } from "@/hooks/useLists";
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
@@ -67,6 +69,7 @@ export default function ListDetailScreen() {
   const changeCover = useChangeListCover();
   const resetCover = useResetListCover();
   const duplicateList = useDuplicateList();
+  const copyFriendList = useCopyFriendList();
   const reorderPlaces = useReorderListPlaces();
   const markOpened = useMarkListOpened();
 
@@ -150,6 +153,17 @@ export default function ListDetailScreen() {
     Share.share({
       message: `Gå med i min lista "${list.name}" i Österlenappen. Öppna Mitt Österlen, tryck "Gå med" och skriv in koden ${list.inviteCode}`,
     });
+  }
+
+  async function handleCopyFriendList() {
+    if (!list || copyFriendList.isPending) return;
+    try {
+      const newId = await copyFriendList.mutateAsync(list);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      router.replace(`/lists/${newId}` as any);
+    } catch {
+      Alert.alert("Något gick fel", "Det gick inte att spara en kopia av listan. Försök igen.");
+    }
   }
 
   async function handleDuplicate() {
@@ -244,6 +258,16 @@ export default function ListDetailScreen() {
 
                 {/* Beskrivning: en riktig text om listan, tydligt skild från statistikraden nedanför */}
                 {list.description ? <Text style={s.description}>{list.description}</Text> : null}
+
+                {/* En väns lista: gör en egen kopia att ändra i */}
+                {viewOnly && (
+                  <TouchableOpacity style={s.copyBtn} onPress={handleCopyFriendList} activeOpacity={0.8} disabled={copyFriendList.isPending}>
+                    {copyFriendList.isPending
+                      ? <ActivityIndicator color={GOLD} size="small" />
+                      : <Copy size={16} color={GOLD} strokeWidth={2.2} />}
+                    <Text style={s.copyText}>Spara en kopia</Text>
+                  </TouchableOpacity>
+                )}
 
                 <Text style={s.meta}>
                   Senast uppdaterad {formatShortDate(list.lastUpdatedAt)} · {list.places.length} {list.places.length === 1 ? "plats" : "platser"}
@@ -399,6 +423,13 @@ const s = StyleSheet.create({
   // meta-raden är bara statistik, de ska inte läsas som samma sorts information.
   description: { fontFamily: "Inter_500Medium", fontSize: 15.5, color: FG, marginTop: 16, lineHeight: 22 },
   meta: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 10 },
+  // "Spara en kopia" på en väns lista — guldkant, samma guld som "Lägg till plats"
+  copyBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, alignSelf: "flex-start",
+    marginTop: 16, height: 42, paddingHorizontal: 18, borderRadius: 21,
+    borderWidth: 1.5, borderColor: GOLD, backgroundColor: "rgba(197,160,89,0.12)",
+  },
+  copyText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD },
 
   sectionHead: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

@@ -402,26 +402,42 @@ export function useResetListCover() {
 
 /** Skapar en ny lista med samma namn (+ "(kopia)"), beskrivning och platser. Inte medlemmarna —
  * en kopia är ett nytt eget rum, inte samma delade grupp. */
+/** En ny lista som jag äger, med samma platser i samma ordning. Returnerar dess id. */
+async function insertListCopy(list: ListDetail, name: string, coverImageUrl: string | null): Promise<string> {
+  const userId = await requireUserId();
+  const { data: created, error } = await supabase
+    .from("lists")
+    .insert({ name, description: list.description, owner_id: userId, cover_image_url: coverImageUrl })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  if (list.places.length > 0) {
+    const { error: placesError } = await supabase.from("list_places").insert(
+      list.places.map((p, i) => ({ list_id: created.id, place_id: p.place.id, added_by: userId, position: i }))
+    );
+    if (placesError) throw placesError;
+  }
+  return created.id;
+}
+
 export function useDuplicateList() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (list: ListDetail): Promise<string> => {
-      const userId = await requireUserId();
-      const { data: created, error } = await supabase
-        .from("lists")
-        .insert({ name: `${list.name} (kopia)`, description: list.description, owner_id: userId, cover_image_url: list.coverImageUrl })
-        .select("id")
-        .single();
-      if (error) throw error;
+    mutationFn: (list: ListDetail) => insertListCopy(list, `${list.name} (kopia)`, list.coverImageUrl),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
 
-      if (list.places.length > 0) {
-        const { error: placesError } = await supabase.from("list_places").insert(
-          list.places.map((p) => ({ list_id: created.id, place_id: p.place.id, added_by: userId }))
-        );
-        if (placesError) throw placesError;
-      }
-      return created.id;
-    },
+/**
+ * "Spara en kopia" av en väns lista: en egen lista med samma namn, beskrivning och platser som
+ * man sen själv äger och kan ändra i. Vännens omslagsbild följer inte med (den är vännens fil) —
+ * kopian får ett collage av platsernas bilder i stället.
+ */
+export function useCopyFriendList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (list: ListDetail) => insertListCopy(list, list.name, null),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });
 }
