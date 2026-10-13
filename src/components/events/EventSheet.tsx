@@ -134,6 +134,19 @@ export function EventSheetHost() {
     saveEventFavorite(cur.request.id, next).catch(() => setSaved(!next));
   }, []);
 
+  // ── Glid upp / ner ──
+  const translateY = useSharedValue(sheetH);
+  const backdrop = useSharedValue(0);
+  const xAnim = useSharedValue(0);
+  const scrollRef = useRef<Reanimated.ScrollView>(null);
+  const scrollY = useSharedValue(0);
+  const startedKey = useRef<number | null>(null);
+  // Vilket event som är uppe — stängningen rapporterar det, så en stängning som blir klar efter att
+  // ett nytt event redan öppnats inte stänger av det nya
+  const openKey = useSharedValue(0);
+  // Hur många av panelens bilder (eventets bild, arrangörens logga) som inte är klara än
+  const imagesLeft = useRef(0);
+
   // ── Ett nytt tryck: byt innehåll medan panelen ligger nere ──
   useEffect(() => {
     if (!request) return;
@@ -153,22 +166,20 @@ export function EventSheetHost() {
       const favorites = queryClient.getQueryData<{ event_id: number | null }[]>(["favorites"]) ?? [];
       setSaved(request.saved ?? favorites.some((f) => f.event_id === request.id));
       savedDirty.current = false;
+      // Före bytet: en bild som redan finns i minnet kan bli klar innan effekterna efter bytet ens
+      // körts — då måste panelen redan veta hur många bilder den väntar på (annars trodde den att
+      // allt var klart, gled upp direkt och nästa bild blev klar mitt i rörelsen)
+      imagesLeft.current = (event.image_url ? 1 : 0) + (event.place?.logo_url ? 1 : 0);
+      openKey.value = request.key;
+      xAnim.value = 0;
+      scrollY.value = 0;
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
       setShown({ request, event });
       setActive(true);
     })();
     return () => { cancelled = true; };
-  }, [request, queryClient]);
+  }, [request, queryClient, openKey, xAnim, scrollY]);
 
-  // ── Glid upp / ner ──
-  const translateY = useSharedValue(sheetH);
-  const backdrop = useSharedValue(0);
-  const xAnim = useSharedValue(0);
-  const scrollRef = useRef<Reanimated.ScrollView>(null);
-  const scrollY = useSharedValue(0);
-  const startedKey = useRef<number | null>(null);
-  // Vilket event som är uppe — stängningen rapporterar det, så en stängning som blir klar efter att
-  // ett nytt event redan öppnats inte stänger av det nya
-  const openKey = useSharedValue(0);
 
   const slideIn = useCallback((key: number) => {
     if (startedKey.current === key || shownRef.current?.request.key !== key) return;
@@ -177,24 +188,17 @@ export function EventSheetHost() {
     translateY.value = reduceMotion ? 0 : withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
   }, [reduceMotion, backdrop, translateY]);
 
-  // Nytt innehåll på plats: börja överst, krysset grått igen, och glid upp när bilderna är klara
-  const imagesLeft = useRef(0);
+  // Nytt innehåll på plats: glid upp när bilderna är klara, eller när tidsgränsen gått ut
   useEffect(() => {
     if (!shown) return;
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-    scrollY.value = 0;
-    xAnim.value = 0;
     const key = shown.request.key;
-    openKey.value = key;
-    imagesLeft.current = (shown.event.image_url ? 1 : 0) + (shown.event.place?.logo_url ? 1 : 0);
+    const hasImages = !!shown.event.image_url || !!shown.event.place?.logo_url;
     // Utan bilder: två bildrutor efter bytet, så rörelsen inte delar bildruta med själva bytet
     let second = 0;
-    const first = imagesLeft.current === 0
-      ? requestAnimationFrame(() => { second = requestAnimationFrame(() => slideIn(key)); })
-      : 0;
+    const first = hasImages ? 0 : requestAnimationFrame(() => { second = requestAnimationFrame(() => slideIn(key)); });
     const t = setTimeout(() => slideIn(key), IMAGES_MAX_WAIT_MS);
     return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); clearTimeout(t); };
-  }, [shown, slideIn, scrollY, xAnim, openKey]);
+  }, [shown, slideIn]);
   /** En av panelens bilder är klar. Svarar om panelen redan glider (då ska bilden tona in) */
   const onImageReady = useCallback((key: number) => {
     if (key !== shownRef.current?.request.key) return false;
