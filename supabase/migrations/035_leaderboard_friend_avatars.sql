@@ -25,7 +25,7 @@ language sql
 security definer
 set search_path = public
 stable
-as $
+as $$
   select lp.id, lp.place_id::bigint, lp.added_by, lp.created_at, lp.position::int
   from public.list_places lp
   join public.lists l on l.id = lp.list_id
@@ -38,7 +38,7 @@ as $
           or (f.addressee_id = auth.uid() and f.requester_id = l.owner_id))
     )
   order by lp.position, lp.created_at desc;
-$;
+$$;
 
 grant execute on function public.rpc_friend_list_places(uuid) to authenticated;
 
