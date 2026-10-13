@@ -192,7 +192,7 @@ const s = StyleSheet.create({
   },
   thumb: { width: THUMB, height: THUMB, borderRadius: 14, overflow: "hidden", backgroundColor: "#2A2A2A", marginRight: 16 },
   name: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG },
-  time: { fontFamily: "Inter_500Medium", fontSize: 15, color: MUTED, marginTop: 6 },
+  time: { fontFamily: "Inter_500Medium", fontSize: 14, color: MUTED, marginTop: 5 },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 },
   emptyIcon: {
