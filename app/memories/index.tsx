@@ -33,7 +33,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { formatMemoryDate } from "@/lib/memories";
 import { useCardVariant } from "@/hooks/useRewardCards";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
-import { LoadingImage } from "@/components/LoadingImage";
+import { LoadingImage } from "@/components/Skeleton";
 import { PressableScale } from "@/components/PressableScale";
 
 const BG = "#121212";
@@ -259,7 +259,7 @@ function MemoryBead({
           {/* Fotot, centrerat innanför mellanrummet */}
           <View style={{ position: "absolute", top: gap, left: gap, width: photoSize, height: photoSize, borderRadius: photoSize / 2, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.08)" }}>
             {cover ? (
-              <LoadingImage source={{ uri: cover }} style={StyleSheet.absoluteFillObject} resizeMode="cover" indicatorColor={FG} />
+              <LoadingImage source={{ uri: cover }} style={StyleSheet.absoluteFillObject} resizeMode="cover" tone="dark" />
             ) : (
               <View style={s.noCover}>
                 <ImageIcon size={Math.round(maxSize * 0.22)} color="rgba(255,255,255,0.25)" strokeWidth={1.5} />

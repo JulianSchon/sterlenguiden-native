@@ -12,7 +12,7 @@ import * as Haptics from "expo-haptics";
 import { ChevronRight, MapPin, Tag } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { formatDistance } from "@/lib/checkin";
-import { LoadingImage } from "@/components/LoadingImage";
+import { LoadingImage } from "@/components/Skeleton";
 import { PressableScale } from "@/components/PressableScale";
 import { GOLD } from "./CelebrationFx";
 
@@ -106,7 +106,7 @@ function BigStop({ stop, onPress }: { stop: NextStop; onPress: () => void }) {
   return (
     <PressableScale style={s.big} scale={0.98} onPress={onPress}>
       {image ? (
-        <LoadingImage source={{ uri: image }} resizeMode="cover" style={StyleSheet.absoluteFill} />
+        <LoadingImage source={{ uri: image }} resizeMode="cover" style={StyleSheet.absoluteFill} tone="dark" />
       ) : (
         <View style={[StyleSheet.absoluteFill, s.noImage]}>
           <MapPin size={30} color={GOLD} strokeWidth={2} />
@@ -142,7 +142,7 @@ function SmallStop({ stop, onPress }: { stop: NextStop; onPress: () => void }) {
   return (
     <PressableScale style={s.small} scale={0.98} onPress={onPress}>
       {image ? (
-        <LoadingImage source={{ uri: image }} resizeMode="cover" style={s.thumb} />
+        <LoadingImage source={{ uri: image }} resizeMode="cover" style={s.thumb} tone="dark" />
       ) : (
         <View style={[s.thumb, s.noImage]}><MapPin size={20} color={GOLD} strokeWidth={2} /></View>
       )}

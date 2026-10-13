@@ -44,7 +44,7 @@ import { ImageIcon } from "lucide-react-native";
 import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
 import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
-import { LoadingImage } from "@/components/LoadingImage";
+import { LoadingImage } from "@/components/Skeleton";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -186,7 +186,7 @@ function MemoryPolaroid({
           </Svg>
           <View style={s.photoWrap}>
             {cover ? (
-              <LoadingImage source={{ uri: cover }} style={s.photo} resizeMode="cover" />
+              <LoadingImage source={{ uri: cover }} style={s.photo} resizeMode="cover" tone="dark" />
             ) : (
               <View style={[s.photo, s.noPhoto]}>
                 <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />
