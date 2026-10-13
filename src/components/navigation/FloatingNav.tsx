@@ -187,11 +187,11 @@ export default function FloatingNav() {
           label: "Profil",
           // Kartan öppnad från en skatt på Mitt Österlen: Profil stänger kartan och går tillbaka
           // dit (Mitt Österlen ligger kvar under, nere vid skatterna) — tillbaka-pilen där leder
-          // sen till Profil
+          // sen till Profil. dismissTo, inte back(): back() hanterades av flikarna, som gick till Hem.
           onPress: () => {
-            if (active === "map" && returnTo === "mitt-osterlen" && router.canGoBack()) {
+            if (active === "map" && returnTo === "mitt-osterlen") {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              router.back();
+              router.dismissTo("/mitt-osterlen" as any);
               return;
             }
             go("/(tabs)/profile", "profile");
