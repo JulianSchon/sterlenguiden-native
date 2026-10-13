@@ -13,7 +13,7 @@ import {
   Animated,
   StyleSheet,
 } from "react-native";
-import { usePathname, useRouter } from "expo-router";
+import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, {
   Defs,
@@ -128,6 +128,7 @@ export default function FloatingNav() {
   const { colors } = useTheme();
   const router    = useRouter();
   const pathname  = usePathname();
+  const { returnTo } = useGlobalSearchParams<{ returnTo?: string }>();
   const insets    = useSafeAreaInsets();
   const { isBusiness }  = useIsBusiness();
   const { count: unseen } = useUnseenAchievements();
@@ -184,7 +185,17 @@ export default function FloatingNav() {
       : {
           id: "profile",
           label: "Profil",
-          onPress: () => go("/(tabs)/profile", "profile"),
+          // Kartan öppnad från en skatt på Mitt Österlen: Profil stänger kartan och går tillbaka
+          // dit (Mitt Österlen ligger kvar under, nere vid skatterna) — tillbaka-pilen där leder
+          // sen till Profil
+          onPress: () => {
+            if (active === "map" && returnTo === "mitt-osterlen" && router.canGoBack()) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              router.back();
+              return;
+            }
+            go("/(tabs)/profile", "profile");
+          },
           icon: <NavProfile active={active === "profile"} />,
           showBadge: unseen > 0,
         },
