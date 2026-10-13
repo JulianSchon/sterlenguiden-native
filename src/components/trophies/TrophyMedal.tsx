@@ -2,8 +2,8 @@
  * Ritningen av en trofé — delad mellan Utmaningar-sidan och incheckningens
  * belöningsskärm, så en trofé ser likadan ut överallt den visas.
  */
-import { memo, useEffect } from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { memo, useEffect, useRef } from "react";
+import { View, Text, Image, StyleSheet, Animated } from "react-native";
 import {
   Canvas, Circle, SweepGradient, RadialGradient, BlurMask, vec,
 } from "@shopify/react-native-skia";
@@ -127,6 +127,14 @@ export function TrophyMedal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const palette = TIER_PALETTE[tier];
+  // Bilden tonas in när den laddats; tills dess syns en svag rund platshållare. Kommer en bild sent
+  // (t.ex. över nätet i utvecklingsläget) ser det ut som en mjuk inglidning, inte ett hål som
+  // plötsligt fylls.
+  const shown = useRef(new Animated.Value(0)).current;
+  const imageLoaded = () => {
+    Animated.timing(shown, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+    onLoad?.();
+  };
 
   // Har vi riktig trofékonst för den här? Då ersätter illustrationen hela
   // den ritade myntmedaljen. Upplåst = fullfärg + mjuk glöd. Låst = en mörk
@@ -135,17 +143,26 @@ export function TrophyMedal({
   if (artwork) {
     return (
       <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center", opacity: unlocked ? 1 : 0.6 }}>
-        {unlocked && <GlowCanvas size={size} color={palette.rim} opacity={0.55} radiusRatio={0.34} blurRatio={0.18} />}
-        <Image
-          source={artwork}
+        <Animated.View
+          pointerEvents="none"
           style={{
-            width: size * 1.06,
-            height: size * 1.06,
-            tintColor: unlocked ? undefined : "#3A3A3A",
+            position: "absolute", width: size * 0.62, height: size * 0.62, borderRadius: size * 0.31,
+            backgroundColor: "rgba(255,255,255,0.06)", opacity: Animated.subtract(1, shown),
           }}
-          resizeMode="contain"
-          onLoad={onLoad}
         />
+        <Animated.View style={{ width: size, height: size, alignItems: "center", justifyContent: "center", opacity: shown }}>
+          {unlocked && <GlowCanvas size={size} color={palette.rim} opacity={0.55} radiusRatio={0.34} blurRatio={0.18} />}
+          <Image
+            source={artwork}
+            style={{
+              width: size * 1.06,
+              height: size * 1.06,
+              tintColor: unlocked ? undefined : "#3A3A3A",
+            }}
+            resizeMode="contain"
+            onLoad={imageLoaded}
+          />
+        </Animated.View>
       </View>
     );
   }
