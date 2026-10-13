@@ -2,10 +2,11 @@
  * Eventets panel — det enda sättet ett evenemang visas på (platser är sidor, evenemang är paneler).
  * Finns en gång i appens rot (EventSheetHost); sidorna öppnar den med openEvent() (lib/eventSheet).
  *
- * Uppifrån: bilden med rubriken och datumrutan (samma 30/OKT som på korten), en ruta med
- * arrangör, datum och tid, adress och Dela, faktarutorna (bokning/biljett, inomhus, mat & dryck,
- * parkering — bock eller kryss, ifyllt av företaget), Köp biljett om det finns en länk, och
- * beskrivningen. Längst ner, alltid synligt: Lägg till i kalender, spara (hjärtat) och stäng.
+ * Uppifrån: bilden med rubriken och datumrutan (samma 30/OKT som på korten), raderna arrangör,
+ * datum och tid, adress och Dela (fritt mot bakgrunden, tunna linjer emellan), "Bra att veta"
+ * (entré, inne/ute, mat & dryck, parkering — ifyllt av företaget), Köp biljett om det finns en
+ * länk, och beskrivningen. Längst ner, alltid synligt och genomskinligt: Lägg till i kalender,
+ * spara (hjärtat) och stäng.
  *
  * Man stänger med krysset, genom att trycka bredvid, eller genom att dra ner panelen.
  */
@@ -24,8 +25,8 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Canvas, LinearGradient, Rect, vec } from "@shopify/react-native-skia";
 import {
-  CalendarCheck, CalendarDays, CalendarPlus, Car, Check, ChevronRight, Globe, Home, MapPin,
-  Share2, Store, Ticket, UtensilsCrossed, X, type LucideIcon,
+  CalendarCheck, CalendarDays, CalendarPlus, Car, ChevronRight, Globe, Home, MapPin,
+  Share2, Store, Sun, Ticket, UtensilsCrossed, X, type LucideIcon,
 } from "lucide-react-native";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -48,12 +49,12 @@ const MUTED = "rgba(245,241,232,0.55)";
 const GOLD = "#C5A059";
 const GOLD_LT = "#E8C674";
 const GOLD_SOFT = "rgba(197,160,89,0.14)";
-const YES = "#34D399";
-const NO = "#F87171";
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 900;
 /** Bottenradens höjd (knapparna + luft), så sista texten aldrig hamnar bakom den */
 const BAR_H = 56 + 32;
+/** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
+const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.6)", "rgba(18,18,18,0.92)"];
 
 type EventDetail = Event & {
   place?: { id: number; name: string; logo_url: string | null; lat: number | null; lng: number | null } | null;
@@ -115,7 +116,7 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const reduceMotion = useReducedMotion();
-  const sheetH = Math.round(winH * 0.93);
+  const sheetH = Math.round(winH * 0.86);
   const heroH = Math.round(width * 0.78);
 
   const { data: fetched } = useEventDetail(request.id);
@@ -243,13 +244,18 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
     ? event.website_url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
     : null;
   const relative = event ? relativeDay(event) : null;
-  const facts: { Icon: LucideIcon; label: string; yes: boolean }[] = event ? [
+  // Bra att veta: varje sak sagd i klartext. Det som saknas står kvar, nedtonat, så man ser det också
+  const facts: { Icon: LucideIcon; label: string; has: boolean }[] = event ? [
     event.booking_required
-      ? { Icon: CalendarCheck, label: "Bokning krävs", yes: true }
-      : { Icon: Ticket, label: "Biljett krävs", yes: !!event.tickets_required },
-    { Icon: Home, label: "Inomhus", yes: !!event.is_indoor },
-    { Icon: UtensilsCrossed, label: "Mat & dryck", yes: !!event.has_food_drink },
-    { Icon: Car, label: "Parkering", yes: !!event.has_parking },
+      ? { Icon: CalendarCheck, label: "Bokning krävs", has: true }
+      : event.tickets_required
+        ? { Icon: Ticket, label: "Biljett krävs", has: true }
+        : { Icon: Ticket, label: "Fri entré", has: true },
+    event.is_indoor
+      ? { Icon: Home, label: "Inomhus", has: true }
+      : { Icon: Sun, label: "Utomhus", has: true },
+    { Icon: UtensilsCrossed, label: event.has_food_drink ? "Mat & dryck finns" : "Ingen servering", has: !!event.has_food_drink },
+    { Icon: Car, label: event.has_parking ? "Parkering finns" : "Ingen parkering", has: !!event.has_parking },
   ] : [];
   const releaseAt = event?.tickets_release_at ? new Date(event.tickets_release_at) : null;
   const ticketState: "buy" | "soldOut" | "release" | null = !event ? null
@@ -313,8 +319,8 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                     </View>
                   ) : (
                     <View style={s.body}>
-                      {/* ── Var och när ── */}
-                      <View style={s.infoCard}>
+                      {/* ── Var och när: fritt mot bakgrunden, tunna linjer emellan ── */}
+                      <View>
                         {place ? (
                           <InfoRow
                             icon={place.logo_url
@@ -354,17 +360,15 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                         />
                       </View>
 
-                      {/* ── Bra att veta: bock eller kryss, ifyllt av företaget ── */}
+                      {/* ── Bra att veta: ifyllt av företaget ── */}
+                      <Text style={[s.sectionTitle, { marginTop: 30 }]}>Bra att veta</Text>
                       <View style={s.facts}>
-                        {facts.map(({ Icon, label, yes }) => (
-                          <View key={label} style={[s.fact, { width: (width - 40 - 10) / 2 }]}>
-                            <Icon size={18} color={GOLD} strokeWidth={2.2} />
-                            <Text style={s.factText} numberOfLines={1}>{label}</Text>
-                            <View style={[s.status, { backgroundColor: yes ? "rgba(16,185,129,0.22)" : "rgba(239,68,68,0.20)" }]}>
-                              {yes
-                                ? <Check size={13} color={YES} strokeWidth={3.4} />
-                                : <X size={13} color={NO} strokeWidth={3.4} />}
+                        {facts.map(({ Icon, label, has }) => (
+                          <View key={label} style={[s.fact, { width: (width - 40 - 16) / 2 }]}>
+                            <View style={[s.factIcon, !has && s.factIconOff]}>
+                              <Icon size={18} color={has ? GOLD_LT : "rgba(245,241,232,0.35)"} strokeWidth={2} />
                             </View>
+                            <Text style={[s.factText, !has && s.factTextOff]} numberOfLines={2}>{label}</Text>
                           </View>
                         ))}
                       </View>
@@ -386,8 +390,8 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                       )}
 
                       {!!event.description && (
-                        <View style={{ marginTop: 28 }}>
-                          <Text style={s.aboutTitle}>Om evenemanget</Text>
+                        <View style={{ marginTop: 30 }}>
+                          <Text style={s.sectionTitle}>Om evenemanget</Text>
                           <Text style={s.aboutText}>{event.description.trim()}</Text>
                         </View>
                       )}
@@ -402,14 +406,14 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
           <View style={[s.bar, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
             <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
               <Rect x={0} y={0} width={width} height={BAR_H + insets.bottom + 40}>
-                <LinearGradient start={vec(0, 0)} end={vec(0, 28)} colors={["rgba(18,18,18,0)", BG]} />
+                <LinearGradient start={vec(0, 0)} end={vec(0, BAR_H + insets.bottom + 22)} colors={BAR_FADE} positions={[0, 0.45, 1]} />
               </Rect>
             </Canvas>
             <PressableScale style={s.calBtn} scale={0.97} onPress={addToCalendar} disabled={!event}>
               <CalendarPlus size={20} color={BG} strokeWidth={2} />
               <Text style={s.calText}>Lägg till i kalender</Text>
             </PressableScale>
-            <View style={s.roundBtn}>
+            <View style={[s.roundBtn, { marginLeft: 4 }]}>
               <HeartButton isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={22} label="sparade" />
             </View>
             <Pressable onPress={pressX} hitSlop={6} accessibilityLabel="Stäng">
@@ -467,35 +471,33 @@ const s = StyleSheet.create({
   title: { fontFamily: "Montserrat_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.4, color: "#FFFFFF" },
 
   body: { paddingHorizontal: 20, paddingTop: 10 },
-  infoCard: { borderRadius: 20, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
-  row: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 14, paddingVertical: 12 },
-  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)" },
+  row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14 },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.12)" },
   rowIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: GOLD_SOFT, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   logo: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF" },
   rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
   rowSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
 
-  facts: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
-  fact: {
-    flexDirection: "row", alignItems: "center", gap: 10, height: 52, paddingHorizontal: 12, borderRadius: 16,
-    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(197,160,89,0.18)",
-  },
-  factText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
-  status: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG, marginBottom: 14 },
+  facts: { flexDirection: "row", flexWrap: "wrap", columnGap: 16, rowGap: 16 },
+  fact: { flexDirection: "row", alignItems: "center", gap: 12 },
+  factIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: GOLD_SOFT },
+  factIconOff: { backgroundColor: "rgba(255,255,255,0.05)" },
+  factText: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 14, lineHeight: 18, color: FG },
+  factTextOff: { fontFamily: "Inter_500Medium", color: "rgba(245,241,232,0.42)" },
 
   ticketBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 52, marginTop: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 52, marginTop: 22,
     borderRadius: 16, backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.45)",
   },
   ticketBtnOff: { backgroundColor: CARD, borderColor: "rgba(255,255,255,0.08)" },
   ticketText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: GOLD_LT },
 
-  aboutTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG, marginBottom: 10 },
   aboutText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, color: "rgba(245,241,232,0.72)" },
 
   bar: {
-    position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 20, paddingTop: 22,
+    position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 16, paddingTop: 22,
   },
   calBtn: {
     flex: 1, height: 56, borderRadius: 28, backgroundColor: GOLD,
@@ -503,7 +505,7 @@ const s = StyleSheet.create({
   },
   calText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: BG },
   roundBtn: {
-    width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
+    width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center",
     backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
 });
