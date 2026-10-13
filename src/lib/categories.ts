@@ -1,11 +1,14 @@
 /**
  * Platskategorierna med färg och ikon, och hur mycket av varje kategori användaren besökt.
- * Delas av Statistik och Profil så att de aldrig visar olika siffror. Samma dbValues som
- * app/category/[categoryId].tsx.
+ * Delas av Statistik, Profil och vänners profiler så att de aldrig visar olika siffror.
+ *
+ * Färg, ikon, namn och databasvärden kommer från appens enda kategorikälla
+ * (src/theme/categories.ts) — kategorins egen färg (`screen`, t.ex. vinröd för Mat & Dryck),
+ * som Viktor vill ha även i statistiken.
  */
 import type { ComponentType } from "react";
-import { UtensilsCrossed, Coffee, Hotel, ShoppingBag, TreePine, Target, Landmark, Palette } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
+import { CATEGORIES } from "@/theme/categories";
 
 export interface StatCategory {
   id: string;
@@ -15,16 +18,9 @@ export interface StatCategory {
   dbValues: string[];
 }
 
-export const STAT_CATEGORIES: StatCategory[] = [
-  { id: "mat-dryck",          label: "Mat & Dryck",          color: "#8B5F46", Icon: UtensilsCrossed, dbValues: ["Mat", "Mat & Dryck"] },
-  { id: "cafe-bageri",        label: "Café & Bageri",        color: "#A3814C", Icon: Coffee,          dbValues: ["Café & Bageri", "Cafe & Bageri"] },
-  { id: "hotell-bb",          label: "Hotell & B&B",         color: "#5A6580", Icon: Hotel,           dbValues: ["Hotell & B&B", "Boende"] },
-  { id: "butiker",            label: "Butiker",              color: "#9C5860", Icon: ShoppingBag,     dbValues: ["Butiker", "Gårdsbutik"] },
-  { id: "natur-upplevelser",  label: "Natur & Upplevelser",  color: "#4C7659", Icon: TreePine,        dbValues: ["Natur", "Natur & Upplevelser"] },
-  { id: "aktiviteter",        label: "Aktiviteter",          color: "#568495", Icon: Target,          dbValues: ["Aktiviteter"] },
-  { id: "sevardheter",        label: "Sevärdheter",          color: "#6C5C95", Icon: Landmark,        dbValues: ["Sevärdheter", "Konst"] },
-  { id: "hantverk-service",   label: "Design & Hantverk",    color: "#4F7D79", Icon: Palette,         dbValues: ["Hantverk & Service", "Hantverk"] },
-];
+export const STAT_CATEGORIES: StatCategory[] = CATEGORIES.map((c) => ({
+  id: c.id, label: c.label, color: c.screen, Icon: c.icon, dbValues: c.dbValues,
+}));
 
 export interface CategoryStat extends StatCategory {
   /** Antal platser i kategorin */
