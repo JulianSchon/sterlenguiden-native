@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, type LayoutChangeEvent } from "react-native";
 import Reanimated, {
-  Easing, Extrapolation, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withTiming,
+  Easing, Extrapolation, FadeInDown, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withTiming,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Canvas, Circle, DashPathEffect, LinearGradient, Path, Skia, vec, BlurMask } from "@shopify/react-native-skia";
@@ -151,18 +151,18 @@ export default function StatsScreen() {
               <Text style={s.heroValue}>{stats.uniqueCount}</Text>
               <Text style={s.heroOf}>av {places.length} platser</Text>
             </View>
-            <Bar fraction={places.length > 0 ? stats.uniqueCount / places.length : 0} color={GOLD} height={10} delay={150} />
+            <Bar fraction={places.length > 0 ? stats.uniqueCount / places.length : 0} color={GOLD} height={10} delay={60} />
             <Text style={s.heroPercent}>{percent} % av Österlen</Text>
           </View>
 
           {/* 2. Rutorna */}
           <View style={s.tiles}>
-            <Tile icon={<PlacePin height={25} />} value={stats.visitCount} label="Besök" />
-            <Tile icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label="Favoriter" />
-            <Tile icon={<MiniPolaroid />} value={memories.length} label="Minnen" />
-            <Tile icon={<TreasurePin />} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
-            <Tile icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
-            <Tile icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label="Längsta streak" />
+            <Tile index={0} icon={<PlacePin height={25} />} value={stats.visitCount} label="Besök" />
+            <Tile index={1} icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label="Favoriter" />
+            <Tile index={2} icon={<MiniPolaroid />} value={memories.length} label="Minnen" />
+            <Tile index={3} icon={<TreasurePin />} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
+            <Tile index={4} icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
+            <Tile index={5} icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label="Längsta streak" />
           </View>
 
           {/* 3. Besök per månad */}
@@ -212,14 +212,14 @@ export default function StatsScreen() {
   );
 }
 
-/** En ruta: symbol, stort värde, etikett */
-function Tile({ icon, value, label }: { icon: ReactNode; value: number | string; label: string }) {
+/** En ruta: symbol, stort värde, etikett — glider in kort efter varandra */
+function Tile({ icon, value, label, index }: { icon: ReactNode; value: number | string; label: string; index: number }) {
   return (
-    <View style={s.tile}>
+    <Reanimated.View entering={FadeInDown.delay(40 + index * 35).duration(280)} style={s.tile}>
       <View style={s.tileIcon}>{icon}</View>
       <Text style={s.tileValue}>{value}</Text>
       <Text style={s.tileLabel} numberOfLines={1}>{label}</Text>
-    </View>
+    </Reanimated.View>
   );
 }
 
@@ -254,7 +254,7 @@ function TreasurePin() {
 function Bar({ fraction, color, height = 8, delay = 0 }: { fraction: number; color: string; height?: number; delay?: number }) {
   const fill = useSharedValue(0);
   useEffect(() => {
-    fill.value = withDelay(delay, withTiming(Math.max(0, Math.min(1, fraction)), { duration: 900, easing: Easing.out(Easing.cubic) }));
+    fill.value = withDelay(delay, withTiming(Math.max(0, Math.min(1, fraction)), { duration: 550, easing: Easing.out(Easing.quad) }));
   }, [fraction, delay, fill]);
   const style = useAnimatedStyle(() => ({ transform: [{ scaleX: fill.value }] }));
   return (
@@ -536,7 +536,7 @@ function WeekdayBars({ counts }: { counts: number[] }) {
 function WeekBar({ fraction, highlight, delay }: { fraction: number; highlight: boolean; delay: number }) {
   const grow = useSharedValue(0);
   useEffect(() => {
-    grow.value = withDelay(delay, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
+    grow.value = withDelay(delay, withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) }));
   }, [delay, grow]);
   const style = useAnimatedStyle(() => ({ transform: [{ scaleY: grow.value }] }));
   const h = fraction > 0 ? Math.max(10, fraction * WEEK_H) : 5;
