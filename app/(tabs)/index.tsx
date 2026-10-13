@@ -49,7 +49,7 @@ import { useStoryViews } from "@/hooks/useStoryViews";
 import { StoryViewer, type StoryGroupData, type StoryType } from "@/components/StoryViewer";
 import { NearbyCheckInPrompt } from "@/components/checkin/NearbyCheckInPrompt";
 import { NearbyStickerPrompt } from "@/components/stickers/NearbyStickerPrompt";
-import { EventBottomSheet } from "./calendar";
+import { EventBottomSheet } from "@/components/events/EventSheet";
 import { useNews, type NewsItem } from "@/hooks/useNews";
 import { colors } from "@/lib/colors";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";

@@ -31,7 +31,7 @@ import {
   type LeaderboardEntry, type LeaderboardMetric, type LeaderboardScope, type LeaderboardPeriod,
 } from "@/hooks/useLeaderboard";
 import { Podium, PodiumSkeleton } from "@/components/leaderboard/Podium";
-import { Segmented } from "@/components/leaderboard/Segmented";
+import { Segmented } from "@/components/Segmented";
 import { LeaderboardRow, LeaderboardRowSkeleton, ROW_H } from "@/components/leaderboard/LeaderboardRow";
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "@/components/leaderboard/LeaderboardConsentSheet";
 import { LeaderboardSettingsSheet } from "@/components/leaderboard/LeaderboardSettingsSheet";

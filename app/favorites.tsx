@@ -21,9 +21,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Image, Share,
 } from "react-native";
-import Reanimated, {
-  Easing, FadeInDown, interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, type SharedValue,
-} from "react-native-reanimated";
+import Reanimated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Heart, Square, AlignJustify } from "lucide-react-native";
@@ -38,13 +36,13 @@ import { ShareIcon } from "@/components/ShareIcon";
 import { CategoryHeader } from "@/components/CategoryHeader";
 import { darkColors } from "@/theme/colors";
 import { pushOnce } from "@/lib/navigateOnce";
+import { HeartButton, LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
 
 const BG     = "#121212";
 const CARD   = "#1C1C1C";
 const FG     = "#F5F1E8";
 const MUTED  = "rgba(245,241,232,0.55)";
 const GOLD   = "#C5A059";
-const RED    = "#EF4444";
 const BORDER = "rgba(255,255,255,0.06)";
 
 type FavKind = "place" | "event";
@@ -161,17 +159,7 @@ export default function FavoritesScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   // Gilla-animationens ring och prickar — en uppsättning för hela sidan
-  const burst = useSharedValue(0);
-  const burstX = useSharedValue(0);
-  const burstY = useSharedValue(0);
-  const burstSize = useSharedValue(28);
-  const showBurst = useCallback((x: number, y: number, size: number) => {
-    burstX.value = x;
-    burstY.value = y;
-    burstSize.value = size;
-    burst.value = 0;
-    burst.value = withTiming(1, { duration: 560, easing: Easing.out(Easing.cubic) });
-  }, [burst, burstX, burstY, burstSize]);
+  const { burst, show: showBurst } = useLikeBurst();
 
   // Vyn man valde senast
   useEffect(() => {
@@ -345,92 +333,8 @@ export default function FavoritesScreen() {
           </View>
         </ScrollView>
       )}
-      <LikeBurst burst={burst} x={burstX} y={burstY} size={burstSize} />
+      <LikeBurst burst={burst} />
     </View>
-  );
-}
-
-type BurstFn = (x: number, y: number, size: number) => void;
-
-/**
- * Hjärtat, som en gilla-knapp i de stora apparna: gillar man trycks hjärtat ihop, poppar upp större
- * och fjädrar tillbaka, och sidans ring och prickar (LikeBurst) sprutar ut runt det — med en
- * vibration. Tar man bort gillningen krymper det bara lite och studsar tillbaka.
- */
-function HeartButton({ isFav, onToggle, onBurst, size = 28 }: { isFav: boolean; onToggle: () => void; onBurst: BurstFn; size?: number }) {
-  const scale = useSharedValue(1);
-  const box = useRef<View>(null);
-  const press = () => {
-    if (!isFav) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      scale.value = withSequence(
-        withTiming(0.6, { duration: 80, easing: Easing.in(Easing.quad) }),
-        withTiming(1.35, { duration: 150, easing: Easing.out(Easing.quad) }),
-        withSpring(1, { damping: 9, stiffness: 260 }),
-      );
-      box.current?.measureInWindow((x, y, w, h) => onBurst(x + w / 2, y + h / 2, size));
-    } else {
-      Haptics.selectionAsync().catch(() => {});
-      scale.value = withSequence(withTiming(0.75, { duration: 90 }), withSpring(1, { damping: 12, stiffness: 260 }));
-    }
-    onToggle();
-  };
-  const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return (
-    <TouchableOpacity style={s.heartBtn} activeOpacity={0.8} hitSlop={10} onPress={press} accessibilityLabel={isFav ? "Ta bort från favoriter" : "Spara som favorit"}>
-      <View ref={box} collapsable={false}>
-        <Reanimated.View style={heartStyle}>
-          <Heart size={size} color={RED} fill={isFav ? RED : "transparent"} strokeWidth={2} />
-        </Reanimated.View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const PARTICLES = 8;
-const PARTICLE_COLORS = [RED, GOLD];
-
-/** Ring och prickar runt hjärtat man just gillade — en uppsättning för hela sidan, flyttas dit */
-function LikeBurst({ burst, x, y, size }: { burst: SharedValue<number>; x: SharedValue<number>; y: SharedValue<number>; size: SharedValue<number> }) {
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(burst.value, [0, 0.15, 1], [0, 0.55, 0]),
-    width: size.value,
-    height: size.value,
-    borderRadius: size.value / 2,
-    transform: [
-      { translateX: x.value - size.value / 2 },
-      { translateY: y.value - size.value / 2 },
-      { scale: interpolate(burst.value, [0, 1], [0.4, 1.9]) },
-    ],
-  }));
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Reanimated.View style={[s.heartRing, ringStyle]} />
-      {Array.from({ length: PARTICLES }, (_, i) => (
-        <HeartParticle key={i} index={i} burst={burst} x={x} y={y} size={size} />
-      ))}
-    </View>
-  );
-}
-
-function HeartParticle({ index, burst, x, y, size }: {
-  index: number; burst: SharedValue<number>; x: SharedValue<number>; y: SharedValue<number>; size: SharedValue<number>;
-}) {
-  const angle = (index / PARTICLES) * Math.PI * 2 - Math.PI / 2;
-  const dot = index % 2 === 0 ? 6 : 4.5;
-  const style = useAnimatedStyle(() => {
-    const r = interpolate(burst.value, [0, 1], [size.value * 0.35, size.value * 1.15]);
-    return {
-      opacity: interpolate(burst.value, [0, 0.1, 0.75, 1], [0, 1, 0.8, 0]),
-      transform: [
-        { translateX: x.value - dot / 2 + Math.cos(angle) * r },
-        { translateY: y.value - dot / 2 + Math.sin(angle) * r },
-        { scale: interpolate(burst.value, [0, 1], [1, 0.3]) },
-      ],
-    };
-  });
-  return (
-    <Reanimated.View style={[{ position: "absolute", left: 0, top: 0, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: PARTICLE_COLORS[index % 2] }, style]} />
   );
 }
 
@@ -537,6 +441,4 @@ const s = StyleSheet.create({
   rowCategory: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: GOLD },
   rowDesc: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
 
-  heartBtn: { paddingTop: 2, paddingHorizontal: 4 },
-  heartRing: { position: "absolute", left: 0, top: 0, borderWidth: 2, borderColor: RED },
 });

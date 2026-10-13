@@ -6,6 +6,13 @@ export type Event = Tables<"events"> & {
   time?: string | null;
   end_date?: string | null;
   place?: { name: string; logo_url: string | null } | null;
+  // Kolumner som finns i databasen men inte i de genererade typerna än
+  /** Kategorin företaget valde (se EVENT_CATEGORIES i lib/events) */
+  main_category?: string | null;
+  tickets_required?: boolean | null;
+  ticket_url?: string | null;
+  booking_required?: boolean | null;
+  is_sold_out?: boolean | null;
 };
 
 export function useEvents() {

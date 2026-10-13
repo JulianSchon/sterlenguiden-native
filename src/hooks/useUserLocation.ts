@@ -13,6 +13,29 @@ export type UserLocationState =
  * gången, och bara om `enabled` är sant, så vanliga platssidor utan
  * incheckning inte visar en behörighetsfråga i onödan.
  */
+/**
+ * Användarens senast kända position — bara om platsbehörigheten redan finns. Frågar aldrig, så en
+ * sida kan visa "12 km från dig" när det går utan att avbryta med en behörighetsfråga.
+ */
+export function useKnownLocation() {
+  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status !== "granted") return;
+        const last = await Location.getLastKnownPositionAsync();
+        if (alive && last) setPos({ lat: last.coords.latitude, lng: last.coords.longitude });
+      } catch {
+        // Ingen position — sidan klarar sig utan
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+  return pos;
+}
+
 export function useUserLocation(enabled: boolean) {
   const [state, setState] = useState<UserLocationState>({ status: "loading" });
 

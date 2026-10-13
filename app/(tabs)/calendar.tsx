@@ -1,977 +1,487 @@
 /**
- * Kalender / Evenemang – native implementation
- * Spec: native-calendar-spec.md
+ * Kalender — två lägen:
+ *
+ * - För dig: EN lista rankad för just den här användaren (src/lib/events.ts), med ett skäl per
+ *   event ("Hos en av dina favoritplatser", "Du gillar mat & dryck" …). Överst det bästa valet
+ *   som ett stort kort, resten som rader. Fungerar lika bra med tre event som med trettio.
+ * - Alla: månadskalendern där varje dag med ett event är en rund bild (MonthCalendar). Under den
+ *   månadens event; trycker man på en dag visas bara den dagens, trycker man på eventet (eller
+ *   dagen igen när den bara har ett) öppnas eventets panel. Kategorifiltret dämpar dagarna som
+ *   inte matchar.
  */
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, FlatList, Image, TouchableOpacity,
-  StyleSheet, ActivityIndicator, ScrollView, Modal,
-  Dimensions, Pressable, Animated, Linking,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Compass, Flame, CalendarDays, LayoutGrid,
-  ChevronLeft, ChevronRight, X, MapPin, Globe,
-  Heart, CalendarPlus, Clock, ChevronDown,
-} from "lucide-react-native";
-import { useEvents, type Event } from "@/hooks/useEvents";
-import { usePopularEvents } from "@/hooks/usePopularEvents";
-import { useIsFavorite } from "@/hooks/useFavorites";
-import { registerScrollCallback } from "@/lib/scrollRefs";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  format, eachDayOfInterval, startOfMonth, endOfMonth,
-  addMonths, subMonths, isToday, getDay, parseISO,
-} from "date-fns";
+import Reanimated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { CalendarHeart, ChevronLeft, ChevronRight } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+import { addMonths, format, max as maxDate, min as minDate, parseISO, startOfMonth } from "date-fns";
 import { sv } from "date-fns/locale";
+import { useEvents, type Event } from "@/hooks/useEvents";
+import { useFavorites, useToggleEventFavorite } from "@/hooks/useFavorites";
+import { useVisits } from "@/hooks/useVisits";
+import { usePlaces } from "@/hooks/usePlaces";
+import { useProfile } from "@/hooks/useProfile";
+import { useKnownLocation } from "@/hooks/useUserLocation";
+import { registerScrollCallback } from "@/lib/scrollRefs";
+import {
+  EVENT_CATEGORIES, dayKey, eventDays, lastDay, likedCategories, recommendEvents, type EventPick,
+} from "@/lib/events";
+import { EventBottomSheet } from "@/components/events/EventSheet";
+import { EventHeroCard, EventRow } from "@/components/events/EventCards";
+import { MonthCalendar } from "@/components/events/MonthCalendar";
+import { LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
+import { Segmented } from "@/components/Segmented";
+import { CategoryHeader } from "@/components/CategoryHeader";
+import { Skeleton } from "@/components/Skeleton";
+import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
+import { darkColors } from "@/theme/colors";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-const { width: SW, height: SH } = Dimensions.get("window");
-const SHEET_HEIGHT = SH * 0.93;
-const GOLD         = "#C5A059";
-const CHARCOAL     = "#121212";
-const BG           = "#121212";
-const CARD_BG      = "#1C1C1C";
-const FG           = "#F5F1E8";
-const MUTED        = "rgba(245,241,232,0.55)";
-const BORDER       = "rgba(255,255,255,0.10)";
+const BG = "#121212";
+const FG = "#F5F1E8";
+const MUTED = "rgba(245,241,232,0.55)";
+const GOLD = "#C5A059";
+const GOLD_LT = "#E8C674";
 
-type EventTab = "foryou" | "popular" | "calendar" | "month";
+type Mode = "foryou" | "all";
+const MODES: { id: Mode; label: string }[] = [
+  { id: "foryou", label: "För dig" },
+  { id: "all", label: "Alla" },
+];
+/** Så många visas på "För dig" — resten finns i kalendern */
+const FOR_YOU_MAX = 12;
 
-// ─── Date utils ───────────────────────────────────────────────────────────────
-function getEventDates(date: string | null, endDate?: string | null): string[] {
-  if (!date) return [];
-  const start = new Date(date + "T00:00");
-  if (!endDate || endDate === date) return [date];
-  const end = new Date(endDate + "T00:00");
-  return eachDayOfInterval({ start, end }).map((d) => format(d, "yyyy-MM-dd"));
-}
+/** Snabb inglidning för de första korten/raderna, kort efter varandra */
+const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).duration(300) : undefined);
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function formatDateBadge(date: string | null, endDate?: string | null): { day: string; month: string } {
-  if (!date) return { day: "", month: "" };
-  const start = new Date(date + "T00:00");
-  const month = format(start, "MMM", { locale: sv });
-  if (!endDate || endDate === date) return { day: format(start, "d"), month };
-  const end = new Date(endDate + "T00:00");
-  const crossMonth = start.getMonth() !== end.getMonth();
-  const endMonth = format(end, "MMM", { locale: sv });
-  return {
-    day: `${format(start, "d")}–${format(end, "d")}`,
-    month: crossMonth ? `${month}/${endMonth}` : month,
-  };
-}
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-type EventDetail = Event & {
-  place?: { name: string; logo_url: string | null; lat: number | null; lng: number | null } | null;
-};
-
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-function useEventDetail(id: number | null) {
-  return useQuery({
-    queryKey: ["event", id],
-    queryFn: async () => {
-      if (!id) return null;
-      const { data, error } = await supabase
-        .from("events")
-        .select("*, place:places!events_place_id_fkey(name, logo_url, lat, lng)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data as EventDetail;
-    },
-    enabled: !!id,
-  });
-}
-
-function useToggleFavoriteEvent(eventId: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: existing } = await supabase
-        .from("favorites").select("id")
-        .eq("user_id", user.id).eq("event_id", eventId).maybeSingle();
-      if (existing) {
-        await supabase.from("favorites").delete().eq("id", existing.id);
-      } else {
-        await supabase.from("favorites").insert({ user_id: user.id, event_id: eventId, place_id: null, service_point_id: null });
-      }
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["favorites"] }),
-  });
-}
-
-// ─── EventBottomSheet ─────────────────────────────────────────────────────────
-export function EventBottomSheet({ eventId, onClose }: { eventId: number | null; onClose: () => void }) {
+export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const [visible, setVisible] = useState(false);
-  const [closeIconWhite, setCloseIconWhite] = useState(false);
+  const [mode, setMode] = useState<Mode>("foryou");
+  const [openId, setOpenId] = useState<number | null>(null);
 
-  const translateY      = useRef(new Animated.Value(SHEET_HEIGHT)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const heartScale      = useRef(new Animated.Value(1)).current;
-  const closeRotate     = useRef(new Animated.Value(0)).current;
-  const closeBgAnim     = useRef(new Animated.Value(0)).current;
-  const shimmerX        = useRef(new Animated.Value(-200)).current;
-  const calBtnScale     = useRef(new Animated.Value(1)).current;
+  const { data: events = [], isLoading } = useEvents();
+  const { data: favorites = [] } = useFavorites();
+  const { data: visits = [] } = useVisits();
+  const { data: places = [] } = usePlaces();
+  const { data: profile } = useProfile();
+  const location = useKnownLocation();
 
-  const { data: event, isLoading } = useEventDetail(eventId);
-  const isFavServer = useIsFavorite(undefined, eventId ?? 0);
-  const [localFav, setLocalFav]   = useState<boolean | null>(null);
-  const isFav     = localFav !== null ? localFav : isFavServer;
-  const toggleFav = useToggleFavoriteEvent(eventId ?? 0);
+  // Sparade event, och vad man gillar (favoritplatser, besök) — det "För dig" rankar efter
+  const savedIds = useMemo(() => new Set(favorites.flatMap((f) => (f.event_id != null ? [f.event_id] : []))), [favorites]);
+  const favoritePlaceIds = useMemo(() => new Set(favorites.flatMap((f) => (f.place_id != null ? [f.place_id] : []))), [favorites]);
+  const visitedPlaceIds = useMemo(() => new Set(visits.map((v) => v.place_id)), [visits]);
+  const picks = useMemo(() => recommendEvents({
+    events,
+    places,
+    favoritePlaceIds,
+    savedEventIds: savedIds,
+    visitedPlaceIds,
+    categoryCounts: likedCategories(places, visitedPlaceIds, favoritePlaceIds),
+    location,
+  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, savedIds, visitedPlaceIds, location]);
 
-  useEffect(() => { setLocalFav(null); }, [eventId]);
+  // Spara-hjärtat: samma som på Favoriter, sparas direkt
+  const { burst, show: showBurst } = useLikeBurst();
+  const toggle = useToggleEventFavorite();
+  const savedRef = useRef(savedIds);
+  savedRef.current = savedIds;
+  const toggleSave = useCallback((id: number) => {
+    toggle.mutate({ eventId: id, save: !savedRef.current.has(id) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Fliktrycket i navigeringen scrollar upp det läge som visas
+  const forYouRef = useRef<ScrollView>(null);
+  const allRef = useRef<ScrollView>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   useEffect(() => {
-    if (eventId !== null) {
-      setVisible(true);
-      setCloseIconWhite(false);
-      translateY.setValue(SHEET_HEIGHT);
-      backdropOpacity.setValue(0);
-      closeRotate.setValue(0);
-      closeBgAnim.setValue(0);
-      shimmerX.setValue(-200);
-      Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(translateY, { toValue: 0, damping: 30, stiffness: 300, mass: 0.8, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [eventId]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(2000),
-        Animated.timing(shimmerX, { toValue: SW + 100, duration: 700, useNativeDriver: true }),
-        Animated.timing(shimmerX, { toValue: -200, duration: 0, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [visible]);
-
-  const closeSheet = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-      Animated.spring(translateY, { toValue: SHEET_HEIGHT, damping: 30, stiffness: 300, useNativeDriver: true }),
-    ]).start(() => {
-      setVisible(false);
-      // Small delay ensures the Modal fully unmounts before touches reach the
-      // underlying screen – prevents the "first tap does nothing" ghost touch.
-      setTimeout(onClose, 30);
+    registerScrollCallback("calendar", () => {
+      (modeRef.current === "foryou" ? forYouRef : allRef).current?.scrollTo({ y: 0, animated: true });
     });
   }, []);
 
-  const handleClose = () => {
-    setCloseIconWhite(true);
-    Animated.timing(closeRotate, { toValue: 1, duration: 280, useNativeDriver: true }).start();
-    Animated.timing(closeBgAnim, { toValue: 1, duration: 280, useNativeDriver: false }).start();
-    setTimeout(() => { closeRotate.setValue(0); closeBgAnim.setValue(0); setCloseIconWhite(false); closeSheet(); }, 280);
-  };
-
-  const handleHeart = () => {
-    setLocalFav(!isFav);
-    Animated.sequence([
-      Animated.timing(heartScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
-      Animated.timing(heartScale, { toValue: 0.95, duration: 70,  useNativeDriver: true }),
-      Animated.timing(heartScale, { toValue: 1.08, duration: 60,  useNativeDriver: true }),
-      Animated.timing(heartScale, { toValue: 1,    duration: 60,  useNativeDriver: true }),
-    ]).start();
-    toggleFav.mutate();
-  };
-
-  const closeRotateDeg = closeRotate.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
-  const closeBgColor   = closeBgAnim.interpolate({ inputRange: [0, 1], outputRange: ["#1F1F1F", "rgba(220,38,38,0.7)"] });
-
-  if (!visible) return null;
-
-  const location     = (event as any)?.location as string | null;
-  const websiteUrl   = (event as any)?.website_url as string | null;
-  const logoUrl      = event?.place?.logo_url ?? null;
-  const websiteHost  = websiteUrl
-    ? (() => { try { return new URL(websiteUrl).hostname.replace(/^www\./, ""); } catch { return websiteUrl.replace(/^https?:\/\//, "").split("/")[0]; } })()
-    : null;
+  const firstName = profile?.display_name?.trim().split(/\s+/)[0] ?? null;
+  const bottomPad = FLOATING_NAV_HEIGHT + insets.bottom + 110;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
-      <Animated.View style={[bs.backdrop, { opacity: backdropOpacity }]}>
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-        <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
-      </Animated.View>
-
-      <Animated.View style={[bs.sheet, { transform: [{ translateY }] }]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-          {/* Hero */}
-          <View style={bs.heroContainer}>
-            {event?.image_url
-              ? <Image source={{ uri: event.image_url }} style={bs.heroImage} resizeMode="cover" />
-              : <View style={[bs.heroImage, bs.heroPlaceholder]} />
-            }
-            <View style={bs.heroGradient} />
-            {event && <Text style={bs.heroTitle}>{event.title}</Text>}
-          </View>
-
-          {isLoading && <View style={bs.center}><ActivityIndicator size="large" color={GOLD} /></View>}
-
-          {event && (
-            <View style={{ marginTop: 16 }}>
-              {websiteUrl && (
-                <TouchableOpacity style={bs.infoRow} onPress={() => Linking.openURL(websiteUrl)}>
-                  <View style={bs.iconCircle}>
-                    {logoUrl
-                      ? <Image source={{ uri: logoUrl }} style={bs.iconCircleImg} resizeMode="cover" />
-                      : <Globe size={20} color={GOLD} strokeWidth={2} />
-                    }
-                  </View>
-                  <Text style={bs.infoText} numberOfLines={1}>{websiteHost}</Text>
-                  <ChevronRight size={16} color={MUTED} />
-                </TouchableOpacity>
-              )}
-              {event.date && (
-                <View style={bs.infoRow}>
-                  <View style={bs.iconCircle}><CalendarDays size={20} color={GOLD} strokeWidth={2} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={bs.infoText}>
-                      {format(new Date(event.date + "T00:00"), "EEEE d MMMM yyyy", { locale: sv })}
-                    </Text>
-                    {(event as any).time && <Text style={bs.infoSub}>{(event as any).time}</Text>}
-                  </View>
-                </View>
-              )}
-              {location && (
-                <TouchableOpacity
-                  style={bs.infoRow}
-                  onPress={() => Linking.openURL(`maps://maps.apple.com/?q=${encodeURIComponent(location + ", Österlen")}`)}
-                >
-                  <View style={bs.iconCircle}><MapPin size={20} color={GOLD} strokeWidth={2} /></View>
-                  <Text style={bs.infoText} numberOfLines={1}>{location}</Text>
-                  <ChevronRight size={16} color={MUTED} />
-                </TouchableOpacity>
-              )}
-              {event.description && (
-                <View style={bs.section}>
-                  <Text style={bs.sectionTitle}>Om evenemanget</Text>
-                  <Text style={bs.sectionBody}>{event.description}</Text>
-                </View>
-              )}
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Bottom bar */}
-        <View style={[bs.bottomBar, { paddingBottom: 20 + insets.bottom }]}>
-          <TouchableOpacity
-            activeOpacity={1}
-            style={{ flex: 1 }}
-            onPressIn={() => Animated.timing(calBtnScale, { toValue: 0.97, duration: 80, useNativeDriver: true }).start()}
-            onPressOut={() => Animated.timing(calBtnScale, { toValue: 1, duration: 80, useNativeDriver: true }).start()}
-            onPress={() => {
-              if (!event?.date) return;
-              const d = format(new Date(event.date + "T00:00"), "yyyyMMdd");
-              const p = new URLSearchParams({ action: "TEMPLATE", text: event.title, dates: `${d}/${d}`, details: event.description ?? "", location: location ?? "Österlen" });
-              Linking.openURL(`https://calendar.google.com/calendar/render?${p}`);
-            }}
-          >
-            <Animated.View style={[bs.calBtn, { transform: [{ scale: calBtnScale }] }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                <CalendarPlus size={20} color={CHARCOAL} strokeWidth={2} />
-                <Text style={bs.calBtnText}>Lägg till i kalender</Text>
-              </View>
-              <Animated.View style={[bs.shimmer, { transform: [{ translateX: shimmerX }, { skewX: "-20deg" }] }]} />
-            </Animated.View>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleHeart} activeOpacity={1}>
-            <Animated.View style={[bs.iconBtn, { transform: [{ scale: heartScale }] }]}>
-              <Heart size={20} color={isFav ? "#EF4444" : MUTED} fill={isFav ? "#EF4444" : "transparent"} strokeWidth={2} />
-            </Animated.View>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleClose} activeOpacity={1}>
-            <Animated.View style={[bs.iconBtn, { backgroundColor: closeBgColor as any }]}>
-              <Animated.View style={{ transform: [{ rotate: closeRotateDeg }] }}>
-                <X size={20} color={closeIconWhite ? "#FFF" : MUTED} strokeWidth={2} />
-              </Animated.View>
-            </Animated.View>
-          </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <View style={{ paddingTop: Math.max(insets.top, 44), paddingHorizontal: 16, backgroundColor: BG }}>
+        <View style={s.titleRow}>
+          <Text style={s.pageTitle}>Kalender</Text>
         </View>
-      </Animated.View>
-    </Modal>
-  );
-}
+        <View style={{ marginTop: 6, marginBottom: 12 }}>
+          <Segmented options={MODES} value={mode} onChange={setMode} />
+        </View>
+      </View>
 
-const bs = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, zIndex: 200 },
-  sheet: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: SHEET_HEIGHT,
-    backgroundColor: BG, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    overflow: "hidden", zIndex: 201,
-  },
-  heroContainer: { width: "100%", aspectRatio: 4 / 3, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" },
-  heroImage: { width: "100%", height: "100%", position: "absolute" },
-  heroPlaceholder: { backgroundColor: "#2A2A2A" },
-  heroGradient: { position: "absolute", bottom: 0, left: 0, right: 0, height: "50%", backgroundColor: "rgba(0,0,0,0.55)" },
-  heroTitle: { position: "absolute", bottom: 12, left: 20, right: 20, fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: FG },
-  center: { alignItems: "center", justifyContent: "center", paddingVertical: 40 },
-  infoRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 20, gap: 12 },
-  iconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(197,160,89,0.15)", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 },
-  iconCircleImg: { width: 48, height: 48, borderRadius: 24 },
-  infoText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 15, color: FG },
-  infoSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
-  section: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 },
-  sectionTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: FG, marginBottom: 8 },
-  sectionBody: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 22, color: MUTED },
-  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 20, gap: 12, backgroundColor: BG, zIndex: 202 },
-  calBtn: { height: 56, borderRadius: 999, backgroundColor: GOLD, overflow: "hidden", justifyContent: "center" },
-  calBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: CHARCOAL },
-  shimmer: { position: "absolute", top: 0, bottom: 0, width: 60, backgroundColor: "rgba(255,255,255,0.24)" },
-  iconBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#1F1F1F", borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center" },
-});
-
-// ─── Card components ──────────────────────────────────────────────────────────
-
-function PremiumCard({ event, size = "lg", onPress }: { event: Event; size?: "lg" | "md"; onPress: () => void }) {
-  const width  = size === "lg" ? 280 : 200;
-  const height = size === "lg" ? 360 : 220;
-  const badge  = formatDateBadge(event.date, event.end_date);
-  return (
-    <TouchableOpacity
-      activeOpacity={0.92}
-      onPress={onPress}
-      style={{ width, height, borderRadius: 28, overflow: "hidden", backgroundColor: "#1A1A1A" }}
-    >
-      {event.image_url && (
-        <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      {mode === "foryou" ? (
+        <Reanimated.View key="foryou" entering={FadeIn.duration(200)} style={{ flex: 1 }}>
+          <ForYouView
+            scrollRef={forYouRef}
+            loading={isLoading}
+            picks={picks}
+            firstName={firstName}
+            savedIds={savedIds}
+            bottomPad={bottomPad}
+            onOpen={setOpenId}
+            onToggleSave={toggleSave}
+            onBurst={showBurst}
+            onShowAll={() => setMode("all")}
+          />
+        </Reanimated.View>
+      ) : (
+        <Reanimated.View key="all" entering={FadeIn.duration(200)} style={{ flex: 1 }}>
+          <AllEventsView
+            scrollRef={allRef}
+            loading={isLoading}
+            events={events}
+            savedIds={savedIds}
+            bottomPad={bottomPad}
+            onOpen={setOpenId}
+            onToggleSave={toggleSave}
+            onBurst={showBurst}
+          />
+        </Reanimated.View>
       )}
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "65%", backgroundColor: "rgba(0,0,0,0.01)" }}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)" }} />
-      </View>
-      {badge.day ? (
-        <View style={c.badge}>
-          <Text style={c.badgeMonth}>{badge.month.toUpperCase()}</Text>
-          <Text style={[c.badgeDay, size === "md" && { fontSize: 18 }]}>{badge.day}</Text>
-        </View>
-      ) : null}
-      <View style={c.cardBottom}>
-        {(event as any).location ? (
-          <Text style={c.cardLocation}>{((event as any).location as string).toUpperCase()}</Text>
-        ) : null}
-        <Text style={[c.cardTitle, size === "md" && { fontSize: 16 }]} numberOfLines={2}>{event.title}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
 
-function CompactCard({ event, onPress }: { event: Event; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      activeOpacity={0.92}
-      onPress={onPress}
-      style={{ width: 140, height: 180, borderRadius: 16, overflow: "hidden", backgroundColor: "#1A1A1A" }}
-    >
-      {event.image_url && (
-        <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      )}
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%", backgroundColor: "rgba(0,0,0,0.7)" }} />
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 10 }}>
-        <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 13, color: FG, lineHeight: 17 }} numberOfLines={2}>{event.title}</Text>
-        {(event as any).time ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
-            <Clock size={10} color={GOLD} strokeWidth={2} />
-            <Text style={{ fontFamily: "Inter_500Medium", fontSize: 10, color: GOLD }}>{(event as any).time}</Text>
-          </View>
-        ) : null}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function BigEventCard({ event, onPress }: { event: Event; onPress: () => void }) {
-  const badge = formatDateBadge(event.date, event.end_date);
-  return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={c.bigCard}>
-      {event.image_url && <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
-      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%", backgroundColor: "rgba(0,0,0,0.7)" }} />
-      {badge.day ? (
-        <View style={c.badge}>
-          <Text style={c.badgeMonth}>{badge.month.toUpperCase()}</Text>
-          <Text style={c.badgeDay}>{badge.day}</Text>
-        </View>
-      ) : null}
-      <View style={c.cardBottom}>
-        {(event as any).location ? (
-          <Text style={c.cardLocation}>{((event as any).location as string).toUpperCase()}</Text>
-        ) : null}
-        <Text style={c.cardTitle} numberOfLines={2}>{event.title}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const c = StyleSheet.create({
-  bigCard: { borderRadius: 16, overflow: "hidden", width: "100%", aspectRatio: 1, backgroundColor: "#1A1A1A" },
-  badge: { position: "absolute", top: 12, right: 12, backgroundColor: "rgba(18,18,18,0.90)", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, alignItems: "center", borderWidth: 1, borderColor: "rgba(197,160,89,0.25)" },
-  badgeMonth: { fontFamily: "Inter_700Bold", fontSize: 9, color: GOLD, letterSpacing: 1.5, textTransform: "uppercase" },
-  badgeDay: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: FG, lineHeight: 28 },
-  cardBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 },
-  cardLocation: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: GOLD, letterSpacing: 1, marginBottom: 4 },
-  cardTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: "#FFF", lineHeight: 26 },
-});
-
-// ─── Section header ────────────────────────────────────────────────────────────
-function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-      <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 22, color: FG }}>{title}</Text>
-      {subtitle ? <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 4 }}>{subtitle}</Text> : null}
+      <EventBottomSheet eventId={openId} onClose={() => setOpenId(null)} />
+      <LikeBurst burst={burst} />
     </View>
   );
 }
 
-// ─── ForYou view ──────────────────────────────────────────────────────────────
-function ForYouView({ events, onPress, scrollRef }: { events: Event[]; onPress: (id: number) => void; scrollRef?: React.RefObject<ScrollView> }) {
-  const today = useMemo(() => {
-    const d = new Date();
-    return format(d, "yyyy-MM-dd");
-  }, []);
+// ─── För dig ──────────────────────────────────────────────────────────────────
 
-  // Today's events
-  const todayEvents = useMemo(() =>
-    events
-      .filter((e) => e.date === today)
-      .sort((a, b) => {
-        const ta = (a as any).time ?? "99:99";
-        const tb = (b as any).time ?? "99:99";
-        return ta.localeCompare(tb);
-      })
-      .slice(0, 10),
-    [events, today]
-  );
+interface ListProps {
+  scrollRef: React.RefObject<ScrollView | null>;
+  loading: boolean;
+  savedIds: Set<number>;
+  bottomPad: number;
+  onOpen: (id: number) => void;
+  onToggleSave: (id: number) => void;
+  onBurst: BurstFn;
+}
 
-  // "Utvalt för dig" – featured + upcoming
-  const featuredEvents = useMemo(() =>
-    events
-      .filter((e) => e.date && e.date >= today)
-      .sort((a, b) => {
-        const sa = (a as any).is_featured ? 2 : 0;
-        const sb = (b as any).is_featured ? 2 : 0;
-        return sb - sa || (a.date ?? "").localeCompare(b.date ?? "");
-      })
-      .slice(0, 5),
-    [events, today]
-  );
+function ForYouView({
+  scrollRef, loading, picks, firstName, savedIds, bottomPad, onOpen, onToggleSave, onBurst, onShowAll,
+}: ListProps & { picks: EventPick[]; firstName: string | null; onShowAll: () => void }) {
+  if (loading) return <ForYouSkeleton />;
 
-  // "Nära dig" – upcoming, not in featured
-  const featuredIds = new Set(featuredEvents.map((e) => e.id));
-  const nearbyEvents = useMemo(() =>
-    events
-      .filter((e) => e.date && e.date >= today && !featuredIds.has(e.id) && (e as any).location)
-      .slice(0, 8),
-    [events, today, featuredIds]
-  );
-
-  // Weekend events (upcoming Fri–Sun)
-  const weekendEvents = useMemo(() => {
-    const d = new Date();
-    const dow = d.getDay(); // 0=Sun
-    const daysToFri = dow === 0 ? 5 : dow <= 5 ? 5 - dow : 6;
-    const fri = new Date(d); fri.setDate(d.getDate() + daysToFri);
-    const sun = new Date(fri); sun.setDate(fri.getDate() + 2);
-    const friFmt = format(fri, "yyyy-MM-dd");
-    const sunFmt = format(sun, "yyyy-MM-dd");
-    return events
-      .filter((e) => e.date && e.date >= friFmt && e.date <= sunFmt)
-      .slice(0, 6);
-  }, [events]);
-
-  const allEmpty = todayEvents.length === 0 && featuredEvents.length === 0 && nearbyEvents.length === 0 && weekendEvents.length === 0;
-
-  if (allEmpty) {
+  if (picks.length === 0) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 64, paddingHorizontal: 20 }}>
-        <Compass size={28} color={`${GOLD}99`} strokeWidth={1.5} />
-        <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: FG, marginTop: 16, textAlign: "center" }}>Din personliga guide byggs upp</Text>
-        <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 8, textAlign: "center" }}>Spara favoriter så lär appen känna dig.</Text>
-      </View>
+      <Reanimated.View entering={FadeInDown.duration(300)} style={s.empty}>
+        <View style={s.emptyIcon}>
+          <CalendarHeart size={28} color={GOLD} strokeWidth={1.5} />
+        </View>
+        <Text style={s.emptyTitle}>Lugnt på Österlen just nu</Text>
+        <Text style={s.emptyText}>
+          Inga kommande event än. När företagen lägger ut nya hamnar de som passar dig här.
+        </Text>
+        <TouchableOpacity style={s.emptyBtn} onPress={onShowAll}>
+          <Text style={s.emptyBtnText}>Se kalendern</Text>
+        </TouchableOpacity>
+      </Reanimated.View>
     );
   }
 
+  const [hero, ...rest] = picks;
   return (
-    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-      {todayEvents.length > 0 && (
-        <View style={{ marginBottom: 40 }}>
-          <SectionHeader title="Idag på Österlen" subtitle="Händer just nu" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
-            {todayEvents.map((e) => <CompactCard key={e.id} event={e} onPress={() => onPress(e.id)} />)}
-          </ScrollView>
-        </View>
-      )}
+    <ScrollView
+      ref={scrollRef}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: bottomPad }}
+    >
+      {/* Samma hälsning som Förmåner: namnet, och en rad i guld om vad som väntar */}
+      <Reanimated.View entering={enterAt(0)}>
+        <Text style={s.greeting} numberOfLines={1}>{firstName ? `Hej ${firstName}` : "Hej"}</Text>
+        <Text style={s.greetingLine} numberOfLines={1} adjustsFontSizeToFit>
+          {picks.length === 1 ? "Det här tror vi du gillar" : `${picks.length} saker vi tror du gillar`}
+        </Text>
+      </Reanimated.View>
 
-      {featuredEvents.length > 0 && (
-        <View style={{ marginBottom: 40 }}>
-          <SectionHeader title="Utvalt för dig" subtitle="Vi tror du kommer gilla detta" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
-            {featuredEvents.map((e) => <PremiumCard key={e.id} event={e} size="lg" onPress={() => onPress(e.id)} />)}
-          </ScrollView>
-        </View>
-      )}
+      <Reanimated.View entering={enterAt(1)} style={{ marginTop: 22 }}>
+        <EventHeroCard
+          event={hero.event}
+          reason={hero.reason}
+          saved={savedIds.has(hero.event.id)}
+          onOpen={onOpen}
+          onToggleSave={onToggleSave}
+          onBurst={onBurst}
+        />
+      </Reanimated.View>
 
-      {nearbyEvents.length > 0 && (
-        <View style={{ marginBottom: 40 }}>
-          <SectionHeader title="Nära dig" subtitle="Upptäck runt hörnet" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
-            {nearbyEvents.map((e) => <PremiumCard key={e.id} event={e} size="md" onPress={() => onPress(e.id)} />)}
-          </ScrollView>
-        </View>
-      )}
-
-      {weekendEvents.length > 0 && (
-        <View style={{ marginBottom: 40 }}>
-          <SectionHeader title="Missa inte i helgen" subtitle="Det här pratar folk om" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
-            {weekendEvents.map((e) => <PremiumCard key={e.id} event={e} size="lg" onPress={() => onPress(e.id)} />)}
-          </ScrollView>
-        </View>
-      )}
-    </ScrollView>
-  );
-}
-
-// ─── Popular view ─────────────────────────────────────────────────────────────
-function PopularView({ events, onPress }: { events: Event[]; onPress: (id: number) => void }) {
-  if (events.length === 0) {
-    return <View style={{ flex: 1, alignItems: "center", paddingTop: 60 }}><Text style={{ fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED }}>Inga evenemang att visa</Text></View>;
-  }
-  return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, gap: 20 }}>
-      {events.map((event, i) => (
-        <Animated.View key={event.id} style={{ opacity: 1 }}>
-          <BigEventCard event={event} onPress={() => onPress(event.id)} />
-        </Animated.View>
-      ))}
-    </ScrollView>
-  );
-}
-
-// ─── Calendar grid ────────────────────────────────────────────────────────────
-const WEEKDAYS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
-
-function DayPopup({ dateKey, events, onEventPress, onClose }: { dateKey: string; events: Event[]; onEventPress: (id: number) => void; onClose: () => void }) {
-  const insets = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(60)).current;
-  const opacity    = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(translateY, { toValue: 0, damping: 28, stiffness: 300, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  const close = () => {
-    Animated.parallel([
-      Animated.spring(translateY, { toValue: 60, damping: 28, stiffness: 300, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
-    ]).start(() => onClose());
-  };
-
-  return (
-    <Modal transparent animationType="none" visible onRequestClose={close}>
-      <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.60)", justifyContent: "flex-end" }} onPress={close}>
-        <Animated.View
-          style={{ backgroundColor: CARD_BG, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: SH * 0.85, borderTopWidth: 1, borderColor: BORDER, transform: [{ translateY }], opacity }}
-          onStartShouldSetResponder={() => true}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
-            <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 24, color: FG, textTransform: "capitalize" }}>
-              {format(new Date(dateKey + "T00:00"), "d MMMM", { locale: sv })}
-            </Text>
-            <TouchableOpacity
-              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#242424", alignItems: "center", justifyContent: "center" }}
-              onPress={close}
-            >
-              <X size={18} color={MUTED} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingBottom: 88 + insets.bottom }}>
-            {events.map((event) => (
-              <TouchableOpacity
-                key={event.id}
-                style={{ borderRadius: 16, overflow: "hidden", aspectRatio: 16 / 9, backgroundColor: "#1A1A1A" }}
-                onPress={() => { close(); setTimeout(() => onEventPress(event.id), 200); }}
-              >
-                {event.image_url && <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
-                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "80%", backgroundColor: "rgba(0,0,0,0.5)" }} />
-                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 12 }}>
-                  <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: "#FFF" }} numberOfLines={1}>{event.title}</Text>
-                  {(event as any).time && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
-                      <Clock size={12} color={GOLD} strokeWidth={2} />
-                      <Text style={{ fontFamily: "Inter_500Medium", fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{(event as any).time}</Text>
-                    </View>
-                  )}
-                  {(event as any).location && (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                      <MapPin size={11} color="rgba(255,255,255,0.7)" strokeWidth={2} />
-                      <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.7)" }} numberOfLines={1}>{(event as any).location}</Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
+      {rest.length > 0 && (
+        <>
+          <Reanimated.View entering={enterAt(2)}>
+            <Text style={s.sectionTitle}>Mer för dig</Text>
+          </Reanimated.View>
+          <View style={{ gap: 12 }}>
+            {rest.map((p, i) => (
+              <Reanimated.View key={p.event.id} entering={enterAt(i + 3)}>
+                <EventRow
+                  event={p.event}
+                  reason={p.reason}
+                  saved={savedIds.has(p.event.id)}
+                  onOpen={onOpen}
+                  onToggleSave={onToggleSave}
+                  onBurst={onBurst}
+                />
+              </Reanimated.View>
             ))}
-          </ScrollView>
-        </Animated.View>
-      </Pressable>
-    </Modal>
+          </View>
+        </>
+      )}
+    </ScrollView>
   );
 }
 
-function MonthGrid({ month, eventsByDate, onEventPress, onDayPopup }: {
-  month: Date;
-  eventsByDate: Map<string, Event[]>;
-  onEventPress: (id: number) => void;
-  onDayPopup: (dateKey: string) => void;
-}) {
-  const days  = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
-  const d     = getDay(startOfMonth(month));
-  const offset = d === 0 ? 6 : d - 1;
-  const cellSize = (SW - 40 - 6 * 4) / 7;
-
+function ForYouSkeleton() {
   return (
-    <View style={{ marginBottom: 32 }}>
-      <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: FG, textAlign: "center", marginBottom: 8, textTransform: "capitalize" }}>
-        {format(month, "MMMM yyyy", { locale: sv })}
-      </Text>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-        {WEEKDAYS.map((wd) => (
-          <Text key={wd} style={{ width: cellSize, textAlign: "center", fontFamily: "Inter_600SemiBold", fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: 1 }}>{wd}</Text>
-        ))}
-      </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-        {Array.from({ length: offset }).map((_, i) => (
-          <View key={`e-${i}`} style={{ width: cellSize, height: cellSize }} />
-        ))}
-        {days.map((day) => {
-          const key = format(day, "yyyy-MM-dd");
-          const dayEvents = eventsByDate.get(key) ?? [];
-          const today = isToday(day);
-          const first = dayEvents[0];
-          const multi = dayEvents.length > 1;
-          const r = (cellSize - 2) / 2;
-
-          return (
-            <View key={key} style={{ width: cellSize, height: cellSize, alignItems: "center", justifyContent: "center" }}>
-              {first ? (
-                <TouchableOpacity
-                  style={{ width: cellSize - 2, height: cellSize - 2, borderRadius: r, overflow: "hidden", borderWidth: today ? 2 : 1.5, borderColor: today ? GOLD : `${GOLD}80` }}
-                  onPress={() => multi ? onDayPopup(key) : onEventPress(first.id)}
-                >
-                  {first.image_url && <Image source={{ uri: first.image_url }} style={{ width: "100%", height: "100%", borderRadius: r }} resizeMode="cover" />}
-                  {multi && (
-                    <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" }}>
-                      <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 18, color: "#FFF" }}>{dayEvents.length}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ) : (
-                <View style={today ? { width: cellSize * 0.72, height: cellSize * 0.72, borderRadius: cellSize * 0.36, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" } : undefined}>
-                  <Text style={{ fontFamily: "Inter_500Medium", fontSize: 13, color: today ? CHARCOAL : `${MUTED}99` }}>{format(day, "d")}</Text>
-                </View>
-              )}
-            </View>
-          );
-        })}
+    <View style={{ paddingHorizontal: 16, paddingTop: 10 }} pointerEvents="none">
+      <Skeleton tone="dark" width={130} height={26} radius={8} />
+      <Skeleton tone="dark" width={230} height={26} radius={8} style={{ marginTop: 6 }} />
+      <Skeleton tone="dark" width="100%" radius={22} style={{ aspectRatio: 1.3, marginTop: 22 }} />
+      <View style={{ gap: 8, marginTop: 14 }}>
+        <Skeleton tone="dark" width="45%" height={12} radius={5} />
+        <Skeleton tone="dark" width="70%" height={20} radius={6} />
+        <Skeleton tone="dark" width="55%" height={13} radius={5} />
       </View>
     </View>
   );
 }
 
-function CalendarView({ events, onEventPress }: { events: Event[]; onEventPress: (id: number) => void }) {
-  const [curMonth, setCurMonth]   = useState(() => startOfMonth(new Date()));
-  const [popupKey, setPopupKey]   = useState<string | null>(null);
+// ─── Alla ─────────────────────────────────────────────────────────────────────
 
-  const eventsByDate = useMemo(() => {
+const CATEGORY_LABELS = ["Alla kategorier", ...EVENT_CATEGORIES];
+
+function AllEventsView({
+  scrollRef, loading, events, savedIds, bottomPad, onOpen, onToggleSave, onBurst,
+}: ListProps & { events: Event[] }) {
+  const { width, height } = useWindowDimensions();
+  const today = dayKey(new Date());
+  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const [selected, setSelected] = useState<string | null>(null);
+  const [catIndex, setCatIndex] = useState(0);
+  const matches = useCallback(
+    (e: Event) => catIndex === 0 || e.main_category === EVENT_CATEGORIES[catIndex - 1],
+    [catIndex],
+  );
+
+  // Varje dag → dess event (ett flerdagarsevent ligger på varje dag), tidigast först
+  const eventsByDay = useMemo(() => {
     const map = new Map<string, Event[]>();
-    events.forEach((e) => {
-      for (const key of getEventDates(e.date, e.end_date ?? null)) {
-        const existing = map.get(key) ?? [];
-        if (!existing.some((x) => x.id === e.id)) map.set(key, [...existing, e]);
-      }
-    });
+    for (const e of events) {
+      for (const d of eventDays(e)) map.set(d, [...(map.get(d) ?? []), e]);
+    }
+    for (const list of map.values()) list.sort((a, b) => (a.time ?? "99").localeCompare(b.time ?? "99"));
     return map;
   }, [events]);
 
-  const next = addMonths(curMonth, 1);
-  const popupEvents = popupKey ? (eventsByDate.get(popupKey) ?? []) : [];
+  // Månaderna man kan bläddra mellan: från första eventet till ett halvår fram (minst)
+  const thisMonth = startOfMonth(new Date());
+  const dated = events.filter((e) => e.date).map((e) => parseISO(e.date!));
+  const firstMonth = startOfMonth(minDate([thisMonth, ...dated]));
+  const lastMonth = startOfMonth(maxDate([addMonths(thisMonth, 6), ...dated]));
+  const canStep = (dir: 1 | -1) => {
+    const next = addMonths(month, dir);
+    return next >= firstMonth && next <= lastMonth;
+  };
+  const step = (dir: 1 | -1) => {
+    if (!canStep(dir)) return;
+    Haptics.selectionAsync().catch(() => {});
+    setMonth((m) => addMonths(m, dir));
+    setSelected(null);
+  };
+  // Svep åt sidan på kalendern byter månad
+  const swipe = Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetX([-24, 24])
+    .failOffsetY([-14, 14])
+    .onEnd((e) => {
+      if (e.translationX < -50 || e.velocityX < -500) step(1);
+      else if (e.translationX > 50 || e.velocityX > 500) step(-1);
+    });
+
+  // Listan under kalendern: hela månaden, eller bara den valda dagen
+  const monthKey = format(month, "yyyy-MM");
+  const monthEvents = useMemo(() => {
+    const seen = new Set<number>();
+    const list: Event[] = [];
+    for (const [day, dayEvents] of [...eventsByDay.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      if (!day.startsWith(monthKey)) continue;
+      for (const e of dayEvents) if (!seen.has(e.id) && matches(e)) { seen.add(e.id); list.push(e); }
+    }
+    return list;
+  }, [eventsByDay, monthKey, matches]);
+  const listEvents = selected ? (eventsByDay.get(selected) ?? []).filter(matches) : monthEvents;
+
+  // Trycker man på en dag glider listan fram om den ligger under skärmkanten
+  const scrollY = useRef(0);
+  const listY = useRef(0);
+  const visibleH = height - 260;
+  const showList = () => {
+    const want = listY.current + 170 - visibleH;
+    if (want > scrollY.current) scrollRef.current?.scrollTo({ y: want, animated: true });
+  };
+  const selectDay = (day: string) => {
+    if (day === selected) {
+      // Andra trycket: en dag med ett enda event öppnar det, annars visas hela månaden igen
+      const dayEvents = (eventsByDay.get(day) ?? []).filter(matches);
+      if (dayEvents.length === 1) onOpen(dayEvents[0].id);
+      else setSelected(null);
+      return;
+    }
+    Haptics.selectionAsync().catch(() => {});
+    setSelected(day);
+    showList();
+  };
+
+  const monthName = format(month, "LLLL", { locale: sv });
+  const isThisMonth = monthKey === format(thisMonth, "yyyy-MM");
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-      {/* Nav row */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, marginTop: 8 }}>
-        <TouchableOpacity style={{ padding: 8 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => setCurMonth((m) => subMonths(m, 2))}>
-          <ChevronLeft size={20} color={MUTED} strokeWidth={2} />
-        </TouchableOpacity>
-        <Text style={{ fontFamily: "Inter_500Medium", fontSize: 14, color: MUTED }}>
-          {format(curMonth, "MMM", { locale: sv })} – {format(next, "MMM yyyy", { locale: sv })}
+    <ScrollView
+      ref={scrollRef}
+      showsVerticalScrollIndicator={false}
+      onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+      scrollEventThrottle={32}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: bottomPad }}
+    >
+      {/* Månaden och pilarna */}
+      <View style={s.monthHeader}>
+        <Text style={s.monthTitle}>
+          {cap(monthName)} <Text style={s.monthYear}>{format(month, "yyyy")}</Text>
         </Text>
-        <TouchableOpacity style={{ padding: 8 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => setCurMonth((m) => addMonths(m, 2))}>
-          <ChevronRight size={20} color={MUTED} strokeWidth={2} />
-        </TouchableOpacity>
+        <View style={s.monthActions}>
+          {!isThisMonth && (
+            <TouchableOpacity
+              style={s.todayBtn}
+              onPress={() => { Haptics.selectionAsync().catch(() => {}); setMonth(thisMonth); setSelected(null); }}
+            >
+              <Text style={s.todayText}>Idag</Text>
+            </TouchableOpacity>
+          )}
+          <ArrowButton dir={-1} disabled={!canStep(-1)} onPress={() => step(-1)} />
+          <ArrowButton dir={1} disabled={!canStep(1)} onPress={() => step(1)} />
+        </View>
       </View>
 
-      <MonthGrid month={curMonth} eventsByDate={eventsByDate} onEventPress={onEventPress} onDayPopup={setPopupKey} />
-      <MonthGrid month={next}     eventsByDate={eventsByDate} onEventPress={onEventPress} onDayPopup={setPopupKey} />
+      <GestureDetector gesture={swipe}>
+        <Reanimated.View key={monthKey} entering={FadeIn.duration(220)}>
+          <MonthCalendar
+            month={month}
+            width={width - 32}
+            eventsByDay={eventsByDay}
+            today={today}
+            selected={selected}
+            savedIds={savedIds}
+            matches={matches}
+            onSelect={selectDay}
+          />
+        </Reanimated.View>
+      </GestureDetector>
 
-      {popupKey && popupEvents.length > 0 && (
-        <DayPopup dateKey={popupKey} events={popupEvents} onEventPress={onEventPress} onClose={() => setPopupKey(null)} />
-      )}
+      <View style={{ marginTop: 20 }}>
+        <CategoryHeader
+          index={catIndex}
+          labels={CATEGORY_LABELS}
+          onStep={(dir) => { Haptics.selectionAsync().catch(() => {}); setCatIndex((i) => i + dir); }}
+          palette={darkColors}
+        />
+      </View>
+
+      <View onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }} style={{ marginTop: 6 }}>
+        <Text style={s.sectionTitle}>
+          {selected ? cap(format(parseISO(selected), "EEEE d MMMM", { locale: sv })) : `Hela ${monthName}`}
+        </Text>
+
+        {loading ? (
+          <View style={{ gap: 12 }} pointerEvents="none">
+            {[0, 1, 2].map((i) => <Skeleton key={i} tone="dark" height={108} radius={18} />)}
+          </View>
+        ) : listEvents.length === 0 ? (
+          <Reanimated.View key={`none-${selected ?? monthKey}`} entering={FadeIn.duration(200)}>
+            <Text style={s.none}>
+              {selected
+                ? "Inget händer den här dagen."
+                : catIndex > 0 ? `Inga event inom ${CATEGORY_LABELS[catIndex].toLowerCase()} i ${monthName}.` : `Inga event i ${monthName} än.`}
+            </Text>
+          </Reanimated.View>
+        ) : (
+          <View key={`${selected ?? monthKey}-${catIndex}`} style={{ gap: 12 }}>
+            {listEvents.map((e, i) => (
+              <Reanimated.View key={e.id} entering={enterAt(i)}>
+                <EventRow
+                  event={e}
+                  saved={savedIds.has(e.id)}
+                  past={(lastDay(e) ?? "") < today}
+                  onOpen={onOpen}
+                  onToggleSave={onToggleSave}
+                  onBurst={onBurst}
+                />
+              </Reanimated.View>
+            ))}
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
 
-// ─── Utforska (month) view ────────────────────────────────────────────────────
-const MONTHS_SV = ["Jan", "Feb", "Mars", "Apr", "Maj", "Juni", "Juli", "Aug", "Sep", "Okt", "Nov", "Dec"];
-const CATEGORIES = ["Alla", "Musik", "Matupplevelse", "Konst & Kultur", "Marknad", "Familj", "Natur", "Guidning", "Hälsa & Välmående", "Övrigt"];
-
-function UtforskView({ events, onPress, catOpen, onCatToggle, selCategory, onCatChange }: {
-  events: Event[];
-  onPress: (id: number) => void;
-  catOpen: boolean;
-  onCatToggle: () => void;
-  selCategory: string;
-  onCatChange: (cat: string) => void;
-}) {
-  const [selMonth, setSelMonth] = useState(new Date().getMonth());
-  const pillRef = useRef<ScrollView>(null);
-  const year = new Date().getFullYear();
-
-  const filtered = useMemo(() => {
-    const monthStart = new Date(year, selMonth, 1);
-    return events.filter((e) => {
-      if (!e.date) return false;
-      const start = new Date(e.date + "T00:00");
-      const end   = e.end_date ? new Date(e.end_date + "T00:00") : start;
-      const inMonth = (start.getMonth() === selMonth && start.getFullYear() === year) || (start < monthStart && end >= monthStart);
-      if (!inMonth) return false;
-      if (selCategory !== "Alla" && (e as any).main_category !== selCategory) return false;
-      return true;
-    });
-  }, [events, selMonth, selCategory, year]);
-
+function ArrowButton({ dir, disabled, onPress }: { dir: 1 | -1; disabled: boolean; onPress: () => void }) {
+  const Icon = dir === 1 ? ChevronRight : ChevronLeft;
   return (
-    <View style={{ flex: 1 }}>
-      {/* Month pills – fixed-height row so flex can't stretch pills vertically */}
-      <View style={{ height: 56 }}>
-        <ScrollView
-          ref={pillRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8, gap: 8, alignItems: "flex-start" }}
-        >
-          {MONTHS_SV.map((name, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={[
-                { minWidth: 64, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 999, alignItems: "center", borderWidth: 1 },
-                selMonth === idx
-                  ? { backgroundColor: GOLD, borderColor: GOLD }
-                  : { backgroundColor: "rgba(28,28,28,0.5)", borderColor: BORDER },
-              ]}
-              onPress={() => setSelMonth(idx)}
-            >
-              <Text style={[{ fontFamily: "Inter_600SemiBold", fontSize: 14, textAlign: "center" }, selMonth === idx ? { color: CHARCOAL } : { color: MUTED }]}>{name}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Category dropdown – renders on top, zIndex 200 */}
-      {catOpen && (
-        <Pressable style={[StyleSheet.absoluteFill, { zIndex: 199 }]} onPress={onCatToggle} />
-      )}
-
-      {catOpen && (
-        <View style={{ position: "absolute", top: 4, right: 20, zIndex: 200, backgroundColor: "#1A1A1A", borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.07)", minWidth: 220, shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.7, shadowRadius: 48, elevation: 20 }}>
-          {CATEGORIES.map((cat, i) => (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                { paddingHorizontal: 16, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-                i > 0 && { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.03)" },
-                selCategory === cat && { backgroundColor: "rgba(197,160,89,0.10)" },
-              ]}
-              onPress={() => { onCatChange(cat); onCatToggle(); }}
-            >
-              <Text style={[{ fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(245,241,232,0.70)" }, selCategory === cat && { fontFamily: "Inter_600SemiBold", color: GOLD }]}>{cat}</Text>
-              {selCategory === cat && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: GOLD }} />}
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Event list */}
-      {filtered.length === 0 ? (
-        <View style={{ flex: 1, alignItems: "center", paddingTop: 48 }}>
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED }}>
-            {selCategory !== "Alla" ? `Inga evenemang i ${selCategory} denna månad` : "Inga evenemang denna månad"}
-          </Text>
-        </View>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 20, paddingBottom: 32 }}>
-          {filtered.map((event) => (
-            <BigEventCard key={event.id} event={event} onPress={() => onPress(event.id)} />
-          ))}
-        </ScrollView>
-      )}
-    </View>
+    <TouchableOpacity
+      style={[s.arrowBtn, disabled && { opacity: 0.3 }]}
+      disabled={disabled}
+      onPress={onPress}
+      hitSlop={6}
+      accessibilityLabel={dir === 1 ? "Nästa månad" : "Föregående månad"}
+    >
+      <Icon size={20} color={FG} strokeWidth={2} />
+    </TouchableOpacity>
   );
 }
 
-// ─── Tab bar with sliding indicator ──────────────────────────────────────────
-const TABS: { id: EventTab; Icon: React.ComponentType<any>; label: string }[] = [
-  { id: "foryou",   Icon: Compass,     label: "För dig"  },
-  { id: "popular",  Icon: Flame,       label: "Populärt" },
-  { id: "calendar", Icon: CalendarDays,label: "Kalender" },
-  { id: "month",    Icon: LayoutGrid,  label: "Utforska" },
-];
-// Tab container has marginHorizontal: 12 on each side → 24px total removed
-const TAB_W = (SW - 24) / 4;
-const IND_W = 32;
+const s = StyleSheet.create({
+  // Samma rubrik som Profil
+  titleRow: { height: 38, justifyContent: "center" },
+  pageTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: FG },
 
-function EventTabBar({ activeTab, onTabChange, catOpen, onCatToggle }: {
-  activeTab: EventTab;
-  onTabChange: (t: EventTab) => void;
-  catOpen?: boolean;
-  onCatToggle?: () => void;
-}) {
-  const indicatorX = useRef(new Animated.Value(TABS.findIndex(t => t.id === activeTab) * TAB_W + (TAB_W - IND_W) / 2)).current;
+  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: FG },
+  greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: GOLD_LT },
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG, marginTop: 30, marginBottom: 12 },
 
-  const goTo = (id: EventTab) => {
-    const idx = TABS.findIndex(t => t.id === id);
-    Animated.spring(indicatorX, { toValue: idx * TAB_W + (TAB_W - IND_W) / 2, stiffness: 400, damping: 30, useNativeDriver: true }).start();
-    onTabChange(id);
-  };
+  monthHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
+  monthTitle: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.4, color: FG },
+  monthYear: { fontFamily: "Montserrat_700Bold", fontSize: 24, color: "rgba(245,241,232,0.35)" },
+  monthActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  arrowBtn: {
+    width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+  },
+  todayBtn: {
+    height: 38, paddingHorizontal: 14, borderRadius: 19, justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(197,160,89,0.45)",
+  },
+  todayText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: GOLD_LT },
+  none: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: MUTED },
 
-  return (
-    <View style={{ marginHorizontal: 12, marginBottom: 20 }}>
-      <View style={{ flexDirection: "row" }}>
-        {TABS.map(({ id, Icon, label }) => {
-          const active = activeTab === id;
-          return (
-            <TouchableOpacity key={id} style={{ flex: 1, alignItems: "center", gap: 4, paddingVertical: 8 }} onPress={() => goTo(id)}>
-              <Icon size={22} color={active ? GOLD : MUTED} strokeWidth={1.75} />
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.3, color: active ? GOLD : MUTED }} numberOfLines={1}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      {/* Sliding underline */}
-      <Animated.View style={{ position: "absolute", bottom: -2, width: IND_W, height: 2, borderRadius: 999, backgroundColor: GOLD, transform: [{ translateX: indicatorX }] }} />
-    </View>
-  );
-}
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-function Skeleton() {
-  const opacity = useRef(new Animated.Value(0.3)).current;
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(opacity, { toValue: 0.6, duration: 800, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, []);
-  return (
-    <View style={{ padding: 20, gap: 16 }}>
-      {[224, 224, 224].map((h, i) => (
-        <Animated.View key={i} style={{ height: h, borderRadius: 16, backgroundColor: "#2A2A2A", opacity }} />
-      ))}
-    </View>
-  );
-}
-
-// ─── Main screen ──────────────────────────────────────────────────────────────
-export default function CalendarScreen() {
-  const insets = useSafeAreaInsets();
-  const [activeTab,       setActiveTab]       = useState<EventTab>("foryou");
-  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
-  // Category filter – lifted up so the header chip and UtforskView share the same state
-  const [catOpen,     setCatOpen]     = useState(false);
-  const [selCategory, setSelCategory] = useState("Alla");
-
-  const { data: allEvents = [],     isLoading }        = useEvents();
-  const { data: popularEvents = [], isLoading: popLoad } = usePopularEvents();
-
-  const loading = activeTab === "popular" ? popLoad : isLoading;
-  const safeTop = Math.max(insets.top, 44);
-
-  const calScrollRef = useRef<ScrollView>(null);
-  useEffect(() => {
-    registerScrollCallback("calendar", () => {
-      calScrollRef.current?.scrollTo({ y: 0, animated: true });
-    });
-  }, []);
-
-  const handleTabChange = (t: EventTab) => {
-    setActiveTab(t);
-    if (t !== "month") setCatOpen(false);
-  };
-
-  const toggleCat = () => setCatOpen((v) => !v);
-
-  return (
-    <View style={{ flex: 1, backgroundColor: BG, paddingTop: safeTop + 12 }}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: 20, marginBottom: 16, flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 30, color: FG }}>Evenemang</Text>
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#A09880", marginTop: 4 }}>Allt som händer, samlat för dig.</Text>
-        </View>
-        {/* Category chip – only visible in Utforska tab; shows current filter */}
-        {activeTab === "month" && (
-          <TouchableOpacity
-            style={{ flexDirection: "row", alignItems: "center", height: 40, borderRadius: 999, paddingHorizontal: 14, gap: 6, backgroundColor: "rgba(0,0,0,0.3)", borderWidth: 1, borderColor: catOpen ? `${GOLD}60` : "rgba(255,255,255,0.10)", marginTop: 4 }}
-            onPress={toggleCat}
-          >
-            <Text style={{ fontFamily: "Inter_500Medium", fontSize: 13, color: selCategory !== "Alla" ? GOLD : "rgba(255,255,255,0.8)" }} numberOfLines={1}>
-              {selCategory}
-            </Text>
-            <ChevronDown size={15} color={selCategory !== "Alla" ? GOLD : "rgba(255,255,255,0.7)"} strokeWidth={2} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Tab bar */}
-      <EventTabBar activeTab={activeTab} onTabChange={handleTabChange} />
-
-      {/* Content */}
-      {loading ? (
-        <Skeleton />
-      ) : (
-        <View style={{ flex: 1 }}>
-          {activeTab === "foryou"   && <ForYouView   events={allEvents}     onPress={setSelectedEventId} scrollRef={calScrollRef} />}
-          {activeTab === "popular"  && <PopularView  events={popularEvents} onPress={setSelectedEventId} />}
-          {activeTab === "calendar" && <CalendarView events={allEvents}     onEventPress={setSelectedEventId} />}
-          {activeTab === "month"    && (
-            <UtforskView
-              events={allEvents}
-              onPress={setSelectedEventId}
-              catOpen={catOpen}
-              onCatToggle={toggleCat}
-              selCategory={selCategory}
-              onCatChange={(cat) => setSelCategory(cat)}
-            />
-          )}
-        </View>
-      )}
-
-      <EventBottomSheet eventId={selectedEventId} onClose={() => setSelectedEventId(null)} />
-    </View>
-  );
-}
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40, paddingBottom: 120 },
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(197,160,89,0.10)",
+    alignItems: "center", justifyContent: "center",
+  },
+  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: FG, textAlign: "center" },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: MUTED, textAlign: "center" },
+  emptyBtn: {
+    marginTop: 6, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 999,
+    borderWidth: 1, borderColor: "rgba(197,160,89,0.45)",
+  },
+  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD_LT },
+});
