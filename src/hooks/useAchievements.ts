@@ -44,7 +44,8 @@ export function useGrantAchievement() {
         category: vars.category,
         level: vars.level,
       } as never);
-      if (error) throw error;
+      // 23505: troféen fanns redan (databasen tillåter bara en per konto, migration 037) — det är ok
+      if (error && error.code !== "23505") throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["achievements"] }),
   });
