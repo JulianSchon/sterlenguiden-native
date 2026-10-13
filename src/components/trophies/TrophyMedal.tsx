@@ -2,7 +2,7 @@
  * Ritningen av en trofé — delad mellan Utmaningar-sidan och incheckningens
  * belöningsskärm, så en trofé ser likadan ut överallt den visas.
  */
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import {
   Canvas, Circle, SweepGradient, RadialGradient, BlurMask, vec,
@@ -105,11 +105,18 @@ export const RadialGlow = memo(function RadialGlow({
 });
 
 export function TrophyMedal({
-  size, tier, Icon, unlocked, groupId,
+  size, tier, Icon, unlocked, groupId, onLoad,
 }: {
   size: number; tier: Tier; Icon: React.ComponentType<any>; unlocked: boolean; groupId: string;
+  /** När medaljen kan visas (trofékonstens bild laddad) — så en sida kan visa alla samtidigt */
+  onLoad?: () => void;
 }) {
   const artwork = BADGE_IMAGES[`${groupId}-${tier}`];
+  // Den ritade medaljen (utan bild) kan visas direkt
+  useEffect(() => {
+    if (!artwork) onLoad?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const palette = TIER_PALETTE[tier];
 
   // Har vi riktig trofékonst för den här? Då ersätter illustrationen hela
@@ -128,6 +135,7 @@ export function TrophyMedal({
             tintColor: unlocked ? undefined : "#3A3A3A",
           }}
           resizeMode="contain"
+          onLoad={onLoad}
         />
       </View>
     );

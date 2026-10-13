@@ -30,7 +30,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Reanimated, { Easing as ReEasing, withTiming } from "react-native-reanimated";
+import Reanimated, { Easing as ReEasing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ArrowLeft, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -68,7 +68,7 @@ const heroSwap = () => {
   };
 };
 
-function FeaturedTrophy({ trophy, medalSize, onPress }: { trophy: Trophy; medalSize: number; onPress: () => void }) {
+function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy; medalSize: number; onPress: () => void; onLoad?: () => void }) {
   const unlocked = trophy.done;
   const glowColor = TIER_PALETTE[trophy.tier].field[0]; // ljusaste tonen i paletten, mest "glow"-lik
   return (
@@ -79,7 +79,7 @@ function FeaturedTrophy({ trophy, medalSize, onPress }: { trophy: Trophy; medalS
       </View>
       <View style={{ marginTop: 28, width: medalSize, height: medalSize, alignItems: "center", justifyContent: "center" }}>
         <GlowCanvas size={medalSize} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
-        <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} />
+        <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} onLoad={onLoad} />
       </View>
       <Text style={feat.name}>{trophy.identity}</Text>
       <Text style={feat.desc}>
@@ -96,10 +96,15 @@ function FeaturedTrophy({ trophy, medalSize, onPress }: { trophy: Trophy; medalS
 type Placement = "waiting" | "dropping" | null;
 
 function TrophyBadge({
-  trophy, itemWidth, medalSize, placement, onLanded, onPress, badgeRef,
+  trophy, itemWidth, medalSize, placement, onLanded, onPress, badgeRef, ready, order, onLoad,
 }: {
   trophy: Trophy; itemWidth: number; medalSize: number; placement: Placement;
   onLanded: () => void; onPress: () => void; badgeRef: (v: View | null) => void;
+  /** Alla medaljer laddade — tåget startar */
+  ready: boolean;
+  /** Platsen i tåget (uppifrån och ner) */
+  order: number;
+  onLoad: () => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const enter = useRef(new Animated.Value(0)).current;
@@ -108,9 +113,14 @@ function TrophyBadge({
   const glow = useRef(new Animated.Value(0)).current;
   const unlocked = trophy.done && placement === null;
 
+  // Tåget: när alla medaljer laddats glider de in en i taget, uppifrån och ner
   useEffect(() => {
-    Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 6 }).start();
-  }, []);
+    if (!ready) return;
+    Animated.sequence([
+      Animated.delay(TRAIN_START + order * TRAIN_STEP),
+      Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 5 }),
+    ]).start();
+  }, [ready]);
 
   // Medaljen faller ner i sin plats: in uppifrån och stor, smäller ner, trycks ihop och studsar,
   // glöden blinkar till — samma känsla som stämpeln vid incheckningen
@@ -143,8 +153,8 @@ function TrophyBadge({
           alignItems: "center",
           opacity: enter,
           transform: [
-            { scale },
-            { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
+            { scale: Animated.multiply(scale, enter.interpolate({ inputRange: [0, 1], outputRange: [0.86, 1] })) },
+            { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
           ],
         }}
       >
@@ -156,7 +166,7 @@ function TrophyBadge({
             <GlowCanvas size={medalSize} color={GOLD_LT} opacity={0.6} radiusRatio={0.8} blurRatio={0.22} />
           </Animated.View>
           <Animated.View style={{ transform: [{ scale: squash }] }}>
-            <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} />
+            <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} onLoad={onLoad} />
           </Animated.View>
           {placement === "dropping" && (
             <Animated.View
@@ -187,8 +197,11 @@ function TrophyBadge({
 // (Kom igång, Utforskaren, Samlaren, Förmånsjägaren, Mångsidig, Bläddraren,
 // Österlenlegend), 3 medaljer per rad, ingen ram/kort runt.
 function TrophyGrid({
-  trophies, waiting, heroHidden, heroAnimate, dropping, onLanded, onPress, badgeRefs,
+  trophies, waiting, heroHidden, heroAnimate, dropping, onLanded, onPress, badgeRefs, ready, onMedalLoaded,
 }: {
+  /** Alla medaljbilder laddade — tåget startar */
+  ready: boolean;
+  onMedalLoaded: (key: string) => void;
   trophies: Trophy[];
   /** Klara men ännu inte placerade — visas mörka tills det är deras tur */
   waiting: Set<string>;
@@ -227,15 +240,28 @@ function TrophyGrid({
     return [...trophies].sort((a, b) => b.percent - a.percent)[0] ?? null;
   }, [trophies, waiting, heroHidden]);
 
+  // Tågets första vagn: den stora utmärkelsen överst
+  const heroIn = useSharedValue(0);
+  useEffect(() => {
+    if (ready) heroIn.value = withTiming(1, { duration: 420, easing: ReEasing.out(ReEasing.cubic) });
+  }, [ready, heroIn]);
+  const heroStyle = useAnimatedStyle(() => ({
+    opacity: heroIn.value,
+    transform: [{ scale: 0.9 + heroIn.value * 0.1 }],
+  }));
+
+  // Varje medaljs plats i tåget, uppifrån och ner
+  let order = 0;
+
   return (
     <View>
       {featured && (
         <Reanimated.View
           key={featured.key}
           entering={heroAnimate ? heroSwap : undefined}
-          style={{ alignItems: "center", paddingTop: 32 }}
+          style={[{ alignItems: "center", paddingTop: 32 }, heroStyle]}
         >
-          <FeaturedTrophy trophy={featured} medalSize={heroMedalSize} onPress={() => onPress(featured)} />
+          <FeaturedTrophy trophy={featured} medalSize={heroMedalSize} onPress={() => onPress(featured)} onLoad={() => onMedalLoaded("hero")} />
         </Reanimated.View>
       )}
 
@@ -245,9 +271,10 @@ function TrophyGrid({
           if (groupTrophies.length === 0) return null;
           const label = groupTrophies[0].identity;
 
+          const firstOrder = order;
           return (
             <View key={groupId}>
-              <Text style={sec.label}>{label.toUpperCase()}</Text>
+              <SectionLabel text={label.toUpperCase()} ready={ready} order={firstOrder} />
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap, marginTop: 26 }}>
                 {groupTrophies.map((t) => (
                   <TrophyBadge
@@ -259,6 +286,9 @@ function TrophyGrid({
                     onLanded={onLanded}
                     badgeRef={(v) => { badgeRefs.current[t.key] = v; }}
                     onPress={() => onPress(t)}
+                    ready={ready}
+                    order={order++}
+                    onLoad={() => onMedalLoaded(t.key)}
                   />
                 ))}
               </View>
@@ -315,6 +345,22 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+/** Gruppens rubrik — tonas in tillsammans med gruppens första medalj i tåget */
+function SectionLabel({ text, ready, order }: { text: string; ready: boolean; order: number }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!ready) return;
+    Animated.timing(opacity, { toValue: 1, duration: 300, delay: TRAIN_START + order * TRAIN_STEP, useNativeDriver: true }).start();
+  }, [ready]);
+  return <Animated.Text style={[sec.label, { opacity }]}>{text}</Animated.Text>;
+}
+
+// Tåget: när sidan öppnas visas ingenting förrän alla medaljbilder laddats (högst en kort stund),
+// sen glider den stora utmärkelsen och medaljerna in en i taget uppifrån och ner
+const TRAIN_START = 160;
+const TRAIN_STEP = 40;
+const MAX_WAIT = 1500;
+
 export default function ChallengesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -323,6 +369,19 @@ export default function ChallengesScreen() {
   const { height: winH } = useWindowDimensions();
   const [selected, setSelected] = useState<Trophy | null>(null);
   const safeTop = Math.max(insets.top, 44);
+
+  // Medaljbilderna som laddats — när alla (rastret + den stora överst) är klara startar tåget
+  const [ready, setReady] = useState(false);
+  const loaded = useRef(new Set<string>());
+  const onMedalLoaded = (key: string) => {
+    loaded.current.add(key);
+    if (!ready && loaded.current.size >= trophies.length + 1) setReady(true);
+  };
+  useEffect(() => {
+    if (isLoading) return;
+    const t = setTimeout(() => setReady(true), MAX_WAIT);
+    return () => clearTimeout(t);
+  }, [isLoading]);
 
 
   // ─── Placeringen: nya troféer faller ner i sina platser, en i taget ──────────
@@ -351,7 +410,7 @@ export default function ChallengesScreen() {
 
   // Nästa i tur: scrolla så platsen syns lite ovanför mitten, och släpp medaljen
   useEffect(() => {
-    if (dropping || waiting.length === 0) return;
+    if (!ready || dropping || waiting.length === 0) return;
     const key = waiting[0];
     const timers: ReturnType<typeof setTimeout>[] = [];
     timers.push(setTimeout(() => {
@@ -363,10 +422,11 @@ export default function ChallengesScreen() {
         }, () => {});
       }
       timers.push(setTimeout(() => setDropping(key), 650));
-    }, firstDrop.current ? 900 : 350));
+    }, firstDrop.current ? 900 + TRAIN_START + trophies.length * TRAIN_STEP : 350));
     firstDrop.current = false;
     return () => timers.forEach(clearTimeout);
-  }, [waiting, dropping, winH]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, dropping, winH, ready]);
 
   const [heroHidden, setHeroHidden] = useState<string[]>([]);
   const [heroAnimate, setHeroAnimate] = useState(false);
@@ -423,6 +483,8 @@ export default function ChallengesScreen() {
               dropping={dropping}
               onLanded={handleLanded}
               badgeRefs={badgeRefs}
+              ready={ready}
+              onMedalLoaded={onMedalLoaded}
               onPress={(t) => {
                 Haptics.selectionAsync().catch(() => {});
                 setSelected(t);
@@ -447,7 +509,7 @@ function ChallengesHeader({ safeTop, onBack }: { safeTop: number; onBack: () => 
         <TouchableOpacity style={hd.iconBtn} onPress={onBack}>
           <ArrowLeft size={24} color={FG} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={hd.title}>Utmaningar</Text>
+        <Text style={hd.title}>UTMANINGAR</Text>
       </View>
     </View>
   );
@@ -456,7 +518,7 @@ function ChallengesHeader({ safeTop, onBack }: { safeTop: number; onBack: () => 
 const hd = StyleSheet.create({
   row: {
     flexDirection: "row", alignItems: "center",
-    height: 72, paddingHorizontal: 16, gap: 12,
+    height: 64, paddingHorizontal: 16, gap: 12,
   },
   iconBtn: {
     width: 48, height: 48, borderRadius: 24,
@@ -464,7 +526,8 @@ const hd = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center", justifyContent: "center",
   },
-  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG },
+  // Samma rubrik som Mitt Österlen och övriga sidor
+  title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
 });
 
 // Sektionsrubrik ovanför varje grupps 3 rutor — samma "eyebrow"-mönster
