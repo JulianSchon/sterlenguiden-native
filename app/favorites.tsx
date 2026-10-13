@@ -1,41 +1,58 @@
 /**
- * Favoriter – enhetlig lista över sparade platser och event
- * Spec: native-subpages-spec.md §2 (omdesignad 2026-09-15)
+ * Favoriter — sparade platser och event.
+ *
+ * Header som Mitt Österlens (tillbaka-knapp + rubrik i versaler), dela-knapp till höger. Kategorin
+ * väljs med samma ‹ ── NAMN ── ›-väljare som Förmåner (CategoryHeader), bara med pilarna.
+ *
+ * Två vyer, som man väljer själv (sparas på telefonen):
+ *  - Kort: stor bild med rundade hörn, och UNDER bilden namn, kategori och kort beskrivning, med
+ *    hjärtat längst till höger. Inget ligger ovanpå bilden.
+ *  - Lista: kompakta rader med en liten bild.
+ *
+ * Ett avmarkerat hjärta tar inte bort raden direkt (man kan ångra sig) — den försvinner först
+ * nästa gång sidan öppnas.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, Share, Animated,
+  View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Image, Share, Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Heart } from "lucide-react-native";
+import { ArrowLeft, Heart, Square, AlignJustify } from "lucide-react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
+import { supabase } from "@/integrations/supabase/client";
 import { ShareIcon } from "@/components/ShareIcon";
-import { CategoryChips } from "@/components/CategoryChips";
+import { CategoryHeader } from "@/components/CategoryHeader";
+import { darkColors } from "@/theme/colors";
 
-const BG        = "#121212";
-const CARD      = "#1C1C1C";
-const FG        = "#F5F1E8";
-const MUTED     = "rgba(245,241,232,0.55)";
-const GOLD      = "#C5A059";
-const RED       = "#EF4444";
-const BORDER    = "rgba(255,255,255,0.06)";
+const BG     = "#121212";
+const CARD   = "#1C1C1C";
+const FG     = "#F5F1E8";
+const MUTED  = "rgba(245,241,232,0.55)";
+const GOLD   = "#C5A059";
+const RED    = "#EF4444";
+const BORDER = "rgba(255,255,255,0.06)";
 
 type FavKind = "place" | "event";
+type ViewMode = "cards" | "list";
+const VIEW_KEY = "favorites-view:v1";
 
 interface FavItem {
   key: string;
   kind: FavKind;
   id: number;
   title: string;
-  subtitle: string;        // ort (plats) eller datum (event)
+  /** Kategorin (platser) eller "Evenemang · datum" (event) */
+  category: string;
+  /** Ort (platser) eller plats (event) — i listvyn */
+  subtitle: string;
   description: string;
-  categoryTags: string[];  // t.ex. ["Golf", "Aktivitet", "Natur"]
-  category: string | null; // rå categories-sträng, används för pill-filtrering
+  /** Rå categories-sträng, används för filtreringen */
+  categories: string | null;
   imageUrl: string | null;
   route: string;
 }
@@ -54,16 +71,16 @@ function matchesDbValues(categories: string | null, dbValues: string[]): boolean
   );
 }
 
-// Favoriter-sidans grupperade filter — slår ihop Sök-sidans kategorier till fyra grupper + Event
+// Sök-sidans kategorier ihopslagna till fyra grupper + Evenemang
 interface FavFilter { id: string; label: string; dbValues?: string[]; isEvent?: boolean }
 const FAV_FILTERS: FavFilter[] = [
-  { id: "alla" },
+  { id: "alla",      label: "Alla" },
   { id: "ata",       label: "Mat",         dbValues: ["Mat", "Mat & Dryck", "Café & Bageri", "Cafe & Bageri"] },
   { id: "sova",      label: "Boende",      dbValues: ["Hotell & B&B", "Boende"] },
   { id: "gora",      label: "Upplevelser", dbValues: ["Aktiviteter", "Sevärdheter", "Konst", "Natur", "Natur & Upplevelser"] },
   { id: "handla",    label: "Shopping",    dbValues: ["Butiker", "Hantverk & Service", "Hantverk"] },
-  { id: "evenemang", label: "Evenemang", isEvent: true },
-].map((f) => ({ ...f, label: f.label ?? "Alla" }));
+  { id: "evenemang", label: "Evenemang",   isEvent: true },
+];
 
 function useFavoritesDetailed() {
   return useQuery<FavItem[]>({
@@ -92,26 +109,24 @@ function useFavoritesDetailed() {
             kind: "place",
             id: row.places.id,
             title: row.places.name,
+            category: categories.split(",").map((c) => c.trim()).filter(Boolean)[0] ?? "",
             subtitle: row.places.nearest_town ?? "Österlen",
             description: row.places.short_description ?? row.places.description ?? "",
-            categoryTags: categories.split(",").map((c) => c.trim()).filter(Boolean).slice(0, 3),
-            category: categories || null,
+            categories: categories || null,
             imageUrl: row.places.image_url?.split(",")[0]?.trim() ?? null,
             route: `/place/${row.places.id}`,
           });
         } else if (row.events) {
-          const dateLabel = row.events.date
-            ? format(new Date(row.events.date), "d MMMM", { locale: sv })
-            : row.events.location ?? "";
+          const dateLabel = row.events.date ? format(new Date(row.events.date), "d MMMM", { locale: sv }) : "";
           items.push({
             key: `e${row.events.id}`,
             kind: "event",
             id: row.events.id,
             title: row.events.title,
-            subtitle: dateLabel,
+            category: dateLabel ? `Evenemang · ${dateLabel}` : "Evenemang",
+            subtitle: dateLabel || (row.events.location ?? ""),
             description: row.events.location ?? "",
-            categoryTags: [],
-            category: null,
+            categories: null,
             imageUrl: row.events.image_url?.split(",")[0]?.trim() ?? null,
             route: `/event/${row.events.id}`,
           });
@@ -127,23 +142,40 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: items = [], isLoading } = useFavoritesDetailed();
-  const [activeFilter, setActiveFilter] = useState("alla");
-  // Av/på-togglade kort denna vy — kortet ligger kvar i listan oavsett,
-  // bara hjärtfärgen ändras. Riktigt borta blir det först när man navigerar
-  // bort och tillbaka till Favoriter-sidan (då körs queryn på nytt).
+  const [filterIndex, setFilterIndex] = useState(0);
+  const [mode, setMode] = useState<ViewMode>("cards");
+  // Avmarkerade hjärtan den här gången — raden ligger kvar (man kan ångra sig), borta först nästa gång
   const [toggledOff, setToggledOff] = useState<Set<string>>(new Set());
-  const safeTop = Math.max(insets.top, 44);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const filter = FAV_FILTERS.find((f) => f.id === activeFilter) ?? FAV_FILTERS[0];
+  // Vyn man valde senast
+  useEffect(() => {
+    AsyncStorage.getItem(VIEW_KEY).then((v) => { if (v === "cards" || v === "list") setMode(v); }).catch(() => {});
+  }, []);
+  const chooseMode = (next: ViewMode) => {
+    if (next === mode) return;
+    Haptics.selectionAsync().catch(() => {});
+    setMode(next);
+    AsyncStorage.setItem(VIEW_KEY, next).catch(() => {});
+  };
+
+  const filter = FAV_FILTERS[filterIndex];
   const visible = useMemo(() => {
     if (filter.id === "alla") return items;
     if (filter.isEvent) return items.filter((i) => i.kind === "event");
-    return items.filter((i) => i.kind === "place" && matchesDbValues(i.category, filter.dbValues ?? []));
+    return items.filter((i) => i.kind === "place" && matchesDbValues(i.categories, filter.dbValues ?? []));
   }, [items, filter]);
+
+  const step = (dir: 1 | -1) => {
+    const next = filterIndex + dir;
+    if (next < 0 || next >= FAV_FILTERS.length) return;
+    Haptics.selectionAsync().catch(() => {});
+    setFilterIndex(next);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
 
   const handleToggleFavorite = async (item: FavItem) => {
     const wasFav = !toggledOff.has(item.key);
-    // Optimistisk UI-uppdatering direkt
     setToggledOff((prev) => {
       const next = new Set(prev);
       if (wasFav) next.add(item.key); else next.delete(item.key);
@@ -164,39 +196,29 @@ export default function FavoritesScreen() {
         service_point_id: null,
       });
     }
-    // Synka andra delar av appen (t.ex. favorit-räknaren på profilsidan) —
-    // men INTE denna lista, den uppdateras bara vid nästa besök på sidan.
+    // Synka resten av appen (t.ex. räknaren på Profil) — men inte den här listan, se överst
     queryClient.invalidateQueries({ queryKey: ["favorites"] });
   };
 
   const handleShare = () => {
     if (items.length === 0) return;
     const names = items.map((i) => i.title).join(", ");
-    Share.share({
-      message: `Kolla in mina favoritplatser på Österlen: ${names} 🌾 via Österlenappen`,
-    }).catch(() => {});
+    Share.share({ message: `Kolla in mina favoritplatser på Österlen: ${names} 🌾 via Österlenappen` }).catch(() => {});
   };
+
+  const countLabel = visible.length === 1 ? "1 favorit" : `${visible.length} favoriter`;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={[fav.header, { paddingTop: safeTop }]}>
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <SvgGrad id="favHeaderFade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={BG} stopOpacity={1}    />
-              <Stop offset="55%"  stopColor={BG} stopOpacity={0.98} />
-              <Stop offset="100%" stopColor={BG} stopOpacity={0.78} />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#favHeaderFade)" />
-        </Svg>
-        <View style={fav.headerRow}>
-          <TouchableOpacity style={fav.iconBtn} onPress={() => router.back()}>
+      {/* Fast header, samma som Mitt Österlen */}
+      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={fav.headerTitle}>Favoriter</Text>
+          <Text style={s.headerTitle} numberOfLines={1}>FAVORITER</Text>
           {items.length > 0 && (
-            <TouchableOpacity style={fav.iconBtn} onPress={handleShare}>
+            <TouchableOpacity style={s.headerBtn} onPress={handleShare}>
               <ShareIcon size={20} color={FG} strokeWidth={2} />
             </TouchableOpacity>
           )}
@@ -204,166 +226,190 @@ export default function FavoritesScreen() {
       </View>
 
       {isLoading && (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(197,160,89,0.15)", alignItems: "center", justifyContent: "center" }}>
+        <View style={s.center}>
+          <View style={s.loadingIcon}>
             <Heart size={18} color={GOLD} strokeWidth={1.5} />
           </View>
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED }}>Laddar favoriter…</Text>
+          <Text style={s.muted}>Laddar favoriter…</Text>
         </View>
       )}
 
       {!isLoading && items.length === 0 && (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 }}>
-          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(197,160,89,0.10)", borderWidth: 1, borderColor: "rgba(197,160,89,0.22)", alignItems: "center", justifyContent: "center" }}>
+        <View style={[s.center, { paddingHorizontal: 40 }]}>
+          <View style={s.emptyIcon}>
             <Heart size={28} color={GOLD} strokeWidth={1.5} />
           </View>
-          <Text style={{ fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG, textAlign: "center" }}>Inga favoriter ännu</Text>
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", lineHeight: 21 }}>
+          <Text style={s.emptyTitle}>Inga favoriter ännu</Text>
+          <Text style={[s.muted, { textAlign: "center", lineHeight: 21 }]}>
             Tryck på hjärtat på en plats eller ett event för att spara det här.
           </Text>
-          <TouchableOpacity
-            style={{ marginTop: 8, height: 46, paddingHorizontal: 24, borderRadius: 14, backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.25)", alignItems: "center", justifyContent: "center" }}
-            onPress={() => router.push("/(tabs)/explore" as any)}
-          >
-            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD }}>Utforska platser</Text>
+          <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore" as any)}>
+            <Text style={s.emptyBtnText}>Utforska platser</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {!isLoading && items.length > 0 && (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={fav.list}>
-          <View style={{ marginHorizontal: -20, marginBottom: 4 }}>
-            <CategoryChips chips={FAV_FILTERS} activeId={activeFilter} onChange={setActiveFilter} />
+        <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={[s.body, { paddingBottom: Math.max(insets.bottom, 16) + 32 }]}>
+          <CategoryHeader index={filterIndex} labels={FAV_FILTERS.map((f) => f.label)} onStep={step} palette={darkColors} />
+
+          {/* Antal + val av vy (kort/lista) */}
+          <View style={s.toolbar}>
+            <Text style={s.count}>{countLabel}</Text>
+            <View style={s.toggle}>
+              <Pressable style={[s.toggleBtn, mode === "cards" && s.toggleBtnOn]} onPress={() => chooseMode("cards")} hitSlop={6} accessibilityLabel="Visa som kort">
+                <Square size={16} color={mode === "cards" ? FG : MUTED} strokeWidth={2.2} />
+              </Pressable>
+              <Pressable style={[s.toggleBtn, mode === "list" && s.toggleBtnOn]} onPress={() => chooseMode("list")} hitSlop={6} accessibilityLabel="Visa som lista">
+                <AlignJustify size={16} color={mode === "list" ? FG : MUTED} strokeWidth={2.2} />
+              </Pressable>
+            </View>
           </View>
 
-          {visible.map((item) => (
-            <FavoriteRow
-              key={item.key}
-              item={item}
-              isFav={!toggledOff.has(item.key)}
-              onPress={() => router.push(item.route as any)}
-              onToggleFavorite={() => handleToggleFavorite(item)}
-            />
-          ))}
+          {visible.length === 0 && (
+            <Text style={[s.muted, s.noneInFilter]}>Inga favoriter i {filter.label.toLowerCase()} än.</Text>
+          )}
+
+          <View style={mode === "cards" ? s.cards : s.rows}>
+            {visible.map((item) =>
+              mode === "cards" ? (
+                <FavoriteCard
+                  key={item.key}
+                  item={item}
+                  isFav={!toggledOff.has(item.key)}
+                  onPress={() => router.push(item.route as any)}
+                  onToggleFavorite={() => handleToggleFavorite(item)}
+                />
+              ) : (
+                <FavoriteRow
+                  key={item.key}
+                  item={item}
+                  isFav={!toggledOff.has(item.key)}
+                  onPress={() => router.push(item.route as any)}
+                  onToggleFavorite={() => handleToggleFavorite(item)}
+                />
+              )
+            )}
+          </View>
         </ScrollView>
       )}
     </View>
   );
 }
 
-function FavoriteRow({ item, isFav, onPress, onToggleFavorite }: {
-  item: FavItem;
-  isFav: boolean;
-  onPress: () => void;
-  onToggleFavorite: () => void;
-}) {
-  const heartScale = useRef(new Animated.Value(1)).current;
-
-  const handleHeartPress = () => {
+/** Hjärtat: studsar till när man trycker */
+function HeartButton({ isFav, onToggle, size = 22 }: { isFav: boolean; onToggle: () => void; size?: number }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const press = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     Animated.sequence([
-      Animated.spring(heartScale, { toValue: 1.35, useNativeDriver: true, speed: 60, bounciness: 14 }),
-      Animated.spring(heartScale, { toValue: 1,    useNativeDriver: true, speed: 40, bounciness: 8  }),
+      Animated.spring(scale, { toValue: 1.3, useNativeDriver: true, speed: 60, bounciness: 12 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }),
     ]).start();
-    onToggleFavorite();
+    onToggle();
   };
-
   return (
-    <TouchableOpacity style={fav.row} activeOpacity={0.9} onPress={onPress}>
-      <View style={fav.thumbWrap}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: "#2A2A2A" }]} />
-        )}
-      </View>
-
-      <View style={fav.content}>
-        <Text style={fav.rowTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={fav.rowSub} numberOfLines={1}>{item.subtitle}</Text>
-        {!!item.description && (
-          <Text style={fav.rowDesc} numberOfLines={2}>{item.description}</Text>
-        )}
-        {item.categoryTags.length > 0 && (
-          <View style={fav.pillsRow}>
-            {item.categoryTags.map((tag) => (
-              <View key={tag} style={fav.categoryPill}>
-                <Text style={fav.categoryPillText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-
-      <TouchableOpacity
-        style={fav.heartBtn}
-        activeOpacity={0.7}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        onPress={handleHeartPress}
-      >
-        <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-          <Heart size={20} color={RED} fill={isFav ? RED : "transparent"} strokeWidth={2} />
-        </Animated.View>
-      </TouchableOpacity>
+    <TouchableOpacity style={s.heartBtn} activeOpacity={0.7} hitSlop={10} onPress={press} accessibilityLabel={isFav ? "Ta bort från favoriter" : "Spara som favorit"}>
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Heart size={size} color={RED} fill={isFav ? RED : "transparent"} strokeWidth={2} />
+      </Animated.View>
     </TouchableOpacity>
   );
 }
 
-const fav = StyleSheet.create({
-  // Header-bar: fast 72px innehållshöjd + safe-area ovanpå, gradient-fade bakgrund
-  header: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.05)",
-  },
-  headerRow: {
-    flexDirection: "row", alignItems: "center",
-    height: 72,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  iconBtn: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(0,0,0,0.40)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
-  },
-  headerTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: FG, flex: 1 },
+/** Kortvyn: stor bild, och under den namn, kategori och kort beskrivning, hjärtat till höger */
+function FavoriteCard({ item, isFav, onPress, onToggleFavorite }: {
+  item: FavItem; isFav: boolean; onPress: () => void; onToggleFavorite: () => void;
+}) {
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
+      <View style={s.cardImage}>
+        {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+      </View>
+      <View style={s.cardInfo}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
+          {!!item.category && <Text style={s.cardCategory} numberOfLines={1}>{item.category}</Text>}
+          {!!item.description && <Text style={s.cardDesc} numberOfLines={2}>{item.description}</Text>}
+        </View>
+        <HeartButton isFav={isFav} onToggle={onToggleFavorite} />
+      </View>
+    </TouchableOpacity>
+  );
+}
 
-  list: { padding: 20, paddingBottom: 80, gap: 12 },
-  // Kortet: overflow-hidden + borderRadius på YTTERRAMEN gör att bilden
-  // automatiskt klipps rundad i vänsterkanten (top/bottom-left) och förblir
-  // helt rak i höger — ingen egen radius behövs på bilden.
+/** Listvyn: kompakt rad med liten bild */
+function FavoriteRow({ item, isFav, onPress, onToggleFavorite }: {
+  item: FavItem; isFav: boolean; onPress: () => void; onToggleFavorite: () => void;
+}) {
+  return (
+    <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={onPress}>
+      <View style={s.thumb}>
+        {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={s.rowTitle} numberOfLines={1}>{item.title}</Text>
+        {!!item.category && <Text style={s.rowCategory} numberOfLines={1}>{item.category}</Text>}
+        {!!item.description && <Text style={s.rowDesc} numberOfLines={1}>{item.description}</Text>}
+      </View>
+      <HeartButton isFav={isFav} onToggle={onToggleFavorite} size={20} />
+    </TouchableOpacity>
+  );
+}
+
+const s = StyleSheet.create({
+  header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
+  headerBtn: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    alignItems: "center", justifyContent: "center",
+  },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
+
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
+  muted: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED },
+  loadingIcon: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(197,160,89,0.15)",
+    alignItems: "center", justifyContent: "center",
+  },
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(197,160,89,0.10)",
+    borderWidth: 1, borderColor: "rgba(197,160,89,0.22)", alignItems: "center", justifyContent: "center",
+  },
+  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: FG, textAlign: "center" },
+  emptyBtn: {
+    marginTop: 8, height: 46, paddingHorizontal: 24, borderRadius: 14,
+    backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.25)",
+    alignItems: "center", justifyContent: "center",
+  },
+  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD },
+
+  body: { paddingHorizontal: 16, paddingTop: 12 },
+  toolbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 22, marginBottom: 14 },
+  count: { fontFamily: "Montserrat_700Bold", fontSize: 16, color: FG },
+  toggle: { flexDirection: "row", padding: 3, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
+  toggleBtn: { width: 38, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  toggleBtnOn: { backgroundColor: "rgba(255,255,255,0.14)" },
+  noneInFilter: { textAlign: "center", marginTop: 30 },
+
+  // Kortvyn
+  cards: { gap: 28 },
+  cardImage: { width: "100%", aspectRatio: 1.55, borderRadius: 20, overflow: "hidden", backgroundColor: "#2A2A2A" },
+  cardInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 12, paddingHorizontal: 2 },
+  cardTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, letterSpacing: -0.2, color: FG },
+  cardCategory: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: GOLD, marginTop: 3 },
+  cardDesc: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: MUTED, marginTop: 4 },
+
+  // Listvyn
+  rows: { gap: 10 },
   row: {
-    flexDirection: "row",
-    backgroundColor: CARD,
-    borderRadius: 18,
-    overflow: "hidden",
-    borderWidth: 1, borderColor: BORDER,
-    minHeight: 112,
+    flexDirection: "row", alignItems: "center", gap: 12, padding: 10,
+    backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: BORDER,
   },
-  thumbWrap: {
-    width: 108,
-    backgroundColor: "#2A2A2A",
-  },
-  content: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingLeft: 12,
-    paddingRight: 36, // lämnar plats åt hjärtat i hörnet
-    gap: 3,
-    justifyContent: "center",
-  },
-  rowTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 16, color: FG },
-  rowSub:   { fontFamily: "Inter_400Regular", fontSize: 12, color: GOLD },
-  rowDesc:  { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED, lineHeight: 16, marginTop: 1 },
-  pillsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 5 },
-  categoryPill: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 7,
-  },
-  categoryPillText: { fontFamily: "Inter_500Medium", fontSize: 10, color: MUTED },
-  heartBtn: {
-    position: "absolute", top: 10, right: 10,
-  },
+  thumb: { width: 64, height: 64, borderRadius: 12, overflow: "hidden", backgroundColor: "#2A2A2A" },
+  rowTitle: { fontFamily: "Montserrat_700Bold", fontSize: 15.5, color: FG },
+  rowCategory: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: GOLD },
+  rowDesc: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
+
+  heartBtn: { paddingTop: 2, paddingHorizontal: 4 },
 });

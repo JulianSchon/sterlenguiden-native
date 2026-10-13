@@ -19,7 +19,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Fingerprint, Smartphone, Check, Clock, Crown, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { Fingerprint, Smartphone, Check, Clock, Crown } from "lucide-react-native";
 import { Canvas, Fill, LinearGradient, Line, Path, DashPathEffect, useImage, vec } from "@shopify/react-native-skia";
 import { useOffers, useRedeemedOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
@@ -32,6 +32,7 @@ import {
 import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
 import { tornEdgeLine, tornCutRegion, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { CategoryHeader } from "@/components/CategoryHeader";
 import { findCategory, ticketColors, type CategoryId } from "@/theme/categories";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -336,44 +337,6 @@ function OfferPage({
   );
 }
 
-/**
- * ‹ ── NAMN ── › (linjerna som kortdesignen i Utseende) med prickar under. Pilarna är
- * för den som inte hittar svepet; de försvinner i ändarna.
- */
-function CategoryHeader({
-  index, labels, onStep,
-}: { index: number; labels: string[]; onStep: (dir: 1 | -1) => void }) {
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
-  const arrow = (dir: 1 | -1) => {
-    const hidden = index + dir < 0 || index + dir >= labels.length;
-    const Icon = dir === 1 ? ChevronRight : ChevronLeft;
-    return (
-      <Pressable onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
-        <Icon size={22} color={colors.muted} strokeWidth={2} />
-      </Pressable>
-    );
-  };
-  return (
-    <View style={s.catHeader}>
-      <View style={s.catRow}>
-        {arrow(-1)}
-        <View style={s.catMiddle}>
-          <View style={s.rule} />
-          <Text style={s.catTitle} numberOfLines={1}>{labels[index].toUpperCase()}</Text>
-          <View style={s.rule} />
-        </View>
-        {arrow(1)}
-      </View>
-      <View style={s.dots}>
-        {labels.map((label, i) => (
-          <View key={label} style={[s.dot, i === index && s.dotActive]} />
-        ))}
-      </View>
-    </View>
-  );
-}
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const s = useThemedStyles(createStyles);
   return (
@@ -571,15 +534,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   howLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: c.text, textAlign: "center" },
 
-  catHeader: { alignItems: "center", gap: 10 },
-  catRow: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
-  catMiddle: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 6 },
-  arrow: { width: 32, alignItems: "center" },
-  rule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.goldBorder },
-  catTitle: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3, color: c.text },
-  dots: { flexDirection: "row", gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderStrong },
-  dotActive: { width: 18, backgroundColor: c.gold },
 
   page: { position: "absolute", top: 0, overflow: "hidden" },
   pageContent: { gap: 22 },
