@@ -11,8 +11,13 @@
  *
  * Ett avmarkerat hjärta tar inte bort raden direkt (man kan ångra sig) — den försvinner först
  * nästa gång sidan öppnas.
+ *
+ * Prestanda: korten är memo — ett hjärta ritar bara om sitt eget kort. Gilla-animationens ring och
+ * prickar finns EN gång för hela sidan (LikeBurst) och flyttas till hjärtat man trycker på; med
+ * en egen uppsättning per kort blev det hundratals animerade delar, vilket gjorde bytet mellan
+ * kort och lista segt och fick gillningen att hacka.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Image, Share,
 } from "react-native";
@@ -150,7 +155,22 @@ export default function FavoritesScreen() {
   const [mode, setMode] = useState<ViewMode>("cards");
   // Avmarkerade hjärtan den här gången — raden ligger kvar (man kan ångra sig), borta först nästa gång
   const [toggledOff, setToggledOff] = useState<Set<string>>(new Set());
+  const toggledRef = useRef(toggledOff);
+  toggledRef.current = toggledOff;
   const scrollRef = useRef<ScrollView>(null);
+
+  // Gilla-animationens ring och prickar — en uppsättning för hela sidan
+  const burst = useSharedValue(0);
+  const burstX = useSharedValue(0);
+  const burstY = useSharedValue(0);
+  const burstSize = useSharedValue(28);
+  const showBurst = useCallback((x: number, y: number, size: number) => {
+    burstX.value = x;
+    burstY.value = y;
+    burstSize.value = size;
+    burst.value = 0;
+    burst.value = withTiming(1, { duration: 560, easing: Easing.out(Easing.cubic) });
+  }, [burst, burstX, burstY, burstSize]);
 
   // Vyn man valde senast
   useEffect(() => {
@@ -178,8 +198,10 @@ export default function FavoritesScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
-  const handleToggleFavorite = async (item: FavItem) => {
-    const wasFav = !toggledOff.has(item.key);
+  const openItem = useCallback((item: FavItem) => pushOnce(router, item.route), [router]);
+
+  const handleToggleFavorite = useCallback(async (item: FavItem) => {
+    const wasFav = !toggledRef.current.has(item.key);
     setToggledOff((prev) => {
       const next = new Set(prev);
       if (wasFav) next.add(item.key); else next.delete(item.key);
@@ -202,7 +224,7 @@ export default function FavoritesScreen() {
     }
     // Synka resten av appen (t.ex. räknaren på Profil) — men inte den här listan, se överst
     queryClient.invalidateQueries({ queryKey: ["favorites"] });
-  };
+  }, [queryClient]);
 
   const handleShare = () => {
     if (items.length === 0) return;
@@ -277,41 +299,29 @@ export default function FavoritesScreen() {
           <View style={mode === "cards" ? s.cards : s.rows}>
             {visible.map((item) =>
               mode === "cards" ? (
-                <FavoriteCard
-                  key={item.key}
-                  item={item}
-                  isFav={!toggledOff.has(item.key)}
-                  onPress={() => pushOnce(router, item.route)}
-                  onToggleFavorite={() => handleToggleFavorite(item)}
-                />
+                <FavoriteCard key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               ) : (
-                <FavoriteRow
-                  key={item.key}
-                  item={item}
-                  isFav={!toggledOff.has(item.key)}
-                  onPress={() => pushOnce(router, item.route)}
-                  onToggleFavorite={() => handleToggleFavorite(item)}
-                />
+                <FavoriteRow key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               )
             )}
           </View>
         </ScrollView>
       )}
+      <LikeBurst burst={burst} x={burstX} y={burstY} size={burstSize} />
     </View>
   );
 }
 
+type BurstFn = (x: number, y: number, size: number) => void;
+
 /**
  * Hjärtat, som en gilla-knapp i de stora apparna: gillar man trycks hjärtat ihop, poppar upp större
- * och fjädrar tillbaka, medan en ring vidgas och små prickar sprutar ut runt det — med en vibration.
- * Tar man bort gillningen krymper det bara lite och studsar tillbaka. Allt på animationstråden.
+ * och fjädrar tillbaka, och sidans ring och prickar (LikeBurst) sprutar ut runt det — med en
+ * vibration. Tar man bort gillningen krymper det bara lite och studsar tillbaka.
  */
-const PARTICLES = 8;
-const PARTICLE_COLORS = [RED, GOLD];
-
-function HeartButton({ isFav, onToggle, size = 28 }: { isFav: boolean; onToggle: () => void; size?: number }) {
+function HeartButton({ isFav, onToggle, onBurst, size = 28 }: { isFav: boolean; onToggle: () => void; onBurst: BurstFn; size?: number }) {
   const scale = useSharedValue(1);
-  const burst = useSharedValue(0);
+  const box = useRef<View>(null);
   const press = () => {
     if (!isFav) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -320,8 +330,7 @@ function HeartButton({ isFav, onToggle, size = 28 }: { isFav: boolean; onToggle:
         withTiming(1.35, { duration: 150, easing: Easing.out(Easing.quad) }),
         withSpring(1, { damping: 9, stiffness: 260 }),
       );
-      burst.value = 0;
-      burst.value = withTiming(1, { duration: 560, easing: Easing.out(Easing.cubic) });
+      box.current?.measureInWindow((x, y, w, h) => onBurst(x + w / 2, y + h / 2, size));
     } else {
       Haptics.selectionAsync().catch(() => {});
       scale.value = withSequence(withTiming(0.75, { duration: 90 }), withSpring(1, { damping: 12, stiffness: 260 }));
@@ -329,17 +338,9 @@ function HeartButton({ isFav, onToggle, size = 28 }: { isFav: boolean; onToggle:
     onToggle();
   };
   const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(burst.value, [0, 0.15, 1], [0, 0.55, 0]),
-    transform: [{ scale: interpolate(burst.value, [0, 1], [0.4, 1.9]) }],
-  }));
   return (
     <TouchableOpacity style={s.heartBtn} activeOpacity={0.8} hitSlop={10} onPress={press} accessibilityLabel={isFav ? "Ta bort från favoriter" : "Spara som favorit"}>
-      <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-        <Reanimated.View pointerEvents="none" style={[s.heartRing, { width: size, height: size, borderRadius: size / 2 }, ringStyle]} />
-        {Array.from({ length: PARTICLES }, (_, i) => (
-          <HeartParticle key={i} index={i} burst={burst} size={size} />
-        ))}
+      <View ref={box} collapsable={false}>
         <Reanimated.View style={heartStyle}>
           <Heart size={size} color={RED} fill={isFav ? RED : "transparent"} strokeWidth={2} />
         </Reanimated.View>
@@ -348,35 +349,65 @@ function HeartButton({ isFav, onToggle, size = 28 }: { isFav: boolean; onToggle:
   );
 }
 
-/** En av prickarna som sprutar ut när man gillar */
-function HeartParticle({ index, burst, size }: { index: number; burst: SharedValue<number>; size: number }) {
+const PARTICLES = 8;
+const PARTICLE_COLORS = [RED, GOLD];
+
+/** Ring och prickar runt hjärtat man just gillade — en uppsättning för hela sidan, flyttas dit */
+function LikeBurst({ burst, x, y, size }: { burst: SharedValue<number>; x: SharedValue<number>; y: SharedValue<number>; size: SharedValue<number> }) {
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(burst.value, [0, 0.15, 1], [0, 0.55, 0]),
+    width: size.value,
+    height: size.value,
+    borderRadius: size.value / 2,
+    transform: [
+      { translateX: x.value - size.value / 2 },
+      { translateY: y.value - size.value / 2 },
+      { scale: interpolate(burst.value, [0, 1], [0.4, 1.9]) },
+    ],
+  }));
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Reanimated.View style={[s.heartRing, ringStyle]} />
+      {Array.from({ length: PARTICLES }, (_, i) => (
+        <HeartParticle key={i} index={i} burst={burst} x={x} y={y} size={size} />
+      ))}
+    </View>
+  );
+}
+
+function HeartParticle({ index, burst, x, y, size }: {
+  index: number; burst: SharedValue<number>; x: SharedValue<number>; y: SharedValue<number>; size: SharedValue<number>;
+}) {
   const angle = (index / PARTICLES) * Math.PI * 2 - Math.PI / 2;
   const dot = index % 2 === 0 ? 6 : 4.5;
   const style = useAnimatedStyle(() => {
-    const r = interpolate(burst.value, [0, 1], [size * 0.35, size * 1.15]);
+    const r = interpolate(burst.value, [0, 1], [size.value * 0.35, size.value * 1.15]);
     return {
       opacity: interpolate(burst.value, [0, 0.1, 0.75, 1], [0, 1, 0.8, 0]),
       transform: [
-        { translateX: Math.cos(angle) * r },
-        { translateY: Math.sin(angle) * r },
+        { translateX: x.value - dot / 2 + Math.cos(angle) * r },
+        { translateY: y.value - dot / 2 + Math.sin(angle) * r },
         { scale: interpolate(burst.value, [0, 1], [1, 0.3]) },
       ],
     };
   });
   return (
-    <Reanimated.View
-      pointerEvents="none"
-      style={[{ position: "absolute", width: dot, height: dot, borderRadius: dot / 2, backgroundColor: PARTICLE_COLORS[index % 2] }, style]}
-    />
+    <Reanimated.View style={[{ position: "absolute", left: 0, top: 0, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: PARTICLE_COLORS[index % 2] }, style]} />
   );
 }
 
+interface ItemProps {
+  item: FavItem;
+  isFav: boolean;
+  onOpen: (item: FavItem) => void;
+  onToggle: (item: FavItem) => void;
+  onBurst: BurstFn;
+}
+
 /** Kortvyn: stor bild, och under den namn, kategori och kort beskrivning, hjärtat till höger */
-function FavoriteCard({ item, isFav, onPress, onToggleFavorite }: {
-  item: FavItem; isFav: boolean; onPress: () => void; onToggleFavorite: () => void;
-}) {
+const FavoriteCard = memo(function FavoriteCard({ item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
+    <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.cardImage}>
         {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
       </View>
@@ -386,18 +417,16 @@ function FavoriteCard({ item, isFav, onPress, onToggleFavorite }: {
           {!!item.category && <Text style={s.cardCategory} numberOfLines={1}>{item.category}</Text>}
           {!!item.description && <Text style={s.cardDesc} numberOfLines={2}>{item.description}</Text>}
         </View>
-        <HeartButton isFav={isFav} onToggle={onToggleFavorite} />
+        <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} />
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 /** Listvyn: kompakt rad med liten bild */
-function FavoriteRow({ item, isFav, onPress, onToggleFavorite }: {
-  item: FavItem; isFav: boolean; onPress: () => void; onToggleFavorite: () => void;
-}) {
+const FavoriteRow = memo(function FavoriteRow({ item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
   return (
-    <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={onPress}>
+    <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.thumb}>
         {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
       </View>
@@ -406,10 +435,10 @@ function FavoriteRow({ item, isFav, onPress, onToggleFavorite }: {
         {!!item.category && <Text style={s.rowCategory} numberOfLines={1}>{item.category}</Text>}
         {!!item.description && <Text style={s.rowDesc} numberOfLines={1}>{item.description}</Text>}
       </View>
-      <HeartButton isFav={isFav} onToggle={onToggleFavorite} size={24} />
+      <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} size={24} />
     </TouchableOpacity>
   );
-}
+});
 
 const s = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
@@ -466,5 +495,5 @@ const s = StyleSheet.create({
   rowDesc: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
 
   heartBtn: { paddingTop: 2, paddingHorizontal: 4 },
-  heartRing: { position: "absolute", borderWidth: 2, borderColor: RED },
+  heartRing: { position: "absolute", left: 0, top: 0, borderWidth: 2, borderColor: RED },
 });
