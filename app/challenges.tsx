@@ -317,8 +317,9 @@ function TrophyGrid({
 
 // ─── Detaljmodal ────────────────────────────────────────────────────────────────
 const DONE_GREEN = "#4ADE80";
-/** Framstegets färg efter hur nära man är: under en tredjedel röd, under två tredjedelar orange, annars gul */
-const progressColor = (ratio: number) => (ratio < 1 / 3 ? "#F87171" : ratio < 2 / 3 ? "#FB923C" : "#FACC15");
+/** Framstegets färg efter hur nära man är: glider från rött via orange och gult till grönt, så att
+ * 59 av 60 redan är nästan grönt */
+const progressColor = (ratio: number) => `hsl(${Math.round(Math.max(0, Math.min(1, ratio)) * 115)}, 85%, 60%)`;
 
 function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose: () => void }) {
   return (
@@ -346,7 +347,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
               <View style={dm.divider} />
 
               {trophy.done ? (
-                <Text style={dm.progressText}>
+                <Text style={[dm.progressText, { color: DONE_GREEN, fontFamily: "Inter_600SemiBold" }]}>
                   Klar{trophy.doneAt ? ` ${format(new Date(trophy.doneAt), "d MMMM yyyy", { locale: sv })}` : ""}
                 </Text>
               ) : (
@@ -401,7 +402,7 @@ function SectionLabel({ text, ready, order, check }: {
     Animated.timing(opacity, { toValue: 1, duration: 300, delay: TRAIN_START + order * TRAIN_STEP, useNativeDriver: true }).start();
   }, [ready]);
   useEffect(() => {
-    if (check === "shown") return;
+    if (check === "shown") { checkIn.setValue(1); return; }
     if (check !== "landing") { checkIn.setValue(0); return; }
     // Medaljen faller i 420 ms — bocken smäller in när den landar
     checkIn.setValue(0);

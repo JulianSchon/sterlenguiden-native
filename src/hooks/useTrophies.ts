@@ -50,7 +50,12 @@ export function useTrophies() {
   );
   const trophies = useMemo(() => buildTrophies(stats, achievements), [stats, achievements]);
 
-  return { stats, trophies, isLoading: placesLoading || achievementsLoading, allLoaded };
+  // Sidor som VISAR troféerna väntar tills allt de räknas ur hämtats (och vem man är är känt) —
+  // annars syntes t.ex. "Första listan" först som låst och låste sedan upp sig när listorna kom
+  const inputsLoaded = !!user
+    && [visitsQ, placesQ, favoritesQ, redemptionsQ, dismissalsQ, likesQ, listsQ, memoriesQ, achievementsQ].every((q) => q.isFetched);
+
+  return { stats, trophies, isLoading: placesLoading || achievementsLoading || !inputsLoaded, allLoaded };
 }
 
 // Delas av alla skärmar som kallar useGrantNewTrophies, så samma trofé aldrig
