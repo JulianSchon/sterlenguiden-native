@@ -9,6 +9,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { ArrowLeft } from "lucide-react-native";
 import { Canvas, Circle, Group, RadialGradient, SweepGradient, vec } from "@shopify/react-native-skia";
 import { format } from "date-fns";
@@ -150,12 +151,11 @@ export default function MittOsterlenScreen() {
 
         <PressableScale style={s.friendsTile} scale={0.97} onPress={() => router.push("/friends")}>
           <View style={s.friendsIconWrap}>
-            {/* Varm gradientring runt ikonen — samma idé som story-ringarna på Utforska/Hem, fast
-                en riktig flerfärgad gradient (Skia SweepGradient) i stället för en enfärgad kant,
-                och dämpad så den känns som en detalj, inte skrikig. */}
+            {/* Gradientring runt ikonen i berättelsernas egna färger (gult → orange, samma som
+                ringen runt nya berättelser på Hem) — ingen rosa, så den inte liknar Instagram. */}
             <Canvas style={{ position: "absolute", width: FRIENDS_RING_SIZE, height: FRIENDS_RING_SIZE }} pointerEvents="none">
               <Circle cx={FRIENDS_RING_SIZE / 2} cy={FRIENDS_RING_SIZE / 2} r={FRIENDS_RING_R} style="stroke" strokeWidth={2.5}>
-                <SweepGradient c={vec(FRIENDS_RING_SIZE / 2, FRIENDS_RING_SIZE / 2)} colors={["#C5A059", "#D97757", "#B8577A", "#C5A059"]} />
+                <SweepGradient c={vec(FRIENDS_RING_SIZE / 2, FRIENDS_RING_SIZE / 2)} colors={[...STORY_GRADIENT.stops.map((st) => st.color), STORY_GRADIENT.stops[0].color]} />
               </Circle>
             </Canvas>
             <View style={s.friendsIcon}>
