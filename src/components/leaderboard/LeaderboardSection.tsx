@@ -13,6 +13,7 @@ import { sv } from "date-fns/locale";
 import { useProfile } from "@/hooks/useProfile";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { devShowMonthResetAgain } from "@/hooks/useMonthReset";
+import * as Haptics from "expo-haptics";
 import { PressableScale } from "@/components/PressableScale";
 import { Podium } from "./Podium";
 import { LeaderboardRow } from "./LeaderboardRow";
@@ -41,7 +42,15 @@ export function LeaderboardSection() {
     <View style={s.section}>
       <View style={s.head}>
         {/* Utvecklingsläget: håll in rubriken för att se "ny månad"-ögonblicket igen (test) */}
-        <Text style={s.title} onLongPress={__DEV__ && profile ? () => devShowMonthResetAgain(profile.user_id) : undefined}>Topplistor</Text>
+        <Text
+          style={s.title}
+          onLongPress={__DEV__ && profile ? () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+            devShowMonthResetAgain(profile.user_id);
+          } : undefined}
+        >
+          Topplistor
+        </Text>
         <TouchableOpacity onPress={open} hitSlop={8}>
           <Text style={s.action}>Visa alla</Text>
         </TouchableOpacity>

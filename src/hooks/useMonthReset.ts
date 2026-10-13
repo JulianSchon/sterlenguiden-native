@@ -37,11 +37,20 @@ async function fetchResult(period: "month" | "year"): Promise<PeriodResult | nul
   return { periodStart: r.period_start, placement: r.placement, visits: r.visit_count, participants: r.participants };
 }
 
-// Endast för test i utvecklingsläget: visa ögonblicket igen (se LeaderboardSection)
+// Endast för test i utvecklingsläget: visa ögonblicket igen (se LeaderboardSection). Saknas ett
+// riktigt resultat för förra månaden (inga besök då) visas ett påhittat exempel, så att det går
+// att se hur det ser ut.
 let devRecheck: (() => void) | null = null;
+let devExample = false;
 export function devShowMonthResetAgain(userId: string) {
   if (!__DEV__) return;
+  devExample = true;
   AsyncStorage.setItem(seenKey(userId), "0000-00").catch(() => {}).then(() => devRecheck?.());
+}
+function devExampleResult(month: string): PeriodResult {
+  const [y, m] = month.split("-").map(Number);
+  const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+  return { periodStart: `${prev}-01`, placement: 3, visits: 12, participants: 37 };
 }
 
 /** Ögonblicket att visa (en gång per ny månad), och done() som markerar det som sett. */
@@ -65,7 +74,9 @@ export function useMonthReset(userId: string | undefined, participates: boolean,
         await AsyncStorage.setItem(seenKey(userId), month).catch(() => {});
         return;
       }
-      const lastMonth = await fetchResult("month");
+      let lastMonth = await fetchResult("month");
+      if (__DEV__ && devExample && !lastMonth) lastMonth = devExampleResult(month);
+      devExample = false;
       // Året bara när ett nytt år börjat sedan sist
       const lastYear = month.endsWith("-01") && seen.slice(0, 4) < month.slice(0, 4) ? await fetchResult("year") : null;
       if (!alive) return;

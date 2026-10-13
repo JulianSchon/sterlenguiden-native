@@ -7,7 +7,7 @@ import { useFriendships } from "@/hooks/useFriends";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { MemberAvatarStack } from "@/components/lists/MemberAvatarStack";
-import { FriendPickerRow } from "@/components/lists/FriendPickerRow";
+import { FriendPickerRow, RING_ROOM } from "@/components/lists/FriendPickerRow";
 import { Sheet, PrimaryButton, SecondaryButton, useSheetInput } from "@/components/Sheet";
 
 const MUTED = "rgba(245,241,232,0.55)";
@@ -118,7 +118,11 @@ export function CreateListSheet({
               Inga vänner att bjuda in än.
             </Text>
           ) : (
-            <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ maxHeight: 280, marginHorizontal: -RING_ROOM, marginTop: -RING_ROOM }}
+              contentContainerStyle={{ paddingHorizontal: RING_ROOM, paddingTop: RING_ROOM }}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={{ gap: 4 }}>
                 {friends.map((f) => (
                   <FriendPickerRow key={f.userId} friend={f} selected={friendIds.has(f.userId)} onToggle={() => toggleFriend(f.userId)} />

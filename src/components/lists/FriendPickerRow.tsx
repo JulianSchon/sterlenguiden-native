@@ -4,7 +4,7 @@
  * som en märkbar fördröjning snarare än en riktig animation.
  */
 import { useEffect } from "react";
-import { Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming, interpolateColor } from "react-native-reanimated";
 import { Check } from "lucide-react-native";
 import type { FriendResult } from "@/hooks/useFriends";
@@ -31,7 +31,9 @@ export function FriendPickerRow({ friend, selected, onToggle }: { friend: Friend
 
   return (
     <PressableScale style={[s.friendRow, rowStyle]} scale={0.98} onPress={onToggle}>
-      <Avatar size={36} path={friend.avatarPath} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
+      <View style={s.avatarBox}>
+        <Avatar size={36} path={friend.avatarPath} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
+      </View>
       <Text style={s.friendName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
       <Reanimated.View style={[s.checkCircle, checkStyle]}>
         <Reanimated.View style={checkIconStyle}>
@@ -42,11 +44,17 @@ export function FriendPickerRow({ friend, selected, onToggle }: { friend: Friend
   );
 }
 
+/** Plats för profilringen utanför bilden — listan med rader behöver så mycket marginal mot rutans
+ * kant (negativ marginal + lika mycket padding på sin ScrollView), annars klipps ringen */
+export const RING_ROOM = 14;
+
 const s = StyleSheet.create({
   friendRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
   },
+  // Bilden med luft runt sig, så ringen inte går in i namnet
+  avatarBox: { width: 60, height: 36, alignItems: "center", justifyContent: "center" },
   friendName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
   checkCircle: {
     width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center",

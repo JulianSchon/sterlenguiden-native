@@ -17,13 +17,11 @@ import { useFriendships } from "@/hooks/useFriends";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
-import { FriendPickerRow } from "@/components/lists/FriendPickerRow";
+import { FriendPickerRow, RING_ROOM } from "@/components/lists/FriendPickerRow";
 import { Sheet, PrimaryButton } from "@/components/Sheet";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
-/** Plats för profilringen utanför bilden (rutan klipper annars ringen längst ut) */
-const RING_ROOM = 14;
 
 export function MembersSheet({
   visible, onClose, listId, isOwner, members,
