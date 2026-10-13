@@ -63,6 +63,8 @@ export interface ListDetail {
   ownerId: string;
   inviteCode: string;
   coverImageUrl: string | null;
+  /** Syns på ägarens profilsida för hens vänner (bara titta) — se useSetListVisibleToFriends */
+  visibleToFriends: boolean;
   /** Senaste av att listan skapades eller att en plats lades till — "Senast uppdaterad" */
   lastUpdatedAt: string;
   places: ListPlace[];
@@ -197,6 +199,7 @@ export function useList(id: string | undefined) {
         ownerId: data.owner_id,
         inviteCode: data.invite_code,
         coverImageUrl: data.cover_image_url,
+        visibleToFriends: data.visible_to_friends,
         lastUpdatedAt,
         places,
         members: data.list_members.map((m) => ({
@@ -224,6 +227,54 @@ export function useUpdateList() {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/**
+ * Visa listan för vänner eller inte (bara ägaren). Det är något annat än att bjuda in dem: vänner
+ * som ser listan kan bara titta, de blir inte medlemmar och kan inte ändra något (migration 033).
+ */
+export function useSetListVisibleToFriends() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ listId, visible }: { listId: string; visible: boolean }) => {
+      const { error } = await supabase.from("lists").update({ visible_to_friends: visible }).eq("id", listId);
+      if (error) throw error;
+    },
+    // Reglaget slår om direkt; går sparandet fel hämtas det riktiga läget igen
+    onMutate: ({ listId, visible }) => {
+      queryClient.setQueryData<ListDetail | null>(["lists", "detail", listId], (old) => (old ? { ...old, visibleToFriends: visible } : old));
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+/** En listas som en vän valt att visa för sina vänner (bara titta). */
+export interface FriendList {
+  id: string;
+  name: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  /** I listans egen ordning */
+  placeIds: number[];
+}
+
+/** En väns synliga listor, nyast först — tom om ni inte är vänner (rpc_friend_lists, migration 033). */
+export function useFriendLists(friendUserId: string | null) {
+  return useQuery({
+    queryKey: ["lists", "friend", friendUserId],
+    enabled: !!friendUserId,
+    queryFn: async (): Promise<FriendList[]> => {
+      const { data, error } = await supabase.rpc("rpc_friend_lists", { target_user_id: friendUserId! });
+      if (error) throw error;
+      return (data ?? []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        description: l.description,
+        coverImageUrl: l.cover_image_url,
+        placeIds: (l.place_ids ?? []).map(Number),
+      }));
+    },
   });
 }
 

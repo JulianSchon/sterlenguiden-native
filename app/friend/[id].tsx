@@ -44,6 +44,8 @@ import { CATEGORIES } from "@/theme/categories";
 import { TrophyMedal, RadialGlow } from "@/components/trophies/TrophyMedal";
 import { MemberCard, CARD_H, CARD_W } from "@/components/MemberCard";
 import { useOtherAvatarUrl } from "@/hooks/useAvatarUrl";
+import { useFriendLists, type FriendList } from "@/hooks/useLists";
+import { ListCover } from "@/components/lists/ListCover";
 import { computeStreak, swedishDay } from "@/lib/streak";
 
 const BG    = "#121212";
@@ -85,6 +87,7 @@ export default function FriendProfileScreen() {
   const isFriend = friend?.friendStatus === "accepted";
   const { data: stats, isLoading: statsLoading, isError } = useFriendStats(isFriend ? id ?? null : null);
   const { data: places = [] } = usePlaces();
+  const { data: friendLists = [] } = useFriendLists(isFriend ? id ?? null : null);
   const send = useSendFriendRequest();
   const accept = useAcceptFriendRequest();
   const remove = useRemoveFriendship();
@@ -198,7 +201,10 @@ export default function FriendProfileScreen() {
             {statsLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 30 }} />}
             {isError && <Text style={s.errorText}>Kunde inte hämta statistik just nu.</Text>}
             {stats && streak && (
-              <RealContent who={who} stats={stats} streak={streak} topCategory={topCategory} totalPlaces={places.length} />
+              <RealContent
+                who={who} stats={stats} streak={streak} topCategory={topCategory} totalPlaces={places.length}
+                lists={friendLists} friendId={id!}
+              />
             )}
           </>
         ) : friend ? (
@@ -239,13 +245,15 @@ export default function FriendProfileScreen() {
   );
 }
 
-// ─── Innehåll när ni är vänner: aktivitet, statistik, troféer ────────────────
+// ─── Innehåll när ni är vänner: aktivitet, listor, troféer, skatter, statistik ─
+// En sektion utan innehåll (inga listor, troféer, skatter …) visas inte alls.
 
 function RealContent({
-  who, stats, streak, topCategory, totalPlaces,
+  who, stats, streak, topCategory, totalPlaces, lists, friendId,
 }: {
   who: string; stats: FriendStats; streak: ReturnType<typeof computeStreak>;
   topCategory: ReturnType<typeof computeCategoryStats>[number] | null; totalPlaces: number;
+  lists: FriendList[]; friendId: string;
 }) {
   return (
     <>
@@ -260,6 +268,7 @@ function RealContent({
         </View>
       )}
 
+      {lists.length > 0 && <ListsRow lists={lists} friendId={friendId} />}
       {stats.trophies.length > 0 && <TrophySection trophies={stats.trophies} />}
       {stats.collectibles.length > 0 && <CollectiblesSection collectibles={stats.collectibles} />}
 
@@ -271,6 +280,37 @@ function RealContent({
         </View>
       </View>
     </>
+  );
+}
+
+// Vännens listor som hen valt att visa för vänner — öppnas på en egen sida där man bara kan titta
+// (app/friend-list). Samma kort som Mitt Österlens listrad.
+function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }) {
+  const router = useRouter();
+  const { data: places = [] } = usePlaces();
+  const imageOf = useMemo(() => {
+    const byId = new Map(places.map((p) => [p.id, firstImageUrl(p.image_url)]));
+    return (placeIds: number[]) => placeIds.map((pid) => byId.get(pid)).filter((u): u is string => !!u).slice(0, 4);
+  }, [places]);
+
+  return (
+    <View style={[s.section, { paddingHorizontal: 0 }]}>
+      <Text style={[s.sectionTitle, { paddingHorizontal: 16 }]}>Listor</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
+        {lists.map((l) => (
+          <TouchableOpacity
+            key={l.id}
+            style={{ width: 140 }}
+            activeOpacity={0.8}
+            onPress={() => router.push(`/friend-list/${l.id}?owner=${friendId}` as any)}
+          >
+            <ListCover coverImageUrl={l.coverImageUrl} images={imageOf(l.placeIds)} size={140} />
+            <Text style={s.listName} numberOfLines={1}>{l.name}</Text>
+            <Text style={s.listSub}>{l.placeIds.length} {l.placeIds.length === 1 ? "plats" : "platser"}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -665,6 +705,8 @@ const s = StyleSheet.create({
   // Playfair är bara för namn (personnamn) — sidans/hub-rubriker (Mitt Österlen, Vänner, Förmåner)
   // och sektionsrubriker som den här delar alla samma Montserrat i stället.
   sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG, marginBottom: 12 },
+  listName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG, marginTop: 8 },
+  listSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 1 },
   card: { borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
 
   activityRow: { flexDirection: "row", alignItems: "flex-start", gap: 13, paddingHorizontal: 16, paddingVertical: 14 },

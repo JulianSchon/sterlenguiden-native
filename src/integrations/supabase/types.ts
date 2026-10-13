@@ -519,6 +519,7 @@ export type Database = {
           invite_code: string
           name: string
           owner_id: string
+          visible_to_friends: boolean
         }
         Insert: {
           cover_image_url?: string | null
@@ -528,6 +529,7 @@ export type Database = {
           invite_code?: string
           name: string
           owner_id: string
+          visible_to_friends?: boolean
         }
         Update: {
           cover_image_url?: string | null
@@ -537,6 +539,7 @@ export type Database = {
           invite_code?: string
           name?: string
           owner_id?: string
+          visible_to_friends?: boolean
         }
         Relationships: []
       }
@@ -1297,6 +1300,17 @@ export type Database = {
           card_color: string | null
           status: string
           direction: string
+          created_at: string
+        }[]
+      }
+      rpc_friend_lists: {
+        Args: { target_user_id: string }
+        Returns: {
+          id: string
+          name: string
+          description: string | null
+          cover_image_url: string | null
+          place_ids: number[]
           created_at: string
         }[]
       }

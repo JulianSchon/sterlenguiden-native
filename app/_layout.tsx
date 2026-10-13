@@ -134,6 +134,7 @@ function AppStack() {
         <Stack.Screen name="mitt-osterlen" options={{ headerShown: false }} />
         <Stack.Screen name="friends" options={{ headerShown: false }} />
         <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="friend-list/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="leaderboards" options={{ headerShown: false }} />
         <Stack.Screen name="lists/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="memories/index" options={{ headerShown: false }} />

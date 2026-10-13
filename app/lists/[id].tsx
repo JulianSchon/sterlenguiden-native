@@ -24,7 +24,7 @@ import { ArrowLeft, MoreHorizontal, Minus, Plus, Crown, GripVertical, LogOut } f
 import { useAuth } from "@/hooks/useAuth";
 import {
   useList, useRemovePlaceFromList, useRemoveMember, useDeleteList, useChangeListCover, useResetListCover,
-  useDuplicateList, useReorderListPlaces, useMarkListOpened, type ListPlace,
+  useDuplicateList, useReorderListPlaces, useMarkListOpened, useSetListVisibleToFriends, type ListPlace,
 } from "@/hooks/useLists";
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
@@ -74,6 +74,7 @@ export default function ListDetailScreen() {
   const [addOpen, setAddOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const setVisibleToFriends = useSetListVisibleToFriends();
   const [editOpen, setEditOpen] = useState(false);
 
   const isOwner = !!list && list.ownerId === user?.id;
@@ -289,6 +290,8 @@ export default function ListDetailScreen() {
           <ListOptionsSheet
             visible={optionsOpen}
             onClose={() => setOptionsOpen(false)}
+            visibleToFriends={list.visibleToFriends}
+            onToggleVisibleToFriends={(visible) => setVisibleToFriends.mutate({ listId: list.id, visible })}
             onChangeCover={() => afterOptionsClose(openCoverMenu)}
             onEdit={() => afterOptionsClose(() => setEditOpen(true))}
             onShare={() => afterOptionsClose(shareList)}
