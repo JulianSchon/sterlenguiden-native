@@ -32,7 +32,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, { Easing as ReEasing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { ArrowLeft, X } from "lucide-react-native";
+import { ArrowLeft, X, Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useTrophies } from "@/hooks/useTrophies";
 import { useAuth } from "@/hooks/useAuth";
@@ -94,6 +94,8 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
 // placement: "waiting" = klar men inte placerad än (visas mörk), "dropping" =
 // medaljen faller ner i sin plats just nu; onLanded när den landat.
 type Placement = "waiting" | "dropping" | null;
+/** Hur länge en medalj faller ner i sin plats (gruppens bock smäller in när den landat) */
+const DROP_MS = 420;
 
 function TrophyBadge({
   trophy, itemWidth, medalSize, placement, onLanded, onPress, badgeRef, ready, order, onLoad,
@@ -127,7 +129,7 @@ function TrophyBadge({
   useEffect(() => {
     if (placement !== "dropping") return;
     drop.setValue(0);
-    Animated.timing(drop, { toValue: 1, duration: 420, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
+    Animated.timing(drop, { toValue: 1, duration: DROP_MS, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
       if (!finished) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
       setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 150);
@@ -253,6 +255,14 @@ function TrophyGrid({
   // Varje medaljs plats i tåget, uppifrån och ner
   let order = 0;
 
+  // Gruppens bock: alla tre klara och placerade — eller "landing" när den sista faller just nu
+  const groupCheck = (group: Trophy[]): "hidden" | "shown" | "landing" => {
+    if (!group.every((t) => t.done)) return "hidden";
+    const pending = group.filter((t) => waiting.has(t.key));
+    if (pending.length === 0) return "shown";
+    return pending.length === 1 && pending[0].key === dropping ? "landing" : "hidden";
+  };
+
   return (
     <View>
       {featured && (
@@ -274,7 +284,12 @@ function TrophyGrid({
           const firstOrder = order;
           return (
             <View key={groupId}>
-              <SectionLabel text={label.toUpperCase()} ready={ready} order={firstOrder} />
+              <SectionLabel
+                text={label.toUpperCase()}
+                ready={ready}
+                order={firstOrder}
+                check={groupCheck(groupTrophies)}
+              />
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap, marginTop: 26 }}>
                 {groupTrophies.map((t) => (
                   <TrophyBadge
@@ -301,6 +316,10 @@ function TrophyGrid({
 }
 
 // ─── Detaljmodal ────────────────────────────────────────────────────────────────
+const DONE_GREEN = "#4ADE80";
+/** Framstegets färg efter hur nära man är: under en tredjedel röd, under två tredjedelar orange, annars gul */
+const progressColor = (ratio: number) => (ratio < 1 / 3 ? "#F87171" : ratio < 2 / 3 ? "#FB923C" : "#FACC15");
+
 function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose: () => void }) {
   return (
     <Modal visible={!!trophy} transparent animationType="fade" onRequestClose={onClose}>
@@ -331,10 +350,30 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
                   Klar{trophy.doneAt ? ` ${format(new Date(trophy.doneAt), "d MMMM yyyy", { locale: sv })}` : ""}
                 </Text>
               ) : (
-                <>
-                  <Text style={dm.progressText}>{trophy.requirementText}</Text>
-                  <Text style={dm.progressText}>{trophy.progressText}</Text>
-                </>
+                trophy.parts ? (
+                  // Österlenlegend: delmålen var för sig, klara i grönt med bock
+                  <View style={dm.parts}>
+                    {trophy.parts.map((p) => (
+                      <View key={p.label} style={dm.partRow}>
+                        <View style={[dm.partCheck, p.done && dm.partCheckDone]}>
+                          {p.done && <Check size={12} color="#0B0B0D" strokeWidth={3.2} />}
+                        </View>
+                        <Text style={[dm.partText, p.done && { color: DONE_GREEN }]}>{p.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <>
+                    <Text style={dm.progressText}>{trophy.requirementText}</Text>
+                    {/* Siffrorna i en färg efter hur nära man är: röd, orange, gul */}
+                    <Text style={dm.progressLine}>
+                      <Text style={[dm.progressNumbers, { color: progressColor(trophy.progress / trophy.target) }]}>
+                        {trophy.progress} av {trophy.target}
+                      </Text>
+                      {" "}{trophy.progressUnit}
+                    </Text>
+                  </>
+                )
               )}
             </>
           )}
@@ -345,14 +384,47 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-/** Gruppens rubrik — tonas in tillsammans med gruppens första medalj i tåget */
-function SectionLabel({ text, ready, order }: { text: string; ready: boolean; order: number }) {
+/**
+ * Gruppens rubrik — tonas in tillsammans med gruppens första medalj i tåget. Är hela gruppen klar
+ * står en grön bock bredvid. Placeras gruppens sista trofé just nu (efter ett firande) smäller
+ * bocken in i samma ögonblick som medaljen landar.
+ */
+function SectionLabel({ text, ready, order, check }: {
+  text: string; ready: boolean; order: number;
+  /** "shown" = gruppen klar, "landing" = blir klar när medaljen som faller nu landar */
+  check: "hidden" | "shown" | "landing";
+}) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const checkIn = useRef(new Animated.Value(check === "shown" ? 1 : 0)).current;
   useEffect(() => {
     if (!ready) return;
     Animated.timing(opacity, { toValue: 1, duration: 300, delay: TRAIN_START + order * TRAIN_STEP, useNativeDriver: true }).start();
   }, [ready]);
-  return <Animated.Text style={[sec.label, { opacity }]}>{text}</Animated.Text>;
+  useEffect(() => {
+    if (check === "shown") return;
+    if (check !== "landing") { checkIn.setValue(0); return; }
+    // Medaljen faller i 420 ms — bocken smäller in när den landar
+    checkIn.setValue(0);
+    Animated.sequence([
+      Animated.delay(DROP_MS),
+      Animated.spring(checkIn, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 14 }),
+    ]).start();
+  }, [check]);
+  return (
+    <Animated.View style={[sec.labelRow, { opacity }]}>
+      <Text style={sec.label}>{text}</Text>
+      {check !== "hidden" && (
+        <Animated.View
+          style={[sec.check, {
+            opacity: checkIn,
+            transform: [{ scale: checkIn.interpolate({ inputRange: [0, 1], outputRange: [2.4, 1] }) }],
+          }]}
+        >
+          <Check size={13} color="#0B0B0D" strokeWidth={3.4} />
+        </Animated.View>
+      )}
+    </Animated.View>
+  );
 }
 
 // Tåget: när sidan öppnas väntar medaljerna tills deras bilder laddats — högst en kort stund, så
@@ -535,9 +607,15 @@ const hd = StyleSheet.create({
 // Sektionsrubrik ovanför varje grupps 3 rutor — samma "eyebrow"-mönster
 // (liten ikon + versal guldtext) som används på flera andra sidor i appen.
 const sec = StyleSheet.create({
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   label: {
     fontFamily: "Inter_600SemiBold", fontSize: 16, color: FG,
     letterSpacing: 0.8,
+  },
+  // Hela gruppen klar
+  check: {
+    width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center",
+    backgroundColor: "#4ADE80",
   },
 });
 
@@ -594,5 +672,15 @@ const dm = StyleSheet.create({
     textAlign: "center", maxWidth: 260, marginTop: 12,
   },
   divider: { width: 64, height: 1, backgroundColor: "rgba(197,160,89,0.35)", marginVertical: 20 },
-  progressText: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 6, textAlign: "center" },
+  progressText: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 6, textAlign: "center" },
+  progressLine: { fontFamily: "Inter_500Medium", fontSize: 14, color: "rgba(255,255,255,0.7)", marginTop: 8, textAlign: "center" },
+  progressNumbers: { fontFamily: "Montserrat_700Bold", fontSize: 15 },
+  parts: { gap: 10, marginTop: 4, alignSelf: "center" },
+  partRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  partCheck: {
+    width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)",
+  },
+  partCheckDone: { backgroundColor: DONE_GREEN, borderColor: DONE_GREEN },
+  partText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.45)" },
 });

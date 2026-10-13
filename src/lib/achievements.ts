@@ -112,6 +112,8 @@ interface TierSpec {
   levelName: string;
   /** Vad som räknas, för framsteget "17 av 30 favoriter sparade": [ental, flertal] */
   unit: [string, string];
+  /** Österlenlegend: delmålen var för sig (visas med bock i stället för "x av 3") */
+  parts?: (s: UserStats) => { label: string; done: boolean }[];
 }
 
 interface GroupDef {
@@ -200,6 +202,11 @@ const GROUPS: GroupDef[] = [
         progress: (s) => [s.uniqueVisits >= 1, s.favoritesCount >= 1, s.redemptionsDistinct >= 1].filter(Boolean).length,
         requirementText: "1 besök, 1 favorit, 1 inlöst förmån",
         levelName: "Nyfrälst",
+        parts: (s) => [
+          { label: "1 besök", done: s.uniqueVisits >= 1 },
+          { label: "1 favorit", done: s.favoritesCount >= 1 },
+          { label: "1 inlöst förmån", done: s.redemptionsDistinct >= 1 },
+        ],
         unit: ["delmål klart", "delmål klara"],
       },
       {
@@ -207,6 +214,11 @@ const GROUPS: GroupDef[] = [
         progress: (s) => [s.uniqueVisits >= 10, s.favoritesCount >= 5, s.redemptionsDistinct >= 2].filter(Boolean).length,
         requirementText: "10 besök, 5 favoriter, 2 inlösta förmåner",
         levelName: "Helhjärtad",
+        parts: (s) => [
+          { label: "10 besök", done: s.uniqueVisits >= 10 },
+          { label: "5 favoriter", done: s.favoritesCount >= 5 },
+          { label: "2 inlösta förmåner", done: s.redemptionsDistinct >= 2 },
+        ],
         unit: ["delmål klart", "delmål klara"],
       },
       {
@@ -214,6 +226,11 @@ const GROUPS: GroupDef[] = [
         progress: (s) => [s.uniqueVisits >= 30, s.favoritesCount >= 15, s.redemptionsDistinct >= 5].filter(Boolean).length,
         requirementText: "30 besök, 15 favoriter, 5 inlösta förmåner",
         levelName: "Österlenlegend",
+        parts: (s) => [
+          { label: "30 besök", done: s.uniqueVisits >= 30 },
+          { label: "15 favoriter", done: s.favoritesCount >= 15 },
+          { label: "5 inlösta förmåner", done: s.redemptionsDistinct >= 5 },
+        ],
         unit: ["delmål klart", "delmål klara"],
       },
     ],
@@ -258,8 +275,10 @@ export interface Trophy {
   levelLabel: string;    // "Brons"/"Silver"/"Guld"
   tagline: string;
   requirementText: string;
-  /** Framsteget i ord, med rätt sak: "17 av 30 favoriter sparade" */
-  progressText: string;
+  /** Vad som räknas i framsteget, efter "17 av 30": "favoriter sparade" */
+  progressUnit: string;
+  /** Bara Österlenlegend: delmålen var för sig */
+  parts: { label: string; done: boolean }[] | null;
   done: boolean;
   percent: number;
   progress: number;
@@ -289,7 +308,8 @@ export function buildTrophies(stats: UserStats, achievements: Achievement[]): Tr
         levelLabel: TIER_LABEL[tier],
         tagline: group.tagline,
         requirementText: spec.requirementText,
-        progressText: `${progress} av ${spec.target} ${spec.target === 1 ? spec.unit[0] : spec.unit[1]}`,
+        progressUnit: spec.target === 1 ? spec.unit[0] : spec.unit[1],
+        parts: spec.parts?.(stats) ?? null,
         done,
         percent,
         progress,
