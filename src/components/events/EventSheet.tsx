@@ -15,10 +15,11 @@
  * - Ingenting hämtas när den öppnas: eventet (med arrangören) finns redan i eventlistan som Hem
  *   hämtar vid start. Förut kom svaret mitt i animationen, allt ritades om och arrangörsraden
  *   hoppade in och knuffade ner resten.
- * - Den glider upp först när det nya innehållet är helt klart: bilderna (eventets bild och
- *   arrangörens logga) laddade, texten på plats och utmätt, och sen två bildrutor till så det hunnit
- *   ritas — högst MAX_WAIT_MS efter trycket. Allt som blev klart eller ritades första gången MITT i
- *   rörelsen gav ett hack. Hinner eventets bild inte bli klar tonar den in.
+ * - Den glider upp först när det nya innehållet är helt klart (bilderna laddade, texten utlagd) OCH
+ *   minst MIN_WAIT_MS gått sen trycket — telefonen behöver den stunden för att rita klart allt nytt.
+ *   Att starta tidigare (så fort bilderna var klara) hackade varje gång; Österlen Lyser, vars bild
+ *   tog en stund att ladda, var det enda eventet som var smooth — så nu väntar alla lika länge.
+ *   Högst MAX_WAIT_MS; hinner eventets bild inte bli klar tonar den in.
  * - Gesterna byggs en gång, inte om vid varje öppning.
  * - Panelen byggs när appen startat klart (useAppSettled), inte under den tunga starten.
  */
@@ -65,8 +66,9 @@ const CLOSE_VELOCITY = 900;
 const BAR_H = 56 + 32;
 /** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
 const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.97)"];
-/** Så länge panelen högst väntar på att innehållet ska bli klart innan den glider upp */
-const MAX_WAIT_MS = 250;
+/** Minsta och längsta stund mellan tryck och att panelen börjar glida upp */
+const MIN_WAIT_MS = 200;
+const MAX_WAIT_MS = 400;
 
 interface Shown { request: EventSheetRequest; event: Event }
 
@@ -148,6 +150,7 @@ export function EventSheetHost() {
   // Hur många delar av det nya innehållet som inte är klara än: bilderna (eventets bild, arrangörens
   // logga) och texten under bilden (klar när den lagts ut och mätts)
   const partsLeft = useRef(0);
+  const minWaitDone = useRef(false);
 
   // ── Ett nytt tryck: byt innehåll medan panelen ligger nere ──
   useEffect(() => {
@@ -172,6 +175,7 @@ export function EventSheetHost() {
       // körts — då måste panelen redan veta hur många bilder den väntar på (annars trodde den att
       // allt var klart, gled upp direkt och nästa bild blev klar mitt i rörelsen)
       partsLeft.current = (event.image_url ? 1 : 0) + (event.place?.logo_url ? 1 : 0) + 1;
+      minWaitDone.current = false;
       openKey.value = request.key;
       xAnim.value = 0;
       scrollY.value = 0;
@@ -190,24 +194,25 @@ export function EventSheetHost() {
     translateY.value = reduceMotion ? 0 : withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
   }, [reduceMotion, backdrop, translateY]);
 
-  // Nytt innehåll: glid upp när allt är klart (se onPartReady), eller när tidsgränsen gått ut
+  // Glid upp när allt är klart och den minsta stunden gått — eller när den längsta gått ut
+  const tryStart = useCallback((key: number) => {
+    if (partsLeft.current <= 0 && minWaitDone.current) requestAnimationFrame(() => slideIn(key));
+  }, [slideIn]);
   useEffect(() => {
     if (!shown) return;
     const key = shown.request.key;
-    const t = setTimeout(() => slideIn(key), MAX_WAIT_MS);
-    return () => clearTimeout(t);
-  }, [shown, slideIn]);
+    const min = setTimeout(() => { minWaitDone.current = true; tryStart(key); }, MIN_WAIT_MS);
+    const max = setTimeout(() => slideIn(key), MAX_WAIT_MS);
+    return () => { clearTimeout(min); clearTimeout(max); };
+  }, [shown, slideIn, tryStart]);
   /** En del av det nya innehållet är klar. Svarar om panelen redan glider (då ska en bild tona in) */
   const onPartReady = useCallback((key: number) => {
     if (key !== shownRef.current?.request.key) return false;
     const sliding = startedKey.current === key;
     partsLeft.current -= 1;
-    if (!sliding && partsLeft.current <= 0) {
-      // Två bildrutor till, så det sist klara hinner ritas innan rörelsen börjar
-      requestAnimationFrame(() => requestAnimationFrame(() => slideIn(key)));
-    }
+    if (!sliding) tryStart(key);
     return sliding;
-  }, [slideIn]);
+  }, [tryStart]);
 
   const afterClose = useRef<(() => void) | null>(null);
   const onClosed = useCallback((key: number) => {
