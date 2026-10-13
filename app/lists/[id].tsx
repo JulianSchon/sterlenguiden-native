@@ -35,6 +35,7 @@ import {
 import { useOffers } from "@/hooks/useOffers";
 import { isPlaceOpen } from "@/hooks/usePlaces";
 import { Avatar } from "@/components/profile/Avatar";
+import { Skeleton } from "@/components/Skeleton";
 import { ListCover } from "@/components/lists/ListCover";
 import { AddPlaceSheet } from "@/components/lists/AddPlaceSheet";
 import { MembersSheet } from "@/components/lists/MembersSheet";
@@ -213,7 +214,29 @@ export default function ListDetailScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={GOLD} />
+        // Listan i grått medan den laddas: omslaget, namnet och platserna
+        <View pointerEvents="none">
+          <View style={{ alignItems: "center", paddingTop: 8 }}>
+            <Skeleton tone="dark" width={winW - HERO_MARGIN * 2} height={winW - HERO_MARGIN * 2} radius={20} />
+          </View>
+          <View style={{ paddingHorizontal: 16 }}>
+            <Skeleton tone="dark" width="60%" height={28} radius={8} style={{ marginTop: 20 }} />
+            <Skeleton tone="dark" width={150} height={11} radius={4} style={{ marginTop: 14 }} />
+          </View>
+          <View style={s.sectionHead}>
+            <Skeleton tone="dark" width={100} height={17} radius={5} />
+          </View>
+          {[0, 1].map((i) => (
+            <View key={i} style={[s.placeRow, { shadowOpacity: 0 }]}>
+              <Skeleton tone="dark" width={92} height={92} radius={16} />
+              <View style={{ flex: 1, gap: 9, paddingTop: 4 }}>
+                <Skeleton tone="dark" width="40%" height={11} radius={4} />
+                <Skeleton tone="dark" width="75%" height={16} radius={5} />
+                <Skeleton tone="dark" width="55%" height={11} radius={4} />
+              </View>
+            </View>
+          ))}
+        </View>
       ) : !list ? (
         <Text style={s.notFound}>Listan finns inte längre.</Text>
       ) : (

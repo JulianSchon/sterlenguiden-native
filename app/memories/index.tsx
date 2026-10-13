@@ -18,7 +18,7 @@
  * som att MAN SJÄLV drar innehållet förbi en fast punkt, inte att man scrollar en sida.
  */
 import { useEffect, useMemo } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, useWindowDimensions } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import Animated, {
   useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate, Extrapolation,
   withDelay, withTiming, Easing,
@@ -33,13 +33,12 @@ import { useProfile } from "@/hooks/useProfile";
 import { formatMemoryDate } from "@/lib/memories";
 import { useCardVariant } from "@/hooks/useRewardCards";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
-import { LoadingImage } from "@/components/Skeleton";
+import { LoadingImage, Skeleton } from "@/components/Skeleton";
 import { PressableScale } from "@/components/PressableScale";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 
 const CIRCLE_BASE_LEFT = 20;
 
@@ -125,7 +124,25 @@ export default function MemoriesBookScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 60 }} color={GOLD} />
+        // Pärlbandet i grått medan minnena laddas: den stora cirkeln i fokus, mindre under
+        <View style={{ paddingTop: insets.top + focusY - ITEM_H / 2 }} pointerEvents="none">
+          {[1, 0.49, 0.38].map((scale, i) => {
+            const size = Math.round(MAX_SIZE * scale);
+            const cx = circleCenterX(i, width, MAX_SIZE, WOBBLE_AMPLITUDE);
+            return (
+              <View key={i} style={{ height: ITEM_H }}>
+                <Skeleton tone="dark" width={size} height={size} radius={size / 2} style={{ position: "absolute", left: cx - size / 2, top: (ITEM_H - size) / 2 }} />
+                {i === 0 && (
+                  <View style={[s.beadText, { left: cx + MAX_SIZE / 2 + 16, right: 16, gap: 8 }]}>
+                    <Skeleton tone="dark" width="85%" height={19} radius={6} />
+                    <Skeleton tone="dark" width="55%" height={12} radius={5} />
+                    <Skeleton tone="dark" width="45%" height={12} radius={5} />
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
       ) : memories.length === 0 ? (
         <Text style={s.empty}>Inga minnen än. Tryck på + för att skapa det första.</Text>
       ) : (

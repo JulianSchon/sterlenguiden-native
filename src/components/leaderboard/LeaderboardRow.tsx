@@ -12,6 +12,7 @@ import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from "react-na
 import { ChevronDown } from "lucide-react-native";
 import { PressableScale } from "@/components/PressableScale";
 import { Avatar } from "@/components/profile/Avatar";
+import { Skeleton } from "@/components/Skeleton";
 import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric } from "@/hooks/useLeaderboard";
 
 const FG = "#F5F1E8";
@@ -41,6 +42,23 @@ export function LeaderboardRow({
       <Text style={s.value}>{formatLeaderboardValue(metric, entry.value)}</Text>
       {jumpHint && <ChevronDown size={16} color={GOLD} strokeWidth={2.4} />}
     </Wrapper>
+  );
+}
+
+/** En rad i grått medan topplistan laddas — samma höjd och delar som en riktig rad */
+export function LeaderboardRowSkeleton() {
+  return (
+    <View style={s.row} pointerEvents="none">
+      <View style={{ width: 40, alignItems: "center" }}>
+        <Skeleton tone="dark" width={18} height={12} radius={4} />
+      </View>
+      <Skeleton tone="dark" width={36} height={36} radius={18} />
+      <View style={[s.who, { gap: 7 }]}>
+        <Skeleton tone="dark" width="55%" height={13} radius={5} />
+        <Skeleton tone="dark" width="35%" height={10} radius={4} />
+      </View>
+      <Skeleton tone="dark" width={28} height={13} radius={5} />
+    </View>
   );
 }
 

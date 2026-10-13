@@ -18,6 +18,7 @@ import Reanimated, {
 import Svg, { Defs, LinearGradient, Polygon, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { PressableScale } from "@/components/PressableScale";
 import { Avatar } from "@/components/profile/Avatar";
+import { Skeleton } from "@/components/Skeleton";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { TIER_PALETTE } from "@/lib/achievements";
 import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric } from "@/hooks/useLeaderboard";
@@ -53,6 +54,23 @@ export function Podium({
       </View>
       {([2, 1, 3] as Place[]).map((place) => (
         <PodiumColumn key={place} place={place} entry={entries[place - 1]} metric={metric} width={colW} onSelect={onSelect} />
+      ))}
+    </View>
+  );
+}
+
+/** Pallen i grått medan topplistan laddas — samma mått, så den riktiga reser sig på samma plats */
+export function PodiumSkeleton({ width }: { width: number }) {
+  const colW = Math.floor(width / 3);
+  return (
+    <View style={[s.row, { width }]} pointerEvents="none">
+      {([2, 1, 3] as Place[]).map((place) => (
+        <View key={place} style={[s.column, { width: colW }]}>
+          <Skeleton tone="dark" width={AVATAR[place]} height={AVATAR[place]} radius={AVATAR[place] / 2} />
+          <Skeleton tone="dark" width={colW * 0.55} height={14} radius={5} style={{ marginTop: 14 }} />
+          <Skeleton tone="dark" width={56} height={32} radius={10} style={{ marginTop: 10 }} />
+          <Skeleton tone="dark" width={colW - 4} height={BLOCK_H[place]} radius={6} style={{ marginTop: 14 }} />
+        </View>
       ))}
     </View>
   );

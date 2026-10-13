@@ -44,7 +44,7 @@ import { ImageIcon } from "lucide-react-native";
 import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
 import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
-import { LoadingImage } from "@/components/Skeleton";
+import { LoadingImage, Skeleton } from "@/components/Skeleton";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -76,7 +76,7 @@ const TAPE_POINTS = tornRectPoints(TAPE_W, TAPE_H, 2.5, 6, [false, true, false, 
 
 export function MemoriesSection() {
   const router = useRouter();
-  const { data: memories = [] } = useMemories();
+  const { data: memories = [], isLoading } = useMemories();
   const recent = memories.slice(0, RECENT);
   const { data: urls = {} } = useSignedUrls(recent.map((m) => m.photoPaths[0]).filter(Boolean));
 
@@ -96,7 +96,21 @@ export function MemoriesSection() {
         </View>
       </View>
 
-      {recent.length === 0 ? (
+      {isLoading ? (
+        // Polaroiderna i grått, lite snett som de riktiga, medan minnena laddas
+        <View style={[s.row, { flexDirection: "row" }]} pointerEvents="none">
+          {[0, 1, 2].map((i) => (
+            <Skeleton
+              key={i}
+              tone="dark"
+              width={CARD_W}
+              height={CARD_H}
+              radius={3}
+              style={{ transform: [{ rotate: `${TILTS[i]}deg` }] }}
+            />
+          ))}
+        </View>
+      ) : recent.length === 0 ? (
         <Text style={s.empty}>Varje plats du besöker kan bli en del av din egen berättelse.</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>

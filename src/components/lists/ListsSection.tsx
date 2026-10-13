@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useLists } from "@/hooks/useLists";
 import { ListCover } from "./ListCover";
+import { Skeleton } from "@/components/Skeleton";
 import { CreateListSheet } from "./CreateListSheet";
 import { JoinListSheet } from "./JoinListSheet";
 
@@ -14,7 +15,7 @@ const GOLD = "#C5A059";
 
 export function ListsSection() {
   const router = useRouter();
-  const { data: lists = [] } = useLists();
+  const { data: lists = [], isLoading } = useLists();
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
 
@@ -34,7 +35,18 @@ export function ListsSection() {
         </View>
       </View>
 
-      {lists.length === 0 ? (
+      {isLoading ? (
+        // Listorna i grått medan de laddas (annars blinkar "inga listor"-texten förbi)
+        <View style={[s.row, { flexDirection: "row" }]} pointerEvents="none">
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={s.card}>
+              <Skeleton tone="dark" width={140} height={140} radius={14} />
+              <Skeleton tone="dark" width={100} height={13} radius={5} style={{ marginTop: 10 }} />
+              <Skeleton tone="dark" width={70} height={10} radius={4} style={{ marginTop: 6 }} />
+            </View>
+          ))}
+        </View>
+      ) : lists.length === 0 ? (
         <Text style={s.empty}>Samla caféer, havsutsikter eller en bucket list, ensam eller tillsammans med andra.</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>

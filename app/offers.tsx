@@ -33,6 +33,7 @@ import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers
 import { tornEdgeLine, tornCutRegion, TEAR_DEPTH, EDGE_STROKE } from "@/components/offers/tear";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { CategoryHeader } from "@/components/CategoryHeader";
+import { Skeleton } from "@/components/Skeleton";
 import { findCategory, ticketColors, type CategoryId } from "@/theme/categories";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -234,9 +235,16 @@ export default function OffersScreen() {
         </Pressable>
       }
     >
+      {/* Sidan i grått medan erbjudandena laddas: hälsningen, kategorin och biljetterna */}
       {isLoading && (
-        <View style={s.center}>
-          <Text style={s.muted}>{t("offers.loading")}</Text>
+        <View style={s.skeleton} pointerEvents="none">
+          <View style={{ gap: 8 }}>
+            <Skeleton width="45%" height={24} radius={7} />
+            <Skeleton width="80%" height={24} radius={7} />
+            <Skeleton width="55%" height={12} radius={5} style={{ marginTop: 4 }} />
+          </View>
+          <Skeleton width={170} height={16} radius={6} style={{ alignSelf: "center" }} />
+          {[0, 1, 2].map((i) => <Skeleton key={i} height={TICKET_H} radius={18} />)}
         </View>
       )}
 
@@ -519,6 +527,7 @@ function OfferListCard({
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 24, paddingTop: 80 },
+  skeleton: { gap: 22 },
   muted: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted },
   emptyIcon: {
     width: 64, height: 64, borderRadius: 32,

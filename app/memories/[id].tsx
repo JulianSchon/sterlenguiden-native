@@ -12,7 +12,7 @@
  */
 import { useMemo, useState } from "react";
 import {
-  View, Text, Image, ScrollView, FlatList, Modal, TouchableOpacity, Alert, ActivityIndicator,
+  View, Text, Image, ScrollView, FlatList, Modal, TouchableOpacity, Alert,
   useWindowDimensions, StyleSheet,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,7 +24,7 @@ import { useMemory, useSignedUrls, useDeleteMemory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
 import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
 import { PressableScale } from "@/components/PressableScale";
-import { LoadingImage } from "@/components/Skeleton";
+import { LoadingImage, Skeleton } from "@/components/Skeleton";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -119,7 +119,18 @@ export default function MemoryDetailScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={GOLD} />
+        // Polaroiden och texten i grått medan minnet laddas
+        <View pointerEvents="none">
+          <View style={s.heroOuter}>
+            <Skeleton tone="dark" width={heroW} height={heroH} radius={4} />
+          </View>
+          <View style={{ paddingHorizontal: 16, paddingTop: 24, gap: 10 }}>
+            <Skeleton tone="dark" width={110} height={12} radius={5} />
+            <Skeleton tone="dark" width="100%" height={13} radius={5} />
+            <Skeleton tone="dark" width="90%" height={13} radius={5} />
+            <Skeleton tone="dark" width="60%" height={13} radius={5} />
+          </View>
+        </View>
       ) : !memory ? (
         <Text style={s.notFound}>Minnet finns inte längre.</Text>
       ) : (

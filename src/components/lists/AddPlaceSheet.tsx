@@ -35,7 +35,7 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal, View, Text, TextInput, Image, FlatList, Pressable, Keyboard, Platform,
-  ActivityIndicator, StyleSheet, useWindowDimensions,
+  StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, {
   FadeIn, FadeInUp, FadeOutDown, runOnJS, scrollTo, useAnimatedRef,
@@ -57,6 +57,7 @@ import { useAddPlaceToList, useRemovePlaceFromListByPlace } from "@/hooks/useLis
 import { distanceMeters } from "@/lib/checkin";
 import { CATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
 import { PressableScale } from "@/components/PressableScale";
+import { Skeleton } from "@/components/Skeleton";
 
 const GOLD = "#C5A059";
 const FG = "#FFFFFF";
@@ -439,7 +440,18 @@ export function AddPlaceSheet({
           <GestureDetector gesture={bodyPan}>
             <View style={{ flex: 1 }}>
               {!ready || isLoading ? (
-                <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />
+                // Platserna i grått medan arket glider upp och platserna laddas
+                <View style={{ paddingTop: 10, paddingHorizontal: SIDE_MARGIN }} pointerEvents="none">
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <View key={i} style={s.row}>
+                      <Skeleton tone="dark" width={64} height={64} radius={12} />
+                      <View style={{ flex: 1, gap: 8 }}>
+                        <Skeleton tone="dark" width="60%" height={15} radius={5} />
+                        <Skeleton tone="dark" width="40%" height={11} radius={4} />
+                      </View>
+                    </View>
+                  ))}
+                </View>
               ) : isError ? (
                 <Text style={s.emptyText}>{t("common.error")}</Text>
               ) : (

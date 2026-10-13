@@ -21,6 +21,7 @@ import Reanimated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Compass, MapPin } from "lucide-react-native";
+import { Skeleton } from "@/components/Skeleton";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useVisits, type Visit } from "@/hooks/useVisits";
@@ -100,6 +101,36 @@ export default function VisitsScreen() {
           <Text style={s.headerTitle} numberOfLines={1}>HISTORIK</Text>
         </View>
       </View>
+
+      {/* Tidslinjen i grått medan besöken laddas */}
+      {isLoading && (
+        <View style={{ paddingTop: 8 }} pointerEvents="none">
+          <Skeleton tone="dark" width={230} height={14} radius={5} style={{ marginLeft: 16, marginBottom: 4 }} />
+          <View style={s.yearRow}>
+            <Skeleton tone="dark" width={120} height={46} radius={10} />
+          </View>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={s.row}>
+              <View style={[s.line, { top: 0, bottom: 0 }]} />
+              <View style={[s.dateCol, { gap: 6 }]}>
+                <Skeleton tone="dark" width={24} height={20} radius={5} />
+                <Skeleton tone="dark" width={28} height={11} radius={4} />
+              </View>
+              {/* Solid botten så linjen inte syns genom pricken */}
+              <View style={[s.dot, { backgroundColor: BG }]}>
+                <Skeleton tone="dark" width={DOT - 6} height={DOT - 6} radius={(DOT - 6) / 2} />
+              </View>
+              <View style={s.content}>
+                <Skeleton tone="dark" width={THUMB} height={THUMB} radius={14} style={{ marginRight: 16 }} />
+                <View style={{ flex: 1, gap: 9 }}>
+                  <Skeleton tone="dark" width="75%" height={17} radius={6} />
+                  <Skeleton tone="dark" width="50%" height={13} radius={5} />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       {!isLoading && visitCount === 0 && (
         <View style={s.empty}>

@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ArrowLeft, Heart } from "lucide-react-native";
+import { Skeleton } from "@/components/Skeleton";
 import { format, subMonths } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useVisits } from "@/hooks/useVisits";
@@ -137,7 +138,26 @@ export default function StatsScreen() {
       </View>
 
       {isLoading ? (
-        <Text style={[s.muted, { textAlign: "center", marginTop: 40 }]}>Laddar statistik…</Text>
+        // Sidan i grått medan besöken laddas: stora siffran, rutorna och diagrammet
+        <View style={s.body} pointerEvents="none">
+          <View style={s.hero}>
+            <Skeleton tone="dark" width={180} height={12} radius={5} />
+            <Skeleton tone="dark" width={190} height={52} radius={10} />
+            <Skeleton tone="dark" width="100%" height={10} radius={5} />
+            <Skeleton tone="dark" width={120} height={13} radius={5} />
+          </View>
+          <View style={s.tiles}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <View key={i} style={s.tile}>
+                <Skeleton tone="dark" width={26} height={26} radius={8} />
+                <Skeleton tone="dark" width={42} height={20} radius={6} />
+                <Skeleton tone="dark" width={62} height={11} radius={4} />
+              </View>
+            ))}
+          </View>
+          <Skeleton tone="dark" width={140} height={16} radius={5} style={{ marginTop: 30, marginBottom: 12 }} />
+          <Skeleton tone="dark" width="100%" height={230} radius={18} />
+        </View>
       ) : (
         <ScrollView
           scrollEnabled={!scrubbing}

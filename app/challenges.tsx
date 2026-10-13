@@ -30,10 +30,11 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Reanimated, { Easing as ReEasing, FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Reanimated, { Easing as ReEasing, FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ArrowLeft, X, Check } from "lucide-react-native";
 import { GradientTractor } from "@/components/GradientTractor";
+import { Skeleton } from "@/components/Skeleton";
 import * as Haptics from "expo-haptics";
 import { useTrophies } from "@/hooks/useTrophies";
 import { useAuth } from "@/hooks/useAuth";
@@ -556,9 +557,7 @@ export default function ChallengesScreen() {
       {isLoading ? (
         <View style={{ flex: 1 }}>
           <ChallengesHeader safeTop={safeTop} onBack={() => router.back()} />
-          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED }}>Laddar utmaningar…</Text>
-          </View>
+          <ChallengesSkeleton />
         </View>
       ) : (
         <ScrollView
@@ -574,6 +573,7 @@ export default function ChallengesScreen() {
               den ska scrolla bort tillsammans med resten av sidan. */}
           <View ref={contentRef}>
             <ChallengesHeader safeTop={safeTop} onBack={() => router.back()} />
+            <View>
             <TrophyGrid
               trophies={trophies}
               waiting={new Set(waiting)}
@@ -589,6 +589,13 @@ export default function ChallengesScreen() {
                 setSelected(t);
               }}
             />
+            {/* Det grå rastret ligger kvar tills medaljbilderna laddats och tåget börjar rulla */}
+            {!ready && (
+              <Reanimated.View exiting={FadeOut.duration(220)} style={StyleSheet.absoluteFill}>
+                <ChallengesSkeleton />
+              </Reanimated.View>
+            )}
+            </View>
           </View>
         </ScrollView>
       )}
@@ -601,6 +608,44 @@ export default function ChallengesScreen() {
 // Genomskinlig header, inget svart fält bakom — till skillnad från
 // Favoriter/Förmåner/Historik/Statistik är den INTE fast/sticky, den ligger
 // i scrollflödet och scrollar bort tillsammans med resten av sidan.
+/**
+ * Rastret i grått, i exakt samma mått som det riktiga (stora medaljen överst, sen grupperna med
+ * tre medaljer). Syns medan troféerna och deras bilder laddas, och tonar bort när tåget rullar in.
+ */
+function ChallengesSkeleton() {
+  const { width: winW } = useWindowDimensions();
+  const pageW = winW - 32;
+  const gap = 16;
+  const itemWidth = (pageW - gap * 2) / 3;
+  const medalSize = Math.round(itemWidth * 0.86);
+  const heroMedalSize = Math.min(180, Math.round(winW * 0.44));
+  return (
+    <View pointerEvents="none">
+      <View style={{ alignItems: "center", paddingTop: 32 }}>
+        <Skeleton tone="dark" width={200} height={13} radius={5} style={{ marginVertical: 2.5 }} />
+        <Skeleton tone="dark" width={heroMedalSize} height={heroMedalSize} radius={heroMedalSize / 2} style={{ marginTop: 28 }} />
+        <Skeleton tone="dark" width={170} height={26} radius={8} style={{ marginTop: 20 }} />
+        <Skeleton tone="dark" width={110} height={14} radius={5} style={{ marginTop: 10 }} />
+      </View>
+      <View style={{ paddingHorizontal: 16, paddingTop: 44, gap: 44 }}>
+        {GROUP_ORDER.map((groupId) => (
+          <View key={groupId}>
+            <Skeleton tone="dark" width={150} height={16} radius={5} style={{ marginVertical: 3 }} />
+            <View style={{ flexDirection: "row", gap, marginTop: 26 }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ width: itemWidth, alignItems: "center" }}>
+                  <Skeleton tone="dark" width={medalSize} height={medalSize} radius={medalSize / 2} />
+                  <Skeleton tone="dark" width={itemWidth * 0.62} height={12} radius={5} style={{ marginTop: 14 }} />
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function ChallengesHeader({ safeTop, onBack }: { safeTop: number; onBack: () => void }) {
   return (
     <View style={{ paddingTop: safeTop }}>

@@ -8,13 +8,14 @@
  * tills mottagaren själv öppnar appen och kommer hit.
  */
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ArrowLeft, Search, UserPlus, Check, X, Users, ChevronRight } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
+import { Skeleton } from "@/components/Skeleton";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { useProfile } from "@/hooks/useProfile";
 import {
@@ -44,7 +45,7 @@ export default function FriendsScreen() {
 
   const searching = query.trim().length >= 2;
   const { data: results = [], isFetching: searchLoading } = useSearchUsers(query);
-  const { data: friendships = [] } = useFriendships();
+  const { data: friendships = [], isLoading: friendsLoading } = useFriendships();
 
   const incoming = friendships.filter((f) => f.friendStatus === "incoming");
   const accepted = friendships.filter((f) => f.friendStatus === "accepted");
@@ -90,7 +91,12 @@ export default function FriendsScreen() {
         {searching ? (
           <View style={s.section}>
             {searchLoading && results.length === 0 ? (
-              <ActivityIndicator color={GOLD} style={{ marginTop: 20 }} />
+              <>
+                <Skeleton tone="dark" width={70} height={11} radius={4} style={{ marginTop: 6 }} />
+                <View style={{ gap: 10, marginTop: 14 }}>
+                  {[0, 1, 2].map((i) => <FriendRowSkeleton key={i} />)}
+                </View>
+              </>
             ) : results.length === 0 ? (
               <Text style={s.empty}>Ingen med det användarnamnet.</Text>
             ) : (
@@ -124,6 +130,15 @@ export default function FriendsScreen() {
               </View>
             )}
 
+            {friendsLoading ? (
+              // Vänlistan i grått medan den laddas (annars blinkar "0 vänner" förbi)
+              <View style={s.section}>
+                <Skeleton tone="dark" width={90} height={18} radius={6} />
+                <View style={{ gap: 10, marginTop: 14 }}>
+                  {[0, 1, 2].map((i) => <FriendRowSkeleton key={i} />)}
+                </View>
+              </View>
+            ) : (
             <View style={s.section}>
               <Text style={s.sectionTitle}>
                 {accepted.length === 1 ? "1 vän" : `${accepted.length} vänner`}
@@ -142,9 +157,23 @@ export default function FriendsScreen() {
                 </View>
               )}
             </View>
+            )}
           </>
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+/** En personrad i grått medan sökträffar eller vänner laddas */
+function FriendRowSkeleton() {
+  return (
+    <View style={s.row} pointerEvents="none">
+      <Skeleton tone="dark" width={50} height={50} radius={25} />
+      <View style={{ flex: 1, gap: 8 }}>
+        <Skeleton tone="dark" width="55%" height={15} radius={5} />
+        <Skeleton tone="dark" width="40%" height={11} radius={4} />
+      </View>
     </View>
   );
 }

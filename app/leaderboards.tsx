@@ -17,7 +17,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
-  View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, { FadeInDown, useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,9 +30,9 @@ import {
   useLeaderboardList,
   type LeaderboardEntry, type LeaderboardMetric, type LeaderboardScope, type LeaderboardPeriod,
 } from "@/hooks/useLeaderboard";
-import { Podium } from "@/components/leaderboard/Podium";
+import { Podium, PodiumSkeleton } from "@/components/leaderboard/Podium";
 import { Segmented } from "@/components/leaderboard/Segmented";
-import { LeaderboardRow, ROW_H } from "@/components/leaderboard/LeaderboardRow";
+import { LeaderboardRow, LeaderboardRowSkeleton, ROW_H } from "@/components/leaderboard/LeaderboardRow";
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "@/components/leaderboard/LeaderboardConsentSheet";
 import { LeaderboardSettingsSheet } from "@/components/leaderboard/LeaderboardSettingsSheet";
 import { PressableScale } from "@/components/PressableScale";
@@ -153,7 +153,7 @@ export default function LeaderboardsScreen() {
 
       <View style={s.board}>
         {isLoading ? (
-          <ActivityIndicator color={GOLD} />
+          <PodiumSkeleton width={width - 32} />
         ) : isError ? (
           <Text style={s.empty}>Topplistan kunde inte hämtas just nu.</Text>
         ) : noCity ? (
@@ -228,7 +228,14 @@ export default function LeaderboardsScreen() {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
         }}
         onEndReachedThreshold={0.6}
-        ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ marginTop: 8 }} color={GOLD} /> : null}
+        // Grå rader där nästa del av listan kommer, i stället för ett snurrande hjul
+        ListFooterComponent={isLoading || isFetchingNextPage ? (
+          <View>
+            {Array.from({ length: isLoading ? 6 : 3 }, (_, i) => (
+              <View key={i} style={s.item}><LeaderboardRowSkeleton /></View>
+            ))}
+          </View>
+        ) : null}
         initialNumToRender={12}
         windowSize={11}
       />

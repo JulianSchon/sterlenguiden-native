@@ -6,7 +6,7 @@
  * topplistorna och omfången (app/leaderboards.tsx).
  */
 import { useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -15,8 +15,8 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { devShowMonthResetAgain } from "@/hooks/useMonthReset";
 import * as Haptics from "expo-haptics";
 import { PressableScale } from "@/components/PressableScale";
-import { Podium } from "./Podium";
-import { LeaderboardRow } from "./LeaderboardRow";
+import { Podium, PodiumSkeleton } from "./Podium";
+import { LeaderboardRow, LeaderboardRowSkeleton } from "./LeaderboardRow";
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "./LeaderboardConsentSheet";
 
 const FG = "#F5F1E8";
@@ -58,7 +58,12 @@ export function LeaderboardSection() {
       <Text style={s.sub}>Flest besökta platser i {month} · hela appen</Text>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginVertical: 40 }} color={GOLD} />
+        <View style={s.board}>
+          <PodiumSkeleton width={width - 32} />
+          <View style={s.rows}>
+            {Array.from({ length: PREVIEW_COUNT - 3 }, (_, i) => <LeaderboardRowSkeleton key={i} />)}
+          </View>
+        </View>
       ) : isError ? (
         <Text style={s.error}>Topplistan kunde inte hämtas just nu.</Text>
       ) : (

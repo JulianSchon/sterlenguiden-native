@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, Image, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, ActivityIndicator, Alert,
+  View, Text, Image, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, Alert,
   Animated, Easing, useWindowDimensions, type StyleProp, type ViewStyle,
 } from "react-native";
 import Svg, { Circle as SvgCircle, Text as SvgText, Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
@@ -35,6 +35,7 @@ import { StickerArt } from "@/components/stickers/StickerArt";
 import { useCollectibles } from "@/hooks/useCollectibles";
 import Reanimated, { ZoomIn, Easing as REasing } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
+import { Skeleton } from "@/components/Skeleton";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
   type FriendActivity, type FriendResult, type FriendStats,
@@ -159,10 +160,18 @@ export default function FriendProfileScreen() {
               onBuyPress={noop}
             />
           ) : (
-            <View style={{ height: (width - 32) * (CARD_H / CARD_W) }} />
+            // Kortet i grått medan profilen hämtas, i kortets storlek så att sidan inte hoppar
+            <Skeleton tone="dark" width={width - 32} height={(width - 32) * (CARD_H / CARD_W)} radius={20} />
           )}
 
           <View style={s.identityCard}>
+            {profileLoading && (
+              <>
+                <Skeleton tone="dark" width={100} height={12} radius={5} style={{ marginVertical: 2 }} />
+                <Skeleton tone="dark" width={70} height={12} radius={5} style={{ marginTop: 8 }} />
+                <View style={s.identityDivider} />
+              </>
+            )}
             {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
             {friend?.city && (
               <View style={[s.metaItem, !friend?.username && { marginTop: 0 }]}>
@@ -196,11 +205,24 @@ export default function FriendProfileScreen() {
           </View>
         </View>
 
-        {profileLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 40 }} />}
-
         {isFriend ? (
           <>
-            {statsLoading && <ActivityIndicator color={GOLD} style={{ marginTop: 30 }} />}
+            {statsLoading && (
+              // Aktiviteten och statistiken i grått medan de hämtas
+              <View pointerEvents="none">
+                <View style={[s.section, { marginTop: 32 }]}>
+                  <Skeleton tone="dark" width={150} height={16} radius={5} style={{ marginBottom: 12 }} />
+                  <Skeleton tone="dark" width="100%" height={216} radius={16} />
+                </View>
+                <View style={s.section}>
+                  <Skeleton tone="dark" width={90} height={16} radius={5} style={{ marginBottom: 12 }} />
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <Skeleton tone="dark" height={150} radius={16} style={{ flex: 1 }} />
+                    <Skeleton tone="dark" height={150} radius={16} style={{ flex: 1 }} />
+                  </View>
+                </View>
+              </View>
+            )}
             {isError && <Text style={s.errorText}>Kunde inte hämta statistik just nu.</Text>}
             {stats && streak && (
               <RealContent

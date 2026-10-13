@@ -27,6 +27,7 @@ import Reanimated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Heart, Square, AlignJustify } from "lucide-react-native";
+import { Skeleton } from "@/components/Skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -259,12 +260,41 @@ export default function FavoritesScreen() {
         </View>
       </View>
 
+      {/* Sidan i grått medan favoriterna laddas, i den vy (kort/lista) man valt */}
       {isLoading && (
-        <View style={s.center}>
-          <View style={s.loadingIcon}>
-            <Heart size={18} color={GOLD} strokeWidth={1.5} />
+        <View style={s.body} pointerEvents="none">
+          <Skeleton tone="dark" width={170} height={16} radius={6} style={{ alignSelf: "center", marginVertical: 10 }} />
+          <View style={s.toolbar}>
+            <Skeleton tone="dark" width={90} height={14} radius={5} />
+            <Skeleton tone="dark" width={76} height={34} radius={17} />
           </View>
-          <Text style={s.muted}>Laddar favoriter…</Text>
+          {mode === "cards" ? (
+            <View style={s.cards}>
+              {[0, 1].map((i) => (
+                <View key={i}>
+                  <Skeleton tone="dark" width="100%" radius={20} style={{ aspectRatio: 1.55 }} />
+                  <View style={{ gap: 8, marginTop: 14, paddingHorizontal: 2 }}>
+                    <Skeleton tone="dark" width="60%" height={18} radius={6} />
+                    <Skeleton tone="dark" width="30%" height={12} radius={5} />
+                    <Skeleton tone="dark" width="85%" height={12} radius={5} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={s.rows}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <View key={i} style={s.row}>
+                  <Skeleton tone="dark" width={64} height={64} radius={12} />
+                  <View style={{ flex: 1, gap: 7 }}>
+                    <Skeleton tone="dark" width="65%" height={15} radius={5} />
+                    <Skeleton tone="dark" width="30%" height={11} radius={4} />
+                    <Skeleton tone="dark" width="80%" height={11} radius={4} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
@@ -468,10 +498,6 @@ const s = StyleSheet.create({
 
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
   muted: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED },
-  loadingIcon: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(197,160,89,0.15)",
-    alignItems: "center", justifyContent: "center",
-  },
   emptyIcon: {
     width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(197,160,89,0.10)",
     borderWidth: 1, borderColor: "rgba(197,160,89,0.22)", alignItems: "center", justifyContent: "center",
