@@ -1,7 +1,7 @@
 /**
  * Event öppnas alltid i panelen (EventSheet), aldrig som en egen sida — platser är sidor,
- * evenemang är paneler. Panelen finns EN gång, i appens rot (EventSheetHost), och vilken sida som
- * helst öppnar den med openEvent().
+ * evenemang är paneler. Panelen finns EN gång, färdigbyggd i appens rot (EventSheetHost), och
+ * vilken sida som helst öppnar den med openEvent(). Den stänger sig själv.
  *
  *   openEvent(event.id, { event })                       // visar direkt det man redan har
  *   openEvent(id, { saved, onToggleSave })               // sidan sköter sparat-läget själv (Kalender)
@@ -11,7 +11,7 @@ import type { Event } from "@/hooks/useEvents";
 
 export interface EventSheetRequest {
   id: number;
-  /** Eventet om sidan redan har det — panelen visas då direkt, utan att vänta på servern */
+  /** Eventet om sidan redan har det (annars tas det ur eventlistan som Hem hämtar vid start) */
   event?: Event;
   /** Sidans eget sparat-läge och knapp (annars sparar panelen själv) */
   saved?: boolean;
@@ -26,11 +26,6 @@ const emit = () => listeners.forEach((l) => l());
 
 export function openEvent(id: number, opts: Omit<EventSheetRequest, "id" | "key"> = {}) {
   current = { id, ...opts, key: Date.now() };
-  emit();
-}
-
-export function closeEvent() {
-  current = null;
   emit();
 }
 
