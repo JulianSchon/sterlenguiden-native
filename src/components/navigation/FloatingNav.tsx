@@ -131,7 +131,14 @@ export default function FloatingNav() {
   const insets    = useSafeAreaInsets();
   const { isBusiness }  = useIsBusiness();
   const { count: unseen } = useUnseenAchievements();
-  const active    = resolveActiveTab(pathname);
+  // En sida ovanpå flikarna (Favoriter, Mitt Österlen, en plats …) är ingen flik — då gäller
+  // fliken som ligger under den. Annars byter navigeringen utseende så fort sidan öppnas, och när
+  // man sveper tillbaka syns fel variant (tonad i stället för helfärgad på Profil) tills svepet
+  // är klart — med pilen bakåt byts sökvägen direkt, därför syntes det bara vid svep.
+  const lastTab   = useRef("home");
+  const resolved  = resolveActiveTab(pathname);
+  if (resolved) lastTab.current = resolved;
+  const active    = resolved || lastTab.current;
   const isMap     = active === "map";
 
   // Navigation med haptik — om redan aktiv tab: scrolla till toppen
