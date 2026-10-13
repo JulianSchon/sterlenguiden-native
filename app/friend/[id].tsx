@@ -33,7 +33,7 @@ import { sv } from "date-fns/locale";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { StickerArt } from "@/components/stickers/StickerArt";
 import { useCollectibles } from "@/hooks/useCollectibles";
-import Reanimated, { ZoomIn } from "react-native-reanimated";
+import Reanimated, { ZoomIn, Easing as REasing } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
 import {
   useFriendProfile, useFriendStats, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
@@ -424,7 +424,7 @@ function CollectiblesSection({ collectibles }: { collectibles: FriendStats["coll
       <Modal visible={!!selected} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setSelected(null)}>
         <Pressable style={s.treasureOverlay} onPress={() => setSelected(null)}>
           {selected && (
-            <Reanimated.View entering={ZoomIn.springify().damping(14).stiffness(170)} style={{ alignItems: "center" }}>
+            <Reanimated.View entering={ZoomIn.duration(260).easing(REasing.out(REasing.back(1.2)))} style={{ alignItems: "center" }}>
               <StickerArt imagePath={selected.imagePath} size={Math.round(Math.min(winW * 0.72, 300))} silhouette={false} />
               <Text style={s.treasureName}>{selected.name}</Text>
               {info?.town ? <Text style={s.treasureTown}>{info.town}</Text> : null}
