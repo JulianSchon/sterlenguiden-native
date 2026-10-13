@@ -22,7 +22,9 @@
  *
  * Sist kommer presenterna för nya belöningskort (CardPresent). Korten delas ut av servern (alla
  * skatter, eller en vunnen topplista — även medan appen är stängd), och en present väntar tills den
- * öppnats (user_cards.seen_at), så den visas vid nästa start om den inte hann öppnas.
+ * öppnats (user_cards.seen_at), så den visas vid nästa start om den inte hann öppnas. Vid start
+ * väntar presenten tills appen lugnat ner sig (appSettled) och dess bilder hämtats — mitt i
+ * starten hackade den och paketet hann inte alltid laddas.
  */
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSegments } from "expo-router";
@@ -36,6 +38,7 @@ import { TrophyCelebration } from "./TrophyCelebration";
 import { RingCelebration } from "./RingCelebration";
 import { CardPresent, prefetchCardPresent } from "./CardPresent";
 import { useMyCards, useRewardCards, type RewardCard } from "@/hooks/useRewardCards";
+import { markAppSettled, useAppSettled } from "@/lib/appSettled";
 
 const TIERS = ["bronze", "silver", "gold"];
 
@@ -141,14 +144,28 @@ export function TrophyHost() {
   // Presenten som visas. Den ligger kvar tills den stängts, även när servern hunnit svara att den
   // öppnats (då försvinner den ur waitingCard mitt i animationen)
   const [presenting, setPresenting] = useState<RewardCard | null>(null);
+  const settled = useAppSettled();
+  // Kommer signalen aldrig (t.ex. utan medlemskortet på skärmen) räknas appen ändå som lugn
   useEffect(() => {
-    if (!waitingCard || presenting) return;
-    // Bilderna hämtas under pausen, så paketet och kortet är laddade när presenten visas
-    prefetchCardPresent(waitingCard);
-    const t = setTimeout(() => setPresenting(waitingCard), 650);
+    const t = setTimeout(markAppSettled, 15000);
     return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    if (!waitingCard || presenting || !settled) return;
+    // Presenten visas först när paketets och kortets bilder hämtats (minst en kort paus)
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
+    prefetchCardPresent(waitingCard).then(() => {
+      if (cancelled) return;
+      timer = setTimeout(() => setPresenting(waitingCard), Math.max(0, 650 - (Date.now() - startedAt)));
+    });
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [waitingCard?.id, presenting]);
+  }, [waitingCard?.id, presenting, settled]);
 
   // Profil är en flik. Står man bland flikarna byts bara fliken; annars stängs sidorna ovanpå
   // flikarna (t.ex. Mitt Österlen). router.navigate därifrån lade i stället en helt ny kopia av

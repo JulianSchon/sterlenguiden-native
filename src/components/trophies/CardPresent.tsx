@@ -63,10 +63,12 @@ const TILT_SPRING = { stiffness: 195, damping: 7.8, mass: 1 };
 const hit = (style: Haptics.ImpactFeedbackStyle) => Haptics.impactAsync(style).catch(() => {});
 const noop = () => {};
 
-/** Hämtar presentens bilder i förväg — anropas när en present väntar, innan den visas. */
-export function prefetchCardPresent(card: RewardCard) {
-  prefetchPresentImages();
-  if (card.imageUrl) Image.prefetch(card.imageUrl).catch(() => {});
+/** Hämtar presentens bilder (paketet, kortet) i förväg. Klar när alla hämtats — eller efter högst
+ * några sekunder, så presenten aldrig fastnar på ett långsamt nät. */
+export function prefetchCardPresent(card: RewardCard): Promise<void> {
+  const jobs = [...prefetchPresentImages(), ...(card.imageUrl ? [Image.prefetch(card.imageUrl)] : [])];
+  const all = Promise.all(jobs.map((job) => job.catch(() => false))).then(noop);
+  return Promise.race([all, new Promise<void>((resolve) => setTimeout(resolve, 4000))]);
 }
 
 export function CardPresent({ card, onNavigate, onClose }: {

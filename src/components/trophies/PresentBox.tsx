@@ -23,9 +23,11 @@ export function PresentBase({ size, onLoad }: { size: number; onLoad?: () => voi
 
 /** I utvecklingsläget serveras bilderna av Metro över nätet — hämta dem i förväg (som kortens
  * bilder, se cardImages.ts). I en färdig app ligger de i själva appen. */
-export function prefetchPresentImages() {
+export function prefetchPresentImages(): Promise<unknown>[] {
+  const jobs: Promise<unknown>[] = [];
   for (const source of [LID, BASE]) {
     const uri = Image.resolveAssetSource(source)?.uri;
-    if (uri?.startsWith("http")) Image.prefetch(uri).catch(() => {});
+    if (uri?.startsWith("http")) jobs.push(Image.prefetch(uri));
   }
+  return jobs;
 }

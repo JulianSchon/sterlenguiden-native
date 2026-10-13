@@ -2,15 +2,20 @@
  * Läser in och avkodar kortens bakgrundsbilder i bakgrunden, osynligt, så att korten redan har sin bild
  * när man kommer till Profil eller Utseende i stället för att först visas som en enfärgad yta.
  * Först det valda kortet i profilens storlek, sedan alla kort i Utseendes storlek och till sist alla i
- * profilens storlek. Belöningskort man äger (bilder från servern) räknas som vanliga kort. Bilderna släpps efteråt men ligger kvar i bildminnet så länge telefonen har plats.
+ * profilens storlek. Belöningskort man äger (bilder från servern) räknas som vanliga kort. Bilderna
+ * släpps efteråt men ligger kvar i bildminnet så länge telefonen har plats.
+ *
+ * När allt är avkodat (och appen inte längre har något annat på gång) räknas starten som klar —
+ * se appSettled.ts.
  */
 import { useEffect, useState } from "react";
-import { Image, View } from "react-native";
+import { Image, InteractionManager, View } from "react-native";
 import { useProfile } from "@/hooks/useProfile";
 import { CARD_VARIANTS } from "@/lib/cardVariants";
 import { rewardCardVariant, useCardVariant, useMyCards, useRewardCards } from "@/hooks/useRewardCards";
 import { CARD_W, CARD_H } from "@/components/MemberCard";
 import { CAROUSEL_CARD_WIDTH } from "@/lib/cardImages";
+import { markAppSettled } from "@/lib/appSettled";
 
 export function CardImagePreloader() {
   const { data: profile } = useProfile();
@@ -26,6 +31,17 @@ export function CardImagePreloader() {
     const timers = [setTimeout(() => setStage(2), 3000), setTimeout(() => setStage(3), 6000), setTimeout(() => setStage(4), 9000)];
     return () => timers.forEach(clearTimeout);
   }, [ready]);
+
+  // Klart: starten räknas som lugn en stund efter att appen slutat jobba
+  useEffect(() => {
+    if (stage !== 4) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const task = InteractionManager.runAfterInteractions(() => { timer = setTimeout(markAppSettled, 1000); });
+    return () => {
+      task.cancel();
+      if (timer) clearTimeout(timer);
+    };
+  }, [stage]);
 
   if (stage === 0 || stage === 4) return null;
 
