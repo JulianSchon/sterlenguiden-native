@@ -15,8 +15,9 @@
  * - Ingenting hämtas när den öppnas: eventet (med arrangören) finns redan i eventlistan som Hem
  *   hämtar vid start. Förut kom svaret mitt i animationen, allt ritades om och arrangörsraden
  *   hoppade in och knuffade ner resten.
- * - Den börjar glida upp direkt (två bildrutor efter att innehållet bytts), och bilden tonar in när
- *   den är klar — att vänta på bilden gjorde att den kändes trög att öppna.
+ * - Den glider upp när panelens bilder (eventets bild och arrangörens logga) är klara, högst
+ *   IMAGES_MAX_WAIT_MS efter trycket. En bild som blev klar MITT i rörelsen gav ett hack per bild;
+ *   att vänta längre på dem kändes i stället trögt. Hinner eventets bild inte bli klar tonar den in.
  * - Gesterna byggs en gång, inte om vid varje öppning.
  * - Panelen byggs när appen startat klart (useAppSettled), inte under den tunga starten.
  */
@@ -63,6 +64,8 @@ const CLOSE_VELOCITY = 900;
 const BAR_H = 56 + 32;
 /** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
 const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.97)"];
+/** Så länge panelen högst väntar på sina bilder innan den glider upp */
+const IMAGES_MAX_WAIT_MS = 200;
 
 interface Shown { request: EventSheetRequest; event: Event }
 
@@ -174,7 +177,8 @@ export function EventSheetHost() {
     translateY.value = reduceMotion ? 0 : withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
   }, [reduceMotion, backdrop, translateY]);
 
-  // Nytt innehåll på plats: börja överst, krysset grått igen, och glid upp direkt
+  // Nytt innehåll på plats: börja överst, krysset grått igen, och glid upp när bilderna är klara
+  const imagesLeft = useRef(0);
   useEffect(() => {
     if (!shown) return;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -182,12 +186,23 @@ export function EventSheetHost() {
     xAnim.value = 0;
     const key = shown.request.key;
     openKey.value = key;
-    // Två bildrutor efter att det nya innehållet lagts på plats, så rörelsen inte delar bildruta
-    // med själva bytet
+    imagesLeft.current = (shown.event.image_url ? 1 : 0) + (shown.event.place?.logo_url ? 1 : 0);
+    // Utan bilder: två bildrutor efter bytet, så rörelsen inte delar bildruta med själva bytet
     let second = 0;
-    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => slideIn(key)); });
-    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
+    const first = imagesLeft.current === 0
+      ? requestAnimationFrame(() => { second = requestAnimationFrame(() => slideIn(key)); })
+      : 0;
+    const t = setTimeout(() => slideIn(key), IMAGES_MAX_WAIT_MS);
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); clearTimeout(t); };
   }, [shown, slideIn, scrollY, xAnim, openKey]);
+  /** En av panelens bilder är klar. Svarar om panelen redan glider (då ska bilden tona in) */
+  const onImageReady = useCallback((key: number) => {
+    if (key !== shownRef.current?.request.key) return false;
+    const sliding = startedKey.current === key;
+    imagesLeft.current -= 1;
+    if (!sliding && imagesLeft.current <= 0) requestAnimationFrame(() => slideIn(key));
+    return sliding;
+  }, [slideIn]);
 
   const afterClose = useRef<(() => void) | null>(null);
   const onClosed = useCallback((key: number) => {
@@ -334,7 +349,13 @@ export function EventSheetHost() {
               >
                 {/* ── Bilden, rubriken, datumrutan och Dela ── */}
                 <View style={{ height: heroH }}>
-                  {shown && <HeroImage key={shown.request.key} uri={shown.event.image_url} />}
+                  {shown && (
+                    <HeroImage
+                      key={shown.request.key}
+                      uri={shown.event.image_url}
+                      onReady={() => onImageReady(shown.request.key)}
+                    />
+                  )}
                   {/* Riktig mjuk toning ner i panelens bakgrund, så rubriken ligger på mörkret */}
                   <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
                     <Rect x={0} y={0} width={width} height={heroH}>
@@ -349,7 +370,15 @@ export function EventSheetHost() {
                   <View style={s.handle} />
                   {event && <HeroText event={event} onShare={share} />}
                 </View>
-                {event && <SheetBody event={event} width={width} onGoToPlace={goToPlace} onOpenMaps={openMaps} />}
+                {shown && (
+                  <SheetBody
+                    event={shown.event}
+                    openKey={shown.request.key}
+                    onGoToPlace={goToPlace}
+                    onOpenMaps={openMaps}
+                    onImageReady={onImageReady}
+                  />
+                )}
               </Reanimated.ScrollView>
             </GestureDetector>
           </View>
@@ -389,11 +418,13 @@ export function EventSheetHost() {
   );
 }
 
-/** Eventets bild. Fanns den redan i minnet syns den direkt, annars tonar den in när den laddats */
-function HeroImage({ uri }: { uri: string | null }) {
+/** Eventets bild. Klar innan panelen börjar glida: syns direkt. Klar först under rörelsen: tonar in */
+function HeroImage({ uri, onReady }: { uri: string | null; onReady: () => boolean }) {
   const opacity = useSharedValue(0);
-  const mountedAt = useRef(Date.now());
   const fade = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const loaded = () => {
+    opacity.value = onReady() ? withTiming(1, { duration: 220 }) : 1;
+  };
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: "#2A2A2A" }]}>
       {uri && (
@@ -402,9 +433,8 @@ function HeroImage({ uri }: { uri: string | null }) {
             source={{ uri }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
-            onLoad={() => {
-              opacity.value = Date.now() - mountedAt.current < 80 ? 1 : withTiming(1, { duration: 220 });
-            }}
+            onLoad={loaded}
+            onError={loaded}
           />
         </Reanimated.View>
       )}
@@ -434,8 +464,13 @@ const HeroText = memo(function HeroText({ event, onShare }: { event: Event; onSh
 });
 
 /** Allt under bilden. Ritas bara om när eventet byts */
-const SheetBody = memo(function SheetBody({ event, width, onGoToPlace, onOpenMaps }: {
-  event: Event; width: number; onGoToPlace: () => void; onOpenMaps: () => void;
+const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenMaps, onImageReady }: {
+  event: Event;
+  /** Öppningen — loggan laddas om för varje, så panelen alltid får veta när den är klar */
+  openKey: number;
+  onGoToPlace: () => void;
+  onOpenMaps: () => void;
+  onImageReady: (key: number) => boolean;
 }) {
   const place = event.place ?? null;
   const websiteHost = event.website_url
@@ -471,7 +506,16 @@ const SheetBody = memo(function SheetBody({ event, width, onGoToPlace, onOpenMap
         {place ? (
           <InfoRow
             icon={place.logo_url
-              ? <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
+              ? (
+                <Image
+                  key={openKey}
+                  source={{ uri: place.logo_url }}
+                  style={s.logo}
+                  resizeMode="cover"
+                  onLoad={() => onImageReady(openKey)}
+                  onError={() => onImageReady(openKey)}
+                />
+              )
               : <Store size={20} color={FG} strokeWidth={2} />}
             title={place.name}
             sub="Arrangör"
