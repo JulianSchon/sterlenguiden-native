@@ -61,8 +61,11 @@ const CLOSE_VELOCITY = 900;
 const BAR_H = 56 + 32;
 /** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
 const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.97)"];
-/** Så länge panelen högst väntar på att bilden ska visas innan den glider upp */
+/** Så länge panelen högst väntar på att bilden ska visas innan den glider upp: kort om bilden
+ * redan finns i telefonens minne, längre om den måste hämtas — hellre en kort paus före än att
+ * bilden dyker upp mitt i rörelsen */
 const IMAGE_WAIT_MS = 160;
+const IMAGE_WAIT_UNCACHED_MS = 450;
 
 interface Shown { request: EventSheetRequest; event: Event }
 
@@ -184,8 +187,17 @@ export function EventSheetHost() {
     xAnim.value = 0;
     const key = shown.request.key;
     openKey.value = key;
-    const t = setTimeout(() => slideIn(key), shown.event.image_url ? IMAGE_WAIT_MS : 0);
-    return () => clearTimeout(t);
+    const uri = shown.event.image_url;
+    let t = setTimeout(() => slideIn(key), uri ? IMAGE_WAIT_MS : 0);
+    let alive = true;
+    if (uri) {
+      Image.queryCache?.([uri]).then((cache) => {
+        if (!alive || cache[uri]) return;
+        clearTimeout(t);
+        t = setTimeout(() => slideIn(key), IMAGE_WAIT_UNCACHED_MS);
+      }).catch(() => {});
+    }
+    return () => { alive = false; clearTimeout(t); };
   }, [shown, slideIn, scrollY, xAnim, openKey]);
   const onHeroReady = useCallback(() => {
     const key = shownRef.current?.request.key;

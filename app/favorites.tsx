@@ -190,8 +190,14 @@ export default function FavoritesScreen() {
   };
 
   // När man lämnar sidan försvinner de avmarkerade ur den sparade listan, så de inte syns (med
-  // ifyllt hjärta) nästa gång sidan öppnas medan den hämtas på nytt
+  // ifyllt hjärta) nästa gång sidan öppnas medan den hämtas på nytt. Resten av appen (Hem, Profil,
+  // troféerna …) får veta om ändringarna först nu, när tillbaka-glidningen är klar — att uppdatera
+  // allt det vid varje hjärttryck gav ett hack mitt i hjärtanimationen.
+  const favoritesChanged = useRef(false);
   useEffect(() => () => {
+    if (favoritesChanged.current) {
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["favorites"] }), 450);
+    }
     if (toggledRef.current.size === 0) return;
     queryClient.setQueryData<FavItem[]>(["favorites-detail"], (old) => old?.filter((i) => !toggledRef.current.has(i.key)));
     queryClient.invalidateQueries({ queryKey: ["favorites-detail"], refetchType: "none" });
@@ -232,9 +238,9 @@ export default function FavoritesScreen() {
         service_point_id: null,
       });
     }
-    // Synka resten av appen (t.ex. räknaren på Profil) — men inte den här listan, se överst
-    queryClient.invalidateQueries({ queryKey: ["favorites"] });
-  }, [queryClient]);
+    // Resten av appen synkas när man lämnar sidan, se överst
+    favoritesChanged.current = true;
+  }, []);
   handleToggleRef.current = handleToggleFavorite;
 
   const handleShare = () => {
