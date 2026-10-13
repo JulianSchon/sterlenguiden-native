@@ -104,6 +104,15 @@ export const RadialGlow = memo(function RadialGlow({
   );
 });
 
+/** Hämtar trofébilderna i förväg (i utvecklingsläget serveras de av Metro över nätet; i en färdig
+ * app ligger de i appen) — anropas från Profil, så Utmaningar har dem direkt. */
+export function prefetchBadgeImages() {
+  for (const source of Object.values(BADGE_IMAGES)) {
+    const uri = Image.resolveAssetSource(source)?.uri;
+    if (uri?.startsWith("http")) Image.prefetch(uri).catch(() => {});
+  }
+}
+
 export function TrophyMedal({
   size, tier, Icon, unlocked, groupId, onLoad,
 }: {

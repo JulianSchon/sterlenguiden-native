@@ -34,7 +34,7 @@ import { useTrophies } from "@/hooks/useTrophies";
 import { computeCategoryStats, type CategoryStat } from "@/lib/categories";
 import { softenColor } from "@/lib/color";
 import { TIER_PALETTE, type Trophy } from "@/lib/achievements";
-import { BADGE_IMAGES } from "@/components/trophies/TrophyMedal";
+import { BADGE_IMAGES, prefetchBadgeImages } from "@/components/trophies/TrophyMedal";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -235,6 +235,8 @@ export default function ProfileScreen() {
   // redo att falla på plats (SnapRing, CardReveal). Annars syntes ingen smäll om kortet redan
   // visade samma ring, var vänt eller låg utanför skärmen.
   const scrollRef = useRef<ScrollView>(null);
+  // Utmaningarnas trofébilder i förväg, så den sidan inte behöver vänta på dem
+  useEffect(() => { prefetchBadgeImages(); }, []);
   const [cardKey, setCardKey] = useState(0);
   useEffect(() => subscribeProfileReveal(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });

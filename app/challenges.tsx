@@ -37,7 +37,7 @@ import * as Haptics from "expo-haptics";
 import { useTrophies } from "@/hooks/useTrophies";
 import { useAuth } from "@/hooks/useAuth";
 import { getTrophiesToPlace, removeTrophyToPlace } from "@/lib/trophyMoments";
-import { TrophyMedal, GlowCanvas } from "@/components/trophies/TrophyMedal";
+import { TrophyMedal, GlowCanvas, prefetchBadgeImages } from "@/components/trophies/TrophyMedal";
 import { TIER_PALETTE, GROUP_ORDER, type Trophy } from "@/lib/achievements";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -355,11 +355,12 @@ function SectionLabel({ text, ready, order }: { text: string; ready: boolean; or
   return <Animated.Text style={[sec.label, { opacity }]}>{text}</Animated.Text>;
 }
 
-// Tåget: när sidan öppnas visas ingenting förrän alla medaljbilder laddats (högst en kort stund),
-// sen glider den stora utmärkelsen och medaljerna in en i taget uppifrån och ner
-const TRAIN_START = 160;
-const TRAIN_STEP = 40;
-const MAX_WAIT = 1500;
+// Tåget: när sidan öppnas väntar medaljerna tills deras bilder laddats — högst en kort stund, så
+// sidan aldrig står tom (bilderna hämtas redan på Profil, se prefetchBadgeImages) — sen glider den
+// stora utmärkelsen och medaljerna in en i taget uppifrån och ner
+const TRAIN_START = 40;
+const TRAIN_STEP = 35;
+const MAX_WAIT = 300;
 
 export default function ChallengesScreen() {
   const insets = useSafeAreaInsets();
@@ -377,6 +378,7 @@ export default function ChallengesScreen() {
     loaded.current.add(key);
     if (!ready && loaded.current.size >= trophies.length + 1) setReady(true);
   };
+  useEffect(() => { prefetchBadgeImages(); }, []);
   useEffect(() => {
     if (isLoading) return;
     const t = setTimeout(() => setReady(true), MAX_WAIT);
