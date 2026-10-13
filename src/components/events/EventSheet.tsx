@@ -15,9 +15,10 @@
  * - Ingenting hämtas när den öppnas: eventet (med arrangören) finns redan i eventlistan som Hem
  *   hämtar vid start. Förut kom svaret mitt i animationen, allt ritades om och arrangörsraden
  *   hoppade in och knuffade ner resten.
- * - Den glider upp när panelens bilder (eventets bild och arrangörens logga) är klara, högst
- *   IMAGES_MAX_WAIT_MS efter trycket. En bild som blev klar MITT i rörelsen gav ett hack per bild;
- *   att vänta längre på dem kändes i stället trögt. Hinner eventets bild inte bli klar tonar den in.
+ * - Den glider upp först när det nya innehållet är helt klart: bilderna (eventets bild och
+ *   arrangörens logga) laddade, texten på plats och utmätt, och sen två bildrutor till så det hunnit
+ *   ritas — högst MAX_WAIT_MS efter trycket. Allt som blev klart eller ritades första gången MITT i
+ *   rörelsen gav ett hack. Hinner eventets bild inte bli klar tonar den in.
  * - Gesterna byggs en gång, inte om vid varje öppning.
  * - Panelen byggs när appen startat klart (useAppSettled), inte under den tunga starten.
  */
@@ -64,8 +65,8 @@ const CLOSE_VELOCITY = 900;
 const BAR_H = 56 + 32;
 /** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
 const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.97)"];
-/** Så länge panelen högst väntar på sina bilder innan den glider upp */
-const IMAGES_MAX_WAIT_MS = 200;
+/** Så länge panelen högst väntar på att innehållet ska bli klart innan den glider upp */
+const MAX_WAIT_MS = 250;
 
 interface Shown { request: EventSheetRequest; event: Event }
 
@@ -144,8 +145,9 @@ export function EventSheetHost() {
   // Vilket event som är uppe — stängningen rapporterar det, så en stängning som blir klar efter att
   // ett nytt event redan öppnats inte stänger av det nya
   const openKey = useSharedValue(0);
-  // Hur många av panelens bilder (eventets bild, arrangörens logga) som inte är klara än
-  const imagesLeft = useRef(0);
+  // Hur många delar av det nya innehållet som inte är klara än: bilderna (eventets bild, arrangörens
+  // logga) och texten under bilden (klar när den lagts ut och mätts)
+  const partsLeft = useRef(0);
 
   // ── Ett nytt tryck: byt innehåll medan panelen ligger nere ──
   useEffect(() => {
@@ -169,7 +171,7 @@ export function EventSheetHost() {
       // Före bytet: en bild som redan finns i minnet kan bli klar innan effekterna efter bytet ens
       // körts — då måste panelen redan veta hur många bilder den väntar på (annars trodde den att
       // allt var klart, gled upp direkt och nästa bild blev klar mitt i rörelsen)
-      imagesLeft.current = (event.image_url ? 1 : 0) + (event.place?.logo_url ? 1 : 0);
+      partsLeft.current = (event.image_url ? 1 : 0) + (event.place?.logo_url ? 1 : 0) + 1;
       openKey.value = request.key;
       xAnim.value = 0;
       scrollY.value = 0;
@@ -188,23 +190,22 @@ export function EventSheetHost() {
     translateY.value = reduceMotion ? 0 : withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
   }, [reduceMotion, backdrop, translateY]);
 
-  // Nytt innehåll på plats: glid upp när bilderna är klara, eller när tidsgränsen gått ut
+  // Nytt innehåll: glid upp när allt är klart (se onPartReady), eller när tidsgränsen gått ut
   useEffect(() => {
     if (!shown) return;
     const key = shown.request.key;
-    const hasImages = !!shown.event.image_url || !!shown.event.place?.logo_url;
-    // Utan bilder: två bildrutor efter bytet, så rörelsen inte delar bildruta med själva bytet
-    let second = 0;
-    const first = hasImages ? 0 : requestAnimationFrame(() => { second = requestAnimationFrame(() => slideIn(key)); });
-    const t = setTimeout(() => slideIn(key), IMAGES_MAX_WAIT_MS);
-    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); clearTimeout(t); };
+    const t = setTimeout(() => slideIn(key), MAX_WAIT_MS);
+    return () => clearTimeout(t);
   }, [shown, slideIn]);
-  /** En av panelens bilder är klar. Svarar om panelen redan glider (då ska bilden tona in) */
-  const onImageReady = useCallback((key: number) => {
+  /** En del av det nya innehållet är klar. Svarar om panelen redan glider (då ska en bild tona in) */
+  const onPartReady = useCallback((key: number) => {
     if (key !== shownRef.current?.request.key) return false;
     const sliding = startedKey.current === key;
-    imagesLeft.current -= 1;
-    if (!sliding && imagesLeft.current <= 0) requestAnimationFrame(() => slideIn(key));
+    partsLeft.current -= 1;
+    if (!sliding && partsLeft.current <= 0) {
+      // Två bildrutor till, så det sist klara hinner ritas innan rörelsen börjar
+      requestAnimationFrame(() => requestAnimationFrame(() => slideIn(key)));
+    }
     return sliding;
   }, [slideIn]);
 
@@ -357,7 +358,7 @@ export function EventSheetHost() {
                     <HeroImage
                       key={shown.request.key}
                       uri={shown.event.image_url}
-                      onReady={() => onImageReady(shown.request.key)}
+                      onReady={() => onPartReady(shown.request.key)}
                     />
                   )}
                   {/* Riktig mjuk toning ner i panelens bakgrund, så rubriken ligger på mörkret */}
@@ -376,11 +377,12 @@ export function EventSheetHost() {
                 </View>
                 {shown && (
                   <SheetBody
+                    key={shown.request.key}
                     event={shown.event}
                     openKey={shown.request.key}
                     onGoToPlace={goToPlace}
                     onOpenMaps={openMaps}
-                    onImageReady={onImageReady}
+                    onPartReady={onPartReady}
                   />
                 )}
               </Reanimated.ScrollView>
@@ -468,13 +470,13 @@ const HeroText = memo(function HeroText({ event, onShare }: { event: Event; onSh
 });
 
 /** Allt under bilden. Ritas bara om när eventet byts */
-const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenMaps, onImageReady }: {
+const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenMaps, onPartReady }: {
   event: Event;
-  /** Öppningen — loggan laddas om för varje, så panelen alltid får veta när den är klar */
+  /** Öppningen — texten och loggan byggs om för varje, så panelen alltid får veta när de är klara */
   openKey: number;
   onGoToPlace: () => void;
   onOpenMaps: () => void;
-  onImageReady: (key: number) => boolean;
+  onPartReady: (key: number) => boolean;
 }) {
   const place = event.place ?? null;
   const websiteHost = event.website_url
@@ -504,7 +506,8 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
   const hasAddress = !!(event.location || place);
 
   return (
-    <View style={s.body}>
+    // Utlagd och mätt (en ny för varje öppning, se key) — en av delarna panelen väntar på
+    <View style={s.body} onLayout={() => onPartReady(openKey)}>
       {/* ── Var och när: fritt mot bakgrunden, tunna linjer emellan ── */}
       <View>
         {place ? (
@@ -512,12 +515,11 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
             icon={place.logo_url
               ? (
                 <Image
-                  key={openKey}
                   source={{ uri: place.logo_url }}
                   style={s.logo}
                   resizeMode="cover"
-                  onLoad={() => onImageReady(openKey)}
-                  onError={() => onImageReady(openKey)}
+                  onLoad={() => onPartReady(openKey)}
+                  onError={() => onPartReady(openKey)}
                 />
               )
               : <Store size={20} color={FG} strokeWidth={2} />}
