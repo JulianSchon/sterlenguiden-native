@@ -3,9 +3,12 @@
  * header med rubriken i versaler, innehållet direkt mot bakgrunden och solida kort.
  *
  *  1. Hur mycket av Österlen man upptäckt: stort tal, en stapel och andel i procent.
- *  2. Sex rutor: besök, favoriter, minnen, skatter, utmaningar och längsta streak.
+ *  2. Sex rutor, var och en med appens egen symbol i färg: besök (kartans gröna nål), favoriter
+ *     (det röda hjärtat), minnen (ett litet polaroidkort), skatter (skatternas lila nål med guld-
+ *     stjärna), utmaningar (guldpokal) och längsta streak (den riktiga elden).
  *  3. Besök per månad (sex månader): en mjuk kurva med fylld yta under, den här månaden markerad
- *     och en streckad linje för snittet. Kurvan ritas fram när sidan öppnas (Skia).
+ *     och en streckad linje för snittet. Kurvan ritas fram när sidan öppnas (Skia). Håll in på
+ *     kurvan och dra för att se varje månads besök.
  *  4. Dina dagar: besök per veckodag som staplar, den vanligaste dagen i guld.
  *  5. Kategorierna: alla åtta i sina egna färger, hur många man besökt av hur många som finns.
  *  6. Mest besökta platsen.
@@ -13,15 +16,18 @@
  * Siffrorna kommer från samma källor som resten av appen (besök räknas som unika platser i
  * Utmaningar och topplistorna; här visas även alla besök).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, type LayoutChangeEvent } from "react-native";
 import Reanimated, {
-  Easing, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withTiming,
+  Easing, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withTiming,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Canvas, Circle, DashPathEffect, LinearGradient, Path, Skia, vec, BlurMask } from "@shopify/react-native-skia";
+import Svg, { Path as SvgPath, Polygon, Rect, Circle as SvgCircle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, MapPin, Heart, Image as ImageIcon, Gem, Trophy, Flame } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+import { ArrowLeft, MapPin, Heart, Trophy } from "lucide-react-native";
 import { format, subMonths } from "date-fns";
 import { sv } from "date-fns/locale";
 import { useVisits } from "@/hooks/useVisits";
@@ -34,6 +40,8 @@ import { useAppDays } from "@/hooks/useAppDays";
 import { computeStreak } from "@/lib/streak";
 import { computeCategoryStats, type CategoryStat } from "@/lib/categories";
 import { pushOnce } from "@/lib/navigateOnce";
+import { POLAROID_PAPER, POLAROID_TAPE } from "@/lib/polaroid";
+import { StreakFlame } from "@/components/streak/StreakFlame";
 
 const BG     = "#121212";
 const CARD   = "#1A1A1D";
@@ -43,9 +51,16 @@ const GOLD   = "#C5A059";
 const GOLD_LT = "#E8C674";
 const BORDER = "rgba(255,255,255,0.08)";
 const TRACK  = "rgba(255,255,255,0.08)";
+// Samma färger som på kartan (nålen) och Favoriter (hjärtat)
+const PIN_GREEN = "hsl(150,30%,28%)";
+const HEART_RED = "#EF4444";
 
 const WEEKDAYS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
 const WEEKDAY_NAMES = ["måndagar", "tisdagar", "onsdagar", "torsdagar", "fredagar", "lördagar", "söndagar"];
+
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+interface MonthPoint { label: string; name: string; count: number }
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
@@ -59,6 +74,8 @@ export default function StatsScreen() {
   const { data: collectibles = [] } = useCollectibles();
   const { data: days = [] } = useAppDays();
   const isLoading = visitsLoading || placesLoading;
+  // Medan man håller in på kurvan ska sidan inte scrolla
+  const [scrubbing, setScrubbing] = useState(false);
 
   const stats = useMemo(() => {
     const byId = new Map(places.map((p) => [p.id, p]));
@@ -67,13 +84,17 @@ export default function StatsScreen() {
 
     // Besök per månad, de senaste sex (äldst först)
     const now = new Date();
-    const months = Array.from({ length: 6 }, (_, i) => {
+    const months: MonthPoint[] = Array.from({ length: 6 }, (_, i) => {
       const d = subMonths(new Date(now.getFullYear(), now.getMonth(), 1), 5 - i);
       const count = valid.filter((v) => {
         const vd = new Date(v.visited_at);
         return vd.getFullYear() === d.getFullYear() && vd.getMonth() === d.getMonth();
       }).length;
-      return { label: format(d, "MMM", { locale: sv }).replace(".", ""), count };
+      return {
+        label: format(d, "MMM", { locale: sv }).replace(".", ""),
+        name: capitalize(format(d, "LLLL", { locale: sv })),
+        count,
+      };
     });
 
     // Besök per veckodag (måndag först)
@@ -83,9 +104,8 @@ export default function StatsScreen() {
     // Mest besökta platsen
     const perPlace = new Map<number, number>();
     valid.forEach((v) => perPlace.set(v.place_id, (perPlace.get(v.place_id) ?? 0) + 1));
-    let topPlace: { id: number; count: number } | null = null;
-    perPlace.forEach((count, id) => { if (!topPlace || count > topPlace.count) topPlace = { id, count }; });
-    const top = topPlace as { id: number; count: number } | null;
+    let top: { id: number; count: number } | null = null;
+    for (const [id, count] of perPlace) if (!top || count > top.count) top = { id, count };
 
     return {
       visitCount: valid.length,
@@ -116,7 +136,11 @@ export default function StatsScreen() {
       {isLoading ? (
         <Text style={[s.muted, { textAlign: "center", marginTop: 40 }]}>Laddar statistik…</Text>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.body, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
+        <ScrollView
+          scrollEnabled={!scrubbing}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[s.body, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}
+        >
           {/* 1. Hur mycket av Österlen */}
           <View style={s.hero}>
             <Text style={s.eyebrow}>UPPTÄCKT AV ÖSTERLEN</Text>
@@ -130,18 +154,18 @@ export default function StatsScreen() {
 
           {/* 2. Rutorna */}
           <View style={s.tiles}>
-            <Tile Icon={MapPin} value={stats.visitCount} label="Besök" />
-            <Tile Icon={Heart} value={favorites.length} label="Favoriter" />
-            <Tile Icon={ImageIcon} value={memories.length} label="Minnen" />
-            <Tile Icon={Gem} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
-            <Tile Icon={Trophy} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
-            <Tile Icon={Flame} value={longestStreak} label="Längsta streak" />
+            <Tile icon={<MapPin size={22} color="#FFFFFF" fill={PIN_GREEN} strokeWidth={1.6} />} value={stats.visitCount} label="Besök" />
+            <Tile icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label="Favoriter" />
+            <Tile icon={<MiniPolaroid />} value={memories.length} label="Minnen" />
+            <Tile icon={<TreasurePin />} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
+            <Tile icon={<Trophy size={21} color="#B8892E" fill={GOLD_LT} strokeWidth={1.8} />} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
+            <Tile icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label="Längsta streak" />
           </View>
 
           {/* 3. Besök per månad */}
           <Text style={s.sectionTitle}>Besök per månad</Text>
           <View style={s.card}>
-            <MonthChart months={stats.months} />
+            <MonthChart months={stats.months} onScrubbing={setScrubbing} />
           </View>
 
           {/* 4. Dina dagar */}
@@ -185,14 +209,41 @@ export default function StatsScreen() {
   );
 }
 
-/** En ruta: ikon, stort värde, etikett */
-function Tile({ Icon, value, label }: { Icon: React.ComponentType<any>; value: number | string; label: string }) {
+/** En ruta: symbol, stort värde, etikett */
+function Tile({ icon, value, label }: { icon: ReactNode; value: number | string; label: string }) {
   return (
     <View style={s.tile}>
-      <Icon size={18} color={GOLD} strokeWidth={2} />
+      <View style={s.tileIcon}>{icon}</View>
       <Text style={s.tileValue}>{value}</Text>
       <Text style={s.tileLabel} numberOfLines={1}>{label}</Text>
     </View>
+  );
+}
+
+/** Ett litet polaroidkort, lite snett, med tejp — samma papper som minnenas polaroider */
+function MiniPolaroid() {
+  return (
+    <Svg width={24} height={26} viewBox="0 0 24 26">
+      <Rect x={3} y={3} width={18} height={21} rx={1.5} fill={POLAROID_PAPER} transform="rotate(-7 12 13)" />
+      <Rect x={5.2} y={5.4} width={13.6} height={12} fill="#7FA7C9" transform="rotate(-7 12 13)" />
+      <SvgPath d="M5.2 14.2 L9.5 10.6 L13 13.6 L15.6 11.6 L18.8 14.2 L18.8 17.4 L5.2 17.4 Z" fill="#4F7A52" transform="rotate(-7 12 13)" />
+      <SvgCircle cx={15.6} cy={8.4} r={1.4} fill="#F6E7A8" transform="rotate(-7 12 13)" />
+      <Rect x={8.5} y={1} width={7} height={3.6} fill={POLAROID_TAPE} transform="rotate(-7 12 13)" />
+    </Svg>
+  );
+}
+
+/** Skatternas kartnål: lila med guldstjärna (samma form som StickerPin på kartan) */
+const STAR = "12,5.8 13.5,9.2 17.2,9.6 14.4,12.1 15.2,15.8 12,13.9 8.8,15.8 9.6,12.1 6.8,9.6 10.5,9.2";
+function TreasurePin() {
+  return (
+    <Svg width={19} height={25} viewBox="0 0 24 32">
+      <SvgPath
+        d="M12 0C5.373 0 0 5.373 0 12c0 8.5 12 20 12 20S24 20.5 24 12C24 5.373 18.627 0 12 0z"
+        fill="#5B21B6" stroke="rgba(0,0,0,0.25)" strokeWidth={1}
+      />
+      <Polygon points={STAR} fill="#FDE68A" />
+    </Svg>
   );
 }
 
@@ -230,98 +281,183 @@ function CategoryRow({ cat, delay }: { cat: CategoryStat; delay: number }) {
   );
 }
 
-/** Mjuk kurva genom punkterna (Catmull-Rom som kubiska Bézier-kurvor) */
-function smoothPath(pts: { x: number; y: number }[]): string {
-  if (pts.length === 0) return "";
+/**
+ * Mjuk kurva genom punkterna som aldrig skjuter över dem (monoton kubisk interpolation, som
+ * d3:s curveMonotoneX) — en vanlig mjuk kurva kunde gå under nollan mellan två månader och
+ * klippas mot kanten.
+ */
+function monotonePath(pts: { x: number; y: number }[]): string {
+  const n = pts.length;
+  if (n === 0) return "";
+  if (n === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  const dx = pts.slice(1).map((p, i) => p.x - pts[i].x);
+  const slope = pts.slice(1).map((p, i) => (p.y - pts[i].y) / dx[i]);
+  const tan: number[] = new Array(n);
+  tan[0] = slope[0];
+  tan[n - 1] = slope[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    tan[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+  }
+  // Begränsa lutningarna så kurvan inte svänger förbi punkterna (Fritsch–Carlson)
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) { tan[i] = 0; tan[i + 1] = 0; continue; }
+    const a = tan[i] / slope[i];
+    const b = tan[i + 1] / slope[i];
+    const h = a * a + b * b;
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h);
+      tan[i] = t * a * slope[i];
+      tan[i + 1] = t * b * slope[i];
+    }
+  }
   let d = `M ${pts[0].x} ${pts[0].y}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] ?? p2;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += ` C ${pts[i].x + h} ${pts[i].y + tan[i] * h}, ${pts[i + 1].x - h} ${pts[i + 1].y - tan[i + 1] * h}, ${pts[i + 1].x} ${pts[i + 1].y}`;
   }
   return d;
 }
 
-const CHART_H = 140;
-const CHART_PAD_TOP = 14;
+// Kurvans yta: luft runt om så glöden och den valda punkten aldrig klipps mot kanterna
+const CHART_H = 150;
+const PAD_X = 18;
+const PAD_TOP = 22;
+const PAD_BOTTOM = 10;
 
-/** Besök per månad: mjuk kurva med fylld yta, den här månaden markerad, snittet streckat */
-function MonthChart({ months }: { months: { label: string; count: number }[] }) {
+/**
+ * Besök per månad: mjuk kurva med fylld yta, den här månaden markerad, snittet streckat.
+ * Håll in på kurvan (en kort stund, så att sidan fortfarande går att scrolla) och dra: en lodrät
+ * linje och en punkt följer fingret från månad till månad, med en liten vibration för varje,
+ * och siffrorna överst visar den månaden. Släpper man visas den här månaden igen.
+ */
+function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing: (on: boolean) => void }) {
   const [w, setW] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
   const draw = useSharedValue(0);
   const max = Math.max(1, ...months.map((m) => m.count));
   const avg = months.reduce((sum, m) => sum + m.count, 0) / months.length;
-  const current = months[months.length - 1]?.count ?? 0;
+  const lastIndex = months.length - 1;
 
   const geo = useMemo(() => {
     if (w === 0) return null;
-    const inset = 8;
-    const yOf = (v: number) => CHART_PAD_TOP + (1 - v / max) * (CHART_H - CHART_PAD_TOP - 6);
-    const pts = months.map((m, i) => ({ x: inset + (i / (months.length - 1)) * (w - inset * 2), y: yOf(m.count) }));
-    const line = smoothPath(pts);
-    const area = `${line} L ${pts[pts.length - 1].x} ${CHART_H} L ${pts[0].x} ${CHART_H} Z`;
+    const yOf = (v: number) => PAD_TOP + (1 - v / max) * (CHART_H - PAD_TOP - PAD_BOTTOM);
+    const step = (w - PAD_X * 2) / (months.length - 1);
+    const pts = months.map((m, i) => ({ x: PAD_X + i * step, y: yOf(m.count) }));
+    const line = monotonePath(pts);
+    const bottom = CHART_H - PAD_BOTTOM;
+    const area = `${line} L ${pts[lastIndex].x} ${bottom} L ${pts[0].x} ${bottom} Z`;
     return {
+      pts,
+      step,
       line: Skia.Path.MakeFromSVGString(line)!,
       area: Skia.Path.MakeFromSVGString(area)!,
-      avg: Skia.Path.MakeFromSVGString(`M ${inset} ${yOf(avg)} L ${w - inset} ${yOf(avg)}`)!,
-      last: pts[pts.length - 1],
+      avg: Skia.Path.MakeFromSVGString(`M ${PAD_X} ${yOf(avg)} L ${w - PAD_X} ${yOf(avg)}`)!,
     };
-  }, [w, months, max, avg]);
+  }, [w, months, max, avg, lastIndex]);
 
   useEffect(() => {
     if (!geo) return;
     draw.value = 0;
     draw.value = withDelay(250, withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) }));
-  }, [geo, draw]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w]);
   const areaOpacity = useDerivedValue(() => draw.value * 0.9);
   const dotR = useDerivedValue(() => (draw.value > 0.97 ? 6 : 0));
-  const glowR = useDerivedValue(() => (draw.value > 0.97 ? 14 : 0));
+  const glowR = useDerivedValue(() => (draw.value > 0.97 ? 13 : 0));
+
+  // Hålla in och dra
+  const select = (i: number | null) => {
+    if (i !== null) Haptics.selectionAsync().catch(() => {});
+    setSelected(i);
+  };
+  const lastPicked = useSharedValue(-1);
+  const step = geo?.step ?? 1;
+  const count = months.length;
+  const scrub = Gesture.Pan()
+    .activateAfterLongPress(160)
+    .onStart((e) => {
+      runOnJS(onScrubbing)(true);
+      const i = Math.min(count - 1, Math.max(0, Math.round((e.x - PAD_X) / step)));
+      lastPicked.value = i;
+      runOnJS(select)(i);
+    })
+    .onUpdate((e) => {
+      const i = Math.min(count - 1, Math.max(0, Math.round((e.x - PAD_X) / step)));
+      if (i !== lastPicked.value) {
+        lastPicked.value = i;
+        runOnJS(select)(i);
+      }
+    })
+    .onFinalize(() => {
+      lastPicked.value = -1;
+      runOnJS(select)(null);
+      runOnJS(onScrubbing)(false);
+    });
+
+  const shown = selected ?? lastIndex;
+  const point = geo?.pts[shown];
 
   return (
     <View>
       <View style={s.chartHead}>
         <View>
-          <Text style={s.legendLabel}><Text style={{ color: GOLD }}>●</Text> Den här månaden</Text>
-          <Text style={s.legendValue}>{current} besök</Text>
+          <Text style={s.legendLabel}>
+            <Text style={{ color: GOLD }}>●</Text> {selected === null ? "Den här månaden" : months[selected].name}
+          </Text>
+          <Text style={s.legendValue}>{months[shown].count} besök</Text>
         </View>
         <View>
           <Text style={s.legendLabel}><Text style={{ color: MUTED }}>●</Text> Snitt</Text>
           <Text style={[s.legendValue, { color: MUTED }]}>{avg.toFixed(1).replace(".", ",")} besök</Text>
         </View>
       </View>
-      <View style={{ height: CHART_H }} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
-        {geo && (
-          <Canvas style={StyleSheet.absoluteFill}>
-            <Path path={geo.area} opacity={areaOpacity}>
-              <LinearGradient start={vec(0, 0)} end={vec(0, CHART_H)} colors={["rgba(197,160,89,0.35)", "rgba(197,160,89,0)"]} />
-            </Path>
-            <Path path={geo.avg} style="stroke" strokeWidth={1.5} color="rgba(245,241,232,0.3)">
-              <DashPathEffect intervals={[5, 6]} />
-            </Path>
-            <Path path={geo.line} style="stroke" strokeWidth={3} strokeCap="round" strokeJoin="round" color={GOLD} start={0} end={draw} />
-            <Circle cx={geo.last.x} cy={geo.last.y} r={glowR} color="rgba(232,198,116,0.45)">
-              <BlurMask blur={6} style="normal" />
-            </Circle>
-            <Circle cx={geo.last.x} cy={geo.last.y} r={dotR} color={GOLD_LT} />
-          </Canvas>
-        )}
-      </View>
+
+      <GestureDetector gesture={scrub}>
+        <View style={{ height: CHART_H }} onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}>
+          {geo && (
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Path path={geo.area} opacity={areaOpacity}>
+                <LinearGradient start={vec(0, 0)} end={vec(0, CHART_H)} colors={["rgba(197,160,89,0.35)", "rgba(197,160,89,0)"]} />
+              </Path>
+              <Path path={geo.avg} style="stroke" strokeWidth={1.5} color="rgba(245,241,232,0.3)">
+                <DashPathEffect intervals={[5, 6]} />
+              </Path>
+              <Path path={geo.line} style="stroke" strokeWidth={3} strokeCap="round" strokeJoin="round" color={GOLD} start={0} end={draw} />
+              {/* Den här månaden: en lysande prick i slutet av kurvan */}
+              <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={glowR} color="rgba(232,198,116,0.45)">
+                <BlurMask blur={5} style="normal" />
+              </Circle>
+              <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={dotR} color={GOLD_LT} />
+            </Canvas>
+          )}
+          {/* Den valda månaden medan man håller in: lodrät linje och en punkt på kurvan */}
+          {selected !== null && point && (
+            <>
+              <View pointerEvents="none" style={[s.guide, { left: point.x - 0.75 }]} />
+              <View pointerEvents="none" style={[s.pick, { left: point.x - 8, top: point.y - 8 }]} />
+            </>
+          )}
+        </View>
+      </GestureDetector>
+
+      {/* Månaderna, var och en mitt under sin punkt */}
       <View style={s.monthRow}>
-        {months.map((m, i) => (
-          <Text key={i} style={[s.monthLabel, i === months.length - 1 && { color: FG }]}>{m.label}</Text>
+        {geo && months.map((m, i) => (
+          <Text
+            key={i}
+            style={[s.monthLabel, { left: geo.pts[i].x - 20 }, i === shown && { color: FG, fontFamily: "Inter_700Bold" }]}
+          >
+            {m.label}
+          </Text>
         ))}
       </View>
     </View>
   );
 }
 
-/** Besök per veckodag som staplar — den vanligaste dagen i guld */
+const WEEK_H = 90;
+
+/** Besök per veckodag som staplar — höjden efter antalet, den vanligaste dagen i guld */
 function WeekdayBars({ counts }: { counts: number[] }) {
   const max = Math.max(1, ...counts);
   const best = counts.indexOf(Math.max(...counts));
@@ -331,9 +467,9 @@ function WeekdayBars({ counts }: { counts: number[] }) {
       <View style={s.weekRow}>
         {counts.map((c, i) => (
           <View key={i} style={s.weekCol}>
-            <Text style={[s.weekCount, i === best && { color: GOLD }]}>{c > 0 ? c : ""}</Text>
-            <View style={s.weekTrack}>
-              <WeekBar fraction={c / max} highlight={i === best} delay={150 + i * 50} />
+            <Text style={[s.weekCount, i === best && { color: GOLD }]}>{c}</Text>
+            <View style={s.weekArea}>
+              <WeekBar fraction={c / max} highlight={i === best && c > 0} delay={150 + i * 50} />
             </View>
             <Text style={[s.weekLabel, i === best && { color: FG }]}>{WEEKDAYS[i]}</Text>
           </View>
@@ -343,15 +479,21 @@ function WeekdayBars({ counts }: { counts: number[] }) {
   );
 }
 
+/** En stapel som växer upp från botten. En dag utan besök blir en låg stump, inte en tom stapel. */
 function WeekBar({ fraction, highlight, delay }: { fraction: number; highlight: boolean; delay: number }) {
   const grow = useSharedValue(0);
   useEffect(() => {
-    grow.value = withDelay(delay, withTiming(fraction, { duration: 700, easing: Easing.out(Easing.cubic) }));
-  }, [fraction, delay, grow]);
+    grow.value = withDelay(delay, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
+  }, [delay, grow]);
   const style = useAnimatedStyle(() => ({ transform: [{ scaleY: grow.value }] }));
+  const h = fraction > 0 ? Math.max(10, fraction * WEEK_H) : 5;
   return (
     <Reanimated.View
-      style={[StyleSheet.absoluteFill, { borderRadius: 8, backgroundColor: highlight ? GOLD : "rgba(245,241,232,0.22)", transformOrigin: "bottom" }, style]}
+      style={[
+        s.weekBar,
+        { height: h, backgroundColor: highlight ? GOLD : fraction > 0 ? "rgba(245,241,232,0.35)" : TRACK },
+        style,
+      ]}
     />
   );
 }
@@ -381,23 +523,31 @@ const s = StyleSheet.create({
     width: "31.6%", flexGrow: 1, borderRadius: 16, padding: 14, gap: 6,
     backgroundColor: CARD, borderWidth: 1, borderColor: BORDER,
   },
+  // Lika hög plats för alla symboler, så värdena hamnar i linje
+  tileIcon: { height: 26, justifyContent: "center", alignItems: "flex-start" },
   tileValue: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: FG, marginTop: 2 },
   tileLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED },
 
   sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG, marginTop: 30, marginBottom: 12 },
   card: { borderRadius: 18, padding: 16, backgroundColor: CARD, borderWidth: 1, borderColor: BORDER },
 
-  chartHead: { flexDirection: "row", gap: 28, marginBottom: 14 },
+  chartHead: { flexDirection: "row", gap: 28, marginBottom: 8 },
   legendLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED },
   legendValue: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: FG, marginTop: 2 },
-  monthRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8, paddingHorizontal: 0 },
-  monthLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: MUTED, textTransform: "lowercase" },
+  guide: { position: "absolute", top: PAD_TOP - 10, bottom: PAD_BOTTOM, width: 1.5, backgroundColor: "rgba(245,241,232,0.35)" },
+  pick: {
+    position: "absolute", width: 16, height: 16, borderRadius: 8,
+    backgroundColor: GOLD_LT, borderWidth: 3, borderColor: CARD,
+  },
+  monthRow: { height: 18, marginTop: 4 },
+  monthLabel: { position: "absolute", width: 40, textAlign: "center", fontFamily: "Inter_500Medium", fontSize: 12, color: MUTED, textTransform: "lowercase" },
 
   weekText: { fontFamily: "Inter_500Medium", fontSize: 14.5, color: FG, marginBottom: 14 },
   weekRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   weekCol: { flex: 1, alignItems: "center", gap: 6 },
-  weekCount: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: MUTED, height: 16 },
-  weekTrack: { width: "100%", maxWidth: 30, height: 90, borderRadius: 8, backgroundColor: TRACK, overflow: "hidden" },
+  weekCount: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: MUTED },
+  weekArea: { width: "100%", maxWidth: 30, height: WEEK_H, justifyContent: "flex-end" },
+  weekBar: { width: "100%", borderRadius: 8, transformOrigin: "bottom" },
   weekLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: MUTED },
 
   catRow: { flexDirection: "row", alignItems: "center", gap: 12 },
