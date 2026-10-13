@@ -22,7 +22,7 @@ import {
   View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Image, Share,
 } from "react-native";
 import Reanimated, {
-  Easing, interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, type SharedValue,
+  Easing, FadeInDown, interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming, type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -305,11 +305,11 @@ export default function FavoritesScreen() {
           )}
 
           <View style={mode === "cards" ? s.cards : s.rows}>
-            {visible.map((item) =>
+            {visible.map((item, index) =>
               mode === "cards" ? (
-                <FavoriteCard key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
+                <FavoriteCard key={item.key} index={index} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               ) : (
-                <FavoriteRow key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
+                <FavoriteRow key={item.key} index={index} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               )
             )}
           </View>
@@ -404,7 +404,12 @@ function HeartParticle({ index, burst, x, y, size }: {
   );
 }
 
+/** Snabb inglidning för de första korten/raderna, kort efter varandra (resten ligger utanför skärmen) */
+const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).duration(300) : undefined);
+
 interface ItemProps {
+  /** Läget i listan — de första glider in efter varandra när sidan, kategorin eller vyn byts */
+  index: number;
   item: FavItem;
   isFav: boolean;
   onOpen: (item: FavItem) => void;
@@ -413,8 +418,9 @@ interface ItemProps {
 }
 
 /** Kortvyn: stor bild, och under den namn, kategori och kort beskrivning, hjärtat till höger */
-const FavoriteCard = memo(function FavoriteCard({ item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
+const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
   return (
+    <Reanimated.View entering={enterAt(index)}>
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.cardImage}>
         {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
@@ -428,12 +434,14 @@ const FavoriteCard = memo(function FavoriteCard({ item, isFav, onOpen, onToggle,
         <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} />
       </View>
     </TouchableOpacity>
+    </Reanimated.View>
   );
 });
 
 /** Listvyn: kompakt rad med liten bild */
-const FavoriteRow = memo(function FavoriteRow({ item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
+const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
   return (
+    <Reanimated.View entering={enterAt(index)}>
     <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.thumb}>
         {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
@@ -445,6 +453,7 @@ const FavoriteRow = memo(function FavoriteRow({ item, isFav, onOpen, onToggle, o
       </View>
       <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} size={24} />
     </TouchableOpacity>
+    </Reanimated.View>
   );
 });
 
