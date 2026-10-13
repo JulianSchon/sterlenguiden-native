@@ -6,7 +6,7 @@
  * Ringen och prickarna är EN uppsättning per sida (useLikeBurst + <LikeBurst/> längst ner på sidan)
  * som flyttas till hjärtat man trycker på — inte en per kort, det gjorde långa listor tröga.
  */
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import Reanimated, {
   Easing, interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming,
@@ -53,6 +53,12 @@ export function HeartButton({
   label?: string;
 }) {
   const scale = useSharedValue(1);
+  // Den röda fyllningen som eget lager: tänds direkt när man gillar (popen döljer bytet), men tonas
+  // ut mjukt när man avmarkerar — att den försvann tvärt gjorde avmarkeringen hård
+  const fill = useSharedValue(isFav ? 1 : 0);
+  useEffect(() => {
+    fill.value = isFav ? 1 : withTiming(0, { duration: 260, easing: Easing.out(Easing.quad) });
+  }, [isFav, fill]);
   const box = useRef<View>(null);
   const press = () => {
     if (!isFav) {
@@ -64,12 +70,17 @@ export function HeartButton({
       );
       box.current?.measureInWindow((x, y, w, h) => onBurst(x + w / 2, y + h / 2, size));
     } else {
-      Haptics.selectionAsync().catch(() => {});
-      scale.value = withSequence(withTiming(0.75, { duration: 90 }), withSpring(1, { damping: 12, stiffness: 260 }));
+      // Avmarkera: en lugn utandning — sjunker lite och glider tillbaka, ingen studs
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      scale.value = withSequence(
+        withTiming(0.82, { duration: 130, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) }),
+      );
     }
     onToggle();
   };
   const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const fillStyle = useAnimatedStyle(() => ({ opacity: fill.value }));
   return (
     <TouchableOpacity
       style={s.heartBtn}
@@ -80,7 +91,10 @@ export function HeartButton({
     >
       <View ref={box} collapsable={false}>
         <Reanimated.View style={heartStyle}>
-          <Heart size={size} color={RED} fill={isFav ? RED : "transparent"} strokeWidth={2} />
+          <Heart size={size} color={RED} fill="transparent" strokeWidth={2} />
+          <Reanimated.View style={[StyleSheet.absoluteFill, fillStyle]}>
+            <Heart size={size} color={RED} fill={RED} strokeWidth={2} />
+          </Reanimated.View>
         </Reanimated.View>
       </View>
     </TouchableOpacity>
