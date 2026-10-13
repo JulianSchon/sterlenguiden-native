@@ -27,11 +27,13 @@ const MUTED = "rgba(245,241,232,0.55)";
 const GOLD  = "#C5A059";
 const LINE  = "rgba(255,255,255,0.14)";
 
-// Tidslinjens mått: datumspalten, linjens läge och prickens storlek
-const DATE_W = 40;
-const DOT = 30;
-const LINE_X = DATE_W + 12 + DOT / 2;
-const THUMB = 76;
+// Tidslinjens mått: sidmarginal, datumspalten, prickens storlek och linjens läge (prickens mitt)
+const PAD = 8;
+const DATE_W = 42;
+const DOT_GAP = 8;
+const DOT = 38;
+const LINE_X = PAD + DATE_W + DOT_GAP + DOT / 2;
+const THUMB = 100;
 /** Bara de första raderna glider in — resten finns redan när man scrollar dit */
 const ANIMATED_ROWS = 12;
 
@@ -144,7 +146,7 @@ function VisitRow({ visit, index, last, onPress }: { visit: VisitedPlace; index:
         <Text style={s.month}>{format(when, "MMM", { locale: sv }).replace(".", "")}</Text>
       </View>
       <View style={[s.dot, { backgroundColor: category?.screen ?? GOLD }]}>
-        <Icon size={15} color="#FFFFFF" strokeWidth={2.2} />
+        <Icon size={18} color="#FFFFFF" strokeWidth={2.2} />
       </View>
       <View style={s.thumb}>
         {image ? <Image source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
@@ -172,24 +174,25 @@ const s = StyleSheet.create({
   },
   headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
 
-  summary: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: MUTED, paddingHorizontal: 16, marginBottom: 4 },
+  summary: { fontFamily: "Inter_500Medium", fontSize: 14, color: MUTED, paddingHorizontal: 16, marginBottom: 4 },
 
   // Tidslinjen: linjen ritas i varje rad, så den löper obruten genom hela listan
-  line: { position: "absolute", left: 16 + LINE_X - 1, width: 2, backgroundColor: LINE },
-  yearRow: { paddingLeft: 16 + LINE_X + DOT / 2 + 8, paddingTop: 26, paddingBottom: 14 },
-  year: { fontFamily: "Montserrat_700Bold", fontSize: 44, letterSpacing: -1, color: FG },
+  line: { position: "absolute", left: LINE_X - 1, width: 2, backgroundColor: LINE },
+  yearRow: { paddingLeft: LINE_X + DOT / 2 + DOT_GAP + 4, paddingTop: 26, paddingBottom: 14 },
+  year: { fontFamily: "Montserrat_700Bold", fontSize: 48, letterSpacing: -1, color: FG },
 
-  row: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
-  dateCol: { width: DATE_W, alignItems: "flex-end" },
-  day: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: FG, lineHeight: 20 },
-  month: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: MUTED, textTransform: "lowercase" },
+  row: { flexDirection: "row", alignItems: "center", paddingLeft: PAD, paddingRight: 16, paddingVertical: 14 },
+  // Dagen och månaden centrerade över varandra
+  dateCol: { width: DATE_W, alignItems: "center" },
+  day: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: FG, lineHeight: 25 },
+  month: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED, textTransform: "lowercase" },
   dot: {
-    width: DOT, height: DOT, borderRadius: DOT / 2, marginLeft: 12, marginRight: 14,
-    alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: BG,
+    width: DOT, height: DOT, borderRadius: DOT / 2, marginLeft: DOT_GAP, marginRight: 14,
+    alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: BG,
   },
-  thumb: { width: THUMB, height: THUMB, borderRadius: 12, overflow: "hidden", backgroundColor: "#2A2A2A", marginRight: 14 },
-  name: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG },
-  time: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: MUTED, marginTop: 4 },
+  thumb: { width: THUMB, height: THUMB, borderRadius: 14, overflow: "hidden", backgroundColor: "#2A2A2A", marginRight: 16 },
+  name: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: -0.3, color: FG },
+  time: { fontFamily: "Inter_500Medium", fontSize: 15, color: MUTED, marginTop: 6 },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 },
   emptyIcon: {
