@@ -26,7 +26,7 @@ import * as Haptics from "expo-haptics";
 import { Canvas, LinearGradient, Rect, vec } from "@shopify/react-native-skia";
 import {
   CalendarCheck, CalendarDays, CalendarPlus, Car, ChevronRight, Globe, Home, MapPin,
-  Share2, Store, Sun, Ticket, UtensilsCrossed, X, type LucideIcon,
+  Store, Sun, Ticket, UtensilsCrossed, X, type LucideIcon,
 } from "lucide-react-native";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -40,6 +40,7 @@ import { eventWhen, lastDay } from "@/lib/events";
 import { DateBox } from "@/components/events/EventCards";
 import { HeartButton, LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import { PressableScale } from "@/components/PressableScale";
+import { ShareIcon } from "@/components/ShareIcon";
 import { Skeleton } from "@/components/Skeleton";
 
 const BG = "#121212";
@@ -314,7 +315,7 @@ function EventSheet({ request }: { request: EventSheetRequest }) {
                       </View>
                       {event && (
                         <PressableScale style={s.shareBtn} scale={0.9} onPress={share} accessibilityLabel="Dela med en vän">
-                          <Share2 size={19} color={FG} strokeWidth={2} />
+                          <ShareIcon size={19} color={FG} strokeWidth={2} />
                         </PressableScale>
                       )}
                     </View>
@@ -493,7 +494,8 @@ const s = StyleSheet.create({
     flexDirection: "row", marginTop: 22, paddingVertical: 16, borderRadius: 20,
     backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(197,160,89,0.22)",
   },
-  stripItem: { flex: 1, alignItems: "center", gap: 8, paddingHorizontal: 4 },
+  // Mitt i höjdled: en kolumn med ett ord står mitt för grannarna med två rader
+  stripItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 4 },
   stripDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: "rgba(255,255,255,0.12)" },
   stripText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, lineHeight: 16, color: FG, textAlign: "center" },
   stripTextOff: { fontFamily: "Inter_500Medium", color: "rgba(245,241,232,0.4)" },
