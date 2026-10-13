@@ -29,13 +29,12 @@ import { Skeleton } from "@/components/Skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { ShareIcon } from "@/components/ShareIcon";
 import { CategoryHeader } from "@/components/CategoryHeader";
 import { darkColors } from "@/theme/colors";
 import { pushOnce } from "@/lib/navigateOnce";
+import { DateBox } from "@/components/events/EventCards";
 import { HeartButton, LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
 
 const BG     = "#121212";
@@ -54,7 +53,7 @@ interface FavItem {
   kind: FavKind;
   id: number;
   title: string;
-  /** Kategorin (platser) eller "Evenemang · datum" (event) */
+  /** Kategorin (platser) eller "Evenemang" (event — datumet står i rutan på bilden) */
   category: string;
   /** Ort (platser) eller plats (event) — i listvyn */
   subtitle: string;
@@ -63,6 +62,8 @@ interface FavItem {
   categories: string | null;
   imageUrl: string | null;
   route: string;
+  /** Event: datumet, som visas i rutan uppe i bildens hörn */
+  date?: { date: string | null; end_date: string | null };
 }
 
 // Samma matchningslogik som Sök-sidans kategori-chips (matchesDbValues)
@@ -102,7 +103,7 @@ function useFavoritesDetailed() {
         .select(`
           id, created_at, place_id, event_id,
           places(id, name, image_url, nearest_town, categories, short_description, description),
-          events(id, title, image_url, date, location)
+          events(id, title, image_url, date, end_date, location)
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -125,18 +126,18 @@ function useFavoritesDetailed() {
             route: `/place/${row.places.id}`,
           });
         } else if (row.events) {
-          const dateLabel = row.events.date ? format(new Date(row.events.date), "d MMMM", { locale: sv }) : "";
           items.push({
             key: `e${row.events.id}`,
             kind: "event",
             id: row.events.id,
             title: row.events.title,
-            category: dateLabel ? `Evenemang · ${dateLabel}` : "Evenemang",
-            subtitle: dateLabel || (row.events.location ?? ""),
+            category: "Evenemang",
+            subtitle: row.events.location ?? "",
             description: row.events.location ?? "",
             categories: null,
             imageUrl: row.events.image_url?.split(",")[0]?.trim() ?? null,
             route: `/event/${row.events.id}`,
+            date: { date: row.events.date, end_date: row.events.end_date },
           });
         }
       }
@@ -358,6 +359,7 @@ const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, on
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.cardImage}>
         {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        {item.date && <DateBox event={item.date} style={s.cardDate} />}
       </View>
       <View style={s.cardInfo}>
         <View style={{ flex: 1 }}>
@@ -379,6 +381,7 @@ const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onTo
     <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.thumb}>
         {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        {item.date && <DateBox event={item.date} small style={s.thumbDate} />}
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={s.rowTitle} numberOfLines={1}>{item.title}</Text>
@@ -431,6 +434,9 @@ const s = StyleSheet.create({
   cardDesc: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: MUTED, marginTop: 4 },
 
   // Listvyn
+  // Eventets datumruta i bildens hörn, samma som på Kalender
+  cardDate: { position: "absolute", top: 12, right: 12 },
+  thumbDate: { position: "absolute", top: 4, left: 4 },
   rows: { gap: 10 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 12, padding: 10,

@@ -103,7 +103,7 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
 });
 
 /** Datumrutan i bildens hörn: dagen stort, månaden i guld under. Solid, så den syns mot alla bilder */
-function DateBox({ event, small, style }: { event: Event; small?: boolean; style: object }) {
+export function DateBox({ event, small, style }: { event: Pick<Event, "date" | "end_date">; small?: boolean; style: object }) {
   const badge = dateBadge(event);
   if (!badge) return null;
   return (
