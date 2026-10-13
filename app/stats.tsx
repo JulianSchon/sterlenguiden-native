@@ -326,12 +326,14 @@ const CHART_H = 150;
 const PAD_X = 18;
 const PAD_TOP = 22;
 const PAD_BOTTOM = 10;
+/** Så många punkter längs kurvan som markeringen glider mellan */
+const SAMPLES = 160;
 
 /**
  * Besök per månad: mjuk kurva med fylld yta, den här månaden markerad, snittet streckat.
- * Nudda kurvan: månaden under fingret väljs direkt — en lodrät linje och en punkt, och siffrorna
- * överst visar den månaden. Drar man åt sidan följer den med från månad till månad, med en liten
- * vibration för varje (sidan scrollar inte under tiden). Drar man uppåt eller nedåt scrollar
+ * Nudda kurvan: en lodrät linje och en punkt dyker upp under fingret och glider flytande längs
+ * kurvan när man drar åt sidan (på animationstråden), och siffrorna överst visar närmaste månad,
+ * med en liten vibration för varje ny månad (sidan scrollar inte under tiden). Drar man uppåt eller nedåt scrollar
  * sidan som vanligt. Släpper man visas den här månaden igen.
  */
 function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing: (on: boolean) => void }) {
@@ -348,12 +350,27 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
     const step = (w - PAD_X * 2) / (months.length - 1);
     const pts = months.map((m, i) => ({ x: PAD_X + i * step, y: yOf(m.count) }));
     const line = monotonePath(pts);
+    const linePath = Skia.Path.MakeFromSVGString(line)!;
     const bottom = CHART_H - PAD_BOTTOM;
     const area = `${line} L ${pts[lastIndex].x} ${bottom} L ${pts[0].x} ${bottom} Z`;
+    // Kurvan som täta punkter, så att markeringen kan glida längs den mellan månaderna
+    const xs: number[] = [];
+    const ys: number[] = [];
+    const contour = Skia.ContourMeasureIter(linePath, false, 1).next();
+    if (contour) {
+      const len = contour.length();
+      for (let i = 0; i <= SAMPLES; i++) {
+        const [pos] = contour.getPosTan((len * i) / SAMPLES);
+        xs.push(pos.x);
+        ys.push(pos.y);
+      }
+    }
     return {
       pts,
       step,
-      line: Skia.Path.MakeFromSVGString(line)!,
+      xs,
+      ys,
+      line: linePath,
       area: Skia.Path.MakeFromSVGString(area)!,
       avg: Skia.Path.MakeFromSVGString(`M ${PAD_X} ${yOf(avg)} L ${w - PAD_X} ${yOf(avg)}`)!,
     };
@@ -380,11 +397,34 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
   const lastPicked = useSharedValue(-1);
   const step = geo?.step ?? 1;
   const count = months.length;
+  // Markeringen (lodrät linje + punkt) följer fingret flytande längs kurvan
+  const xs = geo?.xs ?? [];
+  const ys = geo?.ys ?? [];
+  const markX = useSharedValue(0);
+  const markY = useSharedValue(0);
+  const markOn = useSharedValue(0);
+  const moveMark = (fingerX: number) => {
+    "worklet";
+    if (xs.length === 0) return;
+    const x = Math.min(xs[xs.length - 1], Math.max(xs[0], fingerX));
+    // Närmaste punkterna på kurvan till vänster och höger om fingret (x växer längs kurvan)
+    let lo = 0;
+    let hi = xs.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (xs[mid] <= x) lo = mid; else hi = mid;
+    }
+    const t = xs[hi] === xs[lo] ? 0 : (x - xs[lo]) / (xs[hi] - xs[lo]);
+    markX.value = x;
+    markY.value = ys[lo] + (ys[hi] - ys[lo]) * t;
+  };
   const scrub = Gesture.Pan()
     .activeOffsetX([-4, 4])
     .failOffsetY([-14, 14])
     // Redan vid beröringen, innan fingret rört sig
     .onBegin((e) => {
+      moveMark(e.x);
+      markOn.value = withTiming(1, { duration: 90 });
       const i = Math.min(count - 1, Math.max(0, Math.round((e.x - PAD_X) / step)));
       lastPicked.value = i;
       runOnJS(select)(i);
@@ -393,6 +433,7 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
       runOnJS(onScrubbing)(true);
     })
     .onUpdate((e) => {
+      moveMark(e.x);
       const i = Math.min(count - 1, Math.max(0, Math.round((e.x - PAD_X) / step)));
       if (i !== lastPicked.value) {
         lastPicked.value = i;
@@ -400,13 +441,18 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
       }
     })
     .onFinalize(() => {
+      markOn.value = withTiming(0, { duration: 160 });
       lastPicked.value = -1;
       runOnJS(select)(null);
       runOnJS(onScrubbing)(false);
     });
 
   const shown = selected ?? lastIndex;
-  const point = geo?.pts[shown];
+  const guideStyle = useAnimatedStyle(() => ({ opacity: markOn.value, transform: [{ translateX: markX.value - 0.75 }] }));
+  const pickStyle = useAnimatedStyle(() => ({
+    opacity: markOn.value,
+    transform: [{ translateX: markX.value - 8 }, { translateY: markY.value - 8 }, { scale: 0.6 + markOn.value * 0.4 }],
+  }));
 
   return (
     <View>
@@ -441,13 +487,9 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
               <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={dotR} color={GOLD_LT} />
             </Canvas>
           )}
-          {/* Den valda månaden medan man håller in: lodrät linje och en punkt på kurvan */}
-          {selected !== null && point && (
-            <>
-              <View pointerEvents="none" style={[s.guide, { left: point.x - 0.75 }]} />
-              <View pointerEvents="none" style={[s.pick, { left: point.x - 8, top: point.y - 8 }]} />
-            </>
-          )}
+          {/* Markeringen medan man nuddar: lodrät linje och en punkt som glider längs kurvan */}
+          <Reanimated.View pointerEvents="none" style={[s.guide, guideStyle]} />
+          <Reanimated.View pointerEvents="none" style={[s.pick, pickStyle]} />
         </View>
       </GestureDetector>
 
@@ -545,9 +587,9 @@ const s = StyleSheet.create({
   chartHead: { flexDirection: "row", gap: 28, marginBottom: 8 },
   legendLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED },
   legendValue: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: FG, marginTop: 2 },
-  guide: { position: "absolute", top: PAD_TOP - 10, bottom: PAD_BOTTOM, width: 1.5, backgroundColor: "rgba(245,241,232,0.35)" },
+  guide: { position: "absolute", left: 0, top: PAD_TOP - 10, bottom: PAD_BOTTOM, width: 1.5, backgroundColor: "rgba(245,241,232,0.35)" },
   pick: {
-    position: "absolute", width: 16, height: 16, borderRadius: 8,
+    position: "absolute", left: 0, top: 0, width: 16, height: 16, borderRadius: 8,
     backgroundColor: GOLD_LT, borderWidth: 3, borderColor: CARD,
   },
   monthRow: { height: 18, marginTop: 4 },
