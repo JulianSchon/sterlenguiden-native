@@ -128,36 +128,3 @@ as $$
 $$;
 
 grant execute on function public.rpc_list_friendships() to authenticated;
-
--- ─── En väns lista, visad på den vanliga listsidan (bara titta) ──────────────
--- Platserna i en lista som ägaren visar för sina vänner (lists.visible_to_friends, 033), med vem
--- som lade till dem — samma uppgifter som listsidan visar för medlemmar. Tom om listan inte är
--- synlig för vänner eller om man inte är vän med ägaren.
-create or replace function public.rpc_friend_list_places(target_list_id uuid)
-returns table (
-  row_id     uuid,
-  place_id   bigint,
-  added_by   uuid,
-  created_at timestamptz,
-  "position" int
-)
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select lp.id, lp.place_id::bigint, lp.added_by, lp.created_at, lp.position::int
-  from public.list_places lp
-  join public.lists l on l.id = lp.list_id
-  where lp.list_id = target_list_id
-    and l.visible_to_friends
-    and exists (
-      select 1 from public.friendships f
-      where f.status = 'accepted'
-        and ((f.requester_id = auth.uid() and f.addressee_id = l.owner_id)
-          or (f.addressee_id = auth.uid() and f.requester_id = l.owner_id))
-    )
-  order by lp.position, lp.created_at desc;
-$$;
-
-grant execute on function public.rpc_friend_list_places(uuid) to authenticated;
