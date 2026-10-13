@@ -17,8 +17,10 @@
  *
  * Prestanda: allt (kortet, konfettin, knapparna) byggs medan skärmen mörknar, och paketet släpps
  * först när dess bilder laddats — annars föll ett osynligt paket och bilden dök upp efteråt.
- * Medlemskortet byggs EN gång: varje omritning av det (tryck, knapparna, utgången) tappade
- * bildrutor. Vid utgången tas allt tungt bort först när innehållet tonats ut helt.
+ * Medlemskortet byggs EN gång, och efter smällen ritas ingenting om alls — knapparna, utgången och
+ * spolningen styrs bara av animationsvärden och refs (varje omritning tappade bildrutor). Vid
+ * utgången tas allt tungt bort först när innehållet tonats ut helt, och resten av utgången (Profil,
+ * bakgrundens toning) startar först när det är gjort.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
@@ -81,12 +83,14 @@ export function CardPresent({ card, onNavigate, onClose }: {
   const avatarUrl = useAvatarUrl();
   const updateProfile = useUpdateProfile();
   const [taps, setTaps] = useState(0);
-  const [opened, setOpened] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   // Utgången: allt tungt bort när innehållet tonats ut, så bakgrunden kan tonas mjukt
   const [cleared, setCleared] = useState(false);
-  const [skipped, setSkipped] = useState(false);
+  // Lägen som inte ska rita om något (se överst)
+  const opened = useRef(false);
+  const ready = useRef(false);
+  const leaving = useRef(false);
+  const skipped = useRef(false);
+  const toProfile = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (ms: number, fn: () => void) => { timers.current.push(setTimeout(fn, ms)); };
 
@@ -195,10 +199,6 @@ export function CardPresent({ card, onNavigate, onClose }: {
     if (n >= 2) shakeScreen(3 + n * 1.5);
   };
 
-  useEffect(() => {
-    if (ready) buttons.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
-  }, [ready, buttons]);
-
   const skipToEnd = () => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
@@ -206,14 +206,16 @@ export function CardPresent({ card, onNavigate, onClose }: {
     hot.value = 0; lid.value = 1; presentOut.value = 1; flash.value = 0; zoom.value = 0; screenShake.value = 0;
     rays.value = 1; glow.value = 0.65; burst.value = 1; hint.value = 0;
     rise.value = 1; tilt.value = 0; text.value = 1;
+    cancelAnimation(buttons);
+    buttons.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
     hit(Haptics.ImpactFeedbackStyle.Heavy);
-    setSkipped(true);
-    setReady(true);
+    skipped.current = true;
+    ready.current = true;
   };
 
   const tap = () => {
-    if (opened && !ready && !skipped && !leaving) { skipToEnd(); return; }
-    if (opened || leaving || !landed.current || taps >= TAPS) return;
+    if (opened.current && !ready.current && !skipped.current && !leaving.current) { skipToEnd(); return; }
+    if (opened.current || leaving.current || !landed.current || taps >= TAPS) return;
     const n = taps + 1;
     setTaps(n);
     punch(n);
@@ -228,17 +230,17 @@ export function CardPresent({ card, onNavigate, onClose }: {
     playSound("tick");
   };
 
-  // Mellan trycken bultar paketet som ett hjärta (från andra trycket)
+  // Mellan trycken bultar paketet som ett hjärta (från andra trycket, tills smällen)
   useEffect(() => {
-    if (taps < 2 || opened) return;
+    if (taps < 2 || taps >= TAPS) return;
     const id = setInterval(() => hit(Haptics.ImpactFeedbackStyle.Soft), 650);
     return () => clearInterval(id);
-  }, [taps, opened]);
+  }, [taps]);
 
   // 3. Smällen efter sista trycket
   useEffect(() => {
-    if (opened || taps < TAPS) return;
-    setOpened(true);
+    if (opened.current || taps < TAPS) return;
+    opened.current = true;
     markCardSeen(card.id);
     hot.value = withTiming(1, { duration: BOOM_DELAY, easing: Easing.in(Easing.quad) });
     setTremble(5);
@@ -262,34 +264,45 @@ export function CardPresent({ card, onNavigate, onClose }: {
     tilt.value = withDelay(BOOM_DELAY + 40, withSpring(0, TILT_SPRING));
     later(BOOM_DELAY + 790, () => hit(Haptics.ImpactFeedbackStyle.Medium));
     text.value = withDelay(BOOM_DELAY + T_TEXT, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
-    later(BOOM_DELAY + T_READY, () => setReady(true));
+    // Knapparna finns redan (osynliga) och tonas bara fram
+    buttons.value = withDelay(BOOM_DELAY + T_READY, withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }));
+    later(BOOM_DELAY + T_READY, () => { ready.current = true; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taps, opened]);
+  }, [taps]);
+
+  // Knapparna finns från start men är osynliga tills de tonats fram — ett tryck där innan dess
+  // räknas som ett tryck på skärmen
+  const press = (use: boolean) => (ready.current ? exit(use) : tap());
 
   const exit = (use: boolean) => {
-    if (leaving) return;
-    setLeaving(true);
+    if (leaving.current) return;
+    leaving.current = true;
+    toProfile.current = use;
     // Innehållet tonas ut (260 ms); först när det är helt borta tas allt tungt bort, bakom den
     // stilla mörka bakgrunden (en fast tid kunde klippa en sen toning mitt i)
     leave.value = withTiming(1, { duration: 260, easing: Easing.in(Easing.quad) }, (fin) => {
       if (fin) runOnJS(setCleared)(true);
     });
     rays.value = withTiming(0, { duration: 260 });
-    if (!use) {
-      backdrop.value = withDelay(360, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
-      setTimeout(onClose, 700);
+  };
+
+  // Resten av utgången, när det tunga väl tagits bort
+  useEffect(() => {
+    if (!cleared) return;
+    if (!toProfile.current) {
+      backdrop.value = withDelay(60, withTiming(0, { duration: 320, easing: Easing.out(Easing.quad) }));
+      later(400, onClose);
       return;
     }
     // "Använd kortet": designen sparas och Profil öppnas bakom den mörka ytan; bakgrunden tonas bort
     // när sidan hunnit bli klar, och där landar kortet på sin plats (CardReveal)
-    setTimeout(() => {
-      requestProfileReveal("card", card.id);
-      updateProfile.mutate({ card_color: card.id });
-      onNavigate();
-    }, 300);
-    backdrop.value = withDelay(1150, withTiming(0, { duration: 480, easing: Easing.inOut(Easing.quad) }));
-    setTimeout(onClose, 1650);
-  };
+    requestProfileReveal("card", card.id);
+    updateProfile.mutate({ card_color: card.id });
+    onNavigate();
+    backdrop.value = withDelay(850, withTiming(0, { duration: 480, easing: Easing.inOut(Easing.quad) }));
+    later(850 + 480 + 20, onClose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleared]);
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
   const contentStyle = useAnimatedStyle(() => ({ opacity: 1 - leave.value, transform: [{ translateY: leave.value * 24 }] }));
@@ -365,7 +378,7 @@ export function CardPresent({ card, onNavigate, onClose }: {
           </Reanimated.View>
         </Reanimated.View>
 
-        <Reanimated.View style={[s.root, contentStyle]} pointerEvents={leaving ? "none" : "auto"}>
+        <Reanimated.View style={[s.root, contentStyle]}>
           <Pressable style={s.root} onPress={tap}>
             {/* Paketet, med kamerans zoom och skak */}
             <Reanimated.View style={[StyleSheet.absoluteFill, stageStyle]} pointerEvents="none">
@@ -412,9 +425,9 @@ export function CardPresent({ card, onNavigate, onClose }: {
             </Reanimated.View>
           </Pressable>
 
-          <Reanimated.View style={[s.buttons, { paddingBottom: bottomPad }, buttonsStyle]} pointerEvents={ready ? "auto" : "none"}>
-            <GoldButton label="Använd kortet" onPress={() => exit(true)} />
-            <GhostButton label="Fortsätt" onPress={() => exit(false)} />
+          <Reanimated.View style={[s.buttons, { paddingBottom: bottomPad }, buttonsStyle]}>
+            <GoldButton label="Använd kortet" onPress={() => press(true)} />
+            <GhostButton label="Fortsätt" onPress={() => press(false)} />
           </Reanimated.View>
         </Reanimated.View>
 
