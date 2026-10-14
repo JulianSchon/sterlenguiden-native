@@ -46,9 +46,11 @@ export function useLikeBurst(): { burst: Burst; show: BurstFn } {
 }
 
 export function HeartButton({
-  isFav, onToggle, onBurst, size = 28, label = "favoriter",
+  isFav, onToggle, onBurst, size = 28, label = "favoriter", outline = RED,
 }: {
   isFav: boolean; onToggle: () => void; onBurst: BurstFn; size?: number;
+  /** Konturens färg när hjärtat inte är ifyllt (vit ovanpå en bild) */
+  outline?: string;
   /** Vad man sparar till, för skärmläsaren ("Spara i favoriter") */
   label?: string;
 }) {
@@ -91,7 +93,7 @@ export function HeartButton({
     >
       <View ref={box} collapsable={false}>
         <Reanimated.View style={heartStyle}>
-          <Heart size={size} color={RED} fill="transparent" strokeWidth={2} />
+          <Heart size={size} color={outline} fill="transparent" strokeWidth={2} />
           <Reanimated.View style={[StyleSheet.absoluteFill, fillStyle]}>
             <Heart size={size} color={RED} fill={RED} strokeWidth={2} />
           </Reanimated.View>

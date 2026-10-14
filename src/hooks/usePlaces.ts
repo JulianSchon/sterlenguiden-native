@@ -7,9 +7,12 @@ export type Place = Tables<"places"> & {
   business_tier?: string;
 };
 
-/** En plats image_url kan innehålla flera adresser skilda med komma. Returnerar den första. */
+/**
+ * En plats image_url kan innehålla flera adresser skilda med komma. Returnerar den första. Delar
+ * bara vid komman som följs av en ny adress — Wix-adresser har komman i sig och gick annars sönder.
+ */
 export function firstImageUrl(imageUrl: string | null | undefined): string | null {
-  return imageUrl?.split(",")[0].trim() || null;
+  return imageUrl?.split(/,(?=\s*https?:\/\/)/)[0].trim() || null;
 }
 
 export function getTierScore(tier?: string | null): number {
@@ -32,7 +35,7 @@ export function usePlaces() {
       const { data, error } = await supabase
         .from("places")
         .select(
-          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level, checkin_enabled, qr_token, site_group, amenities"
+          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level, checkin_enabled, qr_token, site_group, amenities, transit_stop_name"
         )
         .order("name");
       if (error) throw error;

@@ -49,7 +49,9 @@ const SIZES = { "": 1, "-selected": 1.4 };
 let n = 0;
 for (const [name, p] of Object.entries(PINS)) {
   const markup = svg({ fill: p.fill, center: p.center ?? "dot", centerColor: p.centerColor ?? "#FFFFFF" });
-  for (const [suffix, scale] of Object.entries(SIZES)) {
+  // Vald plats ritas i appen (guldnålen som studsar in); bara service och skatter har en vald bild
+  const sizes = name.startsWith("service") || name.startsWith("treasure") ? SIZES : { "": 1 };
+  for (const [suffix, scale] of Object.entries(sizes)) {
     for (const density of [1, 2, 3]) {
       const png = new Resvg(markup, { fitTo: { mode: "width", value: Math.round(W * scale * density) } }).render().asPng();
       const file = `pin-${name}${suffix}${density === 1 ? "" : `@${density}x`}.png`;
