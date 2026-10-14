@@ -468,7 +468,7 @@ export default function MapScreen() {
         customMapStyle={MAP_IS_STYLEABLE ? (dark ? DARK_MAP_STYLE : LIGHT_MAP_STYLE) : undefined}
         mapType={MAP_IS_STYLEABLE ? "standard" : "mutedStandard"}
         userInterfaceStyle={dark ? "dark" : "light"}
-        showsPointsOfInterest={false}
+        showsPointsOfInterests={false}
         showsBuildings={false}
         showsTraffic={false}
         showsIndoors={false}

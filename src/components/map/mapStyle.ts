@@ -3,15 +3,15 @@
  * färg på kartan är Österlens platser — nålarna i kategoriernas färger.
  *
  * Google Kartor går att styla helt (stilarna nedan: bara gråskala, inga egna affärer/restauranger,
- * ingen kollektivtrafik). Android använder redan Google. På iPhone används Apple Kartor tills
- * Google Maps-modulen finns i appbygget (GOOGLE_MAPS_ON_IOS) — Apple Kartor kan bara göras mörk
- * och dämpad, inte helt svartvit, men vi stänger av dess egna platser och byggnader.
+ * ingen kollektivtrafik), så både iPhone och Android använder Google. Nycklarna kommer från EAS
+ * när appen byggs (app.config.js). Sätts GOOGLE_MAPS_ON_IOS till false används Apple Kartor på
+ * iPhone — de kan bara göras mörka och dämpade, inte helt svartvita.
  */
 import { Platform } from "react-native";
 import { PROVIDER_DEFAULT, PROVIDER_GOOGLE, type MapStyleElement } from "react-native-maps";
 
-/** Sätts till true när Google Maps-modulen och nyckeln finns i iPhone-bygget (se pending EAS build) */
-export const GOOGLE_MAPS_ON_IOS = false;
+/** Google Kartor även på iPhone (kräver Google Maps-nyckeln i bygget, se app.config.js) */
+export const GOOGLE_MAPS_ON_IOS = true;
 
 export const MAP_PROVIDER = Platform.OS === "ios" && !GOOGLE_MAPS_ON_IOS ? PROVIDER_DEFAULT : PROVIDER_GOOGLE;
 /** Stilarna gäller bara Google-kartan */
