@@ -10,6 +10,13 @@
  *   i listans ordning) och skatter.
  * - Kommer man hit med ?place= (från ett minne) eller ?sticker= (Hem, Mitt Österlen) visas den
  *   platsen/skatten direkt; annars centreras kartan på mig varje gång man går in på fliken.
+ *
+ * VIKTIGT — nålarna läggs till EN gång och tas aldrig bort (de tonas bara fram/bort med opacity,
+ * klumparna har en fast uppsättning platser som återanvänds). Kartbiblioteket i den här versionen
+ * går via Reacts översättningslager för den gamla arkitekturen, och när många nålar lades till och
+ * togs bort i samma svep (klumparna, varje gång kartan rörts) fick det ibland en position i sin
+ * lista som inte fanns än — och appen kraschade. Behåll mönstret tills react-native-maps
+ * uppgraderats (kräver nytt bygge).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -52,6 +59,12 @@ const INIT_REGION: Region = { latitude: 55.5, longitude: 14.1, latitudeDelta: 0.
 const CAROUSEL_SIZE = 15;
 /** Kartnavigeringens höjd längst ner (FloatingNav, kartvarianten) */
 const NAV_H = 56 + 12;
+/** Så många klumpar som kan synas samtidigt (en fast uppsättning nålar, se VIKTIGT överst) */
+const CLUSTER_POOL = 60;
+/** Där osynliga nålar (oanvända klumpar, den tomma rutten) står */
+const PARK = { latitude: INIT_REGION.latitude, longitude: INIT_REGION.longitude };
+
+interface ClusterSlot { id: number; count: number; lat: number; lng: number }
 
 /** Kartans zoomnivå (som kartleverantörerna räknar den) ur hur mycket som syns */
 const zoomOf = (r: Region) => Math.round(Math.log2(360 / r.longitudeDelta));
@@ -76,10 +89,15 @@ export default function MapScreen() {
   const regionRef = useRef<Region>(INIT_REGION);
   const [region, setRegion] = useState<Region>(INIT_REGION);
 
-  const { data: places = [] } = usePlaces();
-  const { data: collectibles = [] } = useCollectibles();
+  const placesQ = usePlaces();
+  const places = useMemo(() => placesQ.data ?? [], [placesQ.data]);
+  const collectiblesQ = useCollectibles();
+  const collectibles = useMemo(() => collectiblesQ.data ?? [], [collectiblesQ.data]);
   const { data: collected = new Map<string, string>() } = useCollected();
-  const { data: servicePoints = [] } = useAllServicePoints();
+  const servicePointsQ = useAllServicePoints();
+  const servicePoints = useMemo(() => servicePointsQ.data ?? [], [servicePointsQ.data]);
+  // Allt nålarna behöver är hämtat — då läggs alla till på en gång (se VIKTIGT överst)
+  const markersReady = placesQ.isFetched && collectiblesQ.isFetched && servicePointsQ.isFetched;
   const { data: lists = [] } = useLists();
   const { data: visits = [] } = useVisits();
   const { data: favorites = [] } = useFavorites();
@@ -206,6 +224,37 @@ export default function MapScreen() {
     ];
     return cluster.getClusters(bbox, zoomOf(r));
   }, [cluster, region, listPlaces]);
+
+  // Vilka platser som syns som egna nålar, och klumparna (i den fasta uppsättningen platser)
+  const { visibleIds, clusterSlots } = useMemo(() => {
+    if (listPlaces) return { visibleIds: new Set(listPlaces.map((p) => p.id)), clusterSlots: [] as ClusterSlot[] };
+    const ids = new Set<number>();
+    const slots: ClusterSlot[] = [];
+    for (const feature of clusters) {
+      const props = feature.properties as { cluster?: boolean; cluster_id?: number; point_count?: number; id?: number };
+      const [lng, lat] = feature.geometry.coordinates;
+      if (props.cluster) slots.push({ id: props.cluster_id!, count: props.point_count ?? 0, lat, lng });
+      else if (props.id != null) ids.add(props.id);
+    }
+    return { visibleIds: ids, clusterSlots: slots.slice(0, CLUSTER_POOL) };
+  }, [clusters, listPlaces]);
+  const visibleRef = useRef(visibleIds);
+  visibleRef.current = visibleIds;
+  const slotsRef = useRef(clusterSlots);
+  slotsRef.current = clusterSlots;
+
+  // Alla nålar som någonsin kan synas, i en fast ordning (nya platser hamnar sist)
+  const markerPlaces = useMemo(
+    () => places.filter((p) => p.lat != null && p.lng != null && !stickerPlaceIds.has(p.id)).sort((a, b) => a.id - b.id),
+    [places, stickerPlaceIds],
+  );
+  const markerServices = useMemo(
+    () => servicePoints.filter((p) => p.lat != null && p.lng != null).sort((a, b) => String(a.id).localeCompare(String(b.id))),
+    [servicePoints],
+  );
+  const shownServiceIds = useMemo(() => new Set(shownServices.map((p) => p.id)), [shownServices]);
+  const shownTreasureIds = useMemo(() => new Set(shownTreasures.map((c) => c.id)), [shownTreasures]);
+  const listNumbers = useMemo(() => (listPlaces ? new Map(listPlaces.map((p, i) => [p.id, i + 1])) : null), [listPlaces]);
 
   // ── Valt ──────────────────────────────────────────────────────────────────
   const [carousel, setCarousel] = useState<{ ids: number[]; index: number; key: number } | null>(null);
@@ -397,6 +446,15 @@ export default function MapScreen() {
     ? `Visa ${shownTreasures.length} skatter`
     : shownPlaces.length === 1 ? "Visa 1 plats" : `Visa ${shownPlaces.length} platser`;
 
+  // Google-kartan (Android) ritar om en nåls innehåll bara medan tracksViewChanges är på — på en
+  // kort stund efter varje ändring av nålarnas utseende, sen av igen (annars blir kartan trög)
+  const [trackPins, setTrackPins] = useState(true);
+  useEffect(() => {
+    setTrackPins(true);
+    const t = setTimeout(() => setTrackPins(false), 800);
+    return () => clearTimeout(t);
+  }, [selectedPlaceId, selectedService, selectedSticker, logoMode, listNumbers, savedIds, visitedIds, clusterSlots, dark, markersReady]);
+
   const headerTop = Math.max(insets.top, 44);
   const cardsBottom = insets.bottom + NAV_H + 14;
   const filterCount = countFilters(filters);
@@ -425,99 +483,124 @@ export default function MapScreen() {
         onPress={closeAll}
         onRegionChangeComplete={(r) => { regionRef.current = r; setRegion(r); }}
       >
-        {/* En lista: streckad rutt i listans ordning, under nålarna */}
-        {listPlaces && listPlaces.length > 1 && (
-          <Polyline
-            coordinates={listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }))}
-            strokeColor={GOLD}
-            strokeWidth={2.5}
-            lineDashPattern={[8, 7]}
-          />
-        )}
+        {markersReady && (
+          <>
+            {/* En lista: streckad rutt i listans ordning, under nålarna. Finns alltid (osynlig utan lista) */}
+            <Polyline
+              coordinates={listPlaces && listPlaces.length > 1
+                ? listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }))
+                : [PARK, PARK]}
+              strokeColor={listPlaces && listPlaces.length > 1 ? GOLD : "transparent"}
+              strokeWidth={listPlaces && listPlaces.length > 1 ? 2.5 : 0}
+              lineDashPattern={[8, 7]}
+            />
 
-        {listPlaces
-          ? listPlaces.map((p, i) => (
-            <TrackedMarker
-              key={`n-${p.id}-${p.id === selectedPlaceId}`}
-              lat={p.lat!}
-              lng={p.lng!}
-              zIndex={p.id === selectedPlaceId ? 20 : 2}
-              onPress={() => { notePinPress(); openPlace(p); }}
-            >
-              <NumberPin n={i + 1} selected={p.id === selectedPlaceId} />
-            </TrackedMarker>
-          ))
-          : clusters.map((feature) => {
-            const [lng, lat] = feature.geometry.coordinates;
-            const props = feature.properties as { cluster?: boolean; cluster_id?: number; point_count?: number; id?: number };
-            if (props.cluster) {
+            {/* Klumparna: en fast uppsättning som återanvänds, oanvända är osynliga */}
+            {Array.from({ length: CLUSTER_POOL }, (_, i) => {
+              const slot = clusterSlots[i];
               return (
-                <TrackedMarker
-                  key={`c-${props.cluster_id}`}
-                  lat={lat}
-                  lng={lng}
-                  zIndex={1}
+                <Marker
+                  key={`cluster-${i}`}
+                  coordinate={slot ? { latitude: slot.lat, longitude: slot.lng } : PARK}
+                  opacity={slot ? 1 : 0}
+                  zIndex={slot ? 2 : 0}
+                  tracksViewChanges={trackPins}
                   onPress={() => {
+                    const current = slotsRef.current[i];
+                    if (!current) return;
                     notePinPress();
                     Haptics.selectionAsync().catch(() => {});
-                    const zoom = Math.min(cluster.getClusterExpansionZoom(props.cluster_id!), 16);
+                    const zoom = Math.min(cluster.getClusterExpansionZoom(current.id), 16);
                     const delta = 360 / 2 ** zoom;
-                    mapRef.current?.animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: delta, longitudeDelta: delta }, 450);
+                    mapRef.current?.animateToRegion({ latitude: current.lat, longitude: current.lng, latitudeDelta: delta, longitudeDelta: delta }, 450);
                   }}
                 >
-                  <ClusterPin count={props.point_count ?? 0} dark={dark} />
-                </TrackedMarker>
+                  <View collapsable={false}>
+                    <ClusterPin count={slot?.count ?? 2} dark={dark} />
+                  </View>
+                </Marker>
               );
-            }
-            const place = placeById.get(props.id!);
-            if (!place) return null;
-            const selected = place.id === selectedPlaceId;
-            const category = findCategory(place.category);
-            const useLogo = logoMode && !!place.logo_url;
-            return (
-              <TrackedMarker
-                key={`p-${place.id}-${selected}-${useLogo}-${savedIds.has(place.id)}`}
-                lat={lat}
-                lng={lng}
-                zIndex={selected ? 20 : 3}
-                waitForImage={useLogo}
-                onPress={() => { notePinPress(); openPlace(place); }}
-              >
-                {(onReady) => (useLogo
-                  ? <LogoPin uri={place.logo_url!} category={category} selected={selected} onReady={onReady} />
-                  : <PlacePin category={category} selected={selected} visited={visitedIds.has(place.id)} saved={savedIds.has(place.id)} />)}
-              </TrackedMarker>
-            );
-          })}
+            })}
 
-        {shownServices.map((p) => (
-          <TrackedMarker
-            key={`s-${p.id}-${selectedService?.id === p.id}`}
-            lat={p.lat!}
-            lng={p.lng!}
-            zIndex={selectedService?.id === p.id ? 20 : 1}
-            onPress={() => { notePinPress(); openService(p); }}
-          >
-            <ServicePin type={p.type} dark={dark} selected={selectedService?.id === p.id} />
-          </TrackedMarker>
-        ))}
+            {/* Platserna: alla finns alltid, de som inte syns är osynliga */}
+            {markerPlaces.map((place) => {
+              const visible = visibleIds.has(place.id);
+              const selected = place.id === selectedPlaceId;
+              const category = findCategory(place.category);
+              const number = listNumbers?.get(place.id);
+              const useLogo = visible && logoMode && !!place.logo_url;
+              return (
+                <Marker
+                  key={`place-${place.id}`}
+                  coordinate={{ latitude: place.lat!, longitude: place.lng! }}
+                  opacity={visible ? 1 : 0}
+                  zIndex={selected ? 20 : visible ? 3 : 0}
+                  tracksViewChanges={trackPins}
+                  onPress={() => {
+                    if (!visibleRef.current.has(place.id)) return;
+                    notePinPress();
+                    openPlace(place);
+                  }}
+                >
+                  <View collapsable={false}>
+                    {number != null
+                      ? <NumberPin n={number} selected={selected} />
+                      : useLogo
+                        ? <LogoPin uri={place.logo_url!} category={category} selected={selected} />
+                        : <PlacePin category={category} selected={selected} visited={visitedIds.has(place.id)} saved={savedIds.has(place.id)} />}
+                  </View>
+                </Marker>
+              );
+            })}
 
-        {shownTreasures.map((c) => {
-          const selected = selectedSticker?.id === c.id;
-          const has = collected.has(c.id);
-          return (
-            <TrackedMarker
-              key={`t-${c.id}-${has}-${selected}`}
-              lat={c.lat}
-              lng={c.lng}
-              anchorBottom
-              zIndex={selected ? 20 : 4}
-              onPress={() => { notePinPress(); openSticker(c); }}
-            >
-              <StickerPin collected={has} selected={selected} />
-            </TrackedMarker>
-          );
-        })}
+            {markerServices.map((p) => {
+              const visible = shownServiceIds.has(p.id);
+              const selected = selectedService?.id === p.id;
+              return (
+                <Marker
+                  key={`service-${p.id}`}
+                  coordinate={{ latitude: p.lat!, longitude: p.lng! }}
+                  opacity={visible ? 1 : 0}
+                  zIndex={selected ? 20 : visible ? 1 : 0}
+                  tracksViewChanges={trackPins}
+                  onPress={() => {
+                    if (!shownServiceIds.has(p.id)) return;
+                    notePinPress();
+                    openService(p);
+                  }}
+                >
+                  <View collapsable={false}>
+                    <ServicePin type={p.type} dark={dark} selected={selected} />
+                  </View>
+                </Marker>
+              );
+            })}
+
+            {collectibles.map((c) => {
+              const visible = shownTreasureIds.has(c.id);
+              const selected = selectedSticker?.id === c.id;
+              return (
+                <Marker
+                  key={`treasure-${c.id}`}
+                  coordinate={{ latitude: c.lat, longitude: c.lng }}
+                  anchor={{ x: 0.5, y: 1 }}
+                  opacity={visible ? 1 : 0}
+                  zIndex={selected ? 20 : visible ? 4 : 0}
+                  tracksViewChanges={trackPins}
+                  onPress={() => {
+                    if (!shownTreasureIds.has(c.id)) return;
+                    notePinPress();
+                    openSticker(c);
+                  }}
+                >
+                  <View collapsable={false}>
+                    <StickerPin collected={collected.has(c.id)} selected={selected} />
+                  </View>
+                </Marker>
+              );
+            })}
+          </>
+        )}
       </MapView>
 
       {/* Toning överst så statusraden och knapparna alltid syns mot kartan */}
@@ -660,38 +743,6 @@ export default function MapScreen() {
       />
       <LikeBurst burst={burst} />
     </View>
-  );
-}
-
-/**
- * En nål. Kartan ritar om en egen nåls innehåll bara medan tracksViewChanges är på — den stängs av
- * så fort nålen är ritad (eller loggan laddad), annars ritas alla nålar om hela tiden och kartan
- * blir trög. En nål som ändras (vald, sparad) får en ny key och ritas därmed om.
- */
-function TrackedMarker({
-  lat, lng, zIndex, anchorBottom = false, waitForImage = false, onPress, children,
-}: {
-  lat: number; lng: number; zIndex: number; anchorBottom?: boolean; waitForImage?: boolean;
-  onPress: () => void;
-  children: React.ReactNode | ((onReady: () => void) => React.ReactNode);
-}) {
-  const [track, setTrack] = useState(true);
-  useEffect(() => {
-    // Utan bild: ritad efter en kort stund. Med bild: vänta på den, men högst två sekunder
-    const t = setTimeout(() => setTrack(false), waitForImage ? 2000 : 500);
-    return () => clearTimeout(t);
-  }, [waitForImage]);
-  const onReady = useCallback(() => setTimeout(() => setTrack(false), 120), []);
-  return (
-    <Marker
-      coordinate={{ latitude: lat, longitude: lng }}
-      anchor={anchorBottom ? { x: 0.5, y: 1 } : { x: 0.5, y: 0.5 }}
-      zIndex={zIndex}
-      tracksViewChanges={track}
-      onPress={onPress}
-    >
-      {typeof children === "function" ? children(onReady) : children}
-    </Marker>
   );
 }
 
