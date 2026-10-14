@@ -32,11 +32,11 @@ export function usePlaces() {
       const { data, error } = await supabase
         .from("places")
         .select(
-          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level, checkin_enabled, qr_token, site_group"
+          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level, checkin_enabled, qr_token, site_group, amenities"
         )
         .order("name");
       if (error) throw error;
-      return normalizePlaces(data as Tables<"places">[]);
+      return normalizePlaces(data as unknown as Tables<"places">[]);
     },
     staleTime: 60 * 1000,
   });

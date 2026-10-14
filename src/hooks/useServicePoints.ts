@@ -23,7 +23,7 @@ export function useServicePoints(type: string) {
         .eq("type", type)
         .order("name");
       if (error) throw error;
-      return (data ?? []) as ServicePoint[];
+      return (data ?? []) as unknown as ServicePoint[];
     },
     staleTime: 60 * 1000,
   });
@@ -41,8 +41,24 @@ export function useServicePointsByPrefix(prefix: string) {
         .order("type")
         .order("name");
       if (error) throw error;
-      return (data ?? []) as ServicePoint[];
+      return (data ?? []) as unknown as ServicePoint[];
     },
     staleTime: 60 * 1000,
+  });
+}
+
+/** Alla service-punkter (toaletter, laddning, AutoMat, vård …) — kartan visar de typer man valt */
+export function useAllServicePoints() {
+  return useQuery({
+    queryKey: ["service-points", "all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("service_points" as any)
+        .select("id, name, description, type, lat, lng, phone, logo_url")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as unknown as ServicePoint[];
+    },
+    staleTime: 5 * 60 * 1000,
   });
 }

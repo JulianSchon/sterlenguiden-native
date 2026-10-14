@@ -1,102 +1,60 @@
 /**
- * Kartan – fullscreen map med mörkt glass-UI ovanpå.
- * Spec: native-map-spec.md
+ * Karta — svartvit karta i appens tema (mapStyle.ts), där Österlens platser är det enda som har
+ * färg: runda medaljonger i kategoriernas färger (MapPins.tsx). Utzoomat slås närliggande platser
+ * ihop till en klump med antalet (supercluster).
  *
- * Kartan är ljus (mutedStandard), allt UI ovanpå är mörkt glas.
- * Gradienter via SVG (expo-linear-gradient ej tillgänglig i dev-client).
+ * - Trycker man på en nål glider korten upp (PlaceCarousel); man sveper mellan närliggande platser
+ *   och kartan följer med.
+ * - Filter (MapFilterSheet): kategorier (en vald = platsernas loggor i stället för nålar),
+ *   praktiskt, service (toaletter, laddning …), en av mina listor (numrerad, med en streckad rutt
+ *   i listans ordning) och skatter.
+ * - Kommer man hit med ?place= (från ett minne) eller ?sticker= (Hem, Mitt Österlen) visas den
+ *   platsen/skatten direkt; annars centreras kartan på mig varje gång man går in på fliken.
  */
-import React, {
-  useState, useMemo, useRef, useEffect, useCallback,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity, Pressable,
-  Modal, ScrollView, Image, Linking, Platform,
-  Dimensions, Animated,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Linking,
 } from "react-native";
-import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import MapView, { Marker, Polyline, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
-import {
-  SlidersHorizontal, X, Navigation, ArrowRight, ArrowLeft, Locate,
-  Clock, MapPin, UtensilsCrossed, Coffee, Trees, Landmark,
-  BedDouble, Zap, ShoppingBag, Palette, Layers,
-  ParkingSquare, Wifi, Dog, Sun, Accessibility,
-  Baby, Leaf, CalendarCheck, Star,
-} from "lucide-react-native";
-import Svg, {
-  Defs, LinearGradient as SvgGrad, Stop,
-  Rect as SvgRect, Circle, Path,
-} from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
+import Reanimated, { FadeIn, FadeInDown, FadeOutDown } from "react-native-reanimated";
+import Supercluster from "supercluster";
+import { ArrowLeft, Locate, Navigation, SlidersHorizontal, X } from "lucide-react-native";
 import { usePlaces, isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
+import { useAllServicePoints, type ServicePoint } from "@/hooks/useServicePoints";
+import { useLists, useList } from "@/hooks/useLists";
+import { useVisits } from "@/hooks/useVisits";
+import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
+import { findCategory, CATEGORIES } from "@/theme/categories";
+import { useTheme } from "@/theme/ThemeProvider";
+import { distanceMeters } from "@/lib/checkin";
 import { StickerPin } from "@/components/stickers/StickerPin";
 import { StickerCard } from "@/components/stickers/StickerCard";
+import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
+import { ClusterPin, LogoPin, NumberPin, PlacePin, ServicePin, SERVICE_TYPES } from "@/components/map/MapPins";
+import { PlaceCarousel, travelLabel, type CarouselItem } from "@/components/map/PlaceCarousel";
+import {
+  MapFilterSheet, EMPTY_FILTERS, AMENITIES, countFilters, type MapFilters,
+} from "@/components/map/MapFilterSheet";
+import { DARK_MAP_STYLE, LIGHT_MAP_STYLE, MAP_IS_STYLEABLE, MAP_PROVIDER } from "@/components/map/mapStyle";
 
-const { width: SW, height: SH } = Dimensions.get("window");
-
-// ─── Design tokens ──────────────────────────────────────────────────────────
-const BG   = "#121212";
 const GOLD = "#C5A059";
-const FG   = "#F5F2EA";
-const MUTED = "rgba(255,255,255,0.45)";
+/** Startläge innan positionen är känd: hela Österlen */
+const INIT_REGION: Region = { latitude: 55.5, longitude: 14.1, latitudeDelta: 0.22, longitudeDelta: 0.22 };
+/** Så många närliggande platser man kan svepa mellan från en nål */
+const CAROUSEL_SIZE = 15;
+/** Kartnavigeringens höjd längst ner (FloatingNav, kartvarianten) */
+const NAV_H = 56 + 12;
 
-// ─── Karta-startläge ────────────────────────────────────────────────────────
-const INIT_REGION = {
-  latitude: 55.5,
-  longitude: 14.1,
-  latitudeDelta: 0.22,
-  longitudeDelta: 0.22,
-};
-
-// ─── Kategorier ─────────────────────────────────────────────────────────────
-const CAT_FILTERS = [
-  { id: "all",                  label: "Alla",               Icon: Layers         },
-  { id: "Mat & Dryck",          label: "Mat & Dryck",        Icon: UtensilsCrossed },
-  { id: "Café & Bageri",        label: "Café & Bageri",      Icon: Coffee         },
-  { id: "Natur",                label: "Natur & Upplevelser",Icon: Trees          },
-  { id: "Sevärdhet",            label: "Sevärdheter",        Icon: Landmark       },
-  { id: "Hotell",               label: "Hotell & B&B",       Icon: BedDouble      },
-  { id: "Aktiviteter",          label: "Aktiviteter",        Icon: Zap            },
-  { id: "Butiker",              label: "Butiker",            Icon: ShoppingBag    },
-  { id: "Design",               label: "Design & Hantverk",  Icon: Palette        },
-] as const;
-
-// ─── Praktiska filter ────────────────────────────────────────────────────────
-const PRACTICAL = [
-  { id: "open_now",        label: "Öppet nu",       Icon: Clock          },
-  { id: "parking",         label: "Parkering",       Icon: ParkingSquare  },
-  { id: "wifi",            label: "Wifi",            Icon: Wifi           },
-  { id: "pets",            label: "Hundvänligt",     Icon: Dog            },
-  { id: "outdoor",         label: "Uteservering",    Icon: Sun            },
-  { id: "accessible",      label: "Tillgänglighet",  Icon: Accessibility  },
-  { id: "family",          label: "Barnvänligt",     Icon: Baby           },
-  { id: "vegetarian",      label: "Vegetariskt",     Icon: Leaf           },
-  { id: "ev_charging",     label: "Laddstolpe",      Icon: Zap            },
-  { id: "booking_required",label: "Bokning krävs",   Icon: CalendarCheck  },
-] as const;
-
-// ─── Hjälpare ────────────────────────────────────────────────────────────────
-function haversineKm(
-  lat1: number, lng1: number, lat2: number, lng2: number,
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function drivingStr(raw: number): string {
-  const km = raw * 1.3 + 1;
-  return km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
-}
+/** Kartans zoomnivå (som kartleverantörerna räknar den) ur hur mycket som syns */
+const zoomOf = (r: Region) => Math.round(Math.log2(360 / r.longitudeDelta));
 
 function parseAmenities(raw: unknown): Record<string, boolean> {
   if (!raw) return {};
@@ -104,74 +62,39 @@ function parseAmenities(raw: unknown): Record<string, boolean> {
   try { return JSON.parse(raw as string); } catch { return {}; }
 }
 
-// ─── Custom SVG-pins ─────────────────────────────────────────────────────────
-function StandardPin() {
-  return (
-    <Svg width={24} height={32} viewBox="0 0 24 32">
-      <Path
-        d="M12 0C5.373 0 0 5.373 0 12c0 8.5 12 20 12 20S24 20.5 24 12C24 5.373 18.627 0 12 0z"
-        fill="hsl(150,30%,28%)"
-        stroke="rgba(0,0,0,0.2)"
-        strokeWidth={1}
-      />
-      <Circle cx={12} cy={11} r={4} fill="white" />
-    </Svg>
-  );
-}
+type PlacePoint = Supercluster.PointFeature<{ id: number }>;
 
-function SelectedPin() {
-  return (
-    <Svg width={36} height={44} viewBox="0 0 36 44">
-      <Path
-        d="M18 0C8.059 0 0 8.059 0 18c0 12.75 18 26 18 26S36 30.75 36 18C36 8.059 27.941 0 18 0z"
-        fill="hsl(38,70%,55%)"
-        stroke="rgba(0,0,0,0.2)"
-        strokeWidth={1}
-      />
-      <Circle cx={18} cy={16} r={7} fill="white" />
-    </Svg>
-  );
-}
-
-// ─── Huvud-komponent ─────────────────────────────────────────────────────────
 export default function MapScreen() {
-  const router  = useRouter();
-  const { sticker: stickerParam, place: placeParam, from: fromMemoryParam } = useLocalSearchParams<{ sticker?: string; place?: string; from?: string }>();
-  const insets  = useSafeAreaInsets();
-  const mapRef  = useRef<MapView>(null);
-
-  const [selectedPlace, setSelectedPlace]         = useState<Place | null>(null);
-  const [selectedCats, setSelectedCats]           = useState<Set<string>>(new Set());
-  const [practicalFilters, setPracticalFilters]   = useState<Set<string>>(new Set());
-  const [filterOpen, setFilterOpen]               = useState(false);
-  const [selectedSticker, setSelectedSticker]     = useState<Collectible | null>(null);
-  const [stickersOnly, setStickersOnly]           = useState(false);
-  const [userLoc, setUserLoc]                     = useState<{ latitude: number; longitude: number } | null>(null);
-  // Spegling av userLoc i en ref, bara till fokus-återställningen nedan — den ska läsa den
-  // SENASTE positionen när man går in på fliken, utan att behöva ha userLoc (som uppdateras
-  // var 5:e sekund / 10:e meter) i sin beroendelista, annars skulle kartan rycka tillbaka till
-  // "mig" mitt i att man panorerar runt, inte bara när man faktiskt går in på fliken.
-  const userLocRef = useRef<{ latitude: number; longitude: number } | null>(null);
-  // Om man kommer hit med ett mål att fokusera (sticker eller plats) ska INTE det första
-  // GPS-fixet få centrera om till "mig" ovanpå det en liten stund senare (ett vanligt race —
-  // platsens animateToRegion hinner köra först, sen landar GPS-fixet och vinner kampen om
-  // kartans kamera). Markera den auto-centreringen som redan gjord i det fallet.
-  const locDone       = useRef(Boolean(stickerParam || placeParam));
-  // Förhindrar att MapView.onPress nollställer kortet direkt efter marker-press
-  const markerJustPressed = useRef(false);
-
-  const cardAnim = useRef(new Animated.Value(0)).current;
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { sticker: stickerParam, place: placeParam, from: fromMemoryParam } =
+    useLocalSearchParams<{ sticker?: string; place?: string; from?: string }>();
+  const insets = useSafeAreaInsets();
+  const { colors, scheme } = useTheme();
+  const dark = scheme === "dark";
+  const mapRef = useRef<MapView>(null);
+  const regionRef = useRef<Region>(INIT_REGION);
+  const [region, setRegion] = useState<Region>(INIT_REGION);
 
   const { data: places = [] } = usePlaces();
   const { data: collectibles = [] } = useCollectibles();
   const { data: collected = new Map<string, string>() } = useCollected();
-  // En plats som också är ett samlarobjekt visas bara som lila sticker-nål, aldrig som vanlig grön
-  const stickerPlaceIds = useMemo(
-    () => new Set(collectibles.map((c) => c.placeId).filter((id): id is number => id != null)),
-    [collectibles]
-  );
+  const { data: servicePoints = [] } = useAllServicePoints();
+  const { data: lists = [] } = useLists();
+  const { data: visits = [] } = useVisits();
+  const { data: favorites = [] } = useFavorites();
 
-  // ── Användarposition ────────────────────────────────────────────────────────
+  const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const { data: listDetail } = useList(filters.listId ?? undefined);
+
+  // ── Min position ──────────────────────────────────────────────────────────
+  const [userLoc, setUserLoc] = useState<{ latitude: number; longitude: number } | null>(null);
+  // Senaste positionen, för fokusåterställningen — utan userLoc-statet i beroendena, annars hade
+  // kartan ryckt tillbaka till mig varje gång positionen uppdateras medan man panorerar
+  const userLocRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  // Kommer man hit med ett mål (plats eller skatt) ska första GPS-fixet inte centrera om till mig
+  const locDone = useRef(Boolean(stickerParam || placeParam));
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
     (async () => {
@@ -185,10 +108,7 @@ export default function MapScreen() {
           userLocRef.current = { latitude, longitude };
           if (!locDone.current) {
             locDone.current = true;
-            mapRef.current?.animateToRegion(
-              { latitude, longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 },
-              1500,
-            );
+            mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 1200);
           }
         },
       );
@@ -196,969 +116,622 @@ export default function MapScreen() {
     return () => { sub?.remove(); };
   }, []);
 
-  // Kartan ska alltid nollställas till "var jag är" varje gång man GÅR IN på fliken (inte bara
-  // första gången någonsin, som locDone-logiken ovan) — annars står man kvar där man råkade
-  // panorera/zooma förra besöket. Hoppar över det när man kommer hit med ett specifikt mål
-  // (en plats eller sticker) — då ska DET visas, inte min egen position. Läser userLocRef i
-  // stället för userLoc-statet rakt av, så detta bara kör vid faktiska fokusbyten, inte varje
-  // gång GPS-positionen uppdateras (var 5:e sekund) medan man redan står kvar på fliken.
-  useFocusEffect(
-    useCallback(() => {
-      if (placeParam || stickerParam) return;
-      setSelectedPlace(null);
-      setSelectedSticker(null);
-      if (userLocRef.current) {
-        mapRef.current?.animateToRegion(
-          { latitude: userLocRef.current.latitude, longitude: userLocRef.current.longitude, latitudeDelta: 0.08, longitudeDelta: 0.08 },
-          800,
-        );
-      }
-    }, [placeParam, stickerParam])
+  // ── Sparade platser: hjärtat ändras här direkt, resten av appen får veta när man lämnar kartan
+  // (att uppdatera favoriterna överallt mitt i hjärtanimationen gav ett hack)
+  const serverSaved = useMemo(() => new Set(favorites.flatMap((f) => (f.place_id != null ? [f.place_id] : []))), [favorites]);
+  const [savedOverrides, setSavedOverrides] = useState<Map<number, boolean>>(() => new Map());
+  const savedIds = useMemo(() => {
+    const set = new Set(serverSaved);
+    savedOverrides.forEach((on, id) => (on ? set.add(id) : set.delete(id)));
+    return set;
+  }, [serverSaved, savedOverrides]);
+  const savedRef = useRef(savedIds);
+  savedRef.current = savedIds;
+  const toggleSave = useCallback((placeId: number) => {
+    const save = !savedRef.current.has(placeId);
+    setSavedOverrides((prev) => new Map(prev).set(placeId, save));
+    savePlaceFavorite(placeId, save).catch(() => setSavedOverrides((prev) => new Map(prev).set(placeId, !save)));
+  }, []);
+  const overridesRef = useRef(savedOverrides);
+  overridesRef.current = savedOverrides;
+  const { burst, show: showBurst } = useLikeBurst();
+
+  // ── Det som syns ──────────────────────────────────────────────────────────
+  const visitedIds = useMemo(() => new Set(visits.map((v) => v.place_id)), [visits]);
+  // En plats som också är en skatt visas bara som skattens lila nål
+  const stickerPlaceIds = useMemo(
+    () => new Set(collectibles.map((c) => c.placeId).filter((id): id is number => id != null)),
+    [collectibles],
   );
+  const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
 
-  // ── Kort-animation ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    Animated.spring(cardAnim, {
-      toValue: selectedPlace ? 1 : 0,
-      useNativeDriver: true,
-      stiffness: 400,
-      damping: 30,
-    }).start();
-  }, [selectedPlace]);
+  // En vald lista: dess platser i listans ordning
+  const listPlaces = useMemo(() => {
+    if (!filters.listId || !listDetail) return null;
+    return listDetail.places
+      .map((lp) => placeById.get(lp.place.id))
+      .filter((p): p is Place => !!p && p.lat != null && p.lng != null);
+  }, [filters.listId, listDetail, placeById]);
 
-  // ── Filtrering ─────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
+  const shownPlaces = useMemo(() => {
+    if (filters.treasures === "only") return [];
+    if (listPlaces) return listPlaces;
+    const amenityKeys = [...filters.amenities].filter((k) => k !== "open_now");
     return places.filter((p) => {
-      if (!p.lat || !p.lng) return false;
-
-      if (selectedCats.size > 0) {
-        const cat = (p.category ?? "").toLowerCase();
-        const ok = Array.from(selectedCats).some((f) => {
-          const fl = f.toLowerCase();
-          return (
-            cat.includes(fl) ||
-            cat.includes(fl.replace("é", "e")) ||
-            fl.includes(cat.split(",")[0].trim())
-          );
-        });
-        if (!ok) return false;
+      if (p.lat == null || p.lng == null || stickerPlaceIds.has(p.id)) return false;
+      if (filters.cats.size > 0) {
+        const cat = findCategory(p.category)?.id;
+        if (!cat || !filters.cats.has(cat)) return false;
       }
-
-      if (practicalFilters.has("open_now")) {
-        if (!isPlaceOpen(p.opening_hours as Record<string, string> | null)) return false;
-      }
-
-      const amenityKeys = Array.from(practicalFilters).filter((k) => k !== "open_now");
+      if (filters.amenities.has("open_now") && !isPlaceOpen(p.opening_hours as Record<string, string> | null)) return false;
       if (amenityKeys.length > 0) {
-        const am = parseAmenities(p.amenities);
+        const am = parseAmenities((p as Place & { amenities?: unknown }).amenities);
         if (!amenityKeys.every((k) => am[k])) return false;
       }
-
       return true;
     });
-  }, [places, selectedCats, practicalFilters]);
+  }, [places, filters, listPlaces, stickerPlaceIds]);
 
-  // ── Aktiva filterpiller ────────────────────────────────────────────────────
-  const activePills = useMemo(() => {
-    const out: { id: string; label: string; type: "cat" | "prac" | "sticker" }[] = [];
-    selectedCats.forEach((id) => {
-      const c = CAT_FILTERS.find((x) => x.id === id);
-      if (c) out.push({ id, label: c.label, type: "cat" });
-    });
-    practicalFilters.forEach((id) => {
-      const p = PRACTICAL.find((x) => x.id === id);
-      if (p) out.push({ id, label: p.label, type: "prac" });
-    });
-    if (stickersOnly) out.unshift({ id: "stickers", label: "Skatter", type: "sticker" });
-    return out;
-  }, [selectedCats, practicalFilters, stickersOnly]);
+  const shownTreasures = useMemo(() => {
+    if (filters.treasures === "none") return [];
+    if (filters.treasures === "unfound") return collectibles.filter((c) => !collected.has(c.id));
+    return collectibles;
+  }, [collectibles, collected, filters.treasures]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleMarkerPress = useCallback((place: Place) => {
-    markerJustPressed.current = true;
-    setTimeout(() => { markerJustPressed.current = false; }, 300);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setSelectedSticker(null);
-    setSelectedPlace(place);
-    if (place.lat && place.lng) {
-      mapRef.current?.animateToRegion(
-        { latitude: place.lat - 0.006, longitude: place.lng, latitudeDelta: 0.04, longitudeDelta: 0.04 },
-        800,
-      );
-    }
-  }, []);
+  const shownServices = useMemo(
+    () => servicePoints.filter((p) => filters.services.has(p.type) && p.lat != null && p.lng != null),
+    [servicePoints, filters.services],
+  );
 
-  const handleStickerPress = useCallback((c: Collectible) => {
-    markerJustPressed.current = true;
-    setTimeout(() => { markerJustPressed.current = false; }, 300);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setSelectedPlace(null);
-    setSelectedSticker(c);
+  // En kategori vald (och ingen lista): platsernas loggor i stället för nålar
+  const logoMode = filters.cats.size === 1 && !listPlaces;
+
+  // ── Klumpar när man zoomat ut (inte för en lista — där syns alla med sina nummer) ──
+  const cluster = useMemo(() => {
+    const index = new Supercluster<{ id: number }>({ radius: 54, maxZoom: 13, minPoints: 3 });
+    const points: PlacePoint[] = shownPlaces.map((p) => ({
+      type: "Feature",
+      properties: { id: p.id },
+      geometry: { type: "Point", coordinates: [p.lng!, p.lat!] },
+    }));
+    index.load(points);
+    return index;
+  }, [shownPlaces]);
+  const clusters = useMemo(() => {
+    if (listPlaces) return [];
+    const r = region;
+    const bbox: [number, number, number, number] = [
+      r.longitude - r.longitudeDelta, r.latitude - r.latitudeDelta,
+      r.longitude + r.longitudeDelta, r.latitude + r.latitudeDelta,
+    ];
+    return cluster.getClusters(bbox, zoomOf(r));
+  }, [cluster, region, listPlaces]);
+
+  // ── Valt ──────────────────────────────────────────────────────────────────
+  const [carousel, setCarousel] = useState<{ ids: number[]; index: number; key: number } | null>(null);
+  const [selectedService, setSelectedService] = useState<ServicePoint | null>(null);
+  const [selectedSticker, setSelectedSticker] = useState<Collectible | null>(null);
+  const selectedPlaceId = carousel ? carousel.ids[carousel.index] : null;
+  // Kartans tryck kommer även när en nål trycks — det ska inte stänga kortet nålen just öppnade
+  const pinJustPressed = useRef(false);
+  const notePinPress = () => {
+    pinJustPressed.current = true;
+    setTimeout(() => { pinJustPressed.current = false; }, 300);
+  };
+
+  /** Flytta kartan så platsen hamnar ovanför korten (och zooma in om man står långt ut) */
+  const focusOn = useCallback((lat: number, lng: number) => {
+    const r = regionRef.current;
+    const delta = r.longitudeDelta > 0.12 ? 0.05 : r.longitudeDelta;
+    const latDelta = r.longitudeDelta > 0.12 ? 0.05 : r.latitudeDelta;
     mapRef.current?.animateToRegion(
-      { latitude: c.lat - 0.006, longitude: c.lng, latitudeDelta: 0.04, longitudeDelta: 0.04 },
-      800,
+      { latitude: lat - latDelta * 0.2, longitude: lng, latitudeDelta: latDelta, longitudeDelta: delta },
+      450,
     );
   }, []);
 
-  // Från Hem eller Mitt Österlen: öppna en viss stickers kort direkt
-  useEffect(() => {
-    if (!stickerParam) return;
-    const c = collectibles.find((x) => x.id === stickerParam);
-    if (c) handleStickerPress(c);
-  }, [stickerParam, collectibles, handleStickerPress]);
+  const shownRef = useRef({ shownPlaces, listPlaces });
+  shownRef.current = { shownPlaces, listPlaces };
+  const openPlace = useCallback((place: Place) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setSelectedService(null);
+    setSelectedSticker(null);
+    setCarousel((prev) => {
+      // Finns platsen redan bland korten: svep dit
+      if (prev && prev.ids.includes(place.id)) return { ...prev, index: prev.ids.indexOf(place.id) };
+      const { shownPlaces: shown, listPlaces: inList } = shownRef.current;
+      const ids = inList
+        ? inList.map((p) => p.id)
+        // Annars: de närmaste platserna runt den man tryckte på, den själv först
+        : shown
+          .map((p) => ({ id: p.id, d: distanceMeters(place.lat!, place.lng!, p.lat!, p.lng!) }))
+          .sort((a, b) => a.d - b.d)
+          .slice(0, CAROUSEL_SIZE)
+          .map((x) => x.id);
+      if (!ids.includes(place.id)) ids.unshift(place.id);
+      return { ids, index: ids.indexOf(place.id), key: Date.now() };
+    });
+    if (place.lat != null && place.lng != null) focusOn(place.lat, place.lng);
+  }, [focusOn]);
 
-  // Från ett minne ("Visa plats på kartan"): samma idé som stickerParam ovan, fast för en vanlig plats
-  useEffect(() => {
-    if (!placeParam) return;
-    const p = places.find((x) => String(x.id) === placeParam);
-    if (p) handleMarkerPress(p);
-  }, [placeParam, places, handleMarkerPress]);
+  const carouselRef = useRef(carousel);
+  carouselRef.current = carousel;
+  const onCarouselIndex = useCallback((index: number) => {
+    Haptics.selectionAsync().catch(() => {});
+    setCarousel((prev) => (prev ? { ...prev, index } : prev));
+    const id = carouselRef.current?.ids[index];
+    const p = id != null ? placeById.get(id) : undefined;
+    if (p?.lat != null && p.lng != null) focusOn(p.lat, p.lng);
+  }, [placeById, focusOn]);
 
-  const handleMapPress = useCallback(() => {
-    if (markerJustPressed.current) return; // ignorera tap som hörde till marker
-    setSelectedPlace(null);
+  const openSticker = useCallback((c: Collectible) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setCarousel(null);
+    setSelectedService(null);
+    setSelectedSticker(c);
+    focusOn(c.lat, c.lng);
+  }, [focusOn]);
+
+  const openService = useCallback((p: ServicePoint) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setCarousel(null);
+    setSelectedSticker(null);
+    setSelectedService(p);
+    if (p.lat != null && p.lng != null) focusOn(p.lat, p.lng);
+  }, [focusOn]);
+
+  const closeAll = useCallback(() => {
+    if (pinJustPressed.current) return;
+    setCarousel(null);
+    setSelectedService(null);
     setSelectedSticker(null);
   }, []);
 
-  const handleLocate = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (userLoc) {
-      mapRef.current?.animateToRegion(
-        { ...userLoc, latitudeDelta: 0.08, longitudeDelta: 0.08 },
-        1000,
-      );
-    }
-  }, [userLoc]);
+  // Från Hem eller Mitt Österlen: en viss skatt direkt
+  useEffect(() => {
+    if (!stickerParam) return;
+    const c = collectibles.find((x) => x.id === stickerParam);
+    if (c) openSticker(c);
+  }, [stickerParam, collectibles, openSticker]);
+  // Från ett minne ("Visa plats på kartan"): en viss plats direkt
+  useEffect(() => {
+    if (!placeParam) return;
+    const p = places.find((x) => String(x.id) === placeParam);
+    if (p) openPlace(p);
+  }, [placeParam, places, openPlace]);
 
-  const handleNavigate = useCallback((place: Place) => {
-    if (!place.lat || !place.lng) return;
-    const url =
-      Platform.OS === "ios"
-        ? `maps://?daddr=${place.lat},${place.lng}`
-        : `google.navigation:q=${place.lat},${place.lng}`;
-    Linking.openURL(url);
-  }, []);
-
-  const toggleCat = useCallback((id: string) => {
-    if (id === "all") { setSelectedCats(new Set()); return; }
-    setSelectedCats((prev) => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  }, []);
-
-  const togglePractical = useCallback((id: string) => {
-    setPracticalFilters((prev) => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  }, []);
-
-  const removePill = useCallback(
-    (pill: { id: string; type: "cat" | "prac" | "sticker" }) => {
-      if (pill.type === "sticker") {
-        setStickersOnly(false);
-      } else if (pill.type === "cat") {
-        setSelectedCats((prev) => { const n = new Set(prev); n.delete(pill.id); return n; });
-      } else {
-        setPracticalFilters((prev) => { const n = new Set(prev); n.delete(pill.id); return n; });
+  // Varje gång man går in på fliken: tillbaka till där jag är (om man inte kom hit med ett mål).
+  // När man lämnar den: resten av appen får veta om hjärtan man tryckt på.
+  useFocusEffect(
+    useCallback(() => {
+      if (!placeParam && !stickerParam) {
+        setCarousel(null);
+        setSelectedSticker(null);
+        setSelectedService(null);
+        if (userLocRef.current) {
+          mapRef.current?.animateToRegion({ ...userLocRef.current, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 800);
+        }
       }
-    },
-    [],
+      return () => {
+        if (overridesRef.current.size === 0) return;
+        queryClient.invalidateQueries({ queryKey: ["favorites"] }).then(() => setSavedOverrides(new Map()));
+      };
+    }, [placeParam, stickerParam, queryClient]),
   );
 
-  const resetFilters = useCallback(() => {
-    setSelectedCats(new Set());
-    setPracticalFilters(new Set());
-    setStickersOnly(false);
-  }, []);
+  // Nya filter: korten kan visa platser som inte längre syns, så de stängs
+  // (inte första gången — då kan en plats eller skatt man skickats hit för just ha öppnats)
+  const filtersMounted = useRef(false);
+  useEffect(() => {
+    if (!filtersMounted.current) { filtersMounted.current = true; return; }
+    setCarousel(null);
+    setSelectedService(null);
+    setSelectedSticker(null);
+  }, [filters]);
 
-  // ── Avstånd till vald plats ────────────────────────────────────────────────
-  const distanceStr = useMemo(() => {
-    if (!userLoc || !selectedPlace?.lat || !selectedPlace?.lng) return null;
-    const raw = haversineKm(userLoc.latitude, userLoc.longitude, selectedPlace.lat, selectedPlace.lng);
-    return drivingStr(raw);
-  }, [userLoc, selectedPlace]);
+  // En vald lista: zooma så hela rutten syns
+  useEffect(() => {
+    if (!listPlaces || listPlaces.length === 0) return;
+    setCarousel(null);
+    const coords = listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }));
+    setTimeout(() => {
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: { top: insets.top + 140, right: 60, bottom: NAV_H + insets.bottom + 80, left: 60 },
+        animated: true,
+      });
+    }, 350);
+  }, [listPlaces, insets.top, insets.bottom]);
 
-  // ── Öppet/stängt ──────────────────────────────────────────────────────────
-  const getOpenStatus = (place: Place): boolean | null => {
-    if (!place.opening_hours) return null;
-    const cat = (place.category ?? "").toLowerCase();
-    const skipWords = ["hotell", "b&b", "natur", "upplevelse", "sevärdhet"];
-    if (skipWords.some((w) => cat.includes(w))) return null;
-    return isPlaceOpen(place.opening_hours as Record<string, string> | null);
+  // ── Handlingar ────────────────────────────────────────────────────────────
+  const locate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (userLoc) mapRef.current?.animateToRegion({ ...userLoc, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 900);
   };
+  const navigateTo = useCallback((lat: number | null, lng: number | null) => {
+    if (lat == null || lng == null) return;
+    Linking.openURL(Platform.OS === "ios" ? `maps://?daddr=${lat},${lng}` : `google.navigation:q=${lat},${lng}`).catch(() => {});
+  }, []);
+  const openPlacePage = useCallback((p: Place) => router.push(`/place/${p.id}` as any), [router]);
+  const distanceKm = useCallback((p: Place) => {
+    if (!userLoc || p.lat == null || p.lng == null) return null;
+    return distanceMeters(userLoc.latitude, userLoc.longitude, p.lat, p.lng) / 1000;
+  }, [userLoc]);
+
+  const carouselItems: CarouselItem[] = useMemo(() => {
+    if (!carousel) return [];
+    const numbers = listPlaces ? new Map(listPlaces.map((p, i) => [p.id, i + 1])) : null;
+    return carousel.ids.flatMap((id) => {
+      const place = placeById.get(id);
+      if (!place) return [];
+      return [{ place, category: findCategory(place.category), saved: savedIds.has(id), listNumber: numbers?.get(id) }];
+    });
+  }, [carousel, placeById, savedIds, listPlaces]);
+
+  // Filtrets aktiva val som små rutor överst på kartan (tryck = ta bort)
+  const activeChips = useMemo(() => {
+    const out: { key: string; label: string; remove: () => void }[] = [];
+    if (filters.listId) {
+      const name = lists.find((l) => l.id === filters.listId)?.name ?? "Lista";
+      out.push({ key: "list", label: name, remove: () => setFilters((f) => ({ ...f, listId: null })) });
+    }
+    filters.cats.forEach((id) => {
+      const label = CATEGORIES.find((c) => c.id === id)?.label ?? id;
+      out.push({ key: `c-${id}`, label, remove: () => setFilters((f) => { const cats = new Set(f.cats); cats.delete(id); return { ...f, cats }; }) });
+    });
+    filters.amenities.forEach((id) => {
+      const label = AMENITIES.find((a) => a.id === id)?.label ?? id;
+      out.push({ key: `a-${id}`, label, remove: () => setFilters((f) => { const amenities = new Set(f.amenities); amenities.delete(id); return { ...f, amenities }; }) });
+    });
+    filters.services.forEach((type) => {
+      const label = SERVICE_TYPES.find((t) => t.type === type)?.label ?? type;
+      out.push({ key: `s-${type}`, label, remove: () => setFilters((f) => { const services = new Set(f.services); services.delete(type); return { ...f, services }; }) });
+    });
+    if (filters.treasures !== "all") {
+      const label = { unfound: "Ej hittade skatter", only: "Bara skatter", none: "Inga skatter" }[filters.treasures];
+      out.push({ key: "t", label, remove: () => setFilters((f) => ({ ...f, treasures: "all" })) });
+    }
+    return out;
+  }, [filters, lists]);
+
+  const resultLabel = filters.treasures === "only"
+    ? `Visa ${shownTreasures.length} skatter`
+    : shownPlaces.length === 1 ? "Visa 1 plats" : `Visa ${shownPlaces.length} platser`;
 
   const headerTop = Math.max(insets.top, 44);
+  const cardsBottom = insets.bottom + NAV_H + 14;
+  const filterCount = countFilters(filters);
 
   return (
-    <View style={s.root}>
-
-      {/* ── Karta ─────────────────────────────────────────────────────────── */}
+    <View style={[s.root, { backgroundColor: colors.bg }]}>
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
-        mapType="mutedStandard"
-        userInterfaceStyle="light"
-        provider={PROVIDER_DEFAULT}
+        provider={MAP_PROVIDER}
+        customMapStyle={MAP_IS_STYLEABLE ? (dark ? DARK_MAP_STYLE : LIGHT_MAP_STYLE) : undefined}
+        mapType={MAP_IS_STYLEABLE ? "standard" : "mutedStandard"}
+        userInterfaceStyle={dark ? "dark" : "light"}
+        showsPointsOfInterest={false}
+        showsBuildings={false}
+        showsTraffic={false}
+        showsIndoors={false}
+        toolbarEnabled={false}
         initialRegion={INIT_REGION}
         showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
-        // Apple Maps-loggan positioneras precis ovanför navbaren (måste vara synlig per ToS)
+        // Kartleverantörens logga precis ovanför navigeringen (måste synas enligt villkoren)
         legalLabelInsets={{ bottom: insets.bottom + 2, left: 8, right: 0, top: 0 }}
-        onPress={handleMapPress}
+        onPress={closeAll}
+        onRegionChangeComplete={(r) => { regionRef.current = r; setRegion(r); }}
       >
-        {!stickersOnly && filtered.filter((p) => !stickerPlaceIds.has(p.id)).map((place) => {
-          const isSelected = selectedPlace?.id === place.id;
-          return (
-            <Marker
-              key={place.id}
-              coordinate={{ latitude: place.lat!, longitude: place.lng! }}
-              onPress={() => handleMarkerPress(place)}
-              anchor={{ x: 0.5, y: 1 }}
-              tracksViewChanges={isSelected}
-            >
-              {isSelected ? <SelectedPin /> : <StandardPin />}
-            </Marker>
-          );
-        })}
+        {/* En lista: streckad rutt i listans ordning, under nålarna */}
+        {listPlaces && listPlaces.length > 1 && (
+          <Polyline
+            coordinates={listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }))}
+            strokeColor={GOLD}
+            strokeWidth={2.5}
+            lineDashPattern={[8, 7]}
+          />
+        )}
 
-        {/* Samlarobjekt: alltid synliga, lila (ljus = ej upplåst, mörk = upplåst) */}
-        {collectibles.map((c) => {
-          const isSelected = selectedSticker?.id === c.id;
+        {listPlaces
+          ? listPlaces.map((p, i) => (
+            <TrackedMarker
+              key={`n-${p.id}-${p.id === selectedPlaceId}`}
+              lat={p.lat!}
+              lng={p.lng!}
+              zIndex={p.id === selectedPlaceId ? 20 : 2}
+              onPress={() => { notePinPress(); openPlace(p); }}
+            >
+              <NumberPin n={i + 1} selected={p.id === selectedPlaceId} />
+            </TrackedMarker>
+          ))
+          : clusters.map((feature) => {
+            const [lng, lat] = feature.geometry.coordinates;
+            const props = feature.properties as { cluster?: boolean; cluster_id?: number; point_count?: number; id?: number };
+            if (props.cluster) {
+              return (
+                <TrackedMarker
+                  key={`c-${props.cluster_id}`}
+                  lat={lat}
+                  lng={lng}
+                  zIndex={1}
+                  onPress={() => {
+                    notePinPress();
+                    Haptics.selectionAsync().catch(() => {});
+                    const zoom = Math.min(cluster.getClusterExpansionZoom(props.cluster_id!), 16);
+                    const delta = 360 / 2 ** zoom;
+                    mapRef.current?.animateToRegion({ latitude: lat, longitude: lng, latitudeDelta: delta, longitudeDelta: delta }, 450);
+                  }}
+                >
+                  <ClusterPin count={props.point_count ?? 0} dark={dark} />
+                </TrackedMarker>
+              );
+            }
+            const place = placeById.get(props.id!);
+            if (!place) return null;
+            const selected = place.id === selectedPlaceId;
+            const category = findCategory(place.category);
+            const useLogo = logoMode && !!place.logo_url;
+            return (
+              <TrackedMarker
+                key={`p-${place.id}-${selected}-${useLogo}-${savedIds.has(place.id)}`}
+                lat={lat}
+                lng={lng}
+                zIndex={selected ? 20 : 3}
+                waitForImage={useLogo}
+                onPress={() => { notePinPress(); openPlace(place); }}
+              >
+                {(onReady) => (useLogo
+                  ? <LogoPin uri={place.logo_url!} category={category} selected={selected} onReady={onReady} />
+                  : <PlacePin category={category} selected={selected} visited={visitedIds.has(place.id)} saved={savedIds.has(place.id)} />)}
+              </TrackedMarker>
+            );
+          })}
+
+        {shownServices.map((p) => (
+          <TrackedMarker
+            key={`s-${p.id}-${selectedService?.id === p.id}`}
+            lat={p.lat!}
+            lng={p.lng!}
+            zIndex={selectedService?.id === p.id ? 20 : 1}
+            onPress={() => { notePinPress(); openService(p); }}
+          >
+            <ServicePin type={p.type} dark={dark} selected={selectedService?.id === p.id} />
+          </TrackedMarker>
+        ))}
+
+        {shownTreasures.map((c) => {
+          const selected = selectedSticker?.id === c.id;
           const has = collected.has(c.id);
           return (
-            <Marker
-              key={`sticker-${c.id}-${has}`}
-              coordinate={{ latitude: c.lat, longitude: c.lng }}
-              onPress={() => handleStickerPress(c)}
-              anchor={{ x: 0.5, y: 1 }}
-              tracksViewChanges={isSelected}
+            <TrackedMarker
+              key={`t-${c.id}-${has}-${selected}`}
+              lat={c.lat}
+              lng={c.lng}
+              anchorBottom
+              zIndex={selected ? 20 : 4}
+              onPress={() => { notePinPress(); openSticker(c); }}
             >
-              <StickerPin collected={has} selected={isSelected} />
-            </Marker>
+              <StickerPin collected={has} selected={selected} />
+            </TrackedMarker>
           );
         })}
       </MapView>
 
-      {/* ── Mörk gradient-fade (top 160px) ───────────────────────────────── */}
-      <View style={s.topFade} pointerEvents="none">
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none">
-          <Defs>
-            <SvgGrad id="mapfade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor="#000" stopOpacity={1}   />
-              <Stop offset="20%"  stopColor="#000" stopOpacity={0.8} />
-              <Stop offset="50%"  stopColor="#000" stopOpacity={0.4} />
-              <Stop offset="100%" stopColor="#000" stopOpacity={0}   />
-            </SvgGrad>
-          </Defs>
-          <SvgRect width="100%" height="100%" fill="url(#mapfade)" />
-        </Svg>
-      </View>
+      {/* Toning överst så statusraden och knapparna alltid syns mot kartan */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={dark ? ["rgba(18,18,18,0.92)", "rgba(18,18,18,0)"] : ["rgba(244,240,230,0.92)", "rgba(244,240,230,0)"]}
+        style={[s.topFade, { height: headerTop + 110 }]}
+      />
 
-      {/* ── Header ───────────────────────────────────────────────────────── */}
-      <View
-        style={[s.header, { paddingTop: headerTop + 16 }]}
-        pointerEvents="box-none"
-      >
-        {/* Filterknapp */}
+      {/* ── Filter och "hitta mig" ── */}
+      <View style={[s.header, { top: headerTop + 8 }]} pointerEvents="box-none">
         <TouchableOpacity
-          style={s.filterBtn}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            setFilterOpen(true);
-          }}
-          activeOpacity={0.8}
+          style={[s.filterBtn, s.raised, { backgroundColor: dark ? "#1A1A1D" : "#FFFFFF", borderColor: colors.border }]}
+          activeOpacity={0.85}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setFilterOpen(true); }}
         >
-          <SlidersHorizontal size={18} color="rgba(255,255,255,0.85)" strokeWidth={2} />
-          {activePills.length > 0 && (
+          <SlidersHorizontal size={18} color={colors.text} strokeWidth={2} />
+          <Text style={[s.filterText, { color: colors.text }]}>Filter</Text>
+          {filterCount > 0 && (
             <View style={s.badge}>
-              <Text style={s.badgeText}>{activePills.length}</Text>
+              <Text style={s.badgeText}>{filterCount}</Text>
             </View>
           )}
         </TouchableOpacity>
-
-        {/* Titel */}
-        <View style={s.titleWrap} pointerEvents="none">
-          <Text style={s.titleText}>Karta</Text>
-          <View style={s.titleLine} />
-        </View>
-
-        {/* Balansyta höger */}
-        <View style={{ width: 44 }} />
+        <TouchableOpacity
+          style={[s.roundBtn, s.raised, { backgroundColor: dark ? "#1A1A1D" : "#FFFFFF", borderColor: colors.border }]}
+          activeOpacity={0.85}
+          onPress={locate}
+          accessibilityLabel="Visa var jag är"
+        >
+          <Locate size={21} color={dark ? "#F5F1E8" : "#1A1A1A"} strokeWidth={2} />
+        </TouchableOpacity>
       </View>
 
-      {/* ── Aktiva filterpiller ───────────────────────────────────────────── */}
-      {activePills.length > 0 && (
-        <View style={[s.pillsRow, { top: headerTop + 16 + 56 }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.pillsContent}
-          >
-            {activePills.map((pill) => (
+      {activeChips.length > 0 && (
+        <Reanimated.View entering={FadeIn.duration(200)} style={[s.chipsRow, { top: headerTop + 8 + 52 }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsContent}>
+            {activeChips.map((c) => (
               <TouchableOpacity
-                key={pill.id}
-                style={s.pill}
-                onPress={() => removePill(pill)}
+                key={c.key}
                 activeOpacity={0.8}
+                onPress={() => { Haptics.selectionAsync().catch(() => {}); c.remove(); }}
+                style={[s.activeChip, s.raised, { backgroundColor: dark ? "#1A1A1D" : "#FFFFFF", borderColor: "rgba(197,160,89,0.55)" }]}
               >
-                <Text style={s.pillText}>{pill.label}</Text>
-                <View style={s.pillXWrap}>
-                  <X size={10} color={GOLD} />
-                </View>
+                <Text style={[s.activeChipText, { color: colors.text }]}>{c.label}</Text>
+                <X size={12} color={GOLD} strokeWidth={2.6} />
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </Reanimated.View>
       )}
 
-      {/* ── Hitta mig ─────────────────────────────────────────────────────── */}
-      <TouchableOpacity
-        style={[s.locateBtn, { bottom: 56 + insets.bottom + 88 }]}
-        onPress={handleLocate}
-        activeOpacity={0.85}
-      >
-        <Locate size={26} color="#3B82F6" strokeWidth={2} />
-      </TouchableOpacity>
-
-      {/* ── Platskort ─────────────────────────────────────────────────────── */}
-      {selectedPlace && (
-        <Animated.View
-          style={[
-            s.card,
-            { bottom: 56 + insets.bottom + 16 },
-            {
-              opacity: cardAnim,
-              transform: [{
-                translateY: cardAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [120, 0],
-                }),
-              }],
-            },
-          ]}
-        >
-          {/* "Visa plats på kartan" från ett minne pushar hit via (tabs)-navigatorn, som redan
-              finns längre ner i stacken — det byter bara aktiv flik i stället för att lägga till
-              ett eget steg, så den vanliga tillbaka-gesten tar en inte tillbaka till minnet.
-              En egen, uttrycklig "tillbaka"-genväg i stället, bara för just den platsen man
-              skickades hit för (döljs så fort man trycker på en annan plats/sticker).
-              Växlar FÖRST tillbaka till profilfliken (samma (tabs)-navigator, bara en annan
-              flik — inget nytt steg i stacken), innan minnet pushas ovanpå: annars hade
-              profilfliken stått kvar på "karta" i bakgrunden, och om man sen bläddrar hela vägen
-              tillbaka (minne -> Mitt Österlen -> bakåt) hade man hamnat på kartan igen i stället
-              för profilen man faktiskt startade från. */}
-          {fromMemoryParam && String(selectedPlace.id) === placeParam && (
+      {/* ── Korten ── */}
+      {carousel && carouselItems.length > 0 && (
+        <>
+          {fromMemoryParam && String(selectedPlaceId) === placeParam && (
+            // Kom man hit från ett minne går det inte att svepa tillbaka dit (kartan är en flik), så
+            // en egen väg tillbaka: först profilfliken, sen minnet ovanpå (se memories/[id], viaMap)
             <TouchableOpacity
-              style={s.backToMemoryBtn}
+              style={[s.backToMemory, s.raised, { bottom: cardsBottom + 200, backgroundColor: dark ? "#1A1A1D" : "#FFFFFF" }]}
               activeOpacity={0.85}
               onPress={() => {
                 router.push("/(tabs)/profile" as any);
-                // viaMap: minnessidans headerpil använder annars ett vanligt router.back() (så
-                // den tar en dit man faktiskt kom ifrån — Mitt Österlen ELLER "Alla", beroende
-                // på var man var) — men just den här vägen hit har inget Mitt Österlen/Alla-steg
-                // kvar i stacken (se kommentaren ovan), så den måste veta att göra undantag.
                 router.push({ pathname: `/memories/${fromMemoryParam}`, params: { viaMap: "1" } } as any);
               }}
             >
-              <ArrowLeft size={14} color={FG} strokeWidth={2.2} />
-              <Text style={s.backToMemoryText}>Tillbaka till minnet</Text>
+              <ArrowLeft size={14} color={colors.text} strokeWidth={2.2} />
+              <Text style={[s.backToMemoryText, { color: colors.text }]}>Tillbaka till minnet</Text>
             </TouchableOpacity>
           )}
-
-          {/* Bild + text */}
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={s.cardImg}
-            onPress={() => router.push(`/place/${selectedPlace.id}` as any)}
-          >
-            {selectedPlace.image_url ? (
-              <Image
-                source={{ uri: selectedPlace.image_url.split(",")[0].trim() }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: "#1E1E1E" }]} />
-            )}
-
-            {/* Gradient på bild */}
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} preserveAspectRatio="none">
-                <Defs>
-                  <SvgGrad id="cg" x1="0" y1="1" x2="0" y2="0">
-                    <Stop offset="0%"   stopColor="#000" stopOpacity={0.92} />
-                    <Stop offset="50%"  stopColor="#000" stopOpacity={0.35} />
-                    <Stop offset="100%" stopColor="#000" stopOpacity={0.05} />
-                  </SvgGrad>
-                </Defs>
-                <SvgRect width="100%" height="100%" fill="url(#cg)" />
-              </Svg>
-            </View>
-
-            {/* Text på bild */}
-            <View style={s.cardOverlay}>
-              <Text style={s.cardName} numberOfLines={2}>{selectedPlace.name}</Text>
-              <View style={s.cardMeta}>
-                {selectedPlace.category && (
-                  <View style={s.metaItem}>
-                    <UtensilsCrossed size={12} color={GOLD} strokeWidth={2} />
-                    <Text style={s.metaCat} numberOfLines={1}>
-                      {selectedPlace.category.split(",")[0].trim()}
-                    </Text>
-                  </View>
-                )}
-                {(() => {
-                  const open = getOpenStatus(selectedPlace);
-                  if (open === null) return null;
-                  return (
-                    <View style={s.metaItem}>
-                      <Clock size={12} color={open ? "#4ADE80" : "#F87171"} strokeWidth={2} />
-                      <Text style={[s.metaOpen, { color: open ? "#4ADE80" : "#F87171" }]}>
-                        {open ? "Öppet" : "Stängt"}
-                      </Text>
-                    </View>
-                  );
-                })()}
-                {distanceStr && (
-                  <View style={s.metaItem}>
-                    <MapPin size={12} color="rgba(255,255,255,0.75)" strokeWidth={2} />
-                    <Text style={s.metaDist}>{distanceStr}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          {/* Åtgärdsknappar */}
-          <View style={s.cardActions}>
-            <TouchableOpacity
-              style={s.btnNav}
-              onPress={() => handleNavigate(selectedPlace)}
-              activeOpacity={0.8}
-            >
-              <Navigation size={15} color="rgba(255,255,255,0.9)" strokeWidth={2} />
-              <Text style={s.btnNavText}>Navigera</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={s.btnView}
-              onPress={() => router.push(`/place/${selectedPlace.id}` as any)}
-              activeOpacity={0.85}
-            >
-              <Text style={s.btnViewText}>Visa plats</Text>
-              <ArrowRight size={15} color="#000" strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+          <PlaceCarousel
+            key={carousel.key}
+            items={carouselItems}
+            index={carousel.index}
+            distanceKm={distanceKm}
+            onIndexChange={onCarouselIndex}
+            onOpen={openPlacePage}
+            onNavigate={(p) => navigateTo(p.lat, p.lng)}
+            onToggleSave={toggleSave}
+            onBurst={showBurst}
+            bottom={cardsBottom}
+          />
+        </>
       )}
 
-      {/* ── Samlarobjekt-kort ──────────────────────────────────────────────── */}
+      {selectedService && (
+        <Reanimated.View
+          entering={FadeInDown.duration(260)}
+          exiting={FadeOutDown.duration(180)}
+          style={[s.serviceCard, s.raised, { bottom: cardsBottom, backgroundColor: dark ? "#1A1A1D" : "#FFFFFF", borderColor: colors.border }]}
+        >
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+            <ServicePin type={selectedService.type} dark={dark} />
+            <View style={{ flex: 1 }}>
+              <Text style={[s.serviceType, { color: colors.muted }]}>
+                {SERVICE_TYPES.find((t) => t.type === selectedService.type)?.label ?? selectedService.type}
+              </Text>
+              <Text style={[s.serviceName, { color: colors.text }]} numberOfLines={2}>{selectedService.name}</Text>
+              {!!selectedService.description && (
+                <Text style={[s.serviceDesc, { color: colors.muted }]} numberOfLines={2}>{selectedService.description}</Text>
+              )}
+              {userLoc && selectedService.lat != null && selectedService.lng != null && (
+                <Text style={[s.serviceDesc, { color: colors.muted }]}>
+                  {travelLabel(distanceMeters(userLoc.latitude, userLoc.longitude, selectedService.lat, selectedService.lng) / 1000)}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity onPress={() => setSelectedService(null)} hitSlop={10}>
+              <X size={18} color={colors.muted} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[s.serviceNav, { borderColor: colors.borderStrong }]}
+            activeOpacity={0.8}
+            onPress={() => navigateTo(selectedService.lat, selectedService.lng)}
+          >
+            <Navigation size={15} color={colors.text} strokeWidth={2.2} />
+            <Text style={[s.serviceNavText, { color: colors.text }]}>Vägbeskrivning</Text>
+          </TouchableOpacity>
+        </Reanimated.View>
+      )}
+
       {selectedSticker && (
         <StickerCard
           collectible={selectedSticker}
           collectedAt={collected.get(selectedSticker.id)}
           userLoc={userLoc}
-          bottom={56 + insets.bottom + 16}
+          bottom={cardsBottom}
           onClose={() => setSelectedSticker(null)}
         />
       )}
 
-      {/* ── Filtersheet ───────────────────────────────────────────────────── */}
-      <Modal
-        visible={filterOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFilterOpen(false)}
-      >
-        <Pressable style={s.overlay} onPress={() => setFilterOpen(false)} />
-
-        <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>
-          {/* Handtag */}
-          <View style={s.handle} />
-
-          {/* Rubrikrad */}
-          <View style={s.sheetHead}>
-            <Text style={s.sheetTitle}>Filter</Text>
-            <TouchableOpacity style={s.sheetClose} onPress={() => setFilterOpen(false)}>
-              <X size={16} color={FG} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={s.sheetBody}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Kategorier */}
-            <Text style={s.sheetSection}>KATEGORIER</Text>
-            <View style={s.chipWrap}>
-              {CAT_FILTERS.map(({ id, label, Icon }) => {
-                const active = id === "all"
-                  ? selectedCats.size === 0
-                  : selectedCats.has(id);
-                return (
-                  <TouchableOpacity
-                    key={id}
-                    style={[s.chip, active && s.chipActive]}
-                    onPress={() => toggleCat(id)}
-                    activeOpacity={0.8}
-                  >
-                    <Icon
-                      size={14}
-                      color={active ? GOLD : "rgba(255,255,255,0.7)"}
-                      strokeWidth={2}
-                    />
-                    <Text style={[s.chipText, active && s.chipTextActive]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Praktiskt */}
-            <Text style={[s.sheetSection, { marginTop: 28 }]}>PRAKTISKT</Text>
-            <View style={s.chipWrap}>
-              {PRACTICAL.map(({ id, label, Icon }) => {
-                const active = practicalFilters.has(id);
-                return (
-                  <TouchableOpacity
-                    key={id}
-                    style={[s.chip, active && s.chipActive]}
-                    onPress={() => togglePractical(id)}
-                    activeOpacity={0.8}
-                  >
-                    <Icon
-                      size={14}
-                      color={active ? GOLD : "rgba(255,255,255,0.7)"}
-                      strokeWidth={2}
-                    />
-                    <Text style={[s.chipText, active && s.chipTextActive]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Samlarobjekt */}
-            <Text style={[s.sheetSection, { marginTop: 28 }]}>SKATTER</Text>
-            <View style={s.chipWrap}>
-              <TouchableOpacity
-                style={[s.chip, stickersOnly && s.chipActive]}
-                onPress={() => setStickersOnly((v) => !v)}
-                activeOpacity={0.8}
-              >
-                <Star size={14} color={stickersOnly ? GOLD : "rgba(255,255,255,0.7)"} strokeWidth={2} />
-                <Text style={[s.chipText, stickersOnly && s.chipTextActive]}>Visa bara skatter</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-
-          {/* Sidfot */}
-          <View style={s.sheetFoot}>
-            <TouchableOpacity onPress={resetFilters} activeOpacity={0.7}>
-              <Text style={s.resetText}>Återställ</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={s.applyBtn}
-              onPress={() => setFilterOpen(false)}
-              activeOpacity={0.85}
-            >
-              {/* Guldgradient via SVG */}
-              <Svg
-                width="100%"
-                height="100%"
-                style={StyleSheet.absoluteFill}
-                preserveAspectRatio="none"
-              >
-                <Defs>
-                  <SvgGrad id="gbtn" x1="0" y1="0" x2="1" y2="1">
-                    <Stop offset="0%"   stopColor={GOLD}              />
-                    <Stop offset="100%" stopColor="hsl(38,65%,45%)"   />
-                  </SvgGrad>
-                </Defs>
-                <SvgRect width="100%" height="100%" fill="url(#gbtn)" rx={16} />
-              </Svg>
-              <Text style={s.applyText}>
-                Visa {stickersOnly ? collectibles.length : filtered.length} {stickersOnly ? "skatter" : "platser"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <MapFilterSheet
+        open={filterOpen}
+        filters={filters}
+        onChange={setFilters}
+        lists={lists}
+        resultLabel={resultLabel}
+        onClose={() => setFilterOpen(false)}
+      />
+      <LikeBurst burst={burst} />
     </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+/**
+ * En nål. Kartan ritar om en egen nåls innehåll bara medan tracksViewChanges är på — den stängs av
+ * så fort nålen är ritad (eller loggan laddad), annars ritas alla nålar om hela tiden och kartan
+ * blir trög. En nål som ändras (vald, sparad) får en ny key och ritas därmed om.
+ */
+function TrackedMarker({
+  lat, lng, zIndex, anchorBottom = false, waitForImage = false, onPress, children,
+}: {
+  lat: number; lng: number; zIndex: number; anchorBottom?: boolean; waitForImage?: boolean;
+  onPress: () => void;
+  children: React.ReactNode | ((onReady: () => void) => React.ReactNode);
+}) {
+  const [track, setTrack] = useState(true);
+  useEffect(() => {
+    // Utan bild: ritad efter en kort stund. Med bild: vänta på den, men högst två sekunder
+    const t = setTimeout(() => setTrack(false), waitForImage ? 2000 : 500);
+    return () => clearTimeout(t);
+  }, [waitForImage]);
+  const onReady = useCallback(() => setTimeout(() => setTrack(false), 120), []);
+  return (
+    <Marker
+      coordinate={{ latitude: lat, longitude: lng }}
+      anchor={anchorBottom ? { x: 0.5, y: 1 } : { x: 0.5, y: 0.5 }}
+      zIndex={zIndex}
+      tracksViewChanges={track}
+      onPress={onPress}
+    >
+      {typeof children === "function" ? children(onReady) : children}
+    </Marker>
+  );
+}
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
-
-  // Fade-gradient top
-  topFade: {
-    position: "absolute",
-    top: 0, left: 0, right: 0,
-    height: 160,
-    zIndex: 5,
-  },
-
-  // Header
-  header: {
-    position: "absolute",
-    top: 0, left: 0, right: 0,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    zIndex: 10,
+  root: { flex: 1 },
+  topFade: { position: "absolute", top: 0, left: 0, right: 0 },
+  header: { position: "absolute", left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  raised: {
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6,
   },
   filterBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 8,
+    flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingHorizontal: 16, borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
   },
+  filterText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5 },
   badge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: "center", justifyContent: "center",
     backgroundColor: GOLD,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#1A1A1A",
   },
-  badgeText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 10,
-    color: "#000",
+  badgeText: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#121212" },
+  roundBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", borderWidth: StyleSheet.hairlineWidth },
+  chipsRow: { position: "absolute", left: 0, right: 0 },
+  chipsContent: { paddingHorizontal: 16, gap: 8, paddingVertical: 4 },
+  activeChip: {
+    flexDirection: "row", alignItems: "center", gap: 7, height: 32, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1,
   },
-  titleWrap: {
-    flex: 1,
-    alignItems: "center",
-    paddingTop: 6,
+  activeChipText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5 },
+  backToMemory: {
+    position: "absolute", alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 6,
+    height: 36, paddingHorizontal: 14, borderRadius: 18,
   },
-  titleText: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 24,
-    color: "#fff",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+  backToMemoryText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  serviceCard: {
+    position: "absolute", left: 20, right: 20, borderRadius: 24, padding: 16, gap: 14, borderWidth: StyleSheet.hairlineWidth,
   },
-  titleLine: {
-    width: 40,
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.4)",
-    borderRadius: 1,
-    marginTop: 4,
+  serviceType: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.3 },
+  serviceName: { fontFamily: "Montserrat_700Bold", fontSize: 17, marginTop: 3 },
+  serviceDesc: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4 },
+  serviceNav: {
+    height: 46, borderRadius: 23, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
   },
-
-  // Filter-piller
-  pillsRow: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    zIndex: 9,
-  },
-  pillsContent: {
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingLeft: 12,
-    paddingRight: 8,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(18,18,18,0.85)",
-    borderWidth: 0.5,
-    borderColor: `${GOLD}90`,
-  },
-  pillText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 12,
-    color: GOLD,
-  },
-  pillXWrap: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: `${GOLD}30`,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  // Hitta mig
-  locateBtn: {
-    position: "absolute",
-    right: 12,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  // Platskort
-  card: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    borderRadius: 22,
-    backgroundColor: "rgba(18,18,18,0.96)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.08)",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 20,
-  },
-  backToMemoryBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 14, paddingVertical: 10,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderBottomWidth: 0.5, borderBottomColor: "rgba(255,255,255,0.08)",
-  },
-  backToMemoryText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG },
-  cardImg: {
-    height: 190,
-    overflow: "hidden",
-  },
-  cardOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 14,
-  },
-  cardName: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: "#fff",
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-    marginBottom: 6,
-  },
-  cardMeta: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 10,
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  metaCat: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 11.5,
-    color: GOLD,
-  },
-  metaOpen: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 11.5,
-  },
-  metaDist: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 11.5,
-    color: "rgba(255,255,255,0.8)",
-  },
-
-  // Knappar
-  cardActions: {
-    flexDirection: "row",
-    gap: 8,
-    padding: 12,
-  },
-  btnNav: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.10)",
-  },
-  btnNavText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.9)",
-  },
-  btnView: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: GOLD,
-    shadowColor: GOLD,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  btnViewText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 13,
-    color: "#000",
-  },
-
-  // Filtersheet
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  sheet: {
-    height: SH * 0.88,
-    backgroundColor: "#1A1A1A",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.08)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -20 },
-    shadowOpacity: 0.6,
-    shadowRadius: 60,
-    elevation: 30,
-  },
-  handle: {
-    width: 48,
-    height: 6,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 3,
-    alignSelf: "center",
-    marginTop: 12,
-  },
-  sheetHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  sheetTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: FG,
-  },
-  sheetClose: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sheetBody: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  sheetSection: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 11,
-    color: "rgba(255,255,255,0.4)",
-    letterSpacing: 2.5,
-    textTransform: "uppercase",
-    marginBottom: 12,
-  },
-  chipWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  chipActive: {
-    backgroundColor: `${GOLD}35`,
-    borderColor: `${GOLD}7A`,
-  },
-  chipText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.75)",
-  },
-  chipTextActive: { color: GOLD },
-
-  // Sidfot
-  sheetFoot: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 0.5,
-    borderTopColor: "rgba(255,255,255,0.06)",
-  },
-  resetText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
-  },
-  applyBtn: {
-    flex: 1,
-    height: 52,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    shadowColor: GOLD,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  applyText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 14,
-    color: "#000",
-  },
+  serviceNavText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5 },
 });
