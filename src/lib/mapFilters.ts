@@ -4,6 +4,9 @@
  *
  * Alla grupper gäller samtidigt (OCH). Inom kategorier, "Mina" och listor räcker det att en träffar
  * (ELLER); praktiskt kräver allt man valt.
+ *
+ * Service är ett eget läge: väljer man en typ (en i taget) visar kartan bara den — inga platser
+ * eller skatter. De andra filtren ligger kvar och gäller igen när man lämnar serviceläget.
  */
 import type { LucideIcon } from "lucide-react-native";
 import {
@@ -96,17 +99,19 @@ export interface MapFilters {
   practical: Set<string>;
   mine: Set<"favorites" | "visited">;
   listIds: Set<string>;
-  services: Set<string>;
+  /** Serviceläget: den typ som visas (då visas inget annat), eller null */
+  service: string | null;
   treasures: TreasureMode;
 }
 
 export const EMPTY_FILTERS: MapFilters = {
-  cats: new Set(), sub: null, practical: new Set(), mine: new Set(), listIds: new Set(), services: new Set(), treasures: "all",
+  cats: new Set(), sub: null, practical: new Set(), mine: new Set(), listIds: new Set(), service: null, treasures: "all",
 };
 
 /** Siffran på filterknappen */
 export function countFilters(f: MapFilters): number {
-  return f.cats.size + (f.sub ? 1 : 0) + f.practical.size + f.mine.size + f.listIds.size + f.services.size
+  if (f.service) return 1;
+  return f.cats.size + (f.sub ? 1 : 0) + f.practical.size + f.mine.size + f.listIds.size
     + (f.treasures !== "all" ? 1 : 0);
 }
 
@@ -158,16 +163,11 @@ export function filterPlaces(
 }
 
 /**
- * Klumpar (webbens regler): av när bara favoriter visas, av när en kategori är vald och träffarna
- * är färre än 20. Annars radie 40 px, minst 8 platser per klump, inga klumpar från zoom 14.
+ * Klumpar: nålar som skulle hamna nästan ovanpå varandra slås ihop (redan två räcker), så kartan
+ * aldrig blir högar av nålar. Radien är i skärmpunkter — en nål är 24 bred, loggorna 40. Från
+ * zoom 17 visas allt som enskilda nålar.
  */
-export function clusteringOn(f: MapFilters, matches: number): boolean {
-  const onlyFavorites = f.mine.size === 1 && f.mine.has("favorites") && f.cats.size === 0;
-  if (onlyFavorites) return false;
-  if (f.cats.size > 0 && matches < 20) return false;
-  return true;
-}
-export const CLUSTER = { radius: 40, minPoints: 8, maxZoom: 13 };
+export const CLUSTER = { radius: 28, logoRadius: 46, minPoints: 2, maxZoom: 16 };
 
 /** Avstånd som det visas i appen: fågelvägen × 1,3 + 1 km ("3.4 km", eller heltal från 10 km) */
 export function distanceLabel(birdKm: number): string {

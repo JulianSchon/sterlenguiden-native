@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ServicePoint {
-  id: number;
+  id: string;
   name: string;
   description: string | null;
+  short_description: string | null;
+  address: string | null;
   type: string;
   lat: number | null;
   lng: number | null;
@@ -19,7 +21,7 @@ export function useServicePoints(type: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_points" as any)
-        .select("id, name, description, type, lat, lng, phone, logo_url")
+        .select("id, name, description, short_description, address, type, lat, lng, phone, logo_url")
         .eq("type", type)
         .order("name");
       if (error) throw error;
@@ -36,7 +38,7 @@ export function useServicePointsByPrefix(prefix: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_points" as any)
-        .select("id, name, description, type, lat, lng, phone, logo_url")
+        .select("id, name, description, short_description, address, type, lat, lng, phone, logo_url")
         .like("type", `${prefix}%`)
         .order("type")
         .order("name");
@@ -54,7 +56,7 @@ export function useAllServicePoints() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_points" as any)
-        .select("id, name, description, type, lat, lng, phone, logo_url")
+        .select("id, name, description, short_description, address, type, lat, lng, phone, logo_url")
         .order("name");
       if (error) throw error;
       return (data ?? []) as unknown as ServicePoint[];

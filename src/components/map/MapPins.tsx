@@ -1,11 +1,12 @@
 /**
  * Kartans markörer.
  *
- * - Vanliga nålar: klassiska droppformade nålar i kategoriernas färger med vit prick (skatter:
- *   lila med stjärna, service: ljusa). Färdiga bilder (assets/map-pins, scripts/render-map-pins.js)
- *   som Google Kartor ritar själv som ikoner — snabbast möjligt, inget ritas om när kartan rör sig.
+ * - Vanliga nålar: klassiska droppformade nålar i temats färg — svarta i mörkt läge, vita i ljust,
+ *   som klumparna — med kategorins färg som prick. Servicenålarna har typens ikon i guld, skatterna
+ *   är lila med stjärna. Färdiga bilder (assets/map-pins, scripts/render-map-pins.js) som Google
+ *   Kartor ritar själv som ikoner — snabbast möjligt, inget ritas om när kartan rör sig.
  *   Klumparna och listans numrerade nålar är också färdiga bilder (mapIcons.ts).
- * - SelectedPin: den valda platsen — en större guldnål som studsar in.
+ * - SelectedPin: det man valt (plats eller servicepunkt) — en större guldnål som studsar in.
  * - LogoMarker: när en kategori är vald visas platserna som sina loggor i vita cirklar.
  *
  * Markörer som ritas i appen (guldnålen och loggorna) fångas av Google som bilder — de är få.
@@ -34,7 +35,7 @@ export const CENTER_ANCHOR = { x: 0.5, y: 0.5 };
 export const pinImage = (source: ImageURISource | ImageRequireSource) =>
   Platform.OS === "ios" ? { icon: source } : { image: source };
 
-/** Nålarnas färger — kategoriernas djupa toner, lite ljusare så de syns mot den svarta kartan */
+/** Loggornas kant i loggläget: kategoriernas färg */
 export const PIN_COLORS: Record<CategoryId | "other", string> = {
   "mat-dryck": "#A3214B",
   "hotell-bb": "#4C44C9",
@@ -47,19 +48,57 @@ export const PIN_COLORS: Record<CategoryId | "other", string> = {
   "other": "#8E8E93",
 };
 
+/** Servicepunkternas typer (type i databasen), i den ordning de visas i filtret */
+export const SERVICE_TYPES: { type: string; key: ServiceKey; label: string; one: string; many: string; Icon: LucideIcon }[] = [
+  { type: "Toalett", key: "toalett", label: "Toaletter", one: "toalett", many: "toaletter", Icon: Toilet },
+  { type: "Laddning", key: "laddning", label: "Laddning", one: "laddstation", many: "laddstationer", Icon: Plug },
+  { type: "AutoMat", key: "automat", label: "AutoMat", one: "AutoMat", many: "AutoMat", Icon: Store },
+  { type: "Vård", key: "vard", label: "Vård", one: "vårdställe", many: "vårdställen", Icon: HeartPulse },
+];
+type ServiceKey = "toalett" | "laddning" | "automat" | "vard";
+export const serviceType = (type: string) => SERVICE_TYPES.find((t) => t.type.toLowerCase() === type.trim().toLowerCase());
+export const serviceIcon = (type: string): LucideIcon => serviceType(type)?.Icon ?? MapPin;
+
 /* eslint-disable @typescript-eslint/no-require-imports */
-const IMAGES = {
-  "mat-dryck": require("../../../assets/map-pins/pin-mat-dryck.png"),
-  "hotell-bb": require("../../../assets/map-pins/pin-hotell-bb.png"),
-  "cafe-bageri": require("../../../assets/map-pins/pin-cafe-bageri.png"),
-  "butiker": require("../../../assets/map-pins/pin-butiker.png"),
-  "natur-upplevelser": require("../../../assets/map-pins/pin-natur-upplevelser.png"),
-  "aktiviteter": require("../../../assets/map-pins/pin-aktiviteter.png"),
-  "sevardheter": require("../../../assets/map-pins/pin-sevardheter.png"),
-  "hantverk-service": require("../../../assets/map-pins/pin-hantverk-service.png"),
-  "other": require("../../../assets/map-pins/pin-other.png"),
-  "service": require("../../../assets/map-pins/pin-service.png"),
-  "service-selected": require("../../../assets/map-pins/pin-service-selected.png"),
+const PLACE_PINS: Record<"dark" | "light", Record<CategoryId | "other", ImageRequireSource>> = {
+  dark: {
+    "mat-dryck": require("../../../assets/map-pins/pin-mat-dryck-dark.png"),
+    "hotell-bb": require("../../../assets/map-pins/pin-hotell-bb-dark.png"),
+    "cafe-bageri": require("../../../assets/map-pins/pin-cafe-bageri-dark.png"),
+    "butiker": require("../../../assets/map-pins/pin-butiker-dark.png"),
+    "natur-upplevelser": require("../../../assets/map-pins/pin-natur-upplevelser-dark.png"),
+    "aktiviteter": require("../../../assets/map-pins/pin-aktiviteter-dark.png"),
+    "sevardheter": require("../../../assets/map-pins/pin-sevardheter-dark.png"),
+    "hantverk-service": require("../../../assets/map-pins/pin-hantverk-service-dark.png"),
+    "other": require("../../../assets/map-pins/pin-other-dark.png"),
+  },
+  light: {
+    "mat-dryck": require("../../../assets/map-pins/pin-mat-dryck-light.png"),
+    "hotell-bb": require("../../../assets/map-pins/pin-hotell-bb-light.png"),
+    "cafe-bageri": require("../../../assets/map-pins/pin-cafe-bageri-light.png"),
+    "butiker": require("../../../assets/map-pins/pin-butiker-light.png"),
+    "natur-upplevelser": require("../../../assets/map-pins/pin-natur-upplevelser-light.png"),
+    "aktiviteter": require("../../../assets/map-pins/pin-aktiviteter-light.png"),
+    "sevardheter": require("../../../assets/map-pins/pin-sevardheter-light.png"),
+    "hantverk-service": require("../../../assets/map-pins/pin-hantverk-service-light.png"),
+    "other": require("../../../assets/map-pins/pin-other-light.png"),
+  },
+};
+const SERVICE_PINS: Record<"dark" | "light", Record<ServiceKey, ImageRequireSource>> = {
+  dark: {
+    toalett: require("../../../assets/map-pins/pin-svc-toalett-dark.png"),
+    laddning: require("../../../assets/map-pins/pin-svc-laddning-dark.png"),
+    automat: require("../../../assets/map-pins/pin-svc-automat-dark.png"),
+    vard: require("../../../assets/map-pins/pin-svc-vard-dark.png"),
+  },
+  light: {
+    toalett: require("../../../assets/map-pins/pin-svc-toalett-light.png"),
+    laddning: require("../../../assets/map-pins/pin-svc-laddning-light.png"),
+    automat: require("../../../assets/map-pins/pin-svc-automat-light.png"),
+    vard: require("../../../assets/map-pins/pin-svc-vard-light.png"),
+  },
+};
+const TREASURE_PINS = {
   "treasure": require("../../../assets/map-pins/pin-treasure.png"),
   "treasure-selected": require("../../../assets/map-pins/pin-treasure-selected.png"),
   "treasure-found": require("../../../assets/map-pins/pin-treasure-found.png"),
@@ -67,10 +106,12 @@ const IMAGES = {
 } as const;
 /* eslint-enable @typescript-eslint/no-require-imports */
 
-export const placePinImage = (category: CategoryId | undefined) => IMAGES[category ?? "other"];
+export const placePinImage = (category: CategoryId | undefined, dark: boolean) =>
+  PLACE_PINS[dark ? "dark" : "light"][category ?? "other"];
+export const servicePinImage = (type: string, dark: boolean) =>
+  SERVICE_PINS[dark ? "dark" : "light"][serviceType(type)?.key ?? "toalett"];
 export const treasurePinImage = (found: boolean, selected: boolean) =>
-  IMAGES[`${found ? "treasure-found" : "treasure"}${selected ? "-selected" : ""}` as keyof typeof IMAGES];
-export const servicePinImage = (selected: boolean) => IMAGES[selected ? "service-selected" : "service"];
+  TREASURE_PINS[`${found ? "treasure-found" : "treasure"}${selected ? "-selected" : ""}` as keyof typeof TREASURE_PINS];
 
 /** Bilden en plats visas med i loggläget: loggan, annars platsens första bild */
 export function placeLogo(place: Place): { uri: string; fit: "contain" | "cover" } | null {
@@ -160,18 +201,6 @@ export const LogoMarker = memo(function LogoMarker({
     </View>
   );
 });
-
-// ── Service ──────────────────────────────────────────────────────────────────
-
-/** Servicepunkternas typer, i den ordning de visas i filtret */
-export const SERVICE_TYPES: { type: string; label: string; Icon: LucideIcon }[] = [
-  { type: "Toalett", label: "Toaletter", Icon: Toilet },
-  { type: "Laddning", label: "Laddning", Icon: Plug },
-  { type: "AutoMat", label: "AutoMat", Icon: Store },
-  { type: "Vård", label: "Vård", Icon: HeartPulse },
-];
-
-export const serviceIcon = (type: string): LucideIcon => SERVICE_TYPES.find((t) => t.type === type)?.Icon ?? MapPin;
 
 const s = StyleSheet.create({
   selPin: { position: "absolute", left: (SEL_W - 38) / 2, bottom: SEL_FOOT - 1, transformOrigin: "bottom" },

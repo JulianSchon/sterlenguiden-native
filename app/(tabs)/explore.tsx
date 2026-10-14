@@ -206,7 +206,8 @@ interface ServiceSheetProps {
 function ServiceSheet({ visible, service, userLocation, onClose }: ServiceSheetProps) {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(SH)).current;
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Servicepunkternas id är text (uuid)
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapRef = useRef<MapView>(null);
 
   const { data: points = [] } = useServicePoints(service?.type ?? "");

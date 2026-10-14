@@ -2,15 +2,18 @@
  * Karta — byggd efter webbappens karta (native-map-full-spec.md), på en svartvit Google-karta i
  * appens tema (mapStyle.ts).
  *
- * - Nålar i kategoriernas färger; den valda platsen blir en guldnål som studsar in. Med en kategori
- *   vald visas platserna som sina loggor. Många platser och skatter nära varandra slås ihop till
- *   klumpar (webbens regler, se lib/mapFilters) — svarta i mörkt läge, vita i ljust.
- * - Filter (MapFilterSheet): kategorier (+ underkategori), praktiskt, Mina, listor, service,
- *   skatter. Aktiva filter syns som piller under rubriken. Navigeringen glider undan medan arket
- *   är uppe.
+ * - Nålar i temats färg (svarta i mörkt läge, vita i ljust) med kategorins färg som prick; skatterna
+ *   lila med stjärna. Den valda platsen blir en guldnål som studsar in. Med en kategori vald visas
+ *   platserna som sina loggor. Nålar som skulle hamna nästan ovanpå varandra slås ihop till
+ *   klumpar i samma färger (se lib/mapFilters). En klump som inte går att zooma isär (platserna
+ *   ligger på samma ställe) visar platsernas kort direkt.
+ * - Filter (MapFilterSheet): kategorier (+ underkategori), praktiskt, Mina, listor, skatter.
+ *   Aktiva filter syns som piller under rubriken. Navigeringen glider undan medan arket är uppe.
+ * - Serviceläget: väljer man en servicetyp (toaletter, laddning …) visar kartan bara den, och
+ *   kameran visar de närmaste. En servicepunkt har ett eget infokort, inga platskort.
  * - Platskorten (PlaceCarousel): den valda platsen och de närmaste — svep mellan dem, dra upp =
  *   platssidan, dra ner = stäng. Tärningen blandar fram en slumpad plats bland de som syns.
- * - En vald lista: platserna numreras i listans ordning med en streckad rutt emellan.
+ * - En vald lista: platserna numreras i listans ordning med rutten emellan.
  * - Kommer man hit med ?place= (från ett minne) eller ?sticker= (Hem, Mitt Österlen) visas den
  *   platsen/skatten direkt; annars visas kartan runt mig varje gång man går in på fliken.
  *
@@ -44,7 +47,7 @@ import Reanimated, {
   type EntryExitAnimationFunction,
 } from "react-native-reanimated";
 import Supercluster from "supercluster";
-import { ArrowLeft, ChevronDown, Dices, Locate, Navigation, SlidersHorizontal, X } from "lucide-react-native";
+import { ArrowLeft, ChevronDown, Dices, Locate, Navigation, Phone, SlidersHorizontal, X } from "lucide-react-native";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
 import { useAllServicePoints, type ServicePoint } from "@/hooks/useServicePoints";
@@ -57,13 +60,13 @@ import { distanceMeters } from "@/lib/checkin";
 import { setNavHidden } from "@/lib/navVisibility";
 import { pushOnce } from "@/lib/navigateOnce";
 import {
-  CLUSTER, EMPTY_FILTERS, SUBCATEGORIES, clusteringOn, countFilters, filterPlaces, type MapFilters,
+  CLUSTER, EMPTY_FILTERS, SUBCATEGORIES, countFilters, distanceLabel, filterPlaces, type MapFilters,
 } from "@/lib/mapFilters";
 import { StickerCard } from "@/components/stickers/StickerCard";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
-  CENTER_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SERVICE_TYPES, SelectedPin,
-  pinImage, placeLogo, placePinImage, serviceIcon, servicePinImage, treasurePinImage,
+  CENTER_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
+  pinImage, placeLogo, placePinImage, serviceIcon, servicePinImage, serviceType, treasurePinImage,
 } from "@/components/map/MapPins";
 import { NUMBER_ANCHOR, clusterIcon, numberPinIcon, systemBoldTypeface } from "@/components/map/mapIcons";
 import { PlaceCarousel, PLACE_CARD_H, cardIn, cardOut } from "@/components/map/PlaceCard";
@@ -87,12 +90,13 @@ const PAD_ANIM = { duration: 320, easing: Easing.out(Easing.cubic) };
 /** Kartan med en kant (mapPadding) som kan glida, i stället för att hoppa när ett kort öppnas */
 const AnimatedMapView = Reanimated.createAnimatedComponent(MapView);
 
-/** En punkt i klumparna: en plats eller en skatt */
-type Pt = { k: "p"; id: number } | { k: "t"; id: string };
-/** Det som syns på kartan (den valda platsen ritas för sig) */
+/** En punkt i klumparna: en plats, en skatt eller en servicepunkt */
+type Pt = { k: "p"; id: number } | { k: "t"; id: string } | { k: "s"; id: string };
+/** Det som syns på kartan (det valda ritas för sig) */
 type Item =
   | { kind: "place"; id: number; key: string }
   | { kind: "treasure"; id: string; key: string }
+  | { kind: "service"; id: string; key: string }
   | { kind: "cluster"; id: number; count: number; lat: number; lng: number; key: string };
 
 /** Piller in/ut: tonar och växer fram en aning, ovanifrån */
@@ -208,8 +212,11 @@ export default function MapScreen() {
   const treasureById = useMemo(() => new Map(collectibles.map((c) => [c.id, c])), [collectibles]);
   const serviceById = useMemo(() => new Map(servicePoints.map((p) => [p.id, p])), [servicePoints]);
 
+  // Serviceläget: bara den valda servicetypen syns — inga platser, inga skatter
+  const serviceMode = filters.service != null;
+
   const filtered = useMemo(() => {
-    if (filters.treasures === "only") return [];
+    if (filters.service || filters.treasures === "only") return [];
     // Hjärtan som trycks här ändrar inte vad som syns förrän man lämnat kartan (annars hoppar nålar)
     return filterPlaces(places, filters, { favoriteIds: serverSaved, visitedIds, listPlaceIds });
   }, [places, filters, serverSaved, visitedIds, listPlaceIds]);
@@ -218,17 +225,17 @@ export default function MapScreen() {
 
   // En enda vald lista: platserna i listans ordning (bland de som syns med övriga filter)
   const listPlaces = useMemo(() => {
-    if (!singleListId || !listDetail) return null;
+    if (!singleListId || !listDetail || filters.service) return null;
     const shown = new Set(filtered.map((p) => p.id));
     return listDetail.places
       .map((lp) => placeById.get(lp.place.id))
       .filter((p): p is Place => !!p && shown.has(p.id));
-  }, [singleListId, listDetail, placeById, filtered]);
+  }, [singleListId, listDetail, placeById, filtered, filters.service]);
   const listRef = useRef(listPlaces);
   listRef.current = listPlaces;
 
   const shownTreasures = useMemo(() => {
-    if (filters.treasures === "none") return [];
+    if (filters.service || filters.treasures === "none") return [];
     if (filters.treasures === "unfound") return collectibles.filter((c) => !collected.has(c.id));
     return collectibles;
   }, [collectibles, collected, filters.treasures]);
@@ -237,18 +244,25 @@ export default function MapScreen() {
     () => new Set(shownTreasures.map((c) => c.placeId).filter((id): id is number => id != null)),
     [shownTreasures],
   );
-  const shownServices = useMemo(
-    () => servicePoints.filter((p) => filters.services.has(p.type) && p.lat != null && p.lng != null),
-    [servicePoints, filters.services],
-  );
+  const shownServices = useMemo(() => {
+    const type = filters.service?.toLowerCase();
+    if (!type) return [];
+    return servicePoints.filter((p) => p.type.trim().toLowerCase() === type && p.lat != null && p.lng != null);
+  }, [servicePoints, filters.service]);
+  const serviceRef = useRef(shownServices);
+  serviceRef.current = shownServices;
 
-  const logoMode = filters.cats.size > 0 && !listPlaces;
-  const clusterOn = !listPlaces && clusteringOn(filters, filtered.length);
+  const logoMode = filters.cats.size > 0 && !listPlaces && !serviceMode;
 
-  // ── Klumpar: platser och skatter tillsammans ──
+  // ── Klumpar: allt som syns (platser, skatter, servicepunkter) — inte med en vald lista ──
   const index = useMemo(() => {
-    if (!clusterOn) return null;
-    const sc = new Supercluster<Pt>({ radius: CLUSTER.radius, minPoints: CLUSTER.minPoints, maxZoom: CLUSTER.maxZoom, extent: 256 });
+    if (listPlaces) return null;
+    const sc = new Supercluster<Pt>({
+      radius: logoMode ? CLUSTER.logoRadius : CLUSTER.radius,
+      minPoints: CLUSTER.minPoints,
+      maxZoom: CLUSTER.maxZoom,
+      extent: 256,
+    });
     const points: Supercluster.PointFeature<Pt>[] = [];
     for (const p of filtered) {
       if (treasurePlaceIds.has(p.id)) continue;
@@ -257,9 +271,12 @@ export default function MapScreen() {
     for (const c of shownTreasures) {
       points.push({ type: "Feature", properties: { k: "t", id: c.id }, geometry: { type: "Point", coordinates: [c.lng, c.lat] } });
     }
+    for (const p of shownServices) {
+      points.push({ type: "Feature", properties: { k: "s", id: p.id }, geometry: { type: "Point", coordinates: [p.lng!, p.lat!] } });
+    }
     sc.load(points);
     return sc;
-  }, [clusterOn, filtered, treasurePlaceIds, shownTreasures]);
+  }, [listPlaces, logoMode, filtered, treasurePlaceIds, shownTreasures, shownServices]);
   const indexRef = useRef(index);
   indexRef.current = index;
 
@@ -280,11 +297,12 @@ export default function MapScreen() {
       if (props.cluster) {
         const [lng, lat] = f.geometry.coordinates;
         const count = props.point_count ?? 0;
-        return { kind: "cluster", id: props.cluster_id!, count, lat, lng, key: `c${props.cluster_id}:${count}` };
+        // Platsen ingår i nyckeln: samma klump-id kan betyda en annan klump när filtren ändrats
+        return { kind: "cluster", id: props.cluster_id!, count, lat, lng, key: `c${props.cluster_id}:${count}:${lat.toFixed(5)}:${lng.toFixed(5)}` };
       }
-      return props.k === "t"
-        ? { kind: "treasure", id: props.id as string, key: `t${props.id}` }
-        : { kind: "place", id: props.id as number, key: `p${props.id}` };
+      if (props.k === "t") return { kind: "treasure", id: props.id as string, key: `t${props.id}` };
+      if (props.k === "s") return { kind: "service", id: props.id as string, key: `s${props.id}` };
+      return { kind: "place", id: props.id as number, key: `p${props.id}` };
     });
     // Alltid samma ordning, så nålar som står kvar aldrig flyttas om i listan
     items.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
@@ -302,12 +320,6 @@ export default function MapScreen() {
     regionRef.current = r;
     recluster(r);
   }, [recluster]);
-
-  // Utan klumpar: alla platser som syns (skatterna ritas för sig)
-  const plainItems = useMemo<Item[]>(
-    () => filtered.filter((p) => !treasurePlaceIds.has(p.id)).map((p) => ({ kind: "place", id: p.id, key: `p${p.id}` })),
-    [filtered, treasurePlaceIds],
-  );
 
   // ── Valt ──────────────────────────────────────────────────────────────────
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -395,7 +407,7 @@ export default function MapScreen() {
   const press = useRef({
     place: (_id: number) => {},
     treasure: (_id: string) => {},
-    service: (_id: number) => {},
+    service: (_id: string) => {},
     cluster: (_id: number, _lat: number, _lng: number) => {},
   });
   press.current = {
@@ -420,13 +432,27 @@ export default function MapScreen() {
       Haptics.selectionAsync().catch(() => {});
       openService(p);
     },
-    // Klump: zooma in tills den delar på sig
+    // Klump: zooma in tills den delar på sig. Ligger platserna i stort sett på samma ställe (går
+    // inte att zooma isär) visas deras kort direkt, så man kan svepa mellan dem
     cluster: (id, lat, lng) => {
       notePinPress();
       Haptics.selectionAsync().catch(() => {});
+      const idx = indexRef.current;
       let zoom = zoomOf(regionRef.current) + 2;
-      try { zoom = indexRef.current?.getClusterExpansionZoom(id) ?? zoom; } catch { /* klumpen hör till gamla filter */ }
-      fly(lat, lng, Math.min(zoom, 17), 500);
+      try { zoom = idx?.getClusterExpansionZoom(id) ?? zoom; } catch { return; /* klumpen hör till gamla filter */ }
+      if (idx && zoom > CLUSTER.maxZoom) {
+        const ids = idx.getLeaves(id, Infinity)
+          .map((leaf) => leaf.properties as Pt)
+          .flatMap((pt) => (pt.k === "p" ? [pt.id] : []));
+        const first = ids.length > 0 ? placeById.get(ids[0]) : undefined;
+        if (first) {
+          setSelectedService(null);
+          setSelectedSticker(null);
+          setNeighbors(ids);
+          setSelectedId(first.id);
+        }
+      }
+      fly(lat, lng, Math.min(zoom, 18), 500);
     },
   };
 
@@ -475,10 +501,13 @@ export default function MapScreen() {
     setSelectedSticker(null);
   }, [filters]);
 
-  // En vald lista: zooma så hela rutten syns (utöver kartans egen kant under rubriken och ovanför navigeringen)
+  // En vald lista: zooma så hela rutten syns (utöver kartans egen kant under rubriken och ovanför
+  // navigeringen). Bara när listans platser faktiskt ändrats — inte varje gång sidan ritas om
+  const listKey = listPlaces?.map((p) => p.id).join(",") ?? "";
   useEffect(() => {
-    if (!listPlaces || listPlaces.length === 0) return;
-    const coords = listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }));
+    const list = listRef.current;
+    if (!listKey || !list) return;
+    const coords = list.map((p) => ({ latitude: p.lat!, longitude: p.lng! }));
     const t = setTimeout(() => {
       mapRef.current?.fitToCoordinates(coords, {
         edgePadding: { top: 60, right: 50, bottom: 50, left: 50 },
@@ -486,7 +515,31 @@ export default function MapScreen() {
       });
     }, 350);
     return () => clearTimeout(t);
-  }, [listPlaces]);
+  }, [listKey]);
+
+  // Serviceläget: kameran visar de närmaste punkterna och var jag är (vet appen inte var jag är:
+  // alla punkterna). En gång per vald typ
+  const fittedService = useRef<string | null>(null);
+  useEffect(() => {
+    const type = filters.service;
+    if (!type) { fittedService.current = null; return; }
+    if (fittedService.current === type || shownServices.length === 0) return;
+    const t = setTimeout(() => {
+      fittedService.current = type;
+      const me = userLocRef.current;
+      const points = shownServices.map((p) => ({ latitude: p.lat!, longitude: p.lng! }));
+      const coords = me
+        ? [...points]
+          .sort((a, b) => distanceMeters(me.latitude, me.longitude, a.latitude, a.longitude)
+            - distanceMeters(me.latitude, me.longitude, b.latitude, b.longitude))
+          .slice(0, 3)
+          .concat(me)
+        : points;
+      if (coords.length === 1) fly(coords[0].latitude, coords[0].longitude, 14, 800);
+      else mapRef.current?.fitToCoordinates(coords, { edgePadding: { top: 70, right: 60, bottom: 60, left: 60 }, animated: true });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [filters.service, shownServices, fly]);
 
   // Loggläget: hämta loggorna i förväg så de inte blinkar fram på kartan
   useEffect(() => {
@@ -588,15 +641,17 @@ export default function MapScreen() {
     const out: React.ReactNode[] = [];
 
     if (listPlaces) {
-      // En vald lista: numrerade nålar i listans ordning och den streckade rutten
+      // En vald lista: numrerade nålar i listans ordning och rutten emellan. Hel linje: en streckad
+      // linje mäts i meter på iPhone (8 m streck) — tusentals små streck som fick kartan att lagga
       if (listPlaces.length > 1) {
         out.push(
           <Polyline
             key="route"
             coordinates={listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }))}
             strokeColor={GOLD}
-            strokeWidth={2.5}
-            lineDashPattern={[8, 7]}
+            strokeWidth={3}
+            lineCap="round"
+            lineJoin="round"
           />,
         );
       }
@@ -620,7 +675,7 @@ export default function MapScreen() {
         });
       }
     } else {
-      for (const it of index ? clusterItems : plainItems) {
+      for (const it of clusterItems) {
         if (it.kind === "cluster") {
           const icon = typeface ? clusterIcon(it.count, dark, typeface) : null;
           if (!icon) continue;
@@ -642,6 +697,22 @@ export default function MapScreen() {
           if (c) out.push(treasureMarker(c));
           continue;
         }
+        if (it.kind === "service") {
+          const p = serviceById.get(it.id);
+          if (!p || p.id === selectedService?.id) continue;
+          out.push(kept(it.key, () => (
+            <Marker
+              key={it.key}
+              coordinate={{ latitude: p.lat!, longitude: p.lng! }}
+              {...pinImage(servicePinImage(p.type, dark))}
+              anchor={PIN_ANCHOR}
+              zIndex={3}
+              tracksViewChanges={false}
+              onPress={() => press.current.service(p.id)}
+            />
+          )));
+          continue;
+        }
         if (it.id === selectedId) continue;
         const p = placeById.get(it.id);
         if (!p) continue;
@@ -657,7 +728,7 @@ export default function MapScreen() {
             <Marker
               key={`p${p.id}`}
               coordinate={{ latitude: p.lat!, longitude: p.lng! }}
-              {...pinImage(placePinImage(catId))}
+              {...pinImage(placePinImage(catId, dark))}
               anchor={PIN_ANCHOR}
               zIndex={3}
               tracksViewChanges={false}
@@ -683,27 +754,20 @@ export default function MapScreen() {
       }
     }
 
-    // Skatter som inte ingår i klumparna (utan klumpar, eller med en vald lista)
+    // Skatterna när en lista är vald (annars ingår de i klumparna)
     if (!index) shownTreasures.forEach((c) => out.push(treasureMarker(c)));
-    shownServices.forEach((p) => {
-      const sel = selectedService?.id === p.id;
-      const key = `s${p.id}:${sel ? 1 : 0}`;
-      out.push(kept(key, () => (
-        <Marker
-          key={key}
-          coordinate={{ latitude: p.lat!, longitude: p.lng! }}
-          {...pinImage(servicePinImage(sel))}
-          anchor={PIN_ANCHOR}
-          zIndex={sel ? 2000 : 2}
-          tracksViewChanges={false}
-          onPress={() => press.current.service(p.id)}
-        />
-      )));
-    });
+    // Den valda servicepunkten: guldnålen, som en vald plats
+    if (selectedService?.lat != null && selectedService.lng != null) {
+      out.push(
+        <ViewMarker key={`sel-s-${selectedService.id}`} lat={selectedService.lat} lng={selectedService.lng} anchor={SELECTED_ANCHOR} zIndex={2000} onPress={notePinPress}>
+          <SelectedPin />
+        </ViewMarker>,
+      );
+    }
     return out;
   }, [
-    placesFetched, markerCache, listPlaces, typeface, selectedId, index, clusterItems, plainItems, dark, treasureById,
-    placeById, logoMode, notePinPress, shownTreasures, shownServices, selectedService, selectedSticker, collected,
+    placesFetched, markerCache, listPlaces, typeface, selectedId, index, clusterItems, dark, treasureById, serviceById,
+    placeById, logoMode, notePinPress, shownTreasures, selectedService, selectedSticker, collected,
   ]);
 
   // ── Korten ────────────────────────────────────────────────────────────────
@@ -743,10 +807,15 @@ export default function MapScreen() {
   }));
 
   const filterCount = countFilters(filters);
+  // Filterarkets knapp: det som syns just nu
+  const chosenService = filters.service ? serviceType(filters.service) : undefined;
+  const applyLabel = chosenService
+    ? `Visa ${shownServices.length} ${shownServices.length === 1 ? chosenService.one : chosenService.many}`
+    : filtered.length === 1 ? "Visa 1 plats" : `Visa ${filtered.length} platser`;
   const pills = activeFilters(filters, lists);
 
   // Ensam vald kategori med underkategorier: dropdown under pillerna
-  const onlyCat = filters.cats.size === 1 ? [...filters.cats][0] : null;
+  const onlyCat = filters.cats.size === 1 && !serviceMode ? [...filters.cats][0] : null;
   const subs = onlyCat ? SUBCATEGORIES[onlyCat] : undefined;
 
   return (
@@ -870,36 +939,17 @@ export default function MapScreen() {
       )}
 
       {selectedService && (
-        <Reanimated.View
-          entering={cardIn}
-          exiting={cardOut}
+        <ServiceCard
+          point={selectedService}
+          bottom={cardBottom}
+          dark={dark}
+          birdKm={userLoc && selectedService.lat != null && selectedService.lng != null
+            ? distanceMeters(userLoc.latitude, userLoc.longitude, selectedService.lat, selectedService.lng) / 1000
+            : null}
+          onNavigate={() => navigateTo(selectedService.lat, selectedService.lng)}
+          onClose={deselect}
           onLayout={onSmallCardLayout}
-          style={[s.serviceCard, { bottom: cardBottom, backgroundColor: dark ? "#141416" : "#FFFFFF", borderColor: colors.border }]}
-        >
-          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-            <ServiceBadge type={selectedService.type} dark={dark} />
-            <View style={{ flex: 1 }}>
-              <Text style={[s.serviceType, { color: colors.muted }]}>
-                {SERVICE_TYPES.find((t) => t.type === selectedService.type)?.label ?? selectedService.type}
-              </Text>
-              <Text style={[s.serviceName, { color: colors.text }]} numberOfLines={2}>{selectedService.name}</Text>
-              {!!selectedService.description && (
-                <Text style={[s.serviceDesc, { color: colors.muted }]} numberOfLines={2}>{selectedService.description}</Text>
-              )}
-            </View>
-            <TouchableOpacity onPress={deselect} hitSlop={10}>
-              <X size={18} color={colors.muted} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={[s.serviceNav, { borderColor: colors.borderStrong }]}
-            activeOpacity={0.8}
-            onPress={() => navigateTo(selectedService.lat, selectedService.lng)}
-          >
-            <Navigation size={15} color={colors.text} strokeWidth={2.2} />
-            <Text style={[s.serviceNavText, { color: colors.text }]}>Navigera</Text>
-          </TouchableOpacity>
-        </Reanimated.View>
+        />
       )}
 
       {selectedSticker && (
@@ -918,7 +968,7 @@ export default function MapScreen() {
         filters={filters}
         onChange={setFilters}
         lists={lists}
-        resultCount={filtered.length}
+        applyLabel={applyLabel}
         onClose={() => setFilterOpen(false)}
       />
       <LikeBurst burst={burst} />
@@ -1131,13 +1181,66 @@ function SubcategoryDropdown({
   );
 }
 
-/** Servicetypens ikon i kortet */
-function ServiceBadge({ type, dark }: { type: string; dark: boolean }) {
-  const Icon = serviceIcon(type);
+/**
+ * En servicepunkts infokort (inga platskort — en toalett eller laddstation har ingen platssida):
+ * typ och avstånd, namn, adress, beskrivning, och knapparna Ring (om det finns ett nummer) och
+ * Navigera.
+ */
+function ServiceCard({
+  point, bottom, dark, birdKm, onNavigate, onClose, onLayout,
+}: {
+  point: ServicePoint; bottom: number; dark: boolean; birdKm: number | null;
+  onNavigate: () => void; onClose: () => void; onLayout: (e: LayoutChangeEvent) => void;
+}) {
+  const { colors } = useTheme();
+  const type = serviceType(point.type);
+  const Icon = serviceIcon(point.type);
+  const iconColor = dark ? GOLD : "#8A6A2E";
+  // Laddstationernas beskrivningar har kommatecken mellan allt (samma städning som Sök gör)
+  const raw = point.description ?? point.short_description;
+  const description = raw && type?.key === "laddning" ? raw.replace(/,/g, "") : raw;
+  const phone = point.phone?.trim();
   return (
-    <View style={[s.serviceBadge, { backgroundColor: dark ? "#F5F1E8" : "#2A2A2A" }]}>
-      <Icon size={18} color={dark ? "#1A1A1A" : "#F5F1E8"} strokeWidth={2.2} />
-    </View>
+    <Reanimated.View
+      entering={cardIn}
+      exiting={cardOut}
+      onLayout={onLayout}
+      style={[s.serviceCard, { bottom, backgroundColor: dark ? "#141416" : "#FFFFFF", borderColor: colors.border }]}
+    >
+      <View style={s.serviceHead}>
+        <View style={[s.serviceBadge, { backgroundColor: dark ? "rgba(197,160,89,0.16)" : "rgba(138,106,46,0.12)" }]}>
+          <Icon size={20} color={iconColor} strokeWidth={2.2} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.serviceType, { color: iconColor }]}>
+            {(type?.one ?? point.type).toUpperCase()}{birdKm != null ? `  ·  ${distanceLabel(birdKm)}` : ""}
+          </Text>
+          <Text style={[s.serviceName, { color: colors.text }]} numberOfLines={2}>{point.name}</Text>
+          {!!point.address && <Text style={[s.serviceAddr, { color: colors.muted }]} numberOfLines={1}>{point.address}</Text>}
+        </View>
+        <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel="Stäng">
+          <X size={18} color={colors.muted} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+      {!!description && <Text style={[s.serviceDesc, { color: colors.muted }]} numberOfLines={3}>{description}</Text>}
+      <View style={s.serviceActions}>
+        {!!phone && (
+          <TouchableOpacity
+            style={[s.serviceBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]}
+            activeOpacity={0.8}
+            onPress={() => Linking.openURL(`tel:${phone.replace(/\s/g, "")}`).catch(() => {})}
+          >
+            <Phone size={16} color={colors.text} strokeWidth={2.2} />
+            <Text style={[s.serviceBtnText, { color: colors.text }]}>Ring</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={[s.serviceBtn, s.serviceGo]} activeOpacity={0.85} onPress={onNavigate}>
+          <LinearGradient colors={["#C5A059", "#B08A3E"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />
+          <Navigation size={16} color="#121212" strokeWidth={2.4} />
+          <Text style={[s.serviceBtnText, { color: "#121212", fontFamily: "Inter_700Bold" }]}>Navigera</Text>
+        </TouchableOpacity>
+      </View>
+    </Reanimated.View>
   );
 }
 
@@ -1208,12 +1311,17 @@ const s = StyleSheet.create({
     position: "absolute", left: 12, right: 12, borderRadius: 22, padding: 16, gap: 14, borderWidth: StyleSheet.hairlineWidth,
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.4, shadowRadius: 20, elevation: 12,
   },
-  serviceBadge: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
-  serviceType: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.3 },
-  serviceName: { fontFamily: "Montserrat_700Bold", fontSize: 17, marginTop: 3 },
-  serviceDesc: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4 },
-  serviceNav: {
-    height: 44, borderRadius: 12, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+  serviceHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  serviceBadge: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  serviceType: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.2 },
+  serviceName: { fontFamily: "Montserrat_700Bold", fontSize: 17, marginTop: 4 },
+  serviceAddr: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 3 },
+  serviceDesc: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19 },
+  serviceActions: { flexDirection: "row", gap: 8 },
+  serviceBtn: {
+    flex: 1, height: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
   },
-  serviceNavText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  serviceGo: { borderWidth: 0, overflow: "hidden" },
+  serviceBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
 });

@@ -23,7 +23,7 @@ import {
   ALL_CATEGORIES_ICON, EMPTY_FILTERS, MAP_CATEGORIES, MINE, PRACTICAL, SUBCATEGORIES, TREASURE_MODES,
   type MapFilters,
 } from "@/lib/mapFilters";
-import { SERVICE_TYPES } from "./MapPins";
+import { SERVICE_TYPES, serviceType } from "./MapPins";
 
 const GOLD = "#C5A059";
 /** Greppet och rubriken överst i arket (därifrån går arket alltid att dra ner) */
@@ -38,8 +38,15 @@ const toggled = <T,>(set: Set<T>, v: T) => {
 /** Ett aktivt filter som ett chip/piller: namn och hur det tas bort */
 export interface ActiveFilter { key: string; label: string; remove: (f: MapFilters) => MapFilters }
 
-/** De aktiva filtren i ordning: kategorier, underkategori, praktiskt, Mina, listor, service, skatter */
+/**
+ * De aktiva filtren i ordning: kategorier, underkategori, praktiskt, Mina, listor, skatter. I
+ * serviceläget bara servicetypen (de andra gäller inte då).
+ */
 export function activeFilters(f: MapFilters, lists: ListSummary[]): ActiveFilter[] {
+  if (f.service) {
+    const type = f.service;
+    return [{ key: "s", label: serviceType(type)?.label ?? type, remove: (x) => ({ ...x, service: null }) }];
+  }
   const out: ActiveFilter[] = [];
   f.cats.forEach((id) => out.push({
     key: `c-${id}`, label: MAP_CATEGORIES.find((c) => c.id === id)?.label ?? id,
@@ -62,10 +69,6 @@ export function activeFilters(f: MapFilters, lists: ListSummary[]): ActiveFilter
     key: `l-${id}`, label: lists.find((l) => l.id === id)?.name ?? "Lista",
     remove: (x) => ({ ...x, listIds: toggled(x.listIds, id) }),
   }));
-  f.services.forEach((type) => out.push({
-    key: `s-${type}`, label: SERVICE_TYPES.find((t) => t.type === type)?.label ?? type,
-    remove: (x) => ({ ...x, services: toggled(x.services, type) }),
-  }));
   if (f.treasures !== "all") {
     out.push({
       key: "t", label: TREASURE_MODES.find((t) => t.id === f.treasures)?.label ?? "Skatter",
@@ -76,14 +79,14 @@ export function activeFilters(f: MapFilters, lists: ListSummary[]): ActiveFilter
 }
 
 export function MapFilterSheet({
-  open, filters, onChange, lists, resultCount, onClose,
+  open, filters, onChange, lists, applyLabel, onClose,
 }: {
   open: boolean;
   filters: MapFilters;
   onChange: (f: MapFilters) => void;
   lists: ListSummary[];
-  /** Antal platser som syns med filtren just nu (knappen "Visa N platser") */
-  resultCount: number;
+  /** Knappen längst ner: det som syns med filtren just nu ("Visa 42 platser", "Visa 6 toaletter") */
+  applyLabel: string;
   onClose: () => void;
 }) {
   const { height } = useWindowDimensions();
@@ -150,7 +153,11 @@ export function MapFilterSheet({
     Haptics.selectionAsync().catch(() => {});
     onChange(next);
   };
+  // Serviceläget: platsfiltren är nedtonade, och väljer man något bland dem lämnar man läget
+  const serviceOn = filters.service != null;
+  const setPlaces = (next: MapFilters) => set({ ...next, service: null });
   const active = activeFilters(filters, lists);
+  const chosenService = filters.service ? serviceType(filters.service) : undefined;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={open ? "auto" : "none"}>
@@ -191,12 +198,13 @@ export function MapFilterSheet({
                   </Section>
                 )}
 
+                <View style={[s.group, serviceOn && s.dim]}>
                 <Section title="Kategorier">
                   <Chip
                     label="Alla"
                     Icon={ALL_CATEGORIES_ICON}
                     on={filters.cats.size === 0}
-                    onPress={() => set({ ...filters, cats: new Set(), sub: null })}
+                    onPress={() => setPlaces({ ...filters, cats: new Set(), sub: null })}
                   />
                   {MAP_CATEGORIES.map((c) => (
                     <Chip
@@ -204,7 +212,7 @@ export function MapFilterSheet({
                       label={c.label}
                       Icon={c.Icon}
                       on={filters.cats.has(c.id)}
-                      onPress={() => set({ ...filters, cats: toggled(filters.cats, c.id), sub: null })}
+                      onPress={() => setPlaces({ ...filters, cats: toggled(filters.cats, c.id), sub: null })}
                     />
                   ))}
                 </Section>
@@ -216,7 +224,7 @@ export function MapFilterSheet({
                       label={p.label}
                       Icon={p.Icon}
                       on={filters.practical.has(p.id)}
-                      onPress={() => set({ ...filters, practical: toggled(filters.practical, p.id) })}
+                      onPress={() => setPlaces({ ...filters, practical: toggled(filters.practical, p.id) })}
                     />
                   ))}
                 </Section>
@@ -228,7 +236,7 @@ export function MapFilterSheet({
                       label={m.label}
                       Icon={m.Icon}
                       on={filters.mine.has(m.id)}
-                      onPress={() => set({ ...filters, mine: toggled(filters.mine, m.id) })}
+                      onPress={() => setPlaces({ ...filters, mine: toggled(filters.mine, m.id) })}
                     />
                   ))}
                 </Section>
@@ -242,7 +250,7 @@ export function MapFilterSheet({
                           key={l.id}
                           list={l}
                           on={filters.listIds.has(l.id)}
-                          onPress={() => set({ ...filters, listIds: toggled(filters.listIds, l.id) })}
+                          onPress={() => setPlaces({ ...filters, listIds: toggled(filters.listIds, l.id) })}
                         />
                       ))}
                     </ScrollView>
@@ -252,23 +260,35 @@ export function MapFilterSheet({
                   </View>
                 )}
 
-                <Section title="Service">
-                  {SERVICE_TYPES.map((t) => (
-                    <Chip
-                      key={t.type}
-                      label={t.label}
-                      Icon={t.Icon}
-                      on={filters.services.has(t.type)}
-                      onPress={() => set({ ...filters, services: toggled(filters.services, t.type) })}
-                    />
-                  ))}
-                </Section>
+                </View>
 
+                <View style={s.section}>
+                  <Text style={[s.sectionTitle, { color: colors.faint }]}>SERVICE</Text>
+                  <View style={s.wrap}>
+                    {SERVICE_TYPES.map((t) => (
+                      <Chip
+                        key={t.type}
+                        label={t.label}
+                        Icon={t.Icon}
+                        on={filters.service === t.type}
+                        onPress={() => set({ ...filters, service: filters.service === t.type ? null : t.type })}
+                      />
+                    ))}
+                  </View>
+                  <Text style={[s.hint, { color: colors.muted }]}>
+                    {chosenService
+                      ? `Kartan visar bara ${chosenService.many}. Tryck igen, eller välj ett annat filter, för att se platserna.`
+                      : "Välj en typ, så visar kartan bara den."}
+                  </Text>
+                </View>
+
+                <View style={[s.group, serviceOn && s.dim]}>
                 <Section title="Skatter">
                   {TREASURE_MODES.map((t) => (
-                    <Chip key={t.id} label={t.label} on={filters.treasures === t.id} onPress={() => set({ ...filters, treasures: t.id })} />
+                    <Chip key={t.id} label={t.label} on={!serviceOn && filters.treasures === t.id} onPress={() => setPlaces({ ...filters, treasures: t.id })} />
                   ))}
                 </Section>
+                </View>
               </Reanimated.ScrollView>
             </GestureDetector>
           </View>
@@ -280,7 +300,7 @@ export function MapFilterSheet({
           </TouchableOpacity>
           <TouchableOpacity style={s.apply} activeOpacity={0.85} onPress={onClose}>
             <LinearGradient colors={["#C5A059", "#B48A3B"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />
-            <Text style={s.applyText}>{resultCount === 1 ? "Visa 1 plats" : `Visa ${resultCount} platser`}</Text>
+            <Text style={s.applyText}>{applyLabel}</Text>
           </TouchableOpacity>
         </View>
       </Reanimated.View>
@@ -355,6 +375,8 @@ const s = StyleSheet.create({
   close: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   body: { padding: 20, paddingTop: 12, gap: 24 },
   section: { gap: 12 },
+  group: { gap: 24 },
+  dim: { opacity: 0.4 },
   sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 2 },
   hint: { fontFamily: "Inter_400Regular", fontSize: 12.5 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
