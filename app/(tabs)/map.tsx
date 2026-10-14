@@ -58,6 +58,7 @@ import { findCategory } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { distanceMeters } from "@/lib/checkin";
 import { setNavHidden } from "@/lib/navVisibility";
+import { careHours, splitRange } from "@/lib/serviceHours";
 import { pushOnce } from "@/lib/navigateOnce";
 import {
   CLUSTER, EMPTY_FILTERS, SUBCATEGORIES, countFilters, distanceLabel, filterPlaces, type MapFilters,
@@ -1227,7 +1228,7 @@ function ServiceCard({
           <X size={18} color={colors.muted} strokeWidth={2} />
         </TouchableOpacity>
       </View>
-      {!!description && <Text style={[s.serviceDesc, { color: colors.muted }]} numberOfLines={3}>{description}</Text>}
+      {!!description && <ServiceText typeKey={type?.key} text={description} />}
       <View style={s.serviceActions}>
         {!!phone && (
           <TouchableOpacity
@@ -1247,6 +1248,54 @@ function ServiceCard({
       </View>
     </Reanimated.View>
   );
+}
+
+const OPEN = "#4ADE80";
+const CLOSED = "#F87171";
+
+/**
+ * Servicepunktens text. AutoMat: tiden ("05-23") grön när det är öppet, röd när det är stängt.
+ * Vård ("08-15, stängt, (Stängt)" = vardagar, lördag, söndag): de tre dagarna på var sin rad, och
+ * dagens rad tydlig — grön om det är öppet just nu, röd annars.
+ */
+function ServiceText({ typeKey, text }: { typeKey: string | undefined; text: string }) {
+  const { colors } = useTheme();
+  if (typeKey === "vard") {
+    const days = careHours(text);
+    if (days) {
+      return (
+        <View style={s.hours}>
+          {days.map((d) => {
+            const tint = d.today ? (d.open ? OPEN : CLOSED) : colors.muted;
+            return (
+              <View key={d.label} style={s.hoursRow}>
+                <Text style={[s.hoursDay, { color: d.today ? colors.text : colors.muted }, d.today && s.hoursToday]}>
+                  {d.label}{d.today ? " (idag)" : ""}
+                </Text>
+                <Text style={[s.hoursTime, { color: tint }, d.today && s.hoursToday]}>
+                  {d.text === "stängt" ? "Stängt" : d.text}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      );
+    }
+  }
+  if (typeKey === "automat") {
+    const parts = splitRange(text);
+    if (parts) {
+      return (
+        <Text style={[s.serviceDesc, { color: colors.muted }]} numberOfLines={3}>
+          {parts.before}
+          <Text style={[s.hoursToday, { color: parts.open ? OPEN : CLOSED }]}>{parts.range}</Text>
+          {parts.after}
+          <Text style={[s.hoursToday, { color: parts.open ? OPEN : CLOSED }]}>{parts.open ? "  · Öppet nu" : "  · Stängt nu"}</Text>
+        </Text>
+      );
+    }
+  }
+  return <Text style={[s.serviceDesc, { color: colors.muted }]} numberOfLines={3}>{text}</Text>;
 }
 
 const s = StyleSheet.create({
@@ -1323,6 +1372,11 @@ const s = StyleSheet.create({
   serviceAddr: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 3 },
   serviceDesc: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19 },
   serviceActions: { flexDirection: "row", gap: 8 },
+  hours: { gap: 6 },
+  hoursRow: { flexDirection: "row", justifyContent: "space-between" },
+  hoursDay: { fontFamily: "Inter_400Regular", fontSize: 13.5 },
+  hoursTime: { fontFamily: "Inter_500Medium", fontSize: 13.5, fontVariant: ["tabular-nums"] },
+  hoursToday: { fontFamily: "Inter_700Bold" },
   serviceBtn: {
     flex: 1, height: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
