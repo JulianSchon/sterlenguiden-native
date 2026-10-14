@@ -59,6 +59,8 @@ const INIT_REGION: Region = { latitude: 55.5, longitude: 14.1, latitudeDelta: 0.
 const CAROUSEL_SIZE = 15;
 /** Kartnavigeringens höjd längst ner (FloatingNav, kartvarianten) */
 const NAV_H = 56 + 12;
+/** Ungefärlig höjd på korten längst ner (platskort, service, skatt) — kartans logga ligger ovanför */
+const CARD_H = 196;
 /** Så många klumpar som kan synas samtidigt (en fast uppsättning nålar, se VIKTIGT överst) */
 const CLUSTER_POOL = 60;
 /** Där osynliga nålar (oanvända klumpar, den tomma rutten) står */
@@ -268,13 +270,20 @@ export default function MapScreen() {
     setTimeout(() => { pinJustPressed.current = false; }, 300);
   };
 
-  /** Flytta kartan så platsen hamnar ovanför korten (och zooma in om man står långt ut) */
+  /**
+   * Flytta kartan till platsen (och zooma in om man står långt ut). Kartans nederkant (mapPadding)
+   * följer korten, så platsen hamnar mitt i den fria ytan ovanför dem — utan egen förskjutning.
+   */
   const focusOn = useCallback((lat: number, lng: number) => {
     const r = regionRef.current;
-    const delta = r.longitudeDelta > 0.12 ? 0.05 : r.longitudeDelta;
-    const latDelta = r.longitudeDelta > 0.12 ? 0.05 : r.latitudeDelta;
+    const zoomIn = r.longitudeDelta > 0.12;
     mapRef.current?.animateToRegion(
-      { latitude: lat - latDelta * 0.2, longitude: lng, latitudeDelta: latDelta, longitudeDelta: delta },
+      {
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: zoomIn ? 0.05 : r.latitudeDelta,
+        longitudeDelta: zoomIn ? 0.05 : r.longitudeDelta,
+      },
       450,
     );
   }, []);
@@ -457,6 +466,7 @@ export default function MapScreen() {
 
   const headerTop = Math.max(insets.top, 44);
   const cardsBottom = insets.bottom + NAV_H + 14;
+  const cardOpen = !!carousel || !!selectedService || !!selectedSticker;
   const filterCount = countFilters(filters);
 
   return (
@@ -478,8 +488,9 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
-        // Kartleverantörens logga precis ovanför navigeringen (måste synas enligt villkoren)
-        legalLabelInsets={{ bottom: insets.bottom + 2, left: 8, right: 0, top: 0 }}
+        // Googles logga måste alltid synas helt (villkoren): kartans nederkant ligger ovanför
+        // navigeringen, och ovanför korten när ett kort är öppet
+        mapPadding={{ top: 0, right: 0, left: 0, bottom: cardOpen ? cardsBottom + CARD_H : insets.bottom + NAV_H + 4 }}
         onPress={closeAll}
         onRegionChangeComplete={(r) => { regionRef.current = r; setRegion(r); }}
       >
