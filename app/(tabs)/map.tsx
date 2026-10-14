@@ -1,22 +1,17 @@
 /**
  * Karta — svartvit karta i appens tema (mapStyle.ts), där Österlens platser är det enda som har
- * färg: runda medaljonger i kategoriernas färger (MapPins.tsx). Utzoomat slås närliggande platser
- * ihop till en klump med antalet (supercluster).
+ * färg: klassiska nålar i kategoriernas färger (MapPins.tsx).
  *
  * - Trycker man på en nål glider korten upp (PlaceCarousel); man sveper mellan närliggande platser
  *   och kartan följer med.
- * - Filter (MapFilterSheet): kategorier (en vald = platsernas loggor i stället för nålar),
- *   praktiskt, service (toaletter, laddning …), en av mina listor (numrerad, med en streckad rutt
- *   i listans ordning) och skatter.
+ * - Filter (MapFilterSheet): kategorier, praktiskt, service (toaletter, laddning …), en av mina
+ *   listor (numrerade nålar med en streckad rutt i listans ordning) och skatter.
  * - Kommer man hit med ?place= (från ett minne) eller ?sticker= (Hem, Mitt Österlen) visas den
  *   platsen/skatten direkt; annars centreras kartan på mig varje gång man går in på fliken.
  *
- * VIKTIGT — nålarna läggs till EN gång och tas aldrig bort (de tonas bara fram/bort med opacity,
- * klumparna har en fast uppsättning platser som återanvänds). Kartbiblioteket i den här versionen
- * går via Reacts översättningslager för den gamla arkitekturen, och när många nålar lades till och
- * togs bort i samma svep (klumparna, varje gång kartan rörts) fick det ibland en position i sin
- * lista som inte fanns än — och appen kraschade. Behåll mönstret tills react-native-maps
- * uppgraderats (kräver nytt bygge).
+ * Snabbhet: nålarna är färdiga bilder (Marker image) som Google Kartor ritar själv, och sidan ritas
+ * inte om när kartan rör sig. Nålarna läggs till en gång och tonas fram/bort med opacity (inga
+ * nålar läggs till eller tas bort medan man använder kartan).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -31,7 +26,6 @@ import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import Reanimated, { FadeIn, FadeInDown, FadeOutDown } from "react-native-reanimated";
-import Supercluster from "supercluster";
 import { ArrowLeft, Locate, Navigation, SlidersHorizontal, X } from "lucide-react-native";
 import { usePlaces, isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
@@ -42,10 +36,11 @@ import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
 import { findCategory, CATEGORIES } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { distanceMeters } from "@/lib/checkin";
-import { StickerPin } from "@/components/stickers/StickerPin";
 import { StickerCard } from "@/components/stickers/StickerCard";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
-import { ClusterPin, LogoPin, NumberPin, PlacePin, ServicePin, SERVICE_TYPES } from "@/components/map/MapPins";
+import {
+  NumberPin, PIN_ANCHOR, placePinImage, serviceIcon, servicePinImage, treasurePinImage, SERVICE_TYPES,
+} from "@/components/map/MapPins";
 import { PlaceCarousel, travelLabel, type CarouselItem } from "@/components/map/PlaceCarousel";
 import {
   MapFilterSheet, EMPTY_FILTERS, AMENITIES, countFilters, type MapFilters,
@@ -61,15 +56,10 @@ const CAROUSEL_SIZE = 15;
 const NAV_H = 56 + 12;
 /** Ungefärlig höjd på korten längst ner (platskort, service, skatt) — kartans logga ligger ovanför */
 const CARD_H = 196;
-/** Så många klumpar som kan synas samtidigt (en fast uppsättning nålar, se VIKTIGT överst) */
-const CLUSTER_POOL = 60;
-/** Där osynliga nålar (oanvända klumpar, den tomma rutten) står */
+/** Där den osynliga rutten står när ingen lista är vald */
 const PARK = { latitude: INIT_REGION.latitude, longitude: INIT_REGION.longitude };
-
-interface ClusterSlot { id: number; count: number; lat: number; lng: number }
-
-/** Kartans zoomnivå (som kartleverantörerna räknar den) ur hur mycket som syns */
-const zoomOf = (r: Region) => Math.round(Math.log2(360 / r.longitudeDelta));
+/** Listans numrerade nålar: spetsen 92 % ner i ritytan */
+const NUMBER_ANCHOR = { x: 0.5, y: 0.919 };
 
 function parseAmenities(raw: unknown): Record<string, boolean> {
   if (!raw) return {};
@@ -77,7 +67,6 @@ function parseAmenities(raw: unknown): Record<string, boolean> {
   try { return JSON.parse(raw as string); } catch { return {}; }
 }
 
-type PlacePoint = Supercluster.PointFeature<{ id: number }>;
 
 export default function MapScreen() {
   const router = useRouter();
@@ -89,7 +78,6 @@ export default function MapScreen() {
   const dark = scheme === "dark";
   const mapRef = useRef<MapView>(null);
   const regionRef = useRef<Region>(INIT_REGION);
-  const [region, setRegion] = useState<Region>(INIT_REGION);
 
   const placesQ = usePlaces();
   const places = useMemo(() => placesQ.data ?? [], [placesQ.data]);
@@ -98,7 +86,7 @@ export default function MapScreen() {
   const { data: collected = new Map<string, string>() } = useCollected();
   const servicePointsQ = useAllServicePoints();
   const servicePoints = useMemo(() => servicePointsQ.data ?? [], [servicePointsQ.data]);
-  // Allt nålarna behöver är hämtat — då läggs alla till på en gång (se VIKTIGT överst)
+  // Allt nålarna behöver är hämtat — då läggs alla till på en gång
   const markersReady = placesQ.isFetched && collectiblesQ.isFetched && servicePointsQ.isFetched;
   const { data: lists = [] } = useLists();
   const { data: visits = [] } = useVisits();
@@ -203,47 +191,13 @@ export default function MapScreen() {
     [servicePoints, filters.services],
   );
 
-  // En kategori vald (och ingen lista): platsernas loggor i stället för nålar
-  const logoMode = filters.cats.size === 1 && !listPlaces;
-
-  // ── Klumpar när man zoomat ut (inte för en lista — där syns alla med sina nummer) ──
-  const cluster = useMemo(() => {
-    const index = new Supercluster<{ id: number }>({ radius: 54, maxZoom: 13, minPoints: 3 });
-    const points: PlacePoint[] = shownPlaces.map((p) => ({
-      type: "Feature",
-      properties: { id: p.id },
-      geometry: { type: "Point", coordinates: [p.lng!, p.lat!] },
-    }));
-    index.load(points);
-    return index;
-  }, [shownPlaces]);
-  const clusters = useMemo(() => {
-    if (listPlaces) return [];
-    const r = region;
-    const bbox: [number, number, number, number] = [
-      r.longitude - r.longitudeDelta, r.latitude - r.latitudeDelta,
-      r.longitude + r.longitudeDelta, r.latitude + r.latitudeDelta,
-    ];
-    return cluster.getClusters(bbox, zoomOf(r));
-  }, [cluster, region, listPlaces]);
-
-  // Vilka platser som syns som egna nålar, och klumparna (i den fasta uppsättningen platser)
-  const { visibleIds, clusterSlots } = useMemo(() => {
-    if (listPlaces) return { visibleIds: new Set(listPlaces.map((p) => p.id)), clusterSlots: [] as ClusterSlot[] };
-    const ids = new Set<number>();
-    const slots: ClusterSlot[] = [];
-    for (const feature of clusters) {
-      const props = feature.properties as { cluster?: boolean; cluster_id?: number; point_count?: number; id?: number };
-      const [lng, lat] = feature.geometry.coordinates;
-      if (props.cluster) slots.push({ id: props.cluster_id!, count: props.point_count ?? 0, lat, lng });
-      else if (props.id != null) ids.add(props.id);
-    }
-    return { visibleIds: ids, clusterSlots: slots.slice(0, CLUSTER_POOL) };
-  }, [clusters, listPlaces]);
+  // Vilka platser som syns (en vald lista har egna, numrerade nålar)
+  const visibleIds = useMemo(
+    () => new Set(listPlaces ? [] : shownPlaces.map((p) => p.id)),
+    [shownPlaces, listPlaces],
+  );
   const visibleRef = useRef(visibleIds);
   visibleRef.current = visibleIds;
-  const slotsRef = useRef(clusterSlots);
-  slotsRef.current = clusterSlots;
 
   // Alla nålar som någonsin kan synas, i en fast ordning (nya platser hamnar sist)
   const markerPlaces = useMemo(
@@ -256,7 +210,6 @@ export default function MapScreen() {
   );
   const shownServiceIds = useMemo(() => new Set(shownServices.map((p) => p.id)), [shownServices]);
   const shownTreasureIds = useMemo(() => new Set(shownTreasures.map((c) => c.id)), [shownTreasures]);
-  const listNumbers = useMemo(() => (listPlaces ? new Map(listPlaces.map((p, i) => [p.id, i + 1])) : null), [listPlaces]);
 
   // ── Valt ──────────────────────────────────────────────────────────────────
   const [carousel, setCarousel] = useState<{ ids: number[]; index: number; key: number } | null>(null);
@@ -455,14 +408,107 @@ export default function MapScreen() {
     ? `Visa ${shownTreasures.length} skatter`
     : shownPlaces.length === 1 ? "Visa 1 plats" : `Visa ${shownPlaces.length} platser`;
 
-  // Google-kartan (Android) ritar om en nåls innehåll bara medan tracksViewChanges är på — på en
-  // kort stund efter varje ändring av nålarnas utseende, sen av igen (annars blir kartan trög)
-  const [trackPins, setTrackPins] = useState(true);
+  // Listans numrerade nålar ritas i appen: Google Kartor fångar dem som bilder medan
+  // tracksViewChanges är på — en kort stund efter varje ändring, sen av (annars blir kartan trög)
+  const [trackList, setTrackList] = useState(true);
   useEffect(() => {
-    setTrackPins(true);
-    const t = setTimeout(() => setTrackPins(false), 800);
+    setTrackList(true);
+    const t = setTimeout(() => setTrackList(false), 700);
     return () => clearTimeout(t);
-  }, [selectedPlaceId, selectedService, selectedSticker, logoMode, listNumbers, savedIds, visitedIds, clusterSlots, dark, markersReady]);
+  }, [listPlaces, selectedPlaceId]);
+
+  // Nålarna ritas bara om när något i dem ändras — inte när min position uppdateras (var 5:e
+  // sekund) eller annat på sidan, det gjorde kartan seg
+  const markers = useMemo(() => (markersReady ? (
+      <>
+        {/* En lista: streckad rutt i listans ordning, under nålarna. Finns alltid (osynlig utan lista) */}
+        <Polyline
+          coordinates={listPlaces && listPlaces.length > 1
+            ? listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }))
+            : [PARK, PARK]}
+          strokeColor={listPlaces && listPlaces.length > 1 ? GOLD : "transparent"}
+          strokeWidth={listPlaces && listPlaces.length > 1 ? 2.5 : 0}
+          lineDashPattern={[8, 7]}
+        />
+
+        {markerPlaces.map((place) => {
+          const visible = visibleIds.has(place.id);
+          const selected = visible && place.id === selectedPlaceId;
+          return (
+            <Marker
+              key={`place-${place.id}`}
+              coordinate={{ latitude: place.lat!, longitude: place.lng! }}
+              image={placePinImage(findCategory(place.category)?.id, selected)}
+              anchor={PIN_ANCHOR}
+              opacity={visible ? 1 : 0}
+              zIndex={selected ? 20 : visible ? 3 : 0}
+              tracksViewChanges={false}
+              onPress={() => {
+                if (!visibleRef.current.has(place.id)) return;
+                notePinPress();
+                openPlace(place);
+              }}
+            />
+          );
+        })}
+
+        {markerServices.map((p) => {
+          const visible = shownServiceIds.has(p.id);
+          return (
+            <Marker
+              key={`service-${p.id}`}
+              coordinate={{ latitude: p.lat!, longitude: p.lng! }}
+              image={servicePinImage(selectedService?.id === p.id)}
+              anchor={PIN_ANCHOR}
+              opacity={visible ? 1 : 0}
+              zIndex={selectedService?.id === p.id ? 20 : visible ? 2 : 0}
+              tracksViewChanges={false}
+              onPress={() => {
+                if (!shownServiceIds.has(p.id)) return;
+                notePinPress();
+                openService(p);
+              }}
+            />
+          );
+        })}
+
+        {collectibles.map((c) => {
+          const visible = shownTreasureIds.has(c.id);
+          return (
+            <Marker
+              key={`treasure-${c.id}`}
+              coordinate={{ latitude: c.lat, longitude: c.lng }}
+              image={treasurePinImage(collected.has(c.id), selectedSticker?.id === c.id)}
+              anchor={PIN_ANCHOR}
+              opacity={visible ? 1 : 0}
+              zIndex={selectedSticker?.id === c.id ? 20 : visible ? 4 : 0}
+              tracksViewChanges={false}
+              onPress={() => {
+                if (!shownTreasureIds.has(c.id)) return;
+                notePinPress();
+                openSticker(c);
+              }}
+            />
+          );
+        })}
+
+        {/* En vald lista: guldnålar med platsernas nummer */}
+        {listPlaces?.map((place, i) => (
+          <Marker
+            key={`list-${filters.listId}-${place.id}`}
+            coordinate={{ latitude: place.lat!, longitude: place.lng! }}
+            anchor={NUMBER_ANCHOR}
+            zIndex={place.id === selectedPlaceId ? 20 : 5}
+            tracksViewChanges={trackList}
+            onPress={() => { notePinPress(); openPlace(place); }}
+          >
+            <NumberPin n={i + 1} selected={place.id === selectedPlaceId} />
+          </Marker>
+        ))}
+      </>
+  ) : null),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [markersReady, listPlaces, markerPlaces, visibleIds, selectedPlaceId, markerServices, shownServiceIds, selectedService, collectibles, shownTreasureIds, collected, selectedSticker, trackList, filters.listId, openPlace, openService, openSticker]);
 
   const headerTop = Math.max(insets.top, 44);
   const cardsBottom = insets.bottom + NAV_H + 14;
@@ -492,126 +538,9 @@ export default function MapScreen() {
         // navigeringen, och ovanför korten när ett kort är öppet
         mapPadding={{ top: 0, right: 0, left: 0, bottom: cardOpen ? cardsBottom + CARD_H : insets.bottom + NAV_H + 4 }}
         onPress={closeAll}
-        onRegionChangeComplete={(r) => { regionRef.current = r; setRegion(r); }}
+        onRegionChangeComplete={(r) => { regionRef.current = r; }}
       >
-        {markersReady && (
-          <>
-            {/* En lista: streckad rutt i listans ordning, under nålarna. Finns alltid (osynlig utan lista) */}
-            <Polyline
-              coordinates={listPlaces && listPlaces.length > 1
-                ? listPlaces.map((p) => ({ latitude: p.lat!, longitude: p.lng! }))
-                : [PARK, PARK]}
-              strokeColor={listPlaces && listPlaces.length > 1 ? GOLD : "transparent"}
-              strokeWidth={listPlaces && listPlaces.length > 1 ? 2.5 : 0}
-              lineDashPattern={[8, 7]}
-            />
-
-            {/* Klumparna: en fast uppsättning som återanvänds, oanvända är osynliga */}
-            {Array.from({ length: CLUSTER_POOL }, (_, i) => {
-              const slot = clusterSlots[i];
-              return (
-                <Marker
-                  key={`cluster-${i}`}
-                  coordinate={slot ? { latitude: slot.lat, longitude: slot.lng } : PARK}
-                  opacity={slot ? 1 : 0}
-                  zIndex={slot ? 2 : 0}
-                  tracksViewChanges={trackPins}
-                  onPress={() => {
-                    const current = slotsRef.current[i];
-                    if (!current) return;
-                    notePinPress();
-                    Haptics.selectionAsync().catch(() => {});
-                    const zoom = Math.min(cluster.getClusterExpansionZoom(current.id), 16);
-                    const delta = 360 / 2 ** zoom;
-                    mapRef.current?.animateToRegion({ latitude: current.lat, longitude: current.lng, latitudeDelta: delta, longitudeDelta: delta }, 450);
-                  }}
-                >
-                  <View collapsable={false}>
-                    <ClusterPin count={slot?.count ?? 2} dark={dark} />
-                  </View>
-                </Marker>
-              );
-            })}
-
-            {/* Platserna: alla finns alltid, de som inte syns är osynliga */}
-            {markerPlaces.map((place) => {
-              const visible = visibleIds.has(place.id);
-              const selected = place.id === selectedPlaceId;
-              const category = findCategory(place.category);
-              const number = listNumbers?.get(place.id);
-              const useLogo = visible && logoMode && !!place.logo_url;
-              return (
-                <Marker
-                  key={`place-${place.id}`}
-                  coordinate={{ latitude: place.lat!, longitude: place.lng! }}
-                  opacity={visible ? 1 : 0}
-                  zIndex={selected ? 20 : visible ? 3 : 0}
-                  tracksViewChanges={trackPins}
-                  onPress={() => {
-                    if (!visibleRef.current.has(place.id)) return;
-                    notePinPress();
-                    openPlace(place);
-                  }}
-                >
-                  <View collapsable={false}>
-                    {number != null
-                      ? <NumberPin n={number} selected={selected} />
-                      : useLogo
-                        ? <LogoPin uri={place.logo_url!} category={category} selected={selected} />
-                        : <PlacePin category={category} selected={selected} visited={visitedIds.has(place.id)} saved={savedIds.has(place.id)} />}
-                  </View>
-                </Marker>
-              );
-            })}
-
-            {markerServices.map((p) => {
-              const visible = shownServiceIds.has(p.id);
-              const selected = selectedService?.id === p.id;
-              return (
-                <Marker
-                  key={`service-${p.id}`}
-                  coordinate={{ latitude: p.lat!, longitude: p.lng! }}
-                  opacity={visible ? 1 : 0}
-                  zIndex={selected ? 20 : visible ? 1 : 0}
-                  tracksViewChanges={trackPins}
-                  onPress={() => {
-                    if (!shownServiceIds.has(p.id)) return;
-                    notePinPress();
-                    openService(p);
-                  }}
-                >
-                  <View collapsable={false}>
-                    <ServicePin type={p.type} dark={dark} selected={selected} />
-                  </View>
-                </Marker>
-              );
-            })}
-
-            {collectibles.map((c) => {
-              const visible = shownTreasureIds.has(c.id);
-              const selected = selectedSticker?.id === c.id;
-              return (
-                <Marker
-                  key={`treasure-${c.id}`}
-                  coordinate={{ latitude: c.lat, longitude: c.lng }}
-                  anchor={{ x: 0.5, y: 1 }}
-                  opacity={visible ? 1 : 0}
-                  zIndex={selected ? 20 : visible ? 4 : 0}
-                  tracksViewChanges={trackPins}
-                  onPress={() => {
-                    if (!shownTreasureIds.has(c.id)) return;
-                    notePinPress();
-                    openSticker(c);
-                  }}
-                >
-                  <View collapsable={false}>
-                    <StickerPin collected={collected.has(c.id)} selected={selected} />
-                  </View>
-                </Marker>
-              );
-            })}
-          </>
-        )}
+        {markers}
       </MapView>
 
       {/* Toning överst så statusraden och knapparna alltid syns mot kartan */}
@@ -704,7 +633,7 @@ export default function MapScreen() {
           style={[s.serviceCard, s.raised, { bottom: cardsBottom, backgroundColor: dark ? "#1A1A1D" : "#FFFFFF", borderColor: colors.border }]}
         >
           <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-            <ServicePin type={selectedService.type} dark={dark} />
+            <ServiceBadge type={selectedService.type} dark={dark} />
             <View style={{ flex: 1 }}>
               <Text style={[s.serviceType, { color: colors.muted }]}>
                 {SERVICE_TYPES.find((t) => t.type === selectedService.type)?.label ?? selectedService.type}
@@ -757,6 +686,16 @@ export default function MapScreen() {
   );
 }
 
+/** Servicetypens ikon i kortet */
+function ServiceBadge({ type, dark }: { type: string; dark: boolean }) {
+  const Icon = serviceIcon(type);
+  return (
+    <View style={[s.serviceBadge, { backgroundColor: dark ? "#F5F1E8" : "#2A2A2A" }]}>
+      <Icon size={18} color={dark ? "#1A1A1A" : "#F5F1E8"} strokeWidth={2.2} />
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   root: { flex: 1 },
   topFade: { position: "absolute", top: 0, left: 0, right: 0 },
@@ -789,6 +728,7 @@ const s = StyleSheet.create({
   serviceCard: {
     position: "absolute", left: 20, right: 20, borderRadius: 24, padding: 16, gap: 14, borderWidth: StyleSheet.hairlineWidth,
   },
+  serviceBadge: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   serviceType: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.3 },
   serviceName: { fontFamily: "Montserrat_700Bold", fontSize: 17, marginTop: 3 },
   serviceDesc: { fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 4 },

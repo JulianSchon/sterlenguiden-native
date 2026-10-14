@@ -1,7 +1,7 @@
 /**
  * Kartans filter: ett ark som glider upp underifrån. Allt man väljer syns direkt på kartan bakom.
  *
- * - Kategorier: flera kan väljas. Väljer man EN visas platserna som sina loggor i stället för nålar.
+ * - Kategorier: flera kan väljas (färgen är nålarnas färg på kartan)
  * - Praktiskt: öppet nu, parkering, wifi, hundvänligt … (filtrerar platserna)
  * - Service: toaletter, laddning, AutoMat, vård (egna, neutrala nålar)
  * - Mina listor: bara en listas platser, numrerade i listans ordning med en streckad rutt emellan
@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import {
   Accessibility, Baby, CalendarCheck, Clock, Dog, Leaf, ParkingSquare, Sun, Wifi, X, Zap, Check, type LucideIcon,
@@ -20,7 +19,7 @@ import { CATEGORIES, type CategoryId } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import type { ListSummary } from "@/hooks/useLists";
 import { ListCover } from "@/components/lists/ListCover";
-import { SERVICE_TYPES, shade } from "./MapPins";
+import { PIN_COLORS, SERVICE_TYPES } from "./MapPins";
 
 export type TreasureMode = "all" | "unfound" | "only" | "none";
 
@@ -132,7 +131,6 @@ export function MapFilterSheet({
           <View style={s.grid}>
             {CATEGORIES.map((c) => {
               const on = filters.cats.has(c.id);
-              const Icon = c.icon;
               return (
                 <TouchableOpacity
                   key={c.id}
@@ -140,23 +138,13 @@ export function MapFilterSheet({
                   onPress={() => set({ cats: toggled(filters.cats, c.id) })}
                   style={[s.catChip, { backgroundColor: chipBg, borderColor: on ? "#E2C47F" : "transparent" }]}
                 >
-                  <LinearGradient
-                    colors={[shade(c.screen, 0.22), shade(c.screen, -0.35)]}
-                    start={{ x: 0.15, y: 0 }}
-                    end={{ x: 0.85, y: 1 }}
-                    style={s.catMedal}
-                  >
-                    <Icon size={14} color="#FFFFFF" strokeWidth={2.2} />
-                  </LinearGradient>
+                  <View style={[s.catDot, { backgroundColor: PIN_COLORS[c.id] }]} />
                   <Text style={[s.chipText, { color: colors.text }]} numberOfLines={1}>{c.label}</Text>
                   {on && <Check size={15} color="#C5A059" strokeWidth={3} />}
                 </TouchableOpacity>
               );
             })}
           </View>
-          {filters.cats.size === 1 && (
-            <Text style={[s.hint, { color: colors.muted }]}>En kategori: platserna visas med sina loggor.</Text>
-          )}
 
           {/* ── Praktiskt ── */}
           <Text style={[s.section, { color: colors.muted }]}>PRAKTISKT</Text>
@@ -273,10 +261,10 @@ const s = StyleSheet.create({
   hint: { fontFamily: "Inter_400Regular", fontSize: 12.5, marginTop: 10 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   catChip: {
-    width: "48.8%", flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9, paddingHorizontal: 10,
+    width: "48.8%", flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 14,
     borderRadius: 16, borderWidth: 1.5,
   },
-  catMedal: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E2C47F" },
+  catDot: { width: 12, height: 12, borderRadius: 6 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 9, paddingHorizontal: 13,

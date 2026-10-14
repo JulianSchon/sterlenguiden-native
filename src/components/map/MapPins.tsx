@@ -1,111 +1,80 @@
 /**
- * Kartans nålar. Kartan är svartvit, så nålarna är det enda som har färg — runda medaljonger i
- * kategoriernas djupa färger med en tunn guldkant, som små ädelstenar:
- *
- * - PlacePin:   en plats (ikon i kategorins färg). Bock om man varit där, hjärta om den är sparad.
- * - LogoPin:    platsens logga i en ring i kategorins färg — när man valt en enda kategori
- * - ClusterPin: flera platser nära varandra när man zoomat ut (antalet i guld)
- * - NumberPin:  en plats i en lista, med dess nummer i listans ordning
- * - ServicePin: toalett, laddning, AutoMat, vård — neutrala, så de inte tävlar med platserna
+ * Kartans nålar — klassiska droppformade nålar, i kategoriernas färger med en vit prick (skatter:
+ * lila med stjärna, service: ljusa). Nålarna är färdiga bilder (assets/map-pins, ritade av ett
+ * skript) som Google Kartor ritar själv — snabbast möjligt, inget ritas om när kartan rör sig.
+ * Bara listans numrerade nålar (NumberPin) ritas i appen, de är få.
  */
 import { memo } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Check, Heart, MapPin, Plug, Store, Toilet, HeartPulse, type LucideIcon } from "lucide-react-native";
-import type { CategoryDef } from "@/theme/categories";
+import { View } from "react-native";
+import Svg, { Path, Text as SvgText } from "react-native-svg";
+import { HeartPulse, MapPin, Plug, Store, Toilet, type LucideIcon } from "lucide-react-native";
+import type { CategoryId } from "@/theme/categories";
 
-const GOLD_RIM = "#E2C47F";
-const GOLD = "#C5A059";
-const RED = "#EF4444";
+/** Nålens spets ligger 83 % ner i bilden (resten är plats för skuggan) */
+export const PIN_ANCHOR = { x: 0.5, y: 0.8333 };
 
-/** Ljusare/mörkare variant av en färg (t = -1…1), för medaljongens glans */
-export function shade(hex: string, t: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = (v: number) => Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t);
-  const r = ch((n >> 16) & 255), g = ch((n >> 8) & 255), b = ch(n & 255);
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
-}
+/** Nålarnas färger — kategoriernas djupa toner, lite ljusare så de syns mot den svarta kartan */
+export const PIN_COLORS: Record<CategoryId | "other", string> = {
+  "mat-dryck": "#A3214B",
+  "hotell-bb": "#4C44C9",
+  "cafe-bageri": "#C2A468",
+  "butiker": "#D9582A",
+  "natur-upplevelser": "#16794A",
+  "aktiviteter": "#11708F",
+  "sevardheter": "#7A2BB8",
+  "hantverk-service": "#7D8796",
+  "other": "#8E8E93",
+};
 
-/** Medaljongens två färger: ljusare uppe till vänster, djupare nere till höger */
-const jewel = (color: string): [string, string] => [shade(color, 0.22), shade(color, -0.35)];
+/* eslint-disable @typescript-eslint/no-require-imports */
+const IMAGES = {
+  "mat-dryck": require("../../../assets/map-pins/pin-mat-dryck.png"),
+  "mat-dryck-selected": require("../../../assets/map-pins/pin-mat-dryck-selected.png"),
+  "hotell-bb": require("../../../assets/map-pins/pin-hotell-bb.png"),
+  "hotell-bb-selected": require("../../../assets/map-pins/pin-hotell-bb-selected.png"),
+  "cafe-bageri": require("../../../assets/map-pins/pin-cafe-bageri.png"),
+  "cafe-bageri-selected": require("../../../assets/map-pins/pin-cafe-bageri-selected.png"),
+  "butiker": require("../../../assets/map-pins/pin-butiker.png"),
+  "butiker-selected": require("../../../assets/map-pins/pin-butiker-selected.png"),
+  "natur-upplevelser": require("../../../assets/map-pins/pin-natur-upplevelser.png"),
+  "natur-upplevelser-selected": require("../../../assets/map-pins/pin-natur-upplevelser-selected.png"),
+  "aktiviteter": require("../../../assets/map-pins/pin-aktiviteter.png"),
+  "aktiviteter-selected": require("../../../assets/map-pins/pin-aktiviteter-selected.png"),
+  "sevardheter": require("../../../assets/map-pins/pin-sevardheter.png"),
+  "sevardheter-selected": require("../../../assets/map-pins/pin-sevardheter-selected.png"),
+  "hantverk-service": require("../../../assets/map-pins/pin-hantverk-service.png"),
+  "hantverk-service-selected": require("../../../assets/map-pins/pin-hantverk-service-selected.png"),
+  "other": require("../../../assets/map-pins/pin-other.png"),
+  "other-selected": require("../../../assets/map-pins/pin-other-selected.png"),
+  "service": require("../../../assets/map-pins/pin-service.png"),
+  "service-selected": require("../../../assets/map-pins/pin-service-selected.png"),
+  "treasure": require("../../../assets/map-pins/pin-treasure.png"),
+  "treasure-selected": require("../../../assets/map-pins/pin-treasure-selected.png"),
+  "treasure-found": require("../../../assets/map-pins/pin-treasure-found.png"),
+  "treasure-found-selected": require("../../../assets/map-pins/pin-treasure-found-selected.png"),
+} as const;
+/* eslint-enable @typescript-eslint/no-require-imports */
 
-export const PlacePin = memo(function PlacePin({
-  category, selected = false, visited = false, saved = false,
-}: { category: CategoryDef | undefined; selected?: boolean; visited?: boolean; saved?: boolean }) {
-  const size = selected ? 42 : 30;
-  const Icon = category?.icon ?? MapPin;
-  const color = category?.screen ?? "#6B7280";
-  return (
-    <View style={{ padding: 4 }}>
-      <View style={[s.shadow, { width: size, height: size, borderRadius: size / 2 }, selected && s.selectedGlow]}>
-        <LinearGradient
-          colors={jewel(color)}
-          start={{ x: 0.15, y: 0 }}
-          end={{ x: 0.85, y: 1 }}
-          style={[s.medal, { width: size, height: size, borderRadius: size / 2, borderWidth: selected ? 2 : 1.5 }]}
-        >
-          <Icon size={selected ? 19 : 14} color="#FFFFFF" strokeWidth={2.2} />
-        </LinearGradient>
-      </View>
-      {saved && (
-        <View style={[s.badge, s.badgeTop]}>
-          <Heart size={8} color={RED} fill={RED} strokeWidth={2} />
-        </View>
-      )}
-      {visited && (
-        <View style={[s.badge, s.badgeBottom, { backgroundColor: GOLD }]}>
-          <Check size={8} color="#121212" strokeWidth={3.4} />
-        </View>
-      )}
-    </View>
-  );
-});
+type PinName = keyof typeof IMAGES;
+const pick = (name: string, selected: boolean) => IMAGES[(selected ? `${name}-selected` : name) as PinName];
 
-export const LogoPin = memo(function LogoPin({
-  uri, category, selected = false, onReady,
-}: { uri: string; category: CategoryDef | undefined; selected?: boolean; onReady?: () => void }) {
-  const size = selected ? 54 : 42;
-  const ring = category?.screen ?? GOLD;
-  return (
-    <View style={{ padding: 4 }}>
-      <View style={[s.shadow, s.logoOuter, { width: size, height: size, borderRadius: size / 2 }, selected && s.selectedGlow]}>
-        <View style={[s.logoRing, { borderColor: ring, borderRadius: size / 2 }]}>
-          <Image
-            source={{ uri }}
-            style={{ width: size - 7, height: size - 7, borderRadius: (size - 7) / 2, backgroundColor: "#FFFFFF" }}
-            resizeMode="cover"
-            onLoad={onReady}
-            onError={onReady}
-          />
-        </View>
-      </View>
-    </View>
-  );
-});
+export const placePinImage = (category: CategoryId | undefined, selected: boolean) => pick(category ?? "other", selected);
+export const treasurePinImage = (found: boolean, selected: boolean) => pick(found ? "treasure-found" : "treasure", selected);
+export const servicePinImage = (selected: boolean) => pick("service", selected);
 
-export const ClusterPin = memo(function ClusterPin({ count, dark }: { count: number; dark: boolean }) {
-  const size = Math.round(36 + Math.min(18, Math.log2(count) * 4));
-  return (
-    <View style={[s.clusterHalo, { width: size + 10, height: size + 10, borderRadius: (size + 10) / 2 }]}>
-      <View style={[s.shadow, s.cluster, { width: size, height: size, borderRadius: size / 2, backgroundColor: dark ? "#141414" : "#FFFFFF" }]}>
-        <Text style={[s.clusterText, { color: dark ? "#E8C674" : "#8A6A2E" }]}>{count}</Text>
-      </View>
-    </View>
-  );
-});
+const PIN_PATH = "M12 0C5.373 0 0 5.373 0 12c0 8.5 12 20 12 20S24 20.5 24 12C24 5.373 18.627 0 12 0z";
 
+/** En plats i en vald lista: guldnål med platsens nummer i listans ordning */
 export const NumberPin = memo(function NumberPin({ n, selected = false }: { n: number; selected?: boolean }) {
-  const size = selected ? 42 : 32;
+  const scale = selected ? 1.4 : 1;
   return (
-    <View style={{ padding: 4 }}>
-      <LinearGradient
-        colors={["#F0D48E", "#B8913F"]}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 1 }}
-        style={[s.shadow, s.number, { width: size, height: size, borderRadius: size / 2 }, selected && s.selectedGlow]}
-      >
-        <Text style={[s.numberText, selected && { fontSize: 17 }]}>{n}</Text>
-      </LinearGradient>
+    <View style={{ width: 28 * scale, height: 37 * scale }}>
+      <Svg width={28 * scale} height={37 * scale} viewBox="-2 -2 28 37">
+        <Path d={PIN_PATH} fill="#C5A059" stroke="#FFFFFF" strokeOpacity={0.92} strokeWidth={1.5} />
+        <SvgText x={12} y={15.6} fontSize={n > 9 ? 9.5 : 11} fontWeight="700" fill="#121212" textAnchor="middle">
+          {n}
+        </SvgText>
+      </Svg>
     </View>
   );
 });
@@ -118,43 +87,4 @@ export const SERVICE_TYPES: { type: string; label: string; Icon: LucideIcon }[] 
   { type: "Vård", label: "Vård", Icon: HeartPulse },
 ];
 
-export const ServicePin = memo(function ServicePin({ type, dark, selected = false }: { type: string; dark: boolean; selected?: boolean }) {
-  const Icon = SERVICE_TYPES.find((t) => t.type === type)?.Icon ?? MapPin;
-  const size = selected ? 36 : 26;
-  return (
-    <View style={{ padding: 3 }}>
-      <View
-        style={[
-          s.shadow, s.service,
-          { width: size, height: size, borderRadius: size / 2, backgroundColor: dark ? "#F5F1E8" : "#2A2A2A" },
-          selected && { borderColor: GOLD_RIM, borderWidth: 2 },
-        ]}
-      >
-        <Icon size={selected ? 17 : 13} color={dark ? "#1A1A1A" : "#F5F1E8"} strokeWidth={2.2} />
-      </View>
-    </View>
-  );
-});
-
-const s = StyleSheet.create({
-  shadow: {
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.45, shadowRadius: 4, elevation: 4,
-  },
-  // Vald: en mjuk guldglöd runt medaljongen
-  selectedGlow: { shadowColor: GOLD, shadowOpacity: 0.9, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } },
-  medal: { alignItems: "center", justifyContent: "center", borderColor: GOLD_RIM },
-  badge: {
-    position: "absolute", width: 15, height: 15, borderRadius: 8, alignItems: "center", justifyContent: "center",
-    backgroundColor: "#121212", borderWidth: 1, borderColor: GOLD_RIM,
-  },
-  badgeTop: { top: 0, right: 0 },
-  badgeBottom: { bottom: 0, right: 0 },
-  logoOuter: { borderWidth: 1, borderColor: GOLD_RIM, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" },
-  logoRing: { flex: 1, alignSelf: "stretch", borderWidth: 2.5, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  clusterHalo: { alignItems: "center", justifyContent: "center", backgroundColor: "rgba(197,160,89,0.22)" },
-  cluster: { alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: GOLD_RIM },
-  clusterText: { fontFamily: "Montserrat_700Bold", fontSize: 14 },
-  number: { alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#FFFFFF" },
-  numberText: { fontFamily: "Montserrat_700Bold", fontSize: 14, color: "#121212" },
-  service: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(0,0,0,0.25)" },
-});
+export const serviceIcon = (type: string): LucideIcon => SERVICE_TYPES.find((t) => t.type === type)?.Icon ?? MapPin;

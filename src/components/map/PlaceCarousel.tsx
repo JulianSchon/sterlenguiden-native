@@ -6,13 +6,12 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 import { ArrowRight, Navigation } from "lucide-react-native";
 import { firstImageUrl, isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import type { CategoryDef } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
-import { shade } from "./MapPins";
+import { PIN_COLORS } from "./MapPins";
 
 export interface CarouselItem {
   place: Place;
@@ -122,7 +121,7 @@ const PlaceCard = memo(function PlaceCard({
   const { place, category, saved, listNumber } = item;
   const image = firstImageUrl(place.image_url);
   const open = openStatus(place);
-  const color = category?.screen ?? "#6B7280";
+  const color = PIN_COLORS[category?.id ?? "other"];
   const facts = [
     open === null ? null : open ? "Öppet nu" : "Stängt",
     distance != null ? travelLabel(distance) : place.nearest_town,
@@ -141,7 +140,7 @@ const PlaceCard = memo(function PlaceCard({
         </View>
         <View style={{ flex: 1, gap: 5 }}>
           <View style={s.catRow}>
-            <LinearGradient colors={[shade(color, 0.22), shade(color, -0.35)]} style={s.catDot} />
+            <View style={[s.catDot, { backgroundColor: color }]} />
             <Text style={[s.catText, { color: colors.muted }]} numberOfLines={1}>{category?.label ?? "Österlen"}</Text>
           </View>
           <Text style={[s.name, { color: colors.text }]} numberOfLines={2}>{place.name}</Text>
