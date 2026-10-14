@@ -260,7 +260,7 @@ export default function MapScreen() {
 
   const logoMode = filters.cats.size > 0 && !listPlaces && !serviceMode;
 
-  // ── Klumpar: allt som syns (platser, skatter, servicepunkter) — inte med en vald lista ──
+  // ── Klumpar: platser och servicepunkter (aldrig skatterna) — inte med en vald lista ──
   const index = useMemo(() => {
     if (listPlaces) return null;
     const sc = new Supercluster<Pt>({
@@ -274,15 +274,12 @@ export default function MapScreen() {
       if (treasurePlaceIds.has(p.id)) continue;
       points.push({ type: "Feature", properties: { k: "p", id: p.id }, geometry: { type: "Point", coordinates: [p.lng!, p.lat!] } });
     }
-    for (const c of shownTreasures) {
-      points.push({ type: "Feature", properties: { k: "t", id: c.id }, geometry: { type: "Point", coordinates: [c.lng, c.lat] } });
-    }
     for (const p of shownServices) {
       points.push({ type: "Feature", properties: { k: "s", id: p.id }, geometry: { type: "Point", coordinates: [p.lng!, p.lat!] } });
     }
     sc.load(points);
     return sc;
-  }, [listPlaces, logoMode, filtered, treasurePlaceIds, shownTreasures, shownServices]);
+  }, [listPlaces, logoMode, filtered, treasurePlaceIds, shownServices]);
   const indexRef = useRef(index);
   indexRef.current = index;
 
@@ -760,8 +757,8 @@ export default function MapScreen() {
       }
     }
 
-    // Skatterna när en lista är vald (annars ingår de i klumparna)
-    if (!index) shownTreasures.forEach((c) => out.push(treasureMarker(c)));
+    // Skatterna ingår aldrig i klumparna — de syns alltid var för sig
+    shownTreasures.forEach((c) => out.push(treasureMarker(c)));
     // Den valda servicepunkten: guldnålen, som en vald plats
     if (selectedService?.lat != null && selectedService.lng != null) {
       out.push(
