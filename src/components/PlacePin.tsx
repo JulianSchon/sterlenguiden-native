@@ -17,7 +17,7 @@ export function PlacePin({ height = 24 }: { height?: number }) {
         strokeOpacity={dark ? 0.92 : 0.85}
         strokeWidth={1.5}
       />
-      <Circle cx={12} cy={11.6} r={5} fill={dark ? "#6F68E8" : "#312E81"} />
+      <Circle cx={12} cy={11.6} r={5} fill={dark ? "#3F7BEA" : "#1E3A8A"} />
     </Svg>
   );
 }

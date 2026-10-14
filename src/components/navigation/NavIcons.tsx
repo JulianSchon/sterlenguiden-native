@@ -82,7 +82,9 @@ export function NavSearch({ active }: IconProps) {
 // ─── NavMap ───────────────────────────────────────────────────────────────────
 // Vikt karta med tre paneler. Aktiv: fylld (guld) + vita vecklinjer.
 export function NavMap({ active }: IconProps) {
-  const { GOLD, INACTIVE, CUT } = useNavColors();
+  const { GOLD, INACTIVE } = useNavColors();
+  // Vecklinjerna: vita i ljust läge, svarta i mörkt
+  const FOLD = useTheme().scheme === "dark" ? "#000000" : WHITE;
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (
@@ -90,9 +92,9 @@ export function NavMap({ active }: IconProps) {
           <Path d="M2,8 L10,5.5 L10,21.5 L2,24 Z"       fill={GOLD} />
           <Path d="M10,5.5 L18,8 L18,24 L10,21.5 Z"     fill={GOLD} />
           <Path d="M18,8 L24,5.5 L24,21.5 L18,24 Z"     fill={GOLD} />
-          {/* Vita vecklinjer */}
-          <Line x1={10} y1={5.5}  x2={10} y2={21.5} stroke={WHITE} strokeWidth={1.5} />
-          <Line x1={18} y1={8}    x2={18} y2={24}   stroke={WHITE} strokeWidth={1.5} />
+          {/* Vecklinjer */}
+          <Line x1={10} y1={5.5}  x2={10} y2={21.5} stroke={FOLD} strokeWidth={1.5} />
+          <Line x1={18} y1={8}    x2={18} y2={24}   stroke={FOLD} strokeWidth={1.5} />
         </>
       ) : (
         <>

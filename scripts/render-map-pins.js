@@ -28,7 +28,7 @@ const THEMES = {
 // de mörka färgerna inte mot svart)
 const CATEGORIES = {
   "mat-dryck": { dark: "#C23A5E", light: "#881337" },
-  "hotell-bb": { dark: "#6F68E8", light: "#312E81" },
+  "hotell-bb": { dark: "#3F7BEA", light: "#1E3A8A" },
   "cafe-bageri": { dark: "#D4BE86", light: "#B39A5C" },
   "butiker": { dark: "#EA6A35", light: "#C2410C" },
   "natur-upplevelser": { dark: "#2BA36A", light: "#064E3B" },
