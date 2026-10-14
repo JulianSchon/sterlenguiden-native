@@ -101,7 +101,7 @@ export function StickerCard({
       </TouchableOpacity>
 
       <View style={s.row}>
-        <View style={[s.art, found && { transform: [{ rotate: "-6deg" }] }]}>
+        <View style={s.art}>
           <StickerArt imagePath={collectible.imagePath} size={96} silhouette={!found} />
         </View>
         <View style={{ flex: 1 }}>
