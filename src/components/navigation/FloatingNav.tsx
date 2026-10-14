@@ -3,9 +3,11 @@
  * Spec: native-nav-spec-v2.md
  *
  * Vanliga sidor: helfull bredd, fade-gradient bakgrund (#121212 transparent→solid).
- * Kartsidan: kompakt pill med halvtransparent bakgrund.
+ * Kartsidan: kompakt pill av frostat glas, som kartans filterknapp.
+ *
+ * En sida kan gömma navigeringen medan något täcker den (setNavHidden, t.ex. kartans filterark).
  */
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,8 +15,10 @@ import {
   Animated,
   StyleSheet,
 } from "react-native";
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { usePathname, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import Svg, {
   Defs,
   LinearGradient as SvgGrad,
@@ -22,9 +26,9 @@ import Svg, {
   Rect as SvgRect,
 } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-// BlurView (expo-blur) kräver native rebuild – ersatt med solid glass-bakgrund
 import { useIsBusiness } from "@/hooks/useUserRole";
 import { scrollToTop } from "@/lib/scrollRefs";
+import { useNavHidden } from "@/lib/navVisibility";
 import { useTheme } from "@/theme/ThemeProvider";
 import {
   NavHome,
@@ -125,12 +129,28 @@ function NavButton({ onPress, label, isActive, showBadge, children }: NavButtonP
 
 // ─── FloatingNav ──────────────────────────────────────────────────────────────
 export default function FloatingNav() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
+  const dark      = scheme === "dark";
   const router    = useRouter();
   const pathname  = usePathname();
   const insets    = useSafeAreaInsets();
   const { isBusiness }  = useIsBusiness();
   const { count: unseen } = useUnseenAchievements();
+
+  // Gömd: glider ner och tonar bort (snabbt ut, lite mjukare tillbaka)
+  const hidden    = useNavHidden();
+  const gone      = useSharedValue(hidden ? 1 : 0);
+  useEffect(() => {
+    gone.value = withTiming(hidden ? 1 : 0, hidden
+      ? { duration: 200, easing: Easing.in(Easing.quad) }
+      : { duration: 280, easing: Easing.out(Easing.cubic) });
+  }, [hidden, gone]);
+  const drop      = FLOATING_NAV_HEIGHT + insets.bottom + 24;
+  const hideStyle = useAnimatedStyle(() => ({
+    opacity: 1 - gone.value,
+    transform: [{ translateY: gone.value * drop }],
+  }));
+
   // En sida ovanpå flikarna (Favoriter, Mitt Österlen, en plats …) är ingen flik — då gäller
   // fliken som ligger under den. Annars byter navigeringen utseende så fort sidan öppnas, och när
   // man sveper tillbaka syns fel variant (tonad i stället för helfärgad på Profil) tills svepet
@@ -209,19 +229,22 @@ export default function FloatingNav() {
     </NavButton>
   ));
 
-  // ─── KARTVARIANTEN: kompakt pill ─────────────────────────────────────────
+  // ─── KARTVARIANTEN: kompakt pill av frostat glas (samma som filterknappen) ─
   if (isMap) {
     return (
-      <View
-        style={[s.mapOuter, { bottom: insets.bottom + 12 }]}
-        pointerEvents="box-none"
+      <Reanimated.View
+        style={[s.mapOuter, { bottom: insets.bottom + 12 }, hideStyle]}
+        pointerEvents={hidden ? "none" : "box-none"}
       >
-        <View style={s.pill}>
-          <View style={[s.pillBlur, s.pillBg, { flexDirection: "row", height: FLOATING_NAV_HEIGHT, paddingHorizontal: 12, backgroundColor: `${colors.bg}E0`, borderColor: colors.border }]}>
-            {buttons}
-          </View>
+        <View style={[s.pill, { borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)" }]}>
+          <BlurView
+            intensity={20}
+            tint={dark ? "dark" : "light"}
+            style={[StyleSheet.absoluteFill, { backgroundColor: dark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)" }]}
+          />
+          {buttons}
         </View>
-      </View>
+      </Reanimated.View>
     );
   }
 
@@ -234,9 +257,9 @@ export default function FloatingNav() {
   const totalHeight = solid ? floatingNavSolidHeight(insets.bottom) : FADE_AREA + FLOATING_NAV_HEIGHT + rowBottom;
 
   return (
-    <View
-      style={[s.container, { height: totalHeight }]}
-      pointerEvents="box-none"
+    <Reanimated.View
+      style={[s.container, { height: totalHeight }, hideStyle]}
+      pointerEvents={hidden ? "none" : "box-none"}
     >
       {/* Fade-gradient (icke-interaktiv), eller ett helfärgat fält på Profil */}
       {solid ? (
@@ -271,7 +294,7 @@ export default function FloatingNav() {
       >
         {buttons}
       </View>
-    </View>
+    </Reanimated.View>
   );
 }
 
@@ -302,22 +325,13 @@ const s = StyleSheet.create({
     zIndex: 60,
   },
   pill: {
-    borderRadius: 28,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 20,
-  },
-  pillBlur: {
-    borderRadius: 28,
-    overflow: "hidden",
-  },
-  pillBg: {
-    borderWidth: 0.5,
-    borderRadius: 28,
+    flexDirection: "row",
     alignItems: "center",
+    height: FLOATING_NAV_HEIGHT,
+    paddingHorizontal: 12,
+    borderRadius: 28,
+    borderWidth: 1,
+    overflow: "hidden",
   },
 
   // Tab-knapp

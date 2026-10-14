@@ -3,20 +3,18 @@
  *
  * - Vanliga nålar: klassiska droppformade nålar i kategoriernas färger med vit prick (skatter:
  *   lila med stjärna, service: ljusa). Färdiga bilder (assets/map-pins, scripts/render-map-pins.js)
- *   som Google Kartor ritar själv — snabbast möjligt, inget ritas om när kartan rör sig.
+ *   som Google Kartor ritar själv som ikoner — snabbast möjligt, inget ritas om när kartan rör sig.
+ *   Klumparna och listans numrerade nålar är också färdiga bilder (mapIcons.ts).
  * - SelectedPin: den valda platsen — en större guldnål som studsar in.
  * - LogoMarker: när en kategori är vald visas platserna som sina loggor i vita cirklar.
- * - ClusterMarker / LogoClusterMarker: många platser nära varandra när man zoomat ut.
- * - NumberPin: en plats i en vald lista, med sitt nummer i listans ordning.
  *
- * Markörer som ritas i appen (allt utom de färdiga bilderna) fångas av Google som bilder — de är få.
+ * Markörer som ritas i appen (guldnålen och loggorna) fångas av Google som bilder — de är få.
  */
 import { memo, useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, View, type ImageRequireSource, type ImageURISource } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { Image as ExpoImage } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Circle, Path, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from "react-native-svg";
 import { HeartPulse, MapPin, Plug, Store, Toilet, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import type { CategoryId } from "@/theme/categories";
@@ -25,6 +23,16 @@ const GOLD = "#D9A441";
 
 /** Nålens spets ligger 83 % ner i bilden (resten är plats för skuggan) */
 export const PIN_ANCHOR = { x: 0.5, y: 0.8333 };
+/** Klumparna sitter med mitten på sin punkt */
+export const CENTER_ANCHOR = { x: 0.5, y: 0.5 };
+
+/**
+ * En färdig bild som nålens ikon. På iPhone som Googles egen ikon (icon) — med image blir den en
+ * vy som Google måste fånga, vilket är mycket långsammare. Android har bara image, och där är
+ * den redan en ikon.
+ */
+export const pinImage = (source: ImageURISource | ImageRequireSource) =>
+  Platform.OS === "ios" ? { icon: source } : { image: source };
 
 /** Nålarnas färger — kategoriernas djupa toner, lite ljusare så de syns mot den svarta kartan */
 export const PIN_COLORS: Record<CategoryId | "other", string> = {
@@ -73,8 +81,16 @@ export function placeLogo(place: Place): { uri: string; fit: "contain" | "cover"
 
 // ── Vald nål: guld, studsar in ──────────────────────────────────────────────
 
-/** Guldnålens spets: längst ner i sin yta */
-export const SELECTED_ANCHOR = { x: 0.5, y: 1 };
+// Ytan runt nålen har luft åt alla håll, så att studsen (som gör nålen större en stund) och
+// skuggan på marken aldrig klipps av kanten
+const SEL_W = 48;
+const SEL_H = 64;
+/** Från ytans nederkant upp till spetsen (plats för studsen nedåt och skuggan) */
+const SEL_FOOT = 7;
+const SEL_PATH = "M18 0C8.06 0 0 8.06 0 18c0 12.6 18 26 18 26s18-13.4 18-26C36 8.06 27.94 0 18 0z";
+
+/** Guldnålens spets i sin yta */
+export const SELECTED_ANCHOR = { x: 0.5, y: (SEL_H - SEL_FOOT) / SEL_H };
 
 export function SelectedPin() {
   const t = useSharedValue(0);
@@ -95,10 +111,21 @@ export function SelectedPin() {
     return { opacity: Math.min(1, v / 0.55), transform: [{ translateY: y }, { scale: s }] };
   });
   return (
-    <View style={{ width: 36, height: 54, justifyContent: "flex-end" }}>
-      <Reanimated.View style={[{ transformOrigin: "bottom" }, style]}>
-        <Svg width={36} height={44} viewBox="0 0 36 44">
-          <Path d="M18 0C8.06 0 0 8.06 0 18c0 12.6 18 26 18 26s18-13.4 18-26C36 8.06 27.94 0 18 0z" fill={GOLD} stroke="#FFFFFF" strokeOpacity={0.9} strokeWidth={1.5} />
+    <View style={{ width: SEL_W, height: SEL_H }}>
+      {/* Skuggan på marken står still medan nålen studsar */}
+      <Svg width={20} height={8} style={{ position: "absolute", left: SEL_W / 2 - 10, top: SEL_H - SEL_FOOT - 4 }}>
+        <Defs>
+          <RadialGradient id="selShadow" cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0" stopColor="#000" stopOpacity={0.45} />
+            <Stop offset="1" stopColor="#000" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Ellipse cx={10} cy={4} rx={10} ry={4} fill="url(#selShadow)" />
+      </Svg>
+      {/* Nålen: spetsen precis på ankaret, ritytan en punkt större åt alla håll för den vita kanten */}
+      <Reanimated.View style={[s.selPin, style]}>
+        <Svg width={38} height={46} viewBox="-1 -1 38 46">
+          <Path d={SEL_PATH} fill={GOLD} stroke="#FFFFFF" strokeOpacity={0.9} strokeWidth={1.5} />
           <Circle cx={18} cy={16} r={7} fill="#FFFFFF" />
         </Svg>
       </Reanimated.View>
@@ -134,62 +161,6 @@ export const LogoMarker = memo(function LogoMarker({
   );
 });
 
-// ── Klumpar ──────────────────────────────────────────────────────────────────
-
-export const ClusterMarker = memo(function ClusterMarker({ count }: { count: number }) {
-  return (
-    <View style={{ padding: 10 }}>
-      <View style={s.clusterGlow}>
-        <LinearGradient colors={["#396A52", "#214F38"]} start={{ x: 0.33, y: 0 }} end={{ x: 0.67, y: 1 }} style={s.cluster}>
-          <Text style={s.clusterText}>{count}</Text>
-        </LinearGradient>
-      </View>
-    </View>
-  );
-});
-
-export const LogoClusterMarker = memo(function LogoClusterMarker({
-  logo, count, onReady,
-}: { logo: { uri: string; fit: "contain" | "cover" }; count: number; onReady?: () => void }) {
-  return (
-    <View style={{ padding: 10 }}>
-      <View style={[s.clusterGlow, s.logoCluster]}>
-        <ExpoImage
-          source={{ uri: logo.uri }}
-          style={logo.fit === "contain" ? { width: 38, height: 38 } : StyleSheet.absoluteFill}
-          contentFit={logo.fit}
-          cachePolicy="memory-disk"
-          onLoad={onReady}
-          onError={onReady}
-        />
-      </View>
-      <LinearGradient colors={["#D9A441", "#AD8030"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={s.badge}>
-        <Text style={s.badgeText}>{count}</Text>
-      </LinearGradient>
-    </View>
-  );
-});
-
-// ── Listans nummer ───────────────────────────────────────────────────────────
-
-const PIN_PATH = "M12 0C5.373 0 0 5.373 0 12c0 8.5 12 20 12 20S24 20.5 24 12C24 5.373 18.627 0 12 0z";
-/** Listans numrerade nålar: spetsen 92 % ner i ritytan */
-export const NUMBER_ANCHOR = { x: 0.5, y: 0.919 };
-
-export const NumberPin = memo(function NumberPin({ n, selected = false }: { n: number; selected?: boolean }) {
-  const scale = selected ? 1.4 : 1;
-  return (
-    <View style={{ width: 28 * scale, height: 37 * scale }}>
-      <Svg width={28 * scale} height={37 * scale} viewBox="-2 -2 28 37">
-        <Path d={PIN_PATH} fill="#C5A059" stroke="#FFFFFF" strokeOpacity={0.92} strokeWidth={1.5} />
-        <SvgText x={12} y={15.6} fontSize={n > 9 ? 9.5 : 11} fontWeight="700" fill="#121212" textAnchor="middle">
-          {n}
-        </SvgText>
-      </Svg>
-    </View>
-  );
-});
-
 // ── Service ──────────────────────────────────────────────────────────────────
 
 /** Servicepunkternas typer, i den ordning de visas i filtret */
@@ -203,26 +174,9 @@ export const SERVICE_TYPES: { type: string; label: string; Icon: LucideIcon }[] 
 export const serviceIcon = (type: string): LucideIcon => SERVICE_TYPES.find((t) => t.type === type)?.Icon ?? MapPin;
 
 const s = StyleSheet.create({
+  selPin: { position: "absolute", left: (SEL_W - 38) / 2, bottom: SEL_FOOT - 1, transformOrigin: "bottom" },
   logo: {
     alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: "#FFFFFF",
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 4,
   },
-  clusterGlow: {
-    borderRadius: 24,
-    shadowColor: "#C5A059", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 7, elevation: 6,
-  },
-  cluster: {
-    width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.4)",
-  },
-  clusterText: { fontFamily: "Inter_700Bold", fontSize: 14, color: "#FFFFFF" },
-  logoCluster: {
-    width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", overflow: "hidden",
-    backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "rgba(197,160,89,0.55)",
-  },
-  badge: {
-    position: "absolute", right: 6, bottom: 6, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 4,
-    alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#141414",
-  },
-  badgeText: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#141414" },
 });

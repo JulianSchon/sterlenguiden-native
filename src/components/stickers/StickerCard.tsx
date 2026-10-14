@@ -10,7 +10,7 @@
  * kortet är öppet — inget i bakgrunden.
  */
 import { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, type LayoutChangeEvent } from "react-native";
 import Reanimated, {
   Easing, interpolateColor, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
@@ -26,6 +26,7 @@ import { STICKER_RADIUS_M } from "@/lib/stickers";
 import { HoldToCheckIn } from "@/components/checkin/HoldToCheckIn";
 import { StickerArt } from "./StickerArt";
 import { TreasureReveal } from "./TreasureReveal";
+import { cardIn, cardOut } from "@/components/map/PlaceCard";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.62)";
@@ -44,7 +45,7 @@ function warmth(d: number): string {
 }
 
 export function StickerCard({
-  collectible, collectedAt, userLoc, bottom, onClose,
+  collectible, collectedAt, userLoc, bottom, onClose, onLayout,
 }: {
   collectible: Collectible;
   /** ISO-tid när skatten hittades, eller undefined om användaren inte har den */
@@ -52,6 +53,8 @@ export function StickerCard({
   userLoc: { latitude: number; longitude: number } | null;
   bottom: number;
   onClose: () => void;
+  /** Kartan behöver kortets höjd (Googles logga ska ligga ovanför kortet) */
+  onLayout?: (e: LayoutChangeEvent) => void;
 }) {
   const router = useRouter();
   const { data: collectibles = [] } = useCollectibles();
@@ -92,7 +95,7 @@ export function StickerCard({
   }));
 
   return (
-    <View style={[s.card, { bottom }]}>
+    <Reanimated.View entering={cardIn} exiting={cardOut} onLayout={onLayout} style={[s.card, { bottom }]}>
       <TouchableOpacity style={s.close} onPress={onClose} hitSlop={12}>
         <X size={18} color="rgba(255,255,255,0.6)" strokeWidth={2} />
       </TouchableOpacity>
@@ -159,14 +162,14 @@ export function StickerCard({
           onClose={() => setRevealing(null)}
         />
       )}
-    </View>
+    </Reanimated.View>
   );
 }
 
 const s = StyleSheet.create({
   card: {
     position: "absolute", left: 12, right: 12, borderRadius: 22, padding: 16,
-    backgroundColor: "rgba(18,18,22,0.97)", borderWidth: 0.5, borderColor: "rgba(167,139,250,0.45)",
+    backgroundColor: "#121216", borderWidth: 0.5, borderColor: "rgba(167,139,250,0.45)",
     shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 24,
   },
   close: { position: "absolute", top: 14, right: 14, zIndex: 2 },
