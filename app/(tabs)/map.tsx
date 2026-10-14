@@ -88,6 +88,9 @@ const SHUFFLE_STEPS = 12;
 const PAD_ANIM = { duration: 320, easing: Easing.out(Easing.cubic) };
 
 /** Kartan med en kant (mapPadding) som kan glida, i stället för att hoppa när ett kort öppnas */
+const NONE: never[] = [];
+const NO_COLLECTED = new Map<string, string>();
+
 const AnimatedMapView = Reanimated.createAnimatedComponent(MapView);
 
 /** En punkt i klumparna: en plats, en skatt eller en servicepunkt */
@@ -133,13 +136,15 @@ export default function MapScreen() {
   const inter = useTypeface(Inter_700Bold, () => setFontFailed(true));
   const typeface = inter ?? (fontFailed ? systemBoldTypeface() : null);
 
-  const { data: places = [], isFetched: placesFetched } = usePlaces();
-  const { data: collectibles = [] } = useCollectibles();
-  const { data: collected = new Map<string, string>() } = useCollected();
-  const { data: servicePoints = [] } = useAllServicePoints();
-  const { data: lists = [] } = useLists();
-  const { data: visits = [] } = useVisits();
-  const { data: favorites = [] } = useFavorites();
+  // Tomt medan något laddas: alltid samma tomma lista (en ny vid varje uppritning fick klumparna
+  // att räknas om, sidan att ritas om, och så vidare i en oändlig loop)
+  const { data: places = NONE as Place[], isFetched: placesFetched } = usePlaces();
+  const { data: collectibles = NONE as Collectible[] } = useCollectibles();
+  const { data: collected = NO_COLLECTED } = useCollected();
+  const { data: servicePoints = NONE as ServicePoint[] } = useAllServicePoints();
+  const { data: lists = NONE as NonNullable<ReturnType<typeof useLists>["data"]> } = useLists();
+  const { data: visits = NONE as NonNullable<ReturnType<typeof useVisits>["data"]> } = useVisits();
+  const { data: favorites = NONE as NonNullable<ReturnType<typeof useFavorites>["data"]> } = useFavorites();
 
   const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
