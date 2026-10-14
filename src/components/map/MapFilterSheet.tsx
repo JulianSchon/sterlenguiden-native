@@ -26,6 +26,8 @@ import {
 import { SERVICE_TYPES } from "./MapPins";
 
 const GOLD = "#C5A059";
+/** Greppet och rubriken överst i arket (därifrån går arket alltid att dra ner) */
+const HEAD_H = 72;
 
 const toggled = <T,>(set: Set<T>, v: T) => {
   const next = new Set(set);
@@ -93,37 +95,50 @@ export function MapFilterSheet({
   const [mounted, setMounted] = useState(open);
   const y = useSharedValue(sheetH);
   const backdrop = useSharedValue(0);
+  // Stängt med fingret: arket glider redan ner (startat direkt i gesten), inte starta om det
+  const closingByDrag = useSharedValue(false);
   useEffect(() => {
     if (open) {
       setMounted(true);
+      closingByDrag.value = false;
       y.value = withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
       backdrop.value = withTiming(1, { duration: 260 });
-    } else {
+    } else if (!closingByDrag.value) {
       backdrop.value = withTiming(0, { duration: 220 });
       y.value = withTiming(sheetH, { duration: 240, easing: Easing.in(Easing.quad) });
     }
-  }, [open, sheetH, y, backdrop]);
+  }, [open, sheetH, y, backdrop, closingByDrag]);
 
-  // Dra ner för att stänga: från greppet direkt, från innehållet när det är uppscrollat
+  // Dra ner för att stänga: från greppet och rubriken alltid, från innehållet bara om det står
+  // överst när fingret sätts ner (annars skrollar man bara). Förut skrollade innehållet först upp
+  // och sen tog arket över mitt i samma drag — det blev ett stopp på vägen.
   const scrollY = useSharedValue(0);
-  const dragOffset = useSharedValue(0);
+  const dragsSheet = useSharedValue(false);
   const { nativeScroll, pan } = useMemo(() => {
     const native = Gesture.Native();
     const drag = Gesture.Pan()
       .activeOffsetY([-10, 10])
       .failOffsetX([-14, 14])
       .simultaneousWithExternalGesture(native)
-      .onStart(() => { dragOffset.value = 0; })
+      .onBegin((e) => { dragsSheet.value = e.y < HEAD_H || scrollY.value <= 0.5; })
       .onUpdate((e) => {
-        if (scrollY.value > 0.5) { dragOffset.value = e.translationY; return; }
-        y.value = Math.max(0, e.translationY - dragOffset.value);
+        if (!dragsSheet.value) return;
+        y.value = Math.max(0, e.translationY);
       })
       .onEnd((e) => {
-        if (y.value > 120 || (e.velocityY > 900 && y.value > 0)) runOnJS(onClose)();
-        else y.value = withSpring(0, { damping: 32, stiffness: 300 });
+        if (!dragsSheet.value) return;
+        if (y.value > 120 || (e.velocityY > 900 && y.value > 0)) {
+          // Glid ner direkt härifrån, med fingrets fart — vänta inte på att appen hunnit stänga
+          closingByDrag.value = true;
+          y.value = withTiming(sheetH, { duration: 220, easing: Easing.out(Easing.quad) });
+          backdrop.value = withTiming(0, { duration: 200 });
+          runOnJS(onClose)();
+        } else {
+          y.value = withSpring(0, { damping: 32, stiffness: 300 });
+        }
       });
     return { nativeScroll: native, pan: drag };
-  }, [onClose, y, scrollY, dragOffset]);
+  }, [onClose, y, scrollY, dragsSheet, closingByDrag, backdrop, sheetH]);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
 
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));

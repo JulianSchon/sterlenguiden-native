@@ -39,7 +39,7 @@ import { Image as ExpoImage } from "expo-image";
 import { useTypeface } from "@shopify/react-native-skia";
 import { Inter_700Bold } from "@expo-google-fonts/inter";
 import Reanimated, {
-  Easing, FadeIn, FadeInDown, FadeOut, LinearTransition, cancelAnimation,
+  Easing, LinearTransition, cancelAnimation,
   useAnimatedProps, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming,
   type EntryExitAnimationFunction,
 } from "react-native-reanimated";
@@ -1057,18 +1057,29 @@ function MapButtons({
   );
 }
 
-/** Underkategorierna för den enda valda kategorin. Valet markeras direkt och gäller när menyn stängt */
+/**
+ * Underkategorierna för den enda valda kategorin. Knappen är av frostat glas som filterknappen.
+ * Menyn finns hela tiden (byggs inte om vid varje tryck) och glider bara fram och tillbaka. Valet
+ * markeras direkt och gäller när menyn stängt.
+ */
 function SubcategoryDropdown({
   options, value, dark, onChange,
 }: { options: { id: string; label: string }[]; value: string | null; dark: boolean; onChange: (sub: string | null) => void }) {
   const [open, setOpen] = useState(false);
   const [marked, setMarked] = useState<string | null>(value);
   useEffect(() => { setMarked(value); }, [value]);
-  const rotate = useSharedValue(0);
-  useEffect(() => { rotate.value = withTiming(open ? 180 : 0, { duration: 200 }); }, [open, rotate]);
-  const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotate.value}deg` }] }));
+  const shown = useSharedValue(0);
+  useEffect(() => {
+    shown.value = withTiming(open ? 1 : 0, { duration: open ? 200 : 150, easing: Easing.out(Easing.cubic) });
+  }, [open, shown]);
+  const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${shown.value * 180}deg` }] }));
+  const menuStyle = useAnimatedStyle(() => ({
+    opacity: shown.value,
+    transform: [{ translateY: (1 - shown.value) * -6 }, { scale: 0.97 + shown.value * 0.03 }],
+  }));
   const current = options.find((o) => o.id === value)?.label ?? "Alla";
   const all = [{ id: null as string | null, label: "Alla" }, ...options];
+  const fg = dark ? "rgba(255,255,255,0.85)" : "#1A1A1A";
 
   const choose = (id: string | null) => {
     Haptics.selectionAsync().catch(() => {});
@@ -1080,45 +1091,42 @@ function SubcategoryDropdown({
     <View style={s.subWrap}>
       <Pressable
         onPress={() => { Haptics.selectionAsync().catch(() => {}); setOpen((o) => !o); }}
-        style={[s.subBtn, { backgroundColor: dark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.92)", borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }]}
+        style={[s.subBtn, { borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)" }]}
       >
-        <Text style={[s.subBtnText, { color: dark ? "rgba(255,255,255,0.8)" : "#1A1A1A" }]}>{current}</Text>
+        <BlurView
+          intensity={20}
+          tint={dark ? "dark" : "light"}
+          style={[StyleSheet.absoluteFill, { backgroundColor: dark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)" }]}
+        />
+        <Text style={[s.subBtnText, { color: fg }]}>{current}</Text>
         <Reanimated.View style={chevronStyle}>
-          <ChevronDown size={12} color={dark ? "rgba(255,255,255,0.8)" : "#1A1A1A"} strokeWidth={2.4} />
+          <ChevronDown size={12} color={fg} strokeWidth={2.4} />
         </Reanimated.View>
       </Pressable>
-      {open && (
-        <Reanimated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(150)}
-          style={[s.subMenu, { backgroundColor: dark ? "#141416" : "#FFFFFF", borderColor: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)" }]}
-        >
-          {all.map((o, i) => {
-            const on = marked === o.id;
-            return (
-              <Reanimated.View key={o.id ?? "all"} entering={FadeInDown.delay(i * 30).duration(200)}>
-                <Pressable
-                  onPress={() => choose(o.id)}
-                  style={[s.subRow, i > 0 && { borderTopWidth: 1, borderTopColor: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)" }]}
-                >
-                  {on && (
-                    <LinearGradient
-                      colors={["rgba(197,160,89,0.2)", "rgba(197,160,89,0.05)"]}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  )}
-                  <Text style={[s.subRowText, { color: on ? GOLD : dark ? "rgba(255,255,255,0.8)" : "#1A1A1A" }, on && { fontFamily: "Inter_600SemiBold" }]}>
-                    {o.label}
-                  </Text>
-                  {on && <View style={s.subDot} />}
-                </Pressable>
-              </Reanimated.View>
-            );
-          })}
-        </Reanimated.View>
-      )}
+      <Reanimated.View
+        pointerEvents={open ? "auto" : "none"}
+        style={[s.subMenu, menuStyle, { backgroundColor: dark ? "#141416" : "#FFFFFF", borderColor: dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)" }]}
+      >
+        {all.map((o, i) => {
+          const on = marked === o.id;
+          return (
+            <Pressable
+              key={o.id ?? "all"}
+              onPress={() => choose(o.id)}
+              style={[
+                s.subRow,
+                on && { backgroundColor: "rgba(197,160,89,0.14)" },
+                i > 0 && { borderTopWidth: 1, borderTopColor: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)" },
+              ]}
+            >
+              <Text style={[s.subRowText, { color: on ? GOLD : fg }, on && { fontFamily: "Inter_600SemiBold" }]}>
+                {o.label}
+              </Text>
+              {on && <View style={s.subDot} />}
+            </Pressable>
+          );
+        })}
+      </Reanimated.View>
     </View>
   );
 }
@@ -1162,9 +1170,11 @@ const s = StyleSheet.create({
   },
   pillText: { fontFamily: "Inter_500Medium", fontSize: 12, maxWidth: 200 },
   pillX: { width: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(197,160,89,0.18)" },
-  subWrap: { marginTop: 8, alignSelf: "flex-start", zIndex: 5 },
+  // Inget zIndex: det lyfte menyn ovanför filterarket
+  subWrap: { marginTop: 8, alignSelf: "flex-start" },
   subBtn: {
     height: 36, borderRadius: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1,
+    overflow: "hidden",
   },
   subBtnText: { fontFamily: "Inter_500Medium", fontSize: 12 },
   subMenu: {

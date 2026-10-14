@@ -139,7 +139,12 @@ export function PlaceCarousel({
       ty.value = y < -120 ? -120 + (y + 120) * 0.25 : y > 60 ? 60 + (y - 60) * 0.25 : y;
     })
     .onEnd((e) => {
-      if (e.translationY > 80) { runOnJS(onClose)(); return; }
+      if (e.translationY > 80) {
+        // Glid ner direkt med fingrets fart (vänta inte på att appen hunnit stänga kortet)
+        ty.value = withTiming(PLACE_CARD_H + PAD_B, { duration: 220 });
+        runOnJS(onClose)();
+        return;
+      }
       if (e.translationY < -80) runOnJS(openShown)();
       ty.value = withSpring(0, SETTLE);
     }), [interactive, onClose, openShown, ty]);

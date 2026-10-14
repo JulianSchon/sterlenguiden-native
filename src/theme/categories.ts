@@ -45,8 +45,15 @@ export const CATEGORIES: CategoryDef[] = [
 /** Kategorin som en databasrad hör till, eller undefined */
 export function findCategory(category: string | null): CategoryDef | undefined {
   if (!category) return undefined;
-  const c = category.trim().toLowerCase();
-  return CATEGORIES.find((def) => def.dbValues.some((v) => v.toLowerCase() === c));
+  const match = (c: string) => CATEGORIES.find((def) => def.dbValues.some((v) => v.toLowerCase() === c));
+  const whole = match(category.trim().toLowerCase());
+  if (whole) return whole;
+  // Flera kategorier ("Mat & Dryck, Café & Bageri"): den första som finns gäller
+  for (const part of category.split(",")) {
+    const hit = match(part.trim().toLowerCase());
+    if (hit) return hit;
+  }
+  return undefined;
 }
 
 /** Biljettens sidoband: kategorins färg mot en mörkare ton, guld för okänd kategori */
