@@ -329,7 +329,7 @@ export interface PlaceHit {
   score: number;
   km: number | null;
   open: OpenInfo | null;
-  /** Det man bad om som platsen inte angett, men som dess beskrivning nämner ("Nämner barn") */
+  /** Det man bad om som platsen inte angett, men som dess beskrivning tyder på (sorteras först) */
   mentions: PracticalKey[];
 }
 
@@ -344,10 +344,7 @@ const MENTION_WORDS: Record<PracticalKey, string[]> = {
   wifi: ["wifi"],
   ev: ["laddstolpe", "laddning"],
 };
-export const MENTION_LABELS: Record<PracticalKey, string> = {
-  family: "barn", pets: "hund", outdoor: "uteservering", accessible: "tillgänglighet",
-  vegetarian: "vegetariskt", parking: "parkering", wifi: "wifi", ev: "laddning",
-};
+
 
 export interface PlaceResult {
   hits: PlaceHit[];
@@ -513,8 +510,16 @@ export function searchTowns(towns: Town[], parsed: Parsed): Town[] {
     && parsed.text.every((t) => tw.key.startsWith(t) || tw.key.includes(` ${t}`)));
 }
 
-/** Inga träffar alls: närmaste stavning bland platsnamn och orter ("Menade du Kivik?") */
-export function didYouMean(index: IndexedPlace[], towns: Town[], parsed: Parsed): string | null {
+/**
+ * Inga träffar alls: närmaste stavning bland platsnamn och orter ("Menade du Kivik?"). Bara de
+ * felstavade orden byts — resten av det man skrivit står kvar ("fika i kivkk" → "fika i Kivik").
+ */
+export function didYouMean(
+  index: IndexedPlace[],
+  towns: Town[],
+  parsed: Parsed,
+  original: string,
+): { query: string; words: string[] } | null {
   if (parsed.text.length === 0) return null;
   // Orden som de är skrivna ("Nygård"), nycklade på sin sökform ("nygard")
   const vocabulary = new Map<string, string>();
@@ -522,16 +527,25 @@ export function didYouMean(index: IndexedPlace[], towns: Town[], parsed: Parsed)
     if (w.length >= 3) vocabulary.set(norm(w), w);
   }));
   towns.forEach((tw) => vocabulary.set(tw.key, tw.name));
-  let changed = false;
-  const fixed = parsed.text.map((t) => {
+  const fixes = new Map<string, string>();
+  parsed.text.forEach((t) => {
+    if (vocabulary.has(t)) return;
     let best: string | null = null;
     let bestD = 3;
     for (const [w, shown] of vocabulary) {
       const d = editDistance(t, w, 2);
       if (d > 0 && d < bestD) { best = shown; bestD = d; }
     }
-    if (best) { changed = true; return best; }
-    return t;
+    if (best) fixes.set(t, best);
   });
-  return changed ? fixed.join(" ") : null;
+  if (fixes.size === 0) return null;
+  // Byt orden där de står i det man skrev, så meningen (och stora/små bokstäver) blir kvar
+  const words: string[] = [];
+  const query = original.replace(/[\p{L}\p{N}]+/gu, (word) => {
+    const fix = fixes.get(norm(word));
+    if (!fix) return word;
+    words.push(fix);
+    return fix;
+  });
+  return words.length > 0 ? { query, words } : null;
 }

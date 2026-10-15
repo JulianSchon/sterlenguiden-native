@@ -18,7 +18,7 @@ import { findCategory, type CategoryId } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { distanceLabel } from "@/lib/mapFilters";
 import { eventWhen } from "@/lib/events";
-import { MENTION_LABELS, normChars, type OpenInfo, type PlaceHit } from "@/lib/search";
+import { normChars, type OpenInfo, type PlaceHit } from "@/lib/search";
 import { DateBox } from "@/components/events/EventCards";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 
@@ -120,16 +120,7 @@ export const PlaceResultRow = memo(function PlaceResultRow({ hit, tokens, onPres
           {hit.km != null && <Text style={[s.km, { color: colors.faint }]}>{distanceLabel(hit.km)}</Text>}
         </View>
         <CategoryLine place={hit.place} />
-        {(hit.open || hit.mentions.length > 0) && (
-          <View style={s.tags}>
-            <OpenLabel open={hit.open} />
-            {hit.mentions.length > 0 && (
-              <Text style={[s.mention, { color: colors.goldText }]}>
-                Nämner {hit.mentions.map((m) => MENTION_LABELS[m]).join(" och ")}
-              </Text>
-            )}
-          </View>
-        )}
+        <OpenLabel open={hit.open} />
       </View>
     </TouchableOpacity>
   );
@@ -147,22 +138,27 @@ export const EventResultRow = memo(function EventResultRow({ event, tokens, onPr
       </Thumb>
       <View style={s.rowBody}>
         <Text style={[s.when, { color: colors.goldText }]} numberOfLines={1}>{eventWhen(event).toUpperCase()}</Text>
-        <Highlight text={event.title ?? ""} tokens={tokens} style={[s.rowTitle, { color: colors.text }]} mark={{ color: colors.goldText }} />
+        <Highlight text={event.title ?? ""} tokens={tokens} style={[s.title, { color: colors.text }]} mark={{ color: colors.goldText }} />
         {!!where && <Text style={[s.meta, { color: colors.muted }]} numberOfLines={1}>{where}</Text>}
       </View>
     </TouchableOpacity>
   );
 });
 
-export function TownRow({ name, detail, onPress }: { name: string; detail: string; onPress: () => void }) {
+/** En ort: ett foto därifrån, namnet, och hur många platser (och hur långt bort) */
+export function TownRow({ name, detail, image, size = 60, onPress }: {
+  name: string; detail: string; image: string | null; size?: number; onPress: () => void;
+}) {
   const { colors } = useTheme();
   return (
     <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={onPress}>
-      <View style={[s.iconTile, { backgroundColor: colors.goldSoft }]}>
-        <MapPin size={22} color={colors.gold} strokeWidth={2} />
-      </View>
+      {image ? <Thumb uri={image} size={size} /> : (
+        <View style={[s.iconTile, { width: size, height: size, backgroundColor: colors.goldSoft }]}>
+          <MapPin size={22} color={colors.gold} strokeWidth={2} />
+        </View>
+      )}
       <View style={s.rowBody}>
-        <Text style={[s.rowTitle, { color: colors.text }]}>{name}</Text>
+        <Text style={[s.title, { color: colors.text }]} numberOfLines={1}>{name}</Text>
         <Text style={[s.meta, { color: colors.muted }]}>{detail}</Text>
       </View>
     </TouchableOpacity>
@@ -334,12 +330,11 @@ const s = StyleSheet.create({
   catLine: { flexDirection: "row", alignItems: "center", gap: 7 },
   meta: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 13 },
   open: { fontFamily: "Inter_600SemiBold", fontSize: 12.5 },
-  mention: { fontFamily: "Inter_600SemiBold", fontSize: 12.5 },
-  tags: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 10, rowGap: 2 },
 
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 9 },
   rowBody: { flex: 1, gap: 4 },
   rowTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 15.5, letterSpacing: -0.2 },
   rowTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15.5, letterSpacing: -0.2 },
   km: { fontFamily: "Inter_500Medium", fontSize: 12.5, marginTop: 2, fontVariant: ["tabular-nums"] },
   when: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1 },

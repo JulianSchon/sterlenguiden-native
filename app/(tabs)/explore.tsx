@@ -2,21 +2,26 @@
  * Sök.
  *
  * Innan man skriver: "Vad vill du göra?" (Äta nu, Fika, Sova i natt …, med hur många som finns
- * just nu), det som har öppet nära mig, och orterna. Trycker man i sökfältet: senaste sökningarna
- * (det man öppnat via söket och det man sökt på, som i Spotify).
+ * just nu), det som har öppet nära mig, och orterna med ett foto därifrån. Trycker man i
+ * sökfältet: senaste sökningarna (det man öppnat via söket och det man sökt på, som i Spotify).
  *
  * När man skriver söks allt i telefonen (lib/search), så svaret kommer på första bokstaven. Överst
  * ett svarskort med det viktigaste direkt: "Bästa träff" (platsen själv: öppet, avstånd, karta,
  * vägbeskrivning), eller en sammanfattning av vad söket förstått ("Fika i Kivik — 6 ställen,
  * 3 öppna nu, närmast 1,2 km") med chips som tar bort en del av frågan. Sen platser, evenemang
- * och orter, med det man sökt på markerat. Inga träffar: "Menade du …?".
+ * och orter, med det man sökt på markerat. Inga träffar: "Menade du …?". Förslagen på vad man
+ * kan söka tas ur det som faktiskt finns i appen.
+ *
+ * Snabbhet: bläddrandet och söket ligger båda kvar och tonar bara över. Bläddrandet ritas inte om
+ * när man skriver. Söket visar de första raderna direkt och resten när övergången är klar, och
+ * övergången börjar först när innehållet hunnit ritas — annars hackade det när man tryckte.
  */
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BackHandler, Keyboard, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import Reanimated, {
-  Easing, FadeIn, FadeInDown, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming,
+  Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming, FadeInDown,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -33,12 +38,13 @@ import { useEvents, type Event } from "@/hooks/useEvents";
 import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useKnownLocation } from "@/hooks/useUserLocation";
 import { useTheme } from "@/theme/ThemeProvider";
-import { CATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
+import { CATEGORIES, findCategory, withAlpha, type CategoryId } from "@/theme/categories";
 import { PRACTICAL, distanceLabel } from "@/lib/mapFilters";
 import {
-  PRACTICAL_LABELS, buildIndex, buildTowns, didYouMean, norm, openInfo, parseQuery, searchEvents, searchPlaces,
-  searchTowns, withoutIntent, type Intent, type Parsed, type PlaceHit, type Town,
+  PRACTICAL_LABELS, buildIndex, buildTowns, didYouMean, norm, openInfo, openLate, parseQuery, searchEvents,
+  searchPlaces, searchTowns, withoutIntent, type IndexedPlace, type Intent, type Parsed, type PlaceHit, type Town,
 } from "@/lib/search";
+import { distanceMeters } from "@/lib/checkin";
 import { useSearchHistory, type HistoryEntry } from "@/lib/searchHistory";
 import { eventWhen } from "@/lib/events";
 import { openEvent } from "@/lib/eventSheet";
@@ -60,23 +66,27 @@ const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).dur
 
 /** Platser som visas innan "Visa alla" */
 const FIRST_PLACES = 20;
+/** Rader som ritas direkt när söket öppnas — resten när övergången är klar */
+const FIRST_ROWS = 6;
+/** Orter som syns innan "Visa alla" */
+const FIRST_TOWNS = 8;
 
-/** "Vad vill du göra?" — varje ruta är en färdig fråga till söket */
-const TILES: { key: string; label: string; query: string; Icon: LucideIcon }[] = [
-  { key: "eat", label: "Äta nu", query: "äta nu", Icon: UtensilsCrossed },
-  { key: "fika", label: "Fika", query: "fika", Icon: Coffee },
-  { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble },
-  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon },
-  { key: "kids", label: "Med barn", query: "med barn", Icon: Baby },
-  { key: "dog", label: "Med hund", query: "med hund", Icon: Dog },
-  { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees },
-  { key: "events", label: "Händer snart", query: "evenemang", Icon: CalendarDays },
+/**
+ * "Vad vill du göra?" — varje ruta är en färdig fråga till söket. Färgen: kategorins (samma som
+ * kartans prickar) där det finns en, annars en egen som inte krockar med kategorierna.
+ */
+const TILES: { key: string; label: string; query: string; Icon: LucideIcon; tint: { dark: string; light: string } }[] = [
+  { key: "eat", label: "Äta nu", query: "äta nu", Icon: UtensilsCrossed, tint: { dark: "#C23A5E", light: "#881337" } },
+  { key: "fika", label: "Fika", query: "fika", Icon: Coffee, tint: { dark: "#D4BE86", light: "#8A6A2E" } },
+  { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble, tint: { dark: "#3F7BEA", light: "#1E3A8A" } },
+  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: { dark: "#E5A93B", light: "#A16207" } },
+  { key: "kids", label: "Med barn", query: "med barn", Icon: Baby, tint: { dark: "#2499C2", light: "#0C4A6E" } },
+  { key: "dog", label: "Med hund", query: "med hund", Icon: Dog, tint: { dark: "#C08A5B", light: "#7C4A21" } },
+  { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees, tint: { dark: "#2BA36A", light: "#064E3B" } },
+  { key: "events", label: "Händer snart", query: "evenemang", Icon: CalendarDays, tint: { dark: "#A55BE0", light: "#581C87" } },
 ];
 
-/** Förslag när historiken är tom — visar vad söket förstår */
-const TRY = ["fika i Kivik", "äta nu", "loppis", "med barn", "konst", "i helgen"];
-
-/** Rubriken i sammanfattningen per kategori, och ordet en ort-chip söker med */
+/** Rubriken i sammanfattningen per kategori, och ordet en kategori-chip söker med */
 const CAT_TITLE: Record<CategoryId, string> = {
   "mat-dryck": "Äta", "cafe-bageri": "Fika", "hotell-bb": "Sova", "natur-upplevelser": "Natur",
   "aktiviteter": "Aktiviteter", "sevardheter": "Sevärdheter", "butiker": "Handla", "hantverk-service": "Design & hantverk",
@@ -86,6 +96,8 @@ const CAT_QUERY: Record<CategoryId, string> = {
   "aktiviteter": "aktiviteter", "sevardheter": "sevärdheter", "butiker": "handla", "hantverk-service": "design",
 };
 const WHEN_LABEL = { today: "i dag", tomorrow: "i morgon", weekend: "i helgen" } as const;
+/** Ord som föreslås bara om de faktiskt finns hos minst två platser */
+const MAYBE_WORDS = ["konst", "glass", "vin", "keramik", "loppis", "gårdsbutik"];
 
 const catIcon = (id: CategoryId): LucideIcon => CATEGORIES.find((c) => c.id === id)?.icon ?? MapPin;
 const practicalIcon = (id: string): LucideIcon => PRACTICAL.find((p) => p.id === id)?.Icon ?? Sparkles;
@@ -96,6 +108,9 @@ function openDirections(lat: number | null, lng: number | null) {
   Linking.openURL(url).catch(() =>
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`).catch(() => {}));
 }
+
+/** En ort med det sidan visar om den: ett foto därifrån, hur långt bort, hur många som har öppet */
+interface TownCard extends Town { image: string | null; km: number | null; open: number }
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
@@ -109,16 +124,22 @@ export default function ExploreScreen() {
   const { data: favorites = NONE as NonNullable<ReturnType<typeof useFavorites>["data"]> } = useFavorites();
   const loc = useKnownLocation();
   const history = useSearchHistory();
+  const addHistory = history.add;
 
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  // Söket räknas om när telefonen hinner — att skriva är alltid lika snabbt
-  const deferred = useDeferredValue(query);
   const searching = focused || query.length > 0;
-  useEffect(() => { setShowAll(false); }, [deferred]);
+  const changeQuery = useCallback((q: string) => {
+    setQuery(q);
+    setShowAll(false);
+  }, []);
+  const ask = useCallback((q: string) => {
+    Haptics.selectionAsync().catch(() => {});
+    changeQuery(q);
+  }, [changeQuery]);
 
-  // Öppet nu räknas om varje gång man kommer tillbaka till sidan
+  // Öppet nu (och siffrorna i rutorna) räknas om varje gång man kommer tillbaka till sidan
   const [tick, setTick] = useState(0);
   useFocusEffect(useCallback(() => { setTick((t) => t + 1); }, []));
 
@@ -126,6 +147,41 @@ export default function ExploreScreen() {
   const towns = useMemo(() => buildTowns(places), [places]);
   const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const eventById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
+
+  // ── Orterna: ett foto (helst natur eller en sevärdhet), avstånd till mitten av orten, öppet nu ──
+  const townCards = useMemo<TownCard[]>(() => {
+    const byTown = new Map<string, IndexedPlace[]>();
+    index.forEach((p) => {
+      if (!p.town) return;
+      const list = byTown.get(p.town);
+      if (list) list.push(p); else byTown.set(p.town, [p]);
+    });
+    const scenic = (p: IndexedPlace) => (p.cats.has("natur-upplevelser") || p.cats.has("sevardheter") ? 1 : 0);
+    const cards = towns.map((t) => {
+      const list = byTown.get(t.key) ?? [];
+      const photo = list
+        .filter((p) => firstImageUrl(p.place.image_url))
+        .sort((a, b) => scenic(b) - scenic(a) || b.tier - a.tier || a.place.name.localeCompare(b.place.name, "sv"))[0];
+      const pts = list.filter((p) => p.place.lat != null && p.place.lng != null);
+      const km = loc && pts.length > 0
+        ? distanceMeters(
+          loc.lat, loc.lng,
+          pts.reduce((sum, p) => sum + p.place.lat!, 0) / pts.length,
+          pts.reduce((sum, p) => sum + p.place.lng!, 0) / pts.length,
+        ) / 1000
+        : null;
+      return {
+        ...t,
+        image: photo ? firstImageUrl(photo.place.image_url) : null,
+        km,
+        open: list.filter((p) => openInfo(p.place)?.open).length,
+      };
+    });
+    // Närmast först om vi vet var man är, annars flest platser
+    return loc ? cards.sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9)) : cards;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, towns, loc, tick]);
+  const townCardByKey = useMemo(() => new Map(townCards.map((t) => [t.key, t])), [townCards]);
 
   // ── Sparade platser (hjärtat på "Bästa träff"): ändras direkt här, resten av appen får veta när
   // man lämnar sidan (samma som kartan)
@@ -147,14 +203,10 @@ export default function ExploreScreen() {
 
   // ── Sökfältet ─────────────────────────────────────────────────────────────
   const cancel = useCallback(() => {
-    setQuery("");
+    changeQuery("");
     inputRef.current?.blur();
     Keyboard.dismiss();
-  }, []);
-  const ask = useCallback((text: string) => {
-    Haptics.selectionAsync().catch(() => {});
-    setQuery(text);
-  }, []);
+  }, [changeQuery]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -165,13 +217,27 @@ export default function ExploreScreen() {
     return () => sub.remove();
   }, [searching, cancel]);
 
-  // Bläddrandet och söket ligger båda kvar; att byta tonar bara över
+  // Bläddrandet och söket ligger båda kvar; att byta tonar bara över. Övergången börjar två
+  // bildrutor efter trycket, när det nya innehållet hunnit ritas (annars hackade den)
   const mode = useSharedValue(0);
   useEffect(() => {
-    mode.value = withTiming(searching ? 1 : 0, { duration: 200, easing: Easing.out(Easing.cubic) });
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        mode.value = withTiming(searching ? 1 : 0, { duration: 220, easing: Easing.out(Easing.cubic) });
+      });
+    });
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
   }, [searching, mode]);
   const browseStyle = useAnimatedStyle(() => ({ opacity: 1 - mode.value, transform: [{ translateY: mode.value * 10 }] }));
   const searchStyle = useAnimatedStyle(() => ({ opacity: mode.value, transform: [{ translateY: (1 - mode.value) * 10 }] }));
+  // De första raderna direkt, resten när övergången är klar
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!searching) { setSettled(false); return; }
+    const t = setTimeout(() => setSettled(true), 320);
+    return () => clearTimeout(t);
+  }, [searching]);
 
   // Fliktrycket i navigeringen scrollar upp det som visas
   const browseRef = useRef<ScrollView>(null);
@@ -187,28 +253,28 @@ export default function ExploreScreen() {
   // ── Att öppna något (via söket hamnar det överst i historiken) ───────────
   const openPlace = useCallback((place: Place, fromSearch: boolean) => {
     Keyboard.dismiss();
-    if (fromSearch) history.add({ kind: "place", id: place.id });
+    if (fromSearch) addHistory({ kind: "place", id: place.id });
     pushOnce(router, `/place/${place.id}`);
-  }, [history, router]);
+  }, [addHistory, router]);
   const openEventItem = useCallback((event: Event, fromSearch: boolean) => {
     Keyboard.dismiss();
-    if (fromSearch) history.add({ kind: "event", id: event.id });
+    if (fromSearch) addHistory({ kind: "event", id: event.id });
     openEvent(event.id, { event });
-  }, [history]);
+  }, [addHistory]);
   const chooseTown = useCallback((name: string) => {
-    history.add({ kind: "town", name });
+    addHistory({ kind: "town", name });
     ask(name);
-  }, [history, ask]);
+  }, [addHistory, ask]);
   const onResultPlace = useCallback((p: Place) => openPlace(p, true), [openPlace]);
   const onResultEvent = useCallback((e: Event) => openEventItem(e, true), [openEventItem]);
+  const onBrowsePlace = useCallback((p: Place) => openPlace(p, false), [openPlace]);
 
   // ── Bläddra: rutornas siffror och det som har öppet nära mig ─────────────
   const tiles = useMemo(() => {
     if (!placesFetched) return null;
     const now = new Date();
     const count = (q: string) => {
-      const parsed = parseQuery(q, towns);
-      const r = searchPlaces(index, parsed, loc, now);
+      const r = searchPlaces(index, parseQuery(q, towns), loc, now);
       return r.relaxed.length > 0 ? 0 : r.hits.length;
     };
     const upcoming = searchEvents(events, parseQuery("evenemang", towns), now).length;
@@ -236,10 +302,56 @@ export default function ExploreScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placesFetched, index, towns, loc, tick]);
 
-  // ── Söket ─────────────────────────────────────────────────────────────────
-  const parsed = useMemo(() => parseQuery(deferred, towns), [deferred, towns]);
+  /**
+   * Förslag på vad man kan söka — bara sådant som faktiskt finns: kategorier i den ort som har
+   * flest (olika orter för olika förslag), "äta nu" bara om något har öppet, evenemang bara om det
+   * finns några, och ord som "konst" bara om minst två platser har det.
+   */
+  const suggestions = useMemo(() => {
+    if (!placesFetched) return [] as string[];
+    const now = new Date();
+    const perTown = new Map<string, Map<CategoryId, number>>();
+    index.forEach((p) => {
+      if (!p.town) return;
+      const m = perTown.get(p.town) ?? new Map<CategoryId, number>();
+      p.cats.forEach((c) => m.set(c, (m.get(c) ?? 0) + 1));
+      perTown.set(p.town, m);
+    });
+    const used = new Set<string>();
+    const inBestTown = (word: string, cat: CategoryId, min: number) => {
+      let best: Town | null = null;
+      let bestN = 0;
+      for (const t of towns) {
+        const n = perTown.get(t.key)?.get(cat) ?? 0;
+        if (n >= min && n > bestN && !used.has(t.key)) { best = t; bestN = n; }
+      }
+      if (!best) return null;
+      used.add(best.key);
+      return `${word} i ${best.name}`;
+    };
+    const has = (pred: (p: IndexedPlace) => boolean) => index.some(pred);
+    const out: string[] = [];
+    const push = (q: string | null) => { if (q && !out.includes(q)) out.push(q); };
+    push(inBestTown("fika", "cafe-bageri", 2));
+    push(has((p) => p.cats.has("mat-dryck") && !!openInfo(p.place, now)?.open) ? "äta nu" : inBestTown("äta", "mat-dryck", 2));
+    push(inBestTown("sova", "hotell-bb", 1));
+    if (has((p) => p.amenities.family === true || p.catText.includes("barn & familj"))) push("med barn");
+    if (has((p) => openLate(p.place, now))) push("öppet sent");
+    if (searchEvents(events, parseQuery("i helgen", towns), now).length > 0) push("i helgen");
+    else if (searchEvents(events, parseQuery("evenemang", towns), now).length > 0) push("evenemang");
+    MAYBE_WORDS.forEach((w) => {
+      const key = norm(w);
+      if (index.filter((p) => p.name.includes(key) || p.catText.includes(key) || p.text.includes(key)).length >= 2) push(w);
+    });
+    if (has((p) => p.cats.has("natur-upplevelser"))) push("natur");
+    return out.slice(0, 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placesFetched, index, towns, events, tick]);
+
+  // ── Söket (räknas direkt — det tar några millisekunder) ──────────────────
+  const parsed = useMemo(() => parseQuery(query, towns), [query, towns]);
   const results = useMemo(() => {
-    if (!deferred.trim()) return null;
+    if (!query.trim()) return null;
     const now = new Date();
     const placeIntents = parsed.intents.some((x) => x.kind !== "events" && x.kind !== "when");
     const showPlaces = parsed.text.length > 0 || placeIntents;
@@ -252,62 +364,38 @@ export default function ExploreScreen() {
       places: placeResult,
       events: eventHits,
       towns: townHits,
-      suggestion: empty ? didYouMean(index, towns, parsed) : null,
+      suggestion: empty ? didYouMean(index, towns, parsed, query.trim()) : null,
       empty,
     };
-  }, [deferred, parsed, index, towns, events, loc]);
+  }, [query, parsed, index, towns, events, loc]);
 
   const answer = useMemo(
-    () => (results ? buildAnswer(parsed, results.places.hits, results.places.relaxed, results.events, index.length, places, ask) : null),
-    [results, parsed, index.length, places, ask],
+    () => (results ? buildAnswer(parsed, results.places.hits, results.places.relaxed, results.events, index.length, index, ask) : null),
+    [results, parsed, index, ask],
   );
-  const listPlaces = useMemo(() => {
-    if (!results) return [];
-    const hits = answer?.kind === "place" ? results.places.hits.filter((h) => h.place.id !== answer.hit.place.id) : results.places.hits;
-    return showAll ? hits : hits.slice(0, FIRST_PLACES);
-  }, [results, answer, showAll]);
-  const placesTotal = (results?.places.hits.length ?? 0) - (answer?.kind === "place" ? 1 : 0);
-  const eventsFirst = parsed.intents.some((x) => x.kind === "events" || x.kind === "when") && parsed.text.length === 0;
 
   const bottomPad = FLOATING_NAV_HEIGHT + insets.bottom + 110;
-  const townDetail = (t: Town) => {
-    const open = index.filter((p) => p.town === t.key && openInfo(p.place)?.open).length;
-    return `${t.count} ${t.count === 1 ? "plats" : "platser"}${open ? `  ·  ${open} öppna nu` : ""}`;
-  };
-
-  const placesSection = results && listPlaces.length > 0 && (
-    <View>
-      <SectionHeader title="Platser" count={placesTotal} />
-      {listPlaces.map((h) => <PlaceResultRow key={h.place.id} hit={h} tokens={parsed.text} onPress={onResultPlace} />)}
-      {!showAll && placesTotal > FIRST_PLACES && (
-        <TouchableOpacity style={[s.more, { borderColor: colors.border }]} activeOpacity={0.75} onPress={() => setShowAll(true)}>
-          <Text style={[s.moreText, { color: colors.text }]}>Visa alla {placesTotal}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-  const eventsSection = results && results.events.length > 0 && (
-    <View>
-      <SectionHeader title="Evenemang" count={results.events.length} />
-      {results.events.slice(0, 12).map((e) => <EventResultRow key={e.id} event={e} tokens={parsed.text} onPress={onResultEvent} />)}
-    </View>
-  );
 
   return (
     <View style={[s.root, { backgroundColor: colors.bg }]}>
       {/* ── Rubriken och sökfältet ── */}
       <View style={{ paddingTop: Math.max(insets.top, 44), paddingHorizontal: 16 }}>
-        <PageTitle />
+        <View style={s.titleRow}>
+          <Text style={[s.title, { color: colors.text }]}>Sök</Text>
+        </View>
         <View style={s.fieldRow}>
-          <Reanimated.View layout={LinearTransition.duration(200)} style={[s.field, { backgroundColor: colors.card, borderColor: focused ? colors.goldBorder : colors.border }]}>
+          <Reanimated.View
+            layout={LinearTransition.duration(200)}
+            style={[s.field, { backgroundColor: colors.card, borderColor: focused ? colors.goldBorder : colors.border }]}
+          >
             <Search size={18} color={colors.muted} strokeWidth={2.2} />
             <TextInput
               ref={inputRef}
               value={query}
-              onChangeText={setQuery}
+              onChangeText={changeQuery}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              onSubmitEditing={() => history.add({ kind: "term", text: query.trim() })}
+              onSubmitEditing={() => addHistory({ kind: "term", text: query.trim() })}
               placeholder="Sök platser, evenemang, orter"
               placeholderTextColor={colors.faint}
               selectionColor={colors.gold}
@@ -317,7 +405,7 @@ export default function ExploreScreen() {
               style={[s.input, { color: colors.text }]}
             />
             {query.length > 0 && (
-              <TouchableOpacity onPress={() => { setQuery(""); inputRef.current?.focus(); }} hitSlop={12} accessibilityLabel="Rensa">
+              <TouchableOpacity onPress={() => { changeQuery(""); inputRef.current?.focus(); }} hitSlop={12} accessibilityLabel="Rensa">
                 <View style={[s.clear, { backgroundColor: colors.fill }]}>
                   <X size={12} color={colors.muted} strokeWidth={2.6} />
                 </View>
@@ -335,53 +423,18 @@ export default function ExploreScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-        {/* ── Bläddra ── */}
+        {/* ── Bläddra (ritas inte om när man skriver) ── */}
         <Reanimated.View style={[StyleSheet.absoluteFill, browseStyle]} pointerEvents={searching ? "none" : "auto"}>
-          <ScrollView
-            ref={browseRef}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomPad }}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Reanimated.View entering={enterAt(0)}>
-              <SectionHeader title="Vad vill du göra?" />
-              <View style={s.tiles}>
-                {TILES.map((t) => (
-                  <IntentTile key={t.key} label={t.label} Icon={t.Icon} sub={tiles?.[t.key] ?? null} onPress={() => ask(t.query)} />
-                ))}
-              </View>
-            </Reanimated.View>
-
-            {(openNearby === null || openNearby.length > 0) && (
-              <Reanimated.View entering={enterAt(1)}>
-                <SectionHeader title={loc ? "Öppet nu nära dig" : "Öppet nu"} action="Visa alla" onAction={() => ask("öppet nu")} />
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.bleed} contentContainerStyle={s.nearRow}>
-                  {openNearby === null
-                    ? [0, 1, 2].map((i) => <NearCardSkeleton key={i} />)
-                    : openNearby.map((h) => <NearCard key={h.place.id} hit={h} onPress={() => openPlace(h.place, false)} />)}
-                </ScrollView>
-              </Reanimated.View>
-            )}
-
-            <Reanimated.View entering={enterAt(2)}>
-              <SectionHeader title="Orter" />
-              <View style={s.towns}>
-                {placesFetched
-                  ? towns.slice(0, 14).map((t) => (
-                    <TouchableOpacity
-                      key={t.key}
-                      style={[s.town, { backgroundColor: colors.card, borderColor: colors.border }]}
-                      activeOpacity={0.75}
-                      onPress={() => ask(t.name)}
-                    >
-                      <Text style={[s.townName, { color: colors.text }]}>{t.name}</Text>
-                      <Text style={[s.townCount, { color: colors.faint }]}>{t.count}</Text>
-                    </TouchableOpacity>
-                  ))
-                  : [90, 70, 110, 80, 95, 60].map((w, i) => <Skeleton key={i} width={w} height={36} radius={18} />)}
-              </View>
-            </Reanimated.View>
-          </ScrollView>
+          <BrowsePanel
+            scrollRef={browseRef}
+            bottomPad={bottomPad}
+            tiles={tiles}
+            nearby={openNearby}
+            hasLoc={!!loc}
+            towns={placesFetched ? townCards : null}
+            onAsk={ask}
+            onOpenPlace={onBrowsePlace}
+          />
         </Reanimated.View>
 
         {/* ── Söket ── */}
@@ -395,64 +448,55 @@ export default function ExploreScreen() {
           >
             {!results ? (
               <HistoryList
-                entries={history.entries}
+                entries={settled ? history.entries : history.entries.slice(0, FIRST_ROWS + 1)}
                 placeById={placeById}
                 eventById={eventById}
-                onPlace={(p) => openPlace(p, true)}
-                onEvent={(e) => openEventItem(e, true)}
+                suggestions={suggestions}
+                onPlace={onResultPlace}
+                onEvent={onResultEvent}
                 onTown={chooseTown}
                 onTerm={ask}
                 onRemove={history.remove}
                 onClear={history.clear}
-                onTry={ask}
               />
             ) : results.empty ? (
               <View style={s.empty}>
-                <Text style={[s.emptyTitle, { color: colors.text }]}>Inga träffar för ”{deferred.trim()}”</Text>
+                <Text style={[s.emptyTitle, { color: colors.text }]}>Inga träffar för ”{query.trim()}”</Text>
                 {results.suggestion ? (
-                  <TouchableOpacity onPress={() => ask(results.suggestion!)} activeOpacity={0.75}>
+                  <TouchableOpacity onPress={() => ask(results.suggestion!.query)} activeOpacity={0.75}>
                     <Text style={[s.emptyText, { color: colors.muted }]}>
-                      Menade du <Text style={{ color: colors.goldText, fontFamily: "Inter_600SemiBold" }}>{results.suggestion}</Text>?
+                      Menade du ”<Corrected text={results.suggestion.query} words={results.suggestion.words} />”?
                     </Text>
                   </TouchableOpacity>
                 ) : (
                   <Text style={[s.emptyText, { color: colors.muted }]}>Prova ett annat ord, eller något av de här:</Text>
                 )}
-                <View style={[s.tryRow, { marginTop: 16 }]}>
-                  {TRY.map((t) => <ChipView key={t} chip={{ key: t, label: t, Icon: Search, onPress: () => ask(t) }} />)}
-                </View>
-              </View>
-            ) : (
-              <View style={{ paddingTop: 16 }}>
-                {answer?.kind === "place" && (
-                  <PlaceAnswer
-                    hit={answer.hit}
-                    saved={isSaved(answer.hit.place.id)}
-                    onOpen={() => openPlace(answer.hit.place, true)}
-                    onMap={() => {
-                      history.add({ kind: "place", id: answer.hit.place.id });
-                      router.navigate({ pathname: "/(tabs)/map", params: { place: String(answer.hit.place.id) } } as never);
-                    }}
-                    onNavigate={() => openDirections(answer.hit.place.lat, answer.hit.place.lng)}
-                    onToggleSave={() => toggleSave(answer.hit.place.id)}
-                    onBurst={showBurst}
-                  />
-                )}
-                {answer?.kind === "summary" && (
-                  <SummaryAnswer Icon={answer.Icon} title={answer.title} subtitle={answer.subtitle} chips={answer.chips} note={answer.note} />
-                )}
-
-                {eventsFirst ? <>{eventsSection}{placesSection}</> : <>{placesSection}{eventsSection}</>}
-
-                {results.towns.length > 0 && (
-                  <View>
-                    <SectionHeader title="Orter" />
-                    {results.towns.slice(0, 4).map((t) => (
-                      <TownRow key={t.key} name={t.name} detail={townDetail(t)} onPress={() => chooseTown(t.name)} />
-                    ))}
+                {suggestions.length > 0 && (
+                  <View style={[s.tryRow, { marginTop: 16, justifyContent: "center" }]}>
+                    {suggestions.map((t) => <ChipView key={t} chip={{ key: t, label: t, Icon: Search, onPress: () => ask(t) }} />)}
                   </View>
                 )}
               </View>
+            ) : (
+              <Results
+                parsed={parsed}
+                results={results}
+                answer={answer}
+                limit={settled ? (showAll ? Infinity : FIRST_PLACES) : FIRST_ROWS}
+                eventLimit={settled ? 12 : 3}
+                townCardByKey={townCardByKey}
+                isSaved={isSaved}
+                onShowAll={() => setShowAll(true)}
+                onPlace={onResultPlace}
+                onEvent={onResultEvent}
+                onTown={chooseTown}
+                onMap={(p) => {
+                  addHistory({ kind: "place", id: p.id });
+                  router.navigate({ pathname: "/(tabs)/map", params: { place: String(p.id) } } as never);
+                }}
+                onToggleSave={toggleSave}
+                onBurst={showBurst}
+              />
             )}
           </ScrollView>
         </Reanimated.View>
@@ -463,12 +507,246 @@ export default function ExploreScreen() {
   );
 }
 
-// ── Svarskortet ─────────────────────────────────────────────────────────────
+// ── Bläddra ─────────────────────────────────────────────────────────────────
+
+const BrowsePanel = memo(function BrowsePanel({
+  scrollRef, bottomPad, tiles, nearby, hasLoc, towns, onAsk, onOpenPlace,
+}: {
+  scrollRef: React.RefObject<ScrollView | null>;
+  bottomPad: number;
+  tiles: Record<string, string> | null;
+  nearby: PlaceHit[] | null;
+  hasLoc: boolean;
+  towns: TownCard[] | null;
+  onAsk: (q: string) => void;
+  onOpenPlace: (p: Place) => void;
+}) {
+  const [allTowns, setAllTowns] = useState(false);
+  const shownTowns = towns ? (allTowns ? towns : towns.slice(0, FIRST_TOWNS)) : null;
+  return (
+    <ScrollView
+      ref={scrollRef}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomPad }}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Reanimated.View entering={enterAt(0)}>
+        <SectionHeader title="Vad vill du göra?" />
+        <View style={s.tiles}>
+          {TILES.map((t) => (
+            <IntentTile key={t.key} label={t.label} Icon={t.Icon} tint={t.tint} sub={tiles?.[t.key] ?? null} onPress={() => onAsk(t.query)} />
+          ))}
+        </View>
+      </Reanimated.View>
+
+      {(nearby === null || nearby.length > 0) && (
+        <Reanimated.View entering={enterAt(1)}>
+          <SectionHeader title={hasLoc ? "Öppet nu nära dig" : "Öppet nu"} action="Visa alla" onAction={() => onAsk("öppet nu")} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.bleed} contentContainerStyle={s.nearRow}>
+            {nearby === null
+              ? [0, 1, 2].map((i) => <NearCardSkeleton key={i} />)
+              : nearby.map((h) => <NearCard key={h.place.id} hit={h} onPress={onOpenPlace} />)}
+          </ScrollView>
+        </Reanimated.View>
+      )}
+
+      <Reanimated.View entering={enterAt(2)}>
+        <SectionHeader
+          title="Utforska orterna"
+          action={towns && towns.length > FIRST_TOWNS ? (allTowns ? "Visa färre" : "Visa alla") : undefined}
+          onAction={() => setAllTowns((v) => !v)}
+        />
+        <View style={s.townGrid}>
+          {shownTowns
+            ? shownTowns.map((t) => <TownTile key={t.key} town={t} onPress={() => onAsk(t.name)} />)
+            : [0, 1, 2, 3].map((i) => <TownTileSkeleton key={i} />)}
+        </View>
+      </Reanimated.View>
+    </ScrollView>
+  );
+});
+
+function IntentTile({ label, sub, Icon, tint, onPress }: {
+  label: string; sub: string | null; Icon: LucideIcon; tint: { dark: string; light: string }; onPress: () => void;
+}) {
+  const { colors, scheme } = useTheme();
+  const color = tint[scheme];
+  return (
+    <TouchableOpacity style={[s.tile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
+      <View style={[s.tileIcon, { backgroundColor: withAlpha(color, scheme === "dark" ? 0.16 : 0.1) }]}>
+        <Icon size={19} color={color} strokeWidth={2.1} />
+      </View>
+      <View style={s.tileBody}>
+        <Text style={[s.tileLabel, { color: colors.text }]} numberOfLines={1}>{label}</Text>
+        {sub ? <Text style={[s.tileSub, { color: colors.muted }]} numberOfLines={1}>{sub}</Text> : <Skeleton width={64} height={10} radius={5} />}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+/** Ett ställe som har öppet nu: bilden, och all text under (öppettiden grön, avståndet grått) */
+const NearCard = memo(function NearCard({ hit, onPress }: { hit: PlaceHit; onPress: (p: Place) => void }) {
+  const { colors } = useTheme();
+  const c = useOpenColors();
+  const image = firstImageUrl(hit.place.image_url);
+  return (
+    <TouchableOpacity style={s.near} activeOpacity={0.85} onPress={() => onPress(hit.place)}>
+      <View style={[s.nearImage, { backgroundColor: colors.fill }]}>
+        {image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
+      </View>
+      <Text style={[s.nearName, { color: colors.text }]} numberOfLines={1}>{hit.place.name}</Text>
+      <CategoryLine place={hit.place} />
+      <Text style={s.nearOpen} numberOfLines={1}>
+        <Text style={{ color: c.open }}>{hit.open?.label ?? "Öppet"}</Text>
+        {hit.km != null && <Text style={{ color: colors.faint }}>{`  ·  ${distanceLabel(hit.km)}`}</Text>}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+function NearCardSkeleton() {
+  return (
+    <View style={s.near}>
+      <Skeleton width={156} height={112} radius={14} />
+      <Skeleton width={120} height={13} radius={6} style={{ marginTop: 10 }} />
+      <Skeleton width={90} height={11} radius={5} style={{ marginTop: 7 }} />
+    </View>
+  );
+}
+
+/** En ort i rutnätet: ett foto därifrån, namnet, hur många platser och hur långt bort */
+function TownTile({ town, onPress }: { town: TownCard; onPress: () => void }) {
+  const { colors } = useTheme();
+  const detail = `${town.count} ${town.count === 1 ? "plats" : "platser"}${town.km != null ? `  ·  ${distanceLabel(town.km)}` : ""}`;
+  return (
+    <TouchableOpacity style={s.townTile} activeOpacity={0.75} onPress={onPress}>
+      <View style={[s.townImage, { backgroundColor: colors.fill }]}>
+        {town.image
+          ? <ExpoImage source={{ uri: town.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />
+          : <MapPin size={20} color={colors.faint} strokeWidth={2} />}
+      </View>
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text style={[s.townName, { color: colors.text }]} numberOfLines={1}>{town.name}</Text>
+        <Text style={[s.townDetail, { color: colors.muted }]} numberOfLines={1}>{detail}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function TownTileSkeleton() {
+  return (
+    <View style={s.townTile}>
+      <Skeleton width={56} height={56} radius={12} />
+      <View style={{ flex: 1, gap: 7 }}>
+        <Skeleton width="70%" height={13} radius={6} />
+        <Skeleton width="50%" height={11} radius={5} />
+      </View>
+    </View>
+  );
+}
+
+// ── Söket ───────────────────────────────────────────────────────────────────
 
 type Answer =
   | { kind: "place"; hit: PlaceHit }
   | { kind: "summary"; Icon: LucideIcon; title: string; subtitle: string; chips: Chip[]; note: string | null }
   | null;
+
+interface SearchResults {
+  places: { hits: PlaceHit[]; relaxed: Intent[] };
+  events: Event[];
+  towns: Town[];
+}
+
+function Results({
+  parsed, results, answer, limit, eventLimit, townCardByKey, isSaved,
+  onShowAll, onPlace, onEvent, onTown, onMap, onToggleSave, onBurst,
+}: {
+  parsed: Parsed;
+  results: SearchResults;
+  answer: Answer;
+  limit: number;
+  eventLimit: number;
+  townCardByKey: Map<string, TownCard>;
+  isSaved: (id: number) => boolean;
+  onShowAll: () => void;
+  onPlace: (p: Place) => void;
+  onEvent: (e: Event) => void;
+  onTown: (name: string) => void;
+  onMap: (p: Place) => void;
+  onToggleSave: (id: number) => void;
+  onBurst: Parameters<typeof PlaceAnswer>[0]["onBurst"];
+}) {
+  const { colors } = useTheme();
+  const hits = answer?.kind === "place" ? results.places.hits.filter((h) => h.place.id !== answer.hit.place.id) : results.places.hits;
+  const shown = hits.slice(0, limit);
+  const eventsFirst = parsed.intents.some((x) => x.kind === "events" || x.kind === "when") && parsed.text.length === 0;
+
+  const placesSection = shown.length > 0 && (
+    <View>
+      <SectionHeader title="Platser" count={hits.length} />
+      {shown.map((h) => <PlaceResultRow key={h.place.id} hit={h} tokens={parsed.text} onPress={onPlace} />)}
+      {limit === FIRST_PLACES && hits.length > FIRST_PLACES && (
+        <TouchableOpacity style={[s.more, { borderColor: colors.border }]} activeOpacity={0.75} onPress={onShowAll}>
+          <Text style={[s.moreText, { color: colors.text }]}>Visa alla {hits.length}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+  const eventsSection = results.events.length > 0 && (
+    <View>
+      <SectionHeader title="Evenemang" count={results.events.length} />
+      {results.events.slice(0, eventLimit).map((e) => <EventResultRow key={e.id} event={e} tokens={parsed.text} onPress={onEvent} />)}
+    </View>
+  );
+
+  return (
+    <View style={{ paddingTop: 16 }}>
+      {answer?.kind === "place" && (
+        <PlaceAnswer
+          hit={answer.hit}
+          saved={isSaved(answer.hit.place.id)}
+          onOpen={() => onPlace(answer.hit.place)}
+          onMap={() => onMap(answer.hit.place)}
+          onNavigate={() => openDirections(answer.hit.place.lat, answer.hit.place.lng)}
+          onToggleSave={() => onToggleSave(answer.hit.place.id)}
+          onBurst={onBurst}
+        />
+      )}
+      {answer?.kind === "summary" && (
+        <SummaryAnswer Icon={answer.Icon} title={answer.title} subtitle={answer.subtitle} chips={answer.chips} note={answer.note} />
+      )}
+
+      {eventsFirst ? <>{eventsSection}{placesSection}</> : <>{placesSection}{eventsSection}</>}
+
+      {results.towns.length > 0 && (
+        <View>
+          <SectionHeader title="Orter" />
+          {results.towns.slice(0, 4).map((t) => {
+            const card = townCardByKey.get(t.key);
+            const detail = `${t.count} ${t.count === 1 ? "plats" : "platser"}${card?.open ? `  ·  ${card.open} öppna nu` : ""}`;
+            return <TownRow key={t.key} name={t.name} detail={detail} image={card?.image ?? null} onPress={() => onTown(t.name)} />;
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** "Menade du ”fika i Kivik”?" — det rättade ordet i guld */
+function Corrected({ text, words }: { text: string; words: string[] }) {
+  const { colors } = useTheme();
+  const fixed = new Set(words);
+  return (
+    <>
+      {text.split(/([\p{L}\p{N}]+)/u).map((part, i) => (
+        fixed.has(part)
+          ? <Text key={i} style={{ color: colors.goldText, fontFamily: "Inter_600SemiBold" }}>{part}</Text>
+          : part
+      ))}
+    </>
+  );
+}
 
 /**
  * Vad som visas överst. En tydlig träff på ett namn → platsen själv ("Bästa träff"). Annars, om
@@ -480,7 +758,7 @@ function buildAnswer(
   relaxed: Intent[],
   events: Event[],
   totalPlaces: number,
-  places: Place[],
+  index: IndexedPlace[],
   ask: (q: string) => void,
 ): Answer {
   const top = hits[0];
@@ -512,22 +790,24 @@ function buildAnswer(
   });
 
   if (eventsOnly) {
-    const title = `Evenemang${when?.kind === "when" ? ` ${WHEN_LABEL[when.value]}` : ""}`;
     const n = events.length;
     return {
-      kind: "summary", Icon: CalendarDays, title,
+      kind: "summary",
+      Icon: CalendarDays,
+      title: `Evenemang${when?.kind === "when" ? ` ${WHEN_LABEL[when.value]}` : ""}`,
       subtitle: n === 0 ? "Inga inlagda än" : `${n} ${when ? "evenemang" : "kommande"}`,
-      chips: chips.length > 1 ? chips : [], note: null,
+      chips: chips.length > 1 ? chips : [],
+      note: null,
     };
   }
 
   // Bara en ort: hur många platser, vad som har öppet, och vad som finns där (chips att trycka på)
   if (town?.kind === "town" && cats.length === 0 && practical.length === 0 && !open && !late && parsed.text.length === 0) {
-    const inTown = places.filter((p) => norm(p.nearest_town ?? "").trim() === town.value.key);
-    const openCount = inTown.filter((p) => openInfo(p)?.open).length;
+    const inTown = index.filter((p) => p.town === town.value.key);
+    const openCount = inTown.filter((p) => openInfo(p.place)?.open).length;
     const perCat = new Map<CategoryId, number>();
     inTown.forEach((p) => {
-      const c = findCategory(p.category)?.id;
+      const c = findCategory(p.place.category)?.id;
       if (c) perCat.set(c, (perCat.get(c) ?? 0) + 1);
     });
     const catChips: Chip[] = [...perCat.entries()]
@@ -540,9 +820,12 @@ function buildAnswer(
         onPress: () => ask(`${CAT_QUERY[id]} i ${town.value.name}`),
       }));
     return {
-      kind: "summary", Icon: MapPin, title: town.value.name,
+      kind: "summary",
+      Icon: MapPin,
+      title: town.value.name,
       subtitle: `${town.value.count} ${town.value.count === 1 ? "plats" : "platser"}${openCount ? `  ·  ${openCount} öppna nu` : ""}`,
-      chips: catChips, note: null,
+      chips: catChips,
+      note: null,
     };
   }
 
@@ -562,14 +845,14 @@ function buildAnswer(
   if (!open && openNow > 0 && openNow < n) parts.push(`${openNow} öppna nu`);
   if (nearest != null) parts.push(`närmast ${distanceLabel(nearest)}`);
 
-  // Det som släpptes (uppgifter platserna inte angett än) sägs rakt ut
+  // Det som släpptes (uppgifter platserna inte fyllt i än) sägs rakt ut
   let note: string | null = null;
   const relaxedPractical = relaxed.flatMap((x) => (x.kind === "practical" ? [PRACTICAL_LABELS[x.value].toLowerCase()] : []));
   if (relaxedPractical.length > 0) {
-    const mentions = hits.some((h) => h.mentions.length > 0);
-    note = `Inga ställen har angett ${relaxedPractical.join(" eller ")} än, så alla visas${mentions ? " — de som nämner det i sin beskrivning först" : ""}.`;
+    const fits = hits.some((h) => h.mentions.length > 0);
+    note = `Inga ställen har fyllt i ${relaxedPractical.join(" eller ")} än, så alla visas${fits ? " – de som verkar passa bäst först" : ""}.`;
   } else if (relaxed.some((x) => x.kind === "open")) {
-    note = "Inget har öppet just nu, så alla visas — närmast först.";
+    note = "Inget har öppet just nu, så alla visas – närmast först.";
   } else if (relaxed.some((x) => x.kind === "late")) {
     note = "Inget har öppet efter 21 i dag, så alla visas.";
   }
@@ -584,80 +867,20 @@ function buildAnswer(
   };
 }
 
-// ── Delarna ─────────────────────────────────────────────────────────────────
-
-/** SÖK som sidans rubrik, med guldstrecket under (samma som Kalenders FÖR DIG · ALLA) */
-function PageTitle() {
-  const { colors } = useTheme();
-  const [w, setW] = useState(0);
-  return (
-    <View style={s.titleRow}>
-      <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-        <Text style={[s.title, { color: colors.text }]}>Sök</Text>
-        {w > 0 && <View style={[s.titleBar, { width: w * 0.5, left: w * 0.25, backgroundColor: colors.goldText }]} />}
-      </View>
-    </View>
-  );
-}
-
-function IntentTile({ label, sub, Icon, onPress }: { label: string; sub: string | null; Icon: LucideIcon; onPress: () => void }) {
-  const { colors } = useTheme();
-  return (
-    <TouchableOpacity style={[s.tile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
-      <View style={[s.tileIcon, { backgroundColor: colors.goldSoft }]}>
-        <Icon size={19} color={colors.gold} strokeWidth={2.1} />
-      </View>
-      <View style={s.tileBody}>
-        <Text style={[s.tileLabel, { color: colors.text }]} numberOfLines={1}>{label}</Text>
-        {sub ? <Text style={[s.tileSub, { color: colors.muted }]} numberOfLines={1}>{sub}</Text> : <Skeleton width={64} height={10} radius={5} />}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-/** Ett ställe som har öppet nu: bilden, och all text under */
-function NearCard({ hit, onPress }: { hit: PlaceHit; onPress: () => void }) {
-  const { colors } = useTheme();
-  const c = useOpenColors();
-  const image = firstImageUrl(hit.place.image_url);
-  return (
-    <TouchableOpacity style={s.near} activeOpacity={0.85} onPress={onPress}>
-      <View style={[s.nearImage, { backgroundColor: colors.fill }]}>
-        {image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
-      </View>
-      <Text style={[s.nearName, { color: colors.text }]} numberOfLines={1}>{hit.place.name}</Text>
-      <CategoryLine place={hit.place} />
-      <Text style={[s.nearOpen, { color: c.open }]} numberOfLines={1}>
-        {hit.open?.label ?? "Öppet"}{hit.km != null ? `  ·  ${distanceLabel(hit.km)}` : ""}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function NearCardSkeleton() {
-  return (
-    <View style={s.near}>
-      <Skeleton width={156} height={112} radius={14} />
-      <Skeleton width={120} height={13} radius={6} style={{ marginTop: 10 }} />
-      <Skeleton width={90} height={11} radius={5} style={{ marginTop: 7 }} />
-    </View>
-  );
-}
-
 /** Senaste sökningarna — eller, första gången, förslag på vad man kan skriva */
 function HistoryList({
-  entries, placeById, eventById, onPlace, onEvent, onTown, onTerm, onRemove, onClear, onTry,
+  entries, placeById, eventById, suggestions, onPlace, onEvent, onTown, onTerm, onRemove, onClear,
 }: {
   entries: HistoryEntry[];
   placeById: Map<number, Place>;
   eventById: Map<number, Event>;
+  suggestions: string[];
   onPlace: (p: Place) => void;
   onEvent: (e: Event) => void;
   onTown: (name: string) => void;
   onTerm: (text: string) => void;
   onRemove: (e: HistoryEntry) => void;
   onClear: () => void;
-  onTry: (q: string) => void;
 }) {
   const { colors } = useTheme();
   const rows = entries.flatMap((e) => {
@@ -682,9 +905,9 @@ function HistoryList({
     return (
       <Reanimated.View entering={FadeIn.duration(200)}>
         <SectionHeader title="Prova att söka" />
-        <Text style={[s.tryText, { color: colors.muted }]}>Skriv som du pratar — söket förstår vad du menar.</Text>
+        <Text style={[s.tryText, { color: colors.muted }]}>Skriv som du pratar – vi förstår vad du menar.</Text>
         <View style={s.tryRow}>
-          {TRY.map((t) => <ChipView key={t} chip={{ key: t, label: t, Icon: Search, onPress: () => onTry(t) }} />)}
+          {suggestions.map((t) => <ChipView key={t} chip={{ key: t, label: t, Icon: Search, onPress: () => onTerm(t) }} />)}
         </View>
       </Reanimated.View>
     );
@@ -701,7 +924,6 @@ const s = StyleSheet.create({
   root: { flex: 1 },
   titleRow: { height: 44, flexDirection: "row", alignItems: "center", marginBottom: 6 },
   title: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase" },
-  titleBar: { position: "absolute", bottom: -6, height: 3, borderRadius: 1.5 },
 
   fieldRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
   field: {
@@ -729,13 +951,11 @@ const s = StyleSheet.create({
   nearName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, letterSpacing: -0.2 },
   nearOpen: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
 
-  towns: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
-  town: {
-    flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, height: 38, borderRadius: 19,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  townName: { fontFamily: "Inter_500Medium", fontSize: 14 },
-  townCount: { fontFamily: "Inter_500Medium", fontSize: 12.5, fontVariant: ["tabular-nums"] },
+  townGrid: { flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 14, marginTop: 8 },
+  townTile: { width: "47.5%", flexDirection: "row", alignItems: "center", gap: 12 },
+  townImage: { width: 56, height: 56, borderRadius: 12, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  townName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, letterSpacing: -0.2 },
+  townDetail: { fontFamily: "Inter_400Regular", fontSize: 12.5 },
 
   more: { height: 44, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", marginTop: 10 },
   moreText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
@@ -744,5 +964,5 @@ const s = StyleSheet.create({
   emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 18, textAlign: "center" },
   emptyText: { fontFamily: "Inter_400Regular", fontSize: 14.5, textAlign: "center" },
   tryText: { fontFamily: "Inter_400Regular", fontSize: 13.5, marginBottom: 12 },
-  tryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "flex-start" },
+  tryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });
