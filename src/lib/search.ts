@@ -258,11 +258,17 @@ export function parseQuery(query: string, towns: Town[]): Parsed {
     if (used.has(i)) return;
     const m = SINGLE[t];
     if (m) { add(m, [i]); return; }
-    // En felstavad ort ("kivk") — bara för ord som inte är något annat
+    // En felstavad ort ("kivk") — bara för ord som inte är något annat. Den närmaste stavningen
     const tol = tolerance(t.length);
     if (tol === 0) return;
-    const town = towns.find((tw) => !tw.key.includes(" ") && editDistance(t, tw.key, tol) <= tol);
-    if (town && !intents.some((x) => x.kind === "town")) {
+    let town: Town | null = null;
+    let best = tol + 1;
+    for (const tw of towns) {
+      if (tw.key.includes(" ")) continue;
+      const d = editDistance(t, tw.key, tol);
+      if (d < best) { town = tw; best = d; }
+    }
+    if (town) {
       used.add(i);
       intents.push({ kind: "town", value: town, tokens: [i] });
     }
@@ -316,8 +322,9 @@ export function withoutIntent(parsed: Parsed, drop: Intent): string {
   if (keep.some((x) => x.kind === "events")) out.push("evenemang");
   const when = keep.find((x) => x.kind === "when");
   if (when?.kind === "when") out.push(WHEN_WORDS[when.value]);
-  const town = keep.find((x) => x.kind === "town");
-  if (town?.kind === "town") out.push(`i ${town.value.name}`);
+  const townNames = keep.flatMap((x) => (x.kind === "town" ? [x.value.name] : []));
+  // Bara orten kvar: bara namnet ("Kivik"), annars "äta i Kivik"
+  if (townNames.length > 0) out.push(`${out.length > 0 ? "i " : ""}${townNames.join(` ${parsed.conj} `)}`);
   return out.join(" ");
 }
 
@@ -425,7 +432,8 @@ export function searchPlaces(
   now = new Date(),
 ): PlaceResult {
   const cats = parsed.intents.flatMap((x) => (x.kind === "category" ? [x.value] : []));
-  const town = parsed.intents.find((x) => x.kind === "town");
+  // Flera orter: en plats i någon av dem räcker ("Simrishamn eller Kivik")
+  const townIntents = parsed.intents.flatMap((x) => (x.kind === "town" ? [x] : []));
   const strict = parsed.intents.filter((x) => x.kind === "practical" || x.kind === "open" || x.kind === "late");
 
   // Orden bakom kategorin och orten: en plats som HETER så räknas också (sök "örum" hittar
@@ -444,9 +452,9 @@ export function searchPlaces(
       if (cats.length > 0 && !cats.some((c) => p.cats.has(c))) {
         if (!nameHas(p, catTokens)) continue;
       }
-      if (town?.kind === "town") {
-        if (p.town === town.value.key) bonus += 30;
-        else if (nameHas(p, town.tokens)) bonus += 60;
+      if (townIntents.length > 0) {
+        if (townIntents.some((t) => p.town === t.value.key)) bonus += 30;
+        else if (townIntents.some((t) => nameHas(p, t.tokens))) bonus += 60;
         else continue;
       }
       let ok = true;
@@ -560,12 +568,12 @@ export function searchEvents(events: Event[], parsed: Parsed, now = new Date()):
 
 // ── Orter, och "menade du" ───────────────────────────────────────────────────
 
-/** Orter vars namn matchar det man skrivit (inte den ort som redan förståtts) */
+/** Orter vars namn matchar det man skrivit (inte de orter som redan förståtts) */
 export function searchTowns(towns: Town[], parsed: Parsed): Town[] {
   if (parsed.text.length === 0) return [];
-  const chosen = parsed.intents.find((x) => x.kind === "town");
+  const chosen = new Set(parsed.intents.flatMap((x) => (x.kind === "town" ? [x.value.key] : [])));
   return towns.filter((tw) =>
-    (chosen?.kind !== "town" || chosen.value.key !== tw.key)
+    !chosen.has(tw.key)
     && parsed.text.every((t) => tw.key.startsWith(t) || tw.key.includes(` ${t}`)));
 }
 

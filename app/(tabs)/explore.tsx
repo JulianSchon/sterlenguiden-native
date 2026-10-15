@@ -814,7 +814,9 @@ function buildAnswer(
 
   const cats = parsed.intents.flatMap((x) => (x.kind === "category" ? [x.value] : []));
   const practical = parsed.intents.flatMap((x) => (x.kind === "practical" ? [x.value] : []));
-  const town = parsed.intents.find((x) => x.kind === "town");
+  const townList = parsed.intents.flatMap((x) => (x.kind === "town" ? [x.value] : []));
+  const town = townList.length === 1 ? parsed.intents.find((x) => x.kind === "town") : undefined;
+  const townNames = townList.map((t) => t.name).join(` ${parsed.conj} `);
   const open = parsed.intents.some((x) => x.kind === "open");
   const late = parsed.intents.some((x) => x.kind === "late");
   const when = parsed.intents.find((x) => x.kind === "when");
@@ -887,8 +889,8 @@ function buildAnswer(
   let base = cats.length > 0
     ? cats.map((c, i) => (i === 0 ? CAT_TITLE[c] : CAT_TITLE[c].toLowerCase())).join(` ${parsed.conj} `)
     : practical.length > 0 ? practical.map((p) => PRACTICAL_LABELS[p]).join(" · ")
-      : late ? "Öppet sent" : open ? "Öppet nu" : town?.kind === "town" ? town.value.name : "Platser";
-  if (town?.kind === "town" && (cats.length > 0 || practical.length > 0 || open || late)) base += ` i ${town.value.name}`;
+      : late ? "Öppet sent" : open ? "Öppet nu" : townList.length > 0 ? townNames : "Platser";
+  if (townList.length > 0 && (cats.length > 0 || practical.length > 0 || open || late)) base += ` i ${townNames}`;
 
   const n = hits.length;
   const openNow = hits.filter((h) => h.open?.open).length;
