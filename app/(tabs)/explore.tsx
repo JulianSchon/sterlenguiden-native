@@ -55,7 +55,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
   CATEGORY_DOT, CategoryDots, CategoryLine, ChipView, EventResultRow, HistoryRow, PlaceAnswer, PlaceResultRow, SectionHeader,
-  SummaryAnswer, TownRow, useOpenColors, type Chip,
+  StoryButton, SummaryAnswer, TownRow, useOpenColors, type Chip,
 } from "@/components/search/SearchParts";
 
 /** Tomt medan något laddas: alltid samma tomma lista (en ny vid varje uppritning räknar om allt) */
@@ -572,7 +572,7 @@ const BrowsePanel = memo(function BrowsePanel({
 
       {(nearby === null || nearby.length > 0) && (
         <Reanimated.View entering={enterAt(1)}>
-          <SectionHeader title={hasLoc ? "Öppet nu nära dig" : "Öppet nu"} action="Visa alla" onAction={() => onAsk("öppet nu")} />
+          <SectionHeader title={hasLoc ? "Öppet nu nära dig" : "Öppet nu"} action="Visa alla" story onAction={() => onAsk("öppet nu")} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.bleed} contentContainerStyle={s.nearRow}>
             {nearby === null
               ? [0, 1, 2].map((i) => <NearCardSkeleton key={i} />)
@@ -585,6 +585,7 @@ const BrowsePanel = memo(function BrowsePanel({
         <SectionHeader
           title="Utforska orterna"
           action={towns && towns.length > FIRST_TOWNS ? (allTowns ? "Visa färre" : "Visa alla") : undefined}
+          story={!allTowns}
           onAction={() => setAllTowns((v) => !v)}
         />
         <View style={s.townGrid}>
@@ -711,9 +712,7 @@ function Results({
       <SectionHeader title="Platser" count={hits.length} />
       {shown.map((h) => <PlaceResultRow key={h.place.id} hit={h} tokens={parsed.text} onPress={onPlace} />)}
       {limit === FIRST_PLACES && hits.length > FIRST_PLACES && (
-        <TouchableOpacity style={[s.more, { borderColor: colors.border }]} activeOpacity={0.75} onPress={onShowAll}>
-          <Text style={[s.moreText, { color: colors.text }]}>Visa alla {hits.length}</Text>
-        </TouchableOpacity>
+        <StoryButton label={`Visa alla ${hits.length}`} onPress={onShowAll} wide />
       )}
     </View>
   );
@@ -1000,8 +999,6 @@ const s = StyleSheet.create({
   townName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, letterSpacing: -0.2 },
   townDetail: { fontFamily: "Inter_400Regular", fontSize: 12.5 },
 
-  more: { height: 44, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", marginTop: 10 },
-  moreText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
 
   empty: { paddingTop: 40, alignItems: "center", gap: 8 },
   emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 18, textAlign: "center" },

@@ -9,6 +9,8 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type TextStyle } from "react-native";
 import { Image as ExpoImage } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { STORY_GRADIENT } from "@/theme/storyGradient";
 import {
   CalendarDays, Clock, Map as MapIcon, MapPin, Navigation, Search as SearchIcon, X, type LucideIcon,
 } from "lucide-react-native";
@@ -323,8 +325,26 @@ export function ChipView({ chip }: { chip: Chip }) {
   return <View style={style}>{body}</View>;
 }
 
-export function SectionHeader({ title, count, action, onAction }: {
+/** "Visa alla": en knapp i berättelsernas gradient (gult nere till vänster, orange uppe till höger) */
+export function StoryButton({ label, onPress, wide }: { label: string; onPress: () => void; wide?: boolean }) {
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress} hitSlop={wide ? undefined : 8} style={[s.story, wide && s.storyWide]}>
+      <LinearGradient
+        colors={STORY_GRADIENT.stops.map((x) => x.color) as [string, string, ...string[]]}
+        locations={STORY_GRADIENT.stops.map((x) => parseFloat(x.offset) / 100) as [number, number, ...number[]]}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Text style={[s.storyText, wide && { fontSize: 14 }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+export function SectionHeader({ title, count, action, onAction, story }: {
   title: string; count?: number; action?: string; onAction?: () => void;
+  /** Knappen i berättelsernas gradient ("Visa alla") i stället för guldtext */
+  story?: boolean;
 }) {
   const { colors } = useTheme();
   return (
@@ -333,7 +353,8 @@ export function SectionHeader({ title, count, action, onAction }: {
         {title}
         {count != null && <Text style={{ color: colors.faint }}>  {count}</Text>}
       </Text>
-      {action && onAction && (
+      {action && onAction && story && <StoryButton label={action} onPress={onAction} />}
+      {action && onAction && !story && (
         <TouchableOpacity onPress={onAction} hitSlop={10}>
           <Text style={[s.sectionAction, { color: colors.goldText }]}>{action}</Text>
         </TouchableOpacity>
@@ -391,7 +412,10 @@ const s = StyleSheet.create({
   note: { flexDirection: "row", gap: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
   noteText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18 },
 
-  section: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginTop: 28, marginBottom: 6 },
+  section: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 28, marginBottom: 6 },
   sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2 },
   sectionAction: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
+  story: { height: 30, paddingHorizontal: 13, borderRadius: 15, overflow: "hidden", alignItems: "center", justifyContent: "center", alignSelf: "center" },
+  storyWide: { height: 44, borderRadius: 12, alignSelf: "stretch", marginTop: 10 },
+  storyText: { fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#121212" },
 });
