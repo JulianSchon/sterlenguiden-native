@@ -124,3 +124,20 @@ export function numberPinIcon(n: number, selected: boolean, typeface: SkTypeface
   cache.set(key, icon);
   return icon;
 }
+
+// ── Tärningens prick ─────────────────────────────────────────────────────────
+
+/** Den lysande guldpricken som hoppar mellan platserna medan tärningen blandar */
+export function shuffleDotIcon(): MapIcon | null {
+  const hit = cache.get("shuffle");
+  if (hit !== undefined) return hit;
+  const box = 30;
+  const c = box / 2;
+  const icon = render(box, box, (canvas) => {
+    canvas.drawCircle(c, c, 9, paint("rgba(217,164,65,0.55)", { blur: 4 }));
+    canvas.drawCircle(c, c, 6, paint("#D9A441"));
+    canvas.drawCircle(c, c, 6, paint("rgba(255,255,255,0.95)", { stroke: 1.5 }));
+  });
+  cache.set("shuffle", icon);
+  return icon;
+}

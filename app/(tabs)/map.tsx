@@ -69,7 +69,7 @@ import {
   CENTER_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
   pinImage, placeLogo, placePinImage, serviceIcon, servicePinImage, serviceType, treasurePinImage,
 } from "@/components/map/MapPins";
-import { NUMBER_ANCHOR, clusterIcon, numberPinIcon, systemBoldTypeface } from "@/components/map/mapIcons";
+import { NUMBER_ANCHOR, clusterIcon, numberPinIcon, shuffleDotIcon, systemBoldTypeface } from "@/components/map/mapIcons";
 import { PlaceCarousel, PLACE_CARD_H, cardIn, cardOut } from "@/components/map/PlaceCard";
 import { MapFilterSheet, activeFilters } from "@/components/map/MapFilterSheet";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE, MAP_IS_STYLEABLE, MAP_PROVIDER } from "@/components/map/mapStyle";
@@ -768,6 +768,21 @@ export default function MapScreen() {
       }
     }
 
+    // Tärningen blandar: en lysande prick hoppar mellan platserna den visar (kameran står still)
+    const preview = shuffling && previewId != null ? placeById.get(previewId) : undefined;
+    const dot = preview?.lat != null && preview.lng != null ? shuffleDotIcon() : null;
+    if (preview && dot) {
+      out.push(
+        <Marker
+          key="shuffle-dot"
+          coordinate={{ latitude: preview.lat!, longitude: preview.lng! }}
+          {...pinImage(dot)}
+          anchor={CENTER_ANCHOR}
+          zIndex={2500}
+          tracksViewChanges={false}
+        />,
+      );
+    }
     // Skatterna ingår aldrig i klumparna — de syns alltid var för sig
     shownTreasures.forEach((c) => out.push(treasureMarker(c)));
     // Den valda servicepunkten: guldnålen, som en vald plats
@@ -781,7 +796,7 @@ export default function MapScreen() {
     return out;
   }, [
     placesFetched, markerCache, listPlaces, typeface, selectedId, index, clusterItems, dark, treasureById, serviceById,
-    placeById, logoMode, notePinPress, shownTreasures, selectedService, selectedSticker, collected,
+    placeById, logoMode, notePinPress, shownTreasures, selectedService, selectedSticker, collected, shuffling, previewId,
   ]);
 
   // ── Korten ────────────────────────────────────────────────────────────────
