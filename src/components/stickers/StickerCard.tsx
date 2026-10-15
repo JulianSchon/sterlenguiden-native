@@ -9,12 +9,14 @@
  * Avståndet räknas ur användarens live-position (kartan följer den redan). Pulsen går bara medan
  * kortet är öppet — inget i bakgrunden.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, type LayoutChangeEvent } from "react-native";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  FlatList, View, Text, TouchableOpacity, StyleSheet, useWindowDimensions,
+  type NativeScrollEvent, type NativeSyntheticEvent,
+} from "react-native";
 import Reanimated, {
-  Easing, interpolateColor, runOnJS, useAnimatedStyle, useSharedValue, withTiming,
+  Easing, interpolateColor, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -45,61 +47,17 @@ function warmth(d: number): string {
   return "Iskallt — skatten är långt bort";
 }
 
-export function StickerCard({
-  collectible, collectedAt, userLoc, bottom, onClose, onLayout, canPrev = false, canNext = false, onStep,
+function StickerCard({
+  collectible, collectedAt, userLoc, active, onClose,
 }: {
   collectible: Collectible;
   /** ISO-tid när skatten hittades, eller undefined om användaren inte har den */
   collectedAt: string | undefined;
   userLoc: { latitude: number; longitude: number } | null;
-  bottom: number;
+  /** Kortet i mitten — bara det pulserar i telefonen */
+  active: boolean;
   onClose: () => void;
-  /** Kartan behöver kortets höjd (Googles logga ska ligga ovanför kortet) */
-  onLayout?: (e: LayoutChangeEvent) => void;
-  canPrev?: boolean;
-  canNext?: boolean;
-  /** Svep: 1 = nästa närmaste skatt, -1 = föregående */
-  onStep?: (dir: 1 | -1) => void;
 }) {
-  // Svep åt sidan: kortet följer fingret, glider ut, och nästa skatt glider in från andra hållet
-  const { width } = useWindowDimensions();
-  const tx = useSharedValue(0);
-  const stepDir = useRef<0 | 1 | -1>(0);
-  const step = (dir: 1 | -1) => {
-    stepDir.current = dir;
-    Haptics.selectionAsync().catch(() => {});
-    onStep?.(dir);
-  };
-  useLayoutEffect(() => {
-    if (!stepDir.current) return;
-    tx.value = stepDir.current * width * 0.6;
-    tx.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
-    stepDir.current = 0;
-  }, [collectible.id, tx, width]);
-  const swipe = useMemo(() => Gesture.Pan()
-    .enabled(!!onStep)
-    .activeOffsetX([-14, 14])
-    .failOffsetY([-12, 12])
-    .onUpdate((e) => {
-      const can = e.translationX < 0 ? canNext : canPrev;
-      tx.value = can ? e.translationX : e.translationX * 0.25;
-    })
-    .onEnd((e) => {
-      const dir = e.translationX < -60 && canNext ? 1 : e.translationX > 60 && canPrev ? -1 : 0;
-      if (dir === 0) {
-        tx.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });
-        return;
-      }
-      tx.value = withTiming(-dir * width * 0.6, { duration: 150, easing: Easing.in(Easing.quad) }, (done) => {
-        if (done) runOnJS(step)(dir as 1 | -1);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [onStep, canPrev, canNext, width, tx]);
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }],
-    opacity: 1 - Math.min(0.6, Math.abs(tx.value) / width),
-  }));
-
   const router = useRouter();
   const { data: collectibles = [] } = useCollectibles();
   const { data: collected = new Map<string, string>() } = useCollected();
@@ -123,14 +81,14 @@ export function StickerCard({
   // "framme"-vibration när man kommer innanför radien
   const wasNear = useRef(near);
   useEffect(() => {
-    if (found || distance == null) return;
+    if (!active || found || distance == null) return;
     if (near && !wasNear.current) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     wasNear.current = near;
     if (near || distance > 300) return;
     const every = 700 + ((distance - STICKER_RADIUS_M) / (300 - STICKER_RADIUS_M)) * 1800;
     const id = setInterval(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}), every);
     return () => clearInterval(id);
-  }, [found, near, distance]);
+  }, [active, found, near, distance]);
 
 
   const meterStyle = useAnimatedStyle(() => ({
@@ -139,9 +97,7 @@ export function StickerCard({
   }));
 
   return (
-    <Reanimated.View entering={cardIn} exiting={cardOut} onLayout={onLayout} style={[s.place, { bottom }]}>
-    <GestureDetector gesture={swipe}>
-    <Reanimated.View style={[s.card, swipeStyle]}>
+    <View style={s.card}>
       <TouchableOpacity style={s.close} onPress={onClose} hitSlop={12}>
         <X size={18} color="rgba(255,255,255,0.6)" strokeWidth={2} />
       </TouchableOpacity>
@@ -208,14 +164,110 @@ export function StickerCard({
           onClose={() => setRevealing(null)}
         />
       )}
-    </Reanimated.View>
-    </GestureDetector>
+    </View>
+  );
+}
+
+/** Kortens avstånd till skärmkanten och mellan korten (nästa skymtar 10 punkter, som platskorten) */
+const SIDE = 18;
+const GAP = 8;
+/** Luft i karusellen ovanför och under korten, så att deras skugga får plats */
+const PAD_T = 16;
+const PAD_B = 28;
+
+/**
+ * Skattkorten i en karusell, som platskorten på kartan: den öppnade skatten och de närmaste runt
+ * den. Svep åt sidan = nästa/föregående (korten följer fingret och snäpper på plats), och nästa
+ * kort skymtar i kanten så man ser att det går. Korten kan vara olika höga — de står alla på
+ * samma nederkant.
+ */
+export function TreasureCarousel({
+  treasures, index, bottom, userLoc, collected, onIndexChange, onClose, onHeight,
+}: {
+  treasures: Collectible[];
+  index: number;
+  bottom: number;
+  userLoc: { latitude: number; longitude: number } | null;
+  /** Skattens id → när den hittades */
+  collected: Map<string, string>;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+  /** Hur högt korten når över nederkanten (Googles logga ska ligga ovanför) */
+  onHeight: (height: number) => void;
+}) {
+  const { width } = useWindowDimensions();
+  const cardW = width - SIDE * 2;
+  const step = cardW + GAP;
+  const listRef = useRef<FlatList<Collectible>>(null);
+
+  // Väljs en annan skatt utifrån (en nål trycks) glider karusellen dit; nya kort → direkt dit
+  const shown = useRef(index);
+  const shownList = useRef(treasures);
+  useLayoutEffect(() => {
+    const newCards = shownList.current !== treasures;
+    shownList.current = treasures;
+    if (index === shown.current && !newCards) return;
+    shown.current = index;
+    listRef.current?.scrollToOffset({ offset: index * step, animated: !newCards });
+  }, [index, treasures, step]);
+
+  const settle = useCallback((x: number) => {
+    const i = Math.max(0, Math.min(shownList.current.length - 1, Math.round(x / step)));
+    if (i === shown.current) return;
+    shown.current = i;
+    Haptics.selectionAsync().catch(() => {});
+    onIndexChange(i);
+  }, [step, onIndexChange]);
+
+  return (
+    <Reanimated.View
+      entering={cardIn}
+      exiting={cardOut}
+      style={[s.carousel, { bottom: bottom - PAD_B }]}
+      pointerEvents="box-none"
+      onLayout={(e) => onHeight(e.nativeEvent.layout.height - PAD_B)}
+    >
+      <FlatList
+        ref={listRef}
+        data={treasures}
+        horizontal
+        keyExtractor={(t) => t.id}
+        renderItem={({ item, index: i }) => (
+          <View style={{ width: step, paddingHorizontal: GAP / 2 }}>
+            <StickerCard
+              collectible={item}
+              collectedAt={collected.get(item.id)}
+              userLoc={userLoc}
+              active={i === index}
+              onClose={onClose}
+            />
+          </View>
+        )}
+        extraData={[index, userLoc, collected]}
+        getItemLayout={(_, i) => ({ length: step, offset: i * step, index: i })}
+        initialScrollIndex={index}
+        snapToInterval={step}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        scrollEnabled={treasures.length > 1}
+        showsHorizontalScrollIndicator={false}
+        onScrollEndDrag={(e: NativeSyntheticEvent<NativeScrollEvent & { targetContentOffset?: { x: number } }>) => {
+          const target = e.nativeEvent.targetContentOffset;
+          if (target) settle(target.x);
+        }}
+        onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.x)}
+        contentContainerStyle={{ paddingHorizontal: SIDE - GAP / 2, paddingTop: PAD_T, paddingBottom: PAD_B, alignItems: "flex-end" }}
+        initialNumToRender={2}
+        maxToRenderPerBatch={2}
+        windowSize={3}
+      />
     </Reanimated.View>
   );
 }
 
 const s = StyleSheet.create({
-  place: { position: "absolute", left: 12, right: 12 },
+  carousel: { position: "absolute", left: 0, right: 0 },
   card: {
     borderRadius: 22, padding: 16,
     backgroundColor: "#121216", borderWidth: 0.5, borderColor: "rgba(167,139,250,0.45)",

@@ -63,7 +63,7 @@ import { pushOnce } from "@/lib/navigateOnce";
 import {
   CLUSTER, EMPTY_FILTERS, SUBCATEGORIES, countFilters, distanceLabel, filterPlaces, type MapFilters,
 } from "@/lib/mapFilters";
-import { StickerCard } from "@/components/stickers/StickerCard";
+import { TreasureCarousel } from "@/components/stickers/StickerCard";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
   CENTER_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
@@ -371,11 +371,12 @@ export default function MapScreen() {
     setSelectedId(null);
     setSelectedService(null);
     setSelectedSticker(c);
+    const cardsOpen = selectedRef.current.selectedSticker != null;
     if (!keepNeighbors) {
-      setTreasureNeighbors(shownTreasuresRef.current
+      setTreasureNeighbors((prev) => (cardsOpen && prev.includes(c.id) ? prev : shownTreasuresRef.current
         .map((t) => ({ id: t.id, d: distanceMeters(c.lat, c.lng, t.lat, t.lng) }))
         .sort((a, b) => a.d - b.d)
-        .map((t) => t.id));
+        .map((t) => t.id)));
     }
     fly(c.lat, c.lng, Math.min(17, Math.max(15, zoomOf(regionRef.current))), 800);
   }, [fly, zoomOf]);
@@ -799,6 +800,15 @@ export default function MapScreen() {
   const showCarousel = carouselPlaces.length > 0;
   const smallCard = !!selectedService || !!selectedSticker;
   const [smallCardH, setSmallCardH] = useState(0);
+  const onTreasureHeight = useCallback((h: number) => setSmallCardH(Math.round(h)), []);
+  const treasureCards = useMemo(
+    () => treasureNeighbors.map((id) => treasureById.get(id)).filter((c): c is Collectible => !!c),
+    [treasureNeighbors, treasureById],
+  );
+  const onTreasureIndex = useCallback((i: number) => {
+    const next = treasureCards[i];
+    if (next) openSticker(next, true);
+  }, [treasureCards, openSticker]);
   const onSmallCardLayout = useCallback((e: LayoutChangeEvent) => setSmallCardH(Math.round(e.nativeEvent.layout.height)), []);
 
   // ── Layout ────────────────────────────────────────────────────────────────
@@ -965,20 +975,16 @@ export default function MapScreen() {
         />
       )}
 
-      {selectedSticker && (
-        <StickerCard
-          collectible={selectedSticker}
-          collectedAt={collected.get(selectedSticker.id)}
-          userLoc={userLoc}
+      {selectedSticker && treasureCards.length > 0 && (
+        <TreasureCarousel
+          treasures={treasureCards}
+          index={Math.max(0, treasureNeighbors.indexOf(selectedSticker.id))}
           bottom={cardBottom}
+          userLoc={userLoc}
+          collected={collected}
+          onIndexChange={onTreasureIndex}
           onClose={deselect}
-          onLayout={onSmallCardLayout}
-          canPrev={treasureNeighbors.indexOf(selectedSticker.id) > 0}
-          canNext={treasureNeighbors.indexOf(selectedSticker.id) >= 0 && treasureNeighbors.indexOf(selectedSticker.id) < treasureNeighbors.length - 1}
-          onStep={(dir) => {
-            const next = treasureById.get(treasureNeighbors[treasureNeighbors.indexOf(selectedSticker.id) + dir]);
-            if (next) openSticker(next, true);
-          }}
+          onHeight={onTreasureHeight}
         />
       )}
 

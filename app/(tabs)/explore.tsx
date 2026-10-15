@@ -71,7 +71,7 @@ const FIRST_ROWS = 6;
 /** Orter som syns innan "Visa alla" */
 const FIRST_TOWNS = 8;
 
-type Tint = { dark: string; light: string };
+type Tint = { dark: string; light: string; ring?: "night" };
 /**
  * Rutornas och svarskortets färger: kategorins (samma som kartans prickar) där det finns en,
  * annars en egen som inte krockar med kategorierna.
@@ -81,7 +81,8 @@ const TINT = {
   fika: { dark: "#D4BE86", light: "#8A6A2E" },
   sleep: { dark: "#3F7BEA", light: "#1E3A8A" },
   kids: { dark: "#2499C2", light: "#0C4A6E" },
-  late: { dark: "#E5A93B", light: "#A16207" },
+  // Månen: gul mot en grå ring, som månen på natthimlen
+  late: { dark: "#F2D06B", light: "#A8830A" },
   dog: { dark: "#C08A5B", light: "#7C4A21" },
   nature: { dark: "#2BA36A", light: "#064E3B" },
   events: { dark: "#A55BE0", light: "#581C87" },
@@ -95,7 +96,7 @@ const TILES: { key: string; label: string; query: string; Icon: LucideIcon; tint
   { key: "fika", label: "Fika", query: "fika", Icon: Coffee, tint: TINT.fika },
   { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble, tint: TINT.sleep },
   { key: "kids", label: "Med barn", query: "med barn", Icon: Baby, tint: TINT.kids },
-  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: TINT.late },
+  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: { ...TINT.late, ring: "night" } },
   { key: "dog", label: "Med hund", query: "med hund", Icon: Dog, tint: TINT.dog },
   { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees, tint: TINT.nature },
   { key: "events", label: "Händer snart", query: "evenemang", Icon: CalendarDays, tint: TINT.events },
@@ -598,13 +599,13 @@ const BrowsePanel = memo(function BrowsePanel({
 });
 
 function IntentTile({ label, sub, Icon, tint, onPress }: {
-  label: string; sub: string | null; Icon: LucideIcon; tint: { dark: string; light: string }; onPress: () => void;
+  label: string; sub: string | null; Icon: LucideIcon; tint: Tint; onPress: () => void;
 }) {
   const { colors, scheme } = useTheme();
   const color = tint[scheme];
   return (
     <TouchableOpacity style={[s.tile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
-      <View style={[s.tileIcon, { backgroundColor: withAlpha(color, scheme === "dark" ? 0.16 : 0.1) }]}>
+      <View style={[s.tileIcon, { backgroundColor: tint.ring === "night" ? (scheme === "dark" ? "rgba(255,255,255,0.10)" : "rgba(35,28,15,0.08)") : withAlpha(color, scheme === "dark" ? 0.16 : 0.1) }]}>
         <Icon size={19} color={color} strokeWidth={2.1} />
       </View>
       <View style={s.tileBody}>
