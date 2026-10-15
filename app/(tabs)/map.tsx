@@ -3,7 +3,7 @@
  * appens tema (mapStyle.ts).
  *
  * - Nålar i temats färg (svarta i mörkt läge, vita i ljust) med kategorins färg som prick; skatterna
- *   lila med stjärna. Den valda platsen blir en guldnål som studsar in. Med en kategori vald visas
+ *   svarta med lila glöd och en lysande stjärna. Den valda platsen blir en guldnål som studsar in. Med en kategori vald visas
  *   platserna som sina loggor. Nålar som skulle hamna nästan ovanpå varandra slås ihop till
  *   klumpar i samma färger (se lib/mapFilters). En klump som inte går att zooma isär (platserna
  *   ligger på samma ställe) visar platsernas kort direkt.
@@ -1074,7 +1074,7 @@ function MapButtons({
   }, [shuffling, spin, pulse]);
   const diceStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value * press.value }, { rotate: `${spin.value + (1 - press.value) * -200}deg` }],
-    shadowOpacity: shuffling ? 0.7 : 0.45,
+    shadowOpacity: shuffling ? 0.4 : 0.22,
   }));
   const locatePress = useSharedValue(1);
   const locateStyle = useAnimatedStyle(() => ({ transform: [{ scale: locatePress.value }] }));
@@ -1345,7 +1345,7 @@ const s = StyleSheet.create({
   dice: {
     width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
     backgroundColor: GOLD, borderWidth: 1, borderColor: "rgba(0,0,0,0.2)",
-    shadowColor: GOLD, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14, elevation: 10,
+    shadowColor: GOLD, shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, elevation: 5,
   },
   locate: {
     width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", overflow: "hidden",

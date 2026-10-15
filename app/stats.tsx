@@ -23,7 +23,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Canvas, Circle, DashPathEffect, LinearGradient, Path, Skia, vec, BlurMask } from "@shopify/react-native-skia";
-import Svg, { Path as SvgPath, Polygon, Rect, Circle as SvgCircle } from "react-native-svg";
+import Svg, { Path as SvgPath, Rect, Circle as SvgCircle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -44,6 +44,7 @@ import { pushOnce } from "@/lib/navigateOnce";
 import { POLAROID_PAPER, POLAROID_TAPE } from "@/lib/polaroid";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { PlacePin } from "@/components/PlacePin";
+import { TreasurePin } from "@/components/stickers/TreasurePin";
 
 // Österlenlegendens guldtrofé — den man får för att klara allt
 const TROPHY_ART = require("../assets/badges/osterlenlegend-gold.png");
@@ -180,7 +181,7 @@ export default function StatsScreen() {
             <Tile index={0} icon={<PlacePin height={25} />} value={stats.visitCount} label="Besök" />
             <Tile index={1} icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label="Favoriter" />
             <Tile index={2} icon={<MiniPolaroid />} value={memories.length} label="Minnen" />
-            <Tile index={3} icon={<TreasurePin />} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
+            <Tile index={3} icon={<TreasurePin height={25} />} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
             <Tile index={4} icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
             <Tile index={5} icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label="Längsta streak" />
           </View>
@@ -252,20 +253,6 @@ function MiniPolaroid() {
       <SvgPath d="M5.2 14.2 L9.5 10.6 L13 13.6 L15.6 11.6 L18.8 14.2 L18.8 17.4 L5.2 17.4 Z" fill="#4F7A52" transform="rotate(-7 12 13)" />
       <SvgCircle cx={15.6} cy={8.4} r={1.4} fill="#F6E7A8" transform="rotate(-7 12 13)" />
       <Rect x={8.5} y={1} width={7} height={3.6} fill={POLAROID_TAPE} transform="rotate(-7 12 13)" />
-    </Svg>
-  );
-}
-
-/** Skatternas kartnål: lila med guldstjärna (samma form som StickerPin på kartan) */
-const STAR = "12,5.8 13.5,9.2 17.2,9.6 14.4,12.1 15.2,15.8 12,13.9 8.8,15.8 9.6,12.1 6.8,9.6 10.5,9.2";
-function TreasurePin() {
-  return (
-    <Svg width={19} height={25} viewBox="0 0 24 32">
-      <SvgPath
-        d="M12 0C5.373 0 0 5.373 0 12c0 8.5 12 20 12 20S24 20.5 24 12C24 5.373 18.627 0 12 0z"
-        fill="#5B21B6" stroke="rgba(0,0,0,0.25)" strokeWidth={1}
-      />
-      <Polygon points={STAR} fill="#FDE68A" />
     </Svg>
   );
 }
@@ -532,19 +519,34 @@ const WEEK_H = 90;
 
 /** Besök per veckodag som staplar — höjden efter antalet, den vanligaste dagen i guld */
 function WeekdayBars({ counts }: { counts: number[] }) {
-  const max = Math.max(1, ...counts);
-  const best = counts.indexOf(Math.max(...counts));
+  const top = Math.max(...counts);
+  const max = Math.max(1, top);
+  // Alla dagar som delar förstaplatsen (1 på lördag och 1 på söndag är lika — då är man inte
+  // "mest ute på lördagar")
+  const best = top > 0 ? counts.flatMap((c, i) => (c === top ? [i] : [])) : [];
+  const isBest = (i: number) => best.includes(i);
+  const weekend = best.length === 2 && best[0] === 5 && best[1] === 6;
+  const names = best.map((i) => WEEKDAY_NAMES[i]);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} och ${names[names.length - 1]}` : names[0];
   return (
     <View>
-      <Text style={s.weekText}>Du är mest ute på <Text style={{ color: GOLD }}>{WEEKDAY_NAMES[best]}</Text></Text>
+      {best.length === 0 ? (
+        <Text style={s.weekText}>Inga besök än</Text>
+      ) : weekend ? (
+        <Text style={s.weekText}>Du är mest ute på <Text style={{ color: GOLD }}>helgerna</Text></Text>
+      ) : best.length > 1 ? (
+        <Text style={s.weekText}>Du är lika mycket ute på <Text style={{ color: GOLD }}>{list}</Text></Text>
+      ) : (
+        <Text style={s.weekText}>Du är mest ute på <Text style={{ color: GOLD }}>{list}</Text></Text>
+      )}
       <View style={s.weekRow}>
         {counts.map((c, i) => (
           <View key={i} style={s.weekCol}>
-            <Text style={[s.weekCount, i === best && { color: GOLD }]}>{c}</Text>
+            <Text style={[s.weekCount, isBest(i) && { color: GOLD }]}>{c}</Text>
             <View style={s.weekArea}>
-              <WeekBar fraction={c / max} highlight={i === best && c > 0} delay={150 + i * 50} />
+              <WeekBar fraction={c / max} highlight={isBest(i)} delay={150 + i * 50} />
             </View>
-            <Text style={[s.weekLabel, i === best && { color: FG }]}>{WEEKDAYS[i]}</Text>
+            <Text style={[s.weekLabel, isBest(i) && { color: FG }]}>{WEEKDAYS[i]}</Text>
           </View>
         ))}
       </View>

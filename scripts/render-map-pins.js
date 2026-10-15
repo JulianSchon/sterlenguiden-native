@@ -5,7 +5,7 @@
 //
 // - Platser: svart nål i mörkt läge, vit i ljust (som klumparna), med kategorins färg som prick.
 // - Service: samma nål med typens ikon i guld (Lucide-ikonerna Toilet, Plug, Store, HeartPulse).
-// - Skatter: lila med stjärna (hittade: mörklila med gul stjärna), större när de är valda.
+// - Skatter: svarta med lila glöd i kanten och en lysande stjärna (hittade: guldstjärna), större när de är valda.
 const fs = require("fs");
 const path = require("path");
 const { Resvg } = require("@resvg/resvg-js");
@@ -91,11 +91,21 @@ for (const [theme, t] of Object.entries(THEMES)) {
     pins[`pin-svc-${key}-${theme}`] = { markup: svg(t.body, t.edge, t.edgeOpacity, iconMark(paths, t.icon)), scale: 1.15 };
   }
 }
-const treasure = (fill, starColor) => svg(fill, "#FFFFFF", 0.92, `<polygon points="${STAR}" fill="${starColor}"/>`);
-pins["pin-treasure"] = { markup: treasure("#A78BFA", "#FFFFFF"), scale: 1 };
-pins["pin-treasure-selected"] = { markup: treasure("#A78BFA", "#FFFFFF"), scale: 1.4 };
-pins["pin-treasure-found"] = { markup: treasure("#5B21B6", "#FDE68A"), scale: 1 };
-pins["pin-treasure-found-selected"] = { markup: treasure("#5B21B6", "#FDE68A"), scale: 1.4 };
+// Skatterna: svart nål med lila glöd i kanten och en stjärna som lyser lite (hittad: guldstjärna)
+const treasure = (star, starGlow) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  ${shadow}
+  <defs><filter id="g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1"/></filter></defs>
+  <g transform="translate(4 3)">
+    <path d="${PIN}" fill="none" stroke="#A78BFA" stroke-width="2.8" stroke-opacity="0.95" filter="url(#g)"/>
+    <path d="${PIN}" fill="#111113" stroke="#A78BFA" stroke-width="1.4"/>
+    <polygon points="${STAR}" fill="${starGlow}" filter="url(#g)"/>
+    <polygon points="${STAR}" fill="${star}"/>
+  </g>
+</svg>`;
+pins["pin-treasure"] = { markup: treasure("#F3EEFF", "#C4B5FD"), scale: 1 };
+pins["pin-treasure-selected"] = { markup: treasure("#F3EEFF", "#C4B5FD"), scale: 1.4 };
+pins["pin-treasure-found"] = { markup: treasure("#FDE68A", "#FBBF24"), scale: 1 };
+pins["pin-treasure-found-selected"] = { markup: treasure("#FDE68A", "#FBBF24"), scale: 1.4 };
 
 let n = 0;
 for (const [name, { markup, scale }] of Object.entries(pins)) {

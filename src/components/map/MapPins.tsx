@@ -3,7 +3,7 @@
  *
  * - Vanliga nålar: klassiska droppformade nålar i temats färg — svarta i mörkt läge, vita i ljust,
  *   som klumparna — med kategorins färg som prick. Servicenålarna har typens ikon i guld, skatterna
- *   är lila med stjärna. Färdiga bilder (assets/map-pins, scripts/render-map-pins.js) som Google
+ *   är svarta med lila glöd i kanten och en lysande stjärna. Färdiga bilder (assets/map-pins, scripts/render-map-pins.js) som Google
  *   Kartor ritar själv som ikoner — snabbast möjligt, inget ritas om när kartan rör sig.
  *   Klumparna och listans numrerade nålar är också färdiga bilder (mapIcons.ts).
  * - SelectedPin: det man valt (plats eller servicepunkt) — en större guldnål som studsar in.

@@ -20,6 +20,7 @@ import Reanimated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { ArrowRight, Bus, Clock, MapPin, Navigation } from "lucide-react-native";
 import { firstImageUrl, isPlaceOpen, type Place } from "@/hooks/usePlaces";
 import { findCategory } from "@/theme/categories";
@@ -240,7 +241,9 @@ const PlaceCardView = memo(function PlaceCardView({
             style={StyleSheet.absoluteFill}
             pointerEvents="none"
           />
+          {/* Hjärtat på frostat glas, som kartans filterknapp och navigeringen */}
           <View style={s.heart}>
+            <BlurView intensity={20} tint="dark" style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} />
             <HeartButton isFav={saved} onToggle={() => onToggleSave(place.id)} onBurst={onBurst} size={18} outline="#FFFFFF" />
           </View>
           <View style={s.text} pointerEvents="none">
@@ -305,7 +308,7 @@ const s = StyleSheet.create({
   image: { height: IMAGE_H, overflow: "hidden" },
   heart: {
     position: "absolute", top: 12, right: 12, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
   },
   text: { position: "absolute", left: 14, right: 14, bottom: 12 },
   name: {
