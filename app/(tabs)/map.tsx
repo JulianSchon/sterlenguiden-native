@@ -250,6 +250,8 @@ export default function MapScreen() {
     () => new Set(shownTreasures.map((c) => c.placeId).filter((id): id is number => id != null)),
     [shownTreasures],
   );
+  const shownTreasuresRef = useRef(shownTreasures);
+  shownTreasuresRef.current = shownTreasures;
   const shownServices = useMemo(() => {
     const type = filters.service?.toLowerCase();
     if (!type) return [];
@@ -363,10 +365,18 @@ export default function MapScreen() {
     if (place.lat != null && place.lng != null) fly(place.lat, place.lng, Math.min(17, Math.max(15, zoomOf(regionRef.current))), 800);
   }, [fly, zoomOf]);
 
-  const openSticker = useCallback((c: Collectible) => {
+  // Skatterna man kan svepa mellan från en öppnad skatt: de närmaste runt den
+  const [treasureNeighbors, setTreasureNeighbors] = useState<string[]>([]);
+  const openSticker = useCallback((c: Collectible, keepNeighbors = false) => {
     setSelectedId(null);
     setSelectedService(null);
     setSelectedSticker(c);
+    if (!keepNeighbors) {
+      setTreasureNeighbors(shownTreasuresRef.current
+        .map((t) => ({ id: t.id, d: distanceMeters(c.lat, c.lng, t.lat, t.lng) }))
+        .sort((a, b) => a.d - b.d)
+        .map((t) => t.id));
+    }
     fly(c.lat, c.lng, Math.min(17, Math.max(15, zoomOf(regionRef.current))), 800);
   }, [fly, zoomOf]);
   const openService = useCallback((p: ServicePoint) => {
@@ -963,6 +973,12 @@ export default function MapScreen() {
           bottom={cardBottom}
           onClose={deselect}
           onLayout={onSmallCardLayout}
+          canPrev={treasureNeighbors.indexOf(selectedSticker.id) > 0}
+          canNext={treasureNeighbors.indexOf(selectedSticker.id) >= 0 && treasureNeighbors.indexOf(selectedSticker.id) < treasureNeighbors.length - 1}
+          onStep={(dir) => {
+            const next = treasureById.get(treasureNeighbors[treasureNeighbors.indexOf(selectedSticker.id) + dir]);
+            if (next) openSticker(next, true);
+          }}
         />
       )}
 

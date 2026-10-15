@@ -243,7 +243,7 @@ const PlaceCardView = memo(function PlaceCardView({
           />
           {/* Hjärtat på frostat glas, som kartans filterknapp och navigeringen */}
           <View style={s.heart}>
-            <BlurView intensity={20} tint="dark" style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)" }]} />
+            <BlurView intensity={20} tint="dark" style={[StyleSheet.absoluteFill, s.heartGlass]} />
             <HeartButton isFav={saved} onToggle={() => onToggleSave(place.id)} onBurst={onBurst} size={18} outline="#FFFFFF" />
           </View>
           <View style={s.text} pointerEvents="none">
@@ -308,8 +308,9 @@ const s = StyleSheet.create({
   image: { height: IMAGE_H, overflow: "hidden" },
   heart: {
     position: "absolute", top: 12, right: 12, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
-    overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
   },
+  // Glaset har själv de runda hörnen (som filterknappen) — klipps det av föräldern blir kanterna kantiga
+  heartGlass: { borderRadius: 20, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", backgroundColor: "rgba(0,0,0,0.5)" },
   text: { position: "absolute", left: 14, right: 14, bottom: 12 },
   name: {
     fontFamily: "Montserrat_700Bold", fontSize: 20, lineHeight: 24, letterSpacing: -0.3, color: "#FFFFFF",

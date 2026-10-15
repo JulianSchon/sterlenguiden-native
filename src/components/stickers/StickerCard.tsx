@@ -9,11 +9,12 @@
  * Avståndet räknas ur användarens live-position (kartan följer den redan). Pulsen går bara medan
  * kortet är öppet — inget i bakgrunden.
  */
-import { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, type LayoutChangeEvent } from "react-native";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import Reanimated, {
-  Easing, interpolateColor, useAnimatedStyle, useSharedValue, withTiming,
+  Easing, interpolateColor, runOnJS, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -45,7 +46,7 @@ function warmth(d: number): string {
 }
 
 export function StickerCard({
-  collectible, collectedAt, userLoc, bottom, onClose, onLayout,
+  collectible, collectedAt, userLoc, bottom, onClose, onLayout, canPrev = false, canNext = false, onStep,
 }: {
   collectible: Collectible;
   /** ISO-tid när skatten hittades, eller undefined om användaren inte har den */
@@ -55,7 +56,50 @@ export function StickerCard({
   onClose: () => void;
   /** Kartan behöver kortets höjd (Googles logga ska ligga ovanför kortet) */
   onLayout?: (e: LayoutChangeEvent) => void;
+  canPrev?: boolean;
+  canNext?: boolean;
+  /** Svep: 1 = nästa närmaste skatt, -1 = föregående */
+  onStep?: (dir: 1 | -1) => void;
 }) {
+  // Svep åt sidan: kortet följer fingret, glider ut, och nästa skatt glider in från andra hållet
+  const { width } = useWindowDimensions();
+  const tx = useSharedValue(0);
+  const stepDir = useRef<0 | 1 | -1>(0);
+  const step = (dir: 1 | -1) => {
+    stepDir.current = dir;
+    Haptics.selectionAsync().catch(() => {});
+    onStep?.(dir);
+  };
+  useLayoutEffect(() => {
+    if (!stepDir.current) return;
+    tx.value = stepDir.current * width * 0.6;
+    tx.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
+    stepDir.current = 0;
+  }, [collectible.id, tx, width]);
+  const swipe = useMemo(() => Gesture.Pan()
+    .enabled(!!onStep)
+    .activeOffsetX([-14, 14])
+    .failOffsetY([-12, 12])
+    .onUpdate((e) => {
+      const can = e.translationX < 0 ? canNext : canPrev;
+      tx.value = can ? e.translationX : e.translationX * 0.25;
+    })
+    .onEnd((e) => {
+      const dir = e.translationX < -60 && canNext ? 1 : e.translationX > 60 && canPrev ? -1 : 0;
+      if (dir === 0) {
+        tx.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });
+        return;
+      }
+      tx.value = withTiming(-dir * width * 0.6, { duration: 150, easing: Easing.in(Easing.quad) }, (done) => {
+        if (done) runOnJS(step)(dir as 1 | -1);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [onStep, canPrev, canNext, width, tx]);
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }],
+    opacity: 1 - Math.min(0.6, Math.abs(tx.value) / width),
+  }));
+
   const router = useRouter();
   const { data: collectibles = [] } = useCollectibles();
   const { data: collected = new Map<string, string>() } = useCollected();
@@ -95,7 +139,9 @@ export function StickerCard({
   }));
 
   return (
-    <Reanimated.View entering={cardIn} exiting={cardOut} onLayout={onLayout} style={[s.card, { bottom }]}>
+    <Reanimated.View entering={cardIn} exiting={cardOut} onLayout={onLayout} style={[s.place, { bottom }]}>
+    <GestureDetector gesture={swipe}>
+    <Reanimated.View style={[s.card, swipeStyle]}>
       <TouchableOpacity style={s.close} onPress={onClose} hitSlop={12}>
         <X size={18} color="rgba(255,255,255,0.6)" strokeWidth={2} />
       </TouchableOpacity>
@@ -163,12 +209,15 @@ export function StickerCard({
         />
       )}
     </Reanimated.View>
+    </GestureDetector>
+    </Reanimated.View>
   );
 }
 
 const s = StyleSheet.create({
+  place: { position: "absolute", left: 12, right: 12 },
   card: {
-    position: "absolute", left: 12, right: 12, borderRadius: 22, padding: 16,
+    borderRadius: 22, padding: 16,
     backgroundColor: "#121216", borderWidth: 0.5, borderColor: "rgba(167,139,250,0.45)",
     shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 24,
   },
