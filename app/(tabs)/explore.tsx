@@ -54,7 +54,7 @@ import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { Skeleton } from "@/components/Skeleton";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
-  CATEGORY_DOT, CategoryLine, ChipView, EventResultRow, HistoryRow, Mosaic, PlaceAnswer, PlaceResultRow, SectionHeader,
+  CATEGORY_DOT, CategoryDots, CategoryLine, ChipView, EventResultRow, HistoryRow, PlaceAnswer, PlaceResultRow, SectionHeader,
   SummaryAnswer, TownRow, useOpenColors, type Chip,
 } from "@/components/search/SearchParts";
 
@@ -140,8 +140,8 @@ function openDirections(lat: number | null, lng: number | null) {
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`).catch(() => {}));
 }
 
-/** En ort med det sidan visar om den: bilder därifrån, hur långt bort, hur många som har öppet */
-interface TownCard extends Town { images: string[]; km: number | null; open: number }
+/** En ort med det sidan visar om den: vad som finns där (kategorierna, flest först), hur långt bort, öppet nu */
+interface TownCard extends Town { cats: CategoryId[]; km: number | null; open: number }
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
@@ -179,8 +179,7 @@ export default function ExploreScreen() {
   const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const eventById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
 
-  // ── Orterna: bilder från upp till fyra olika slags ställen (en ort är mer än en plats), avstånd
-  // till mitten av orten, öppet nu ──
+  // ── Orterna: vad som finns där, avstånd till mitten av orten, öppet nu ──
   const townCards = useMemo<TownCard[]>(() => {
     const byTown = new Map<string, IndexedPlace[]>();
     index.forEach((p) => {
@@ -190,25 +189,10 @@ export default function ExploreScreen() {
     });
     const cards = towns.map((t) => {
       const list = byTown.get(t.key) ?? [];
-      // En bild per slags ställe i tur och ordning (flest först), så mosaiken visar bredden
-      const groups = new Map<string, string[]>();
-      list
-        .filter((p) => firstImageUrl(p.place.image_url))
-        .sort((a, b) => b.tier - a.tier || a.place.name.localeCompare(b.place.name, "sv"))
-        .forEach((p) => {
-          const kind = [...p.cats][0] ?? "other";
-          const urls = groups.get(kind) ?? [];
-          urls.push(firstImageUrl(p.place.image_url)!);
-          groups.set(kind, urls);
-        });
-      const ordered = [...groups.values()].sort((a, b) => b.length - a.length);
-      const images: string[] = [];
-      for (let round = 0; images.length < 4 && ordered.some((g) => g.length > round); round++) {
-        for (const g of ordered) {
-          if (images.length >= 4) break;
-          if (g[round] && !images.includes(g[round])) images.push(g[round]);
-        }
-      }
+      // Kategorierna i orten, flest först
+      const perCat = new Map<CategoryId, number>();
+      list.forEach((p) => p.cats.forEach((c) => perCat.set(c, (perCat.get(c) ?? 0) + 1)));
+      const cats = [...perCat.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
       const pts = list.filter((p) => p.place.lat != null && p.place.lng != null);
       const km = loc && pts.length > 0
         ? distanceMeters(
@@ -219,7 +203,7 @@ export default function ExploreScreen() {
         : null;
       return {
         ...t,
-        images,
+        cats,
         km,
         open: list.filter((p) => openInfo(p.place)?.open).length,
       };
@@ -661,29 +645,26 @@ function NearCardSkeleton() {
   );
 }
 
-/** En ort i rutnätet: bilder därifrån, namnet, hur många platser och hur långt bort */
+/** En ort i rutnätet: namnet, hur många platser och hur långt bort, och prickar för vad som finns där */
 function TownTile({ town, onPress }: { town: TownCard; onPress: () => void }) {
   const { colors } = useTheme();
   const detail = `${town.count} ${town.count === 1 ? "plats" : "platser"}${town.km != null ? `  ·  ${distanceLabel(town.km)}` : ""}`;
   return (
-    <TouchableOpacity style={s.townTile} activeOpacity={0.75} onPress={onPress}>
-      <Mosaic images={town.images} size={56} />
-      <View style={{ flex: 1, gap: 3 }}>
-        <Text style={[s.townName, { color: colors.text }]} numberOfLines={1}>{town.name}</Text>
-        <Text style={[s.townDetail, { color: colors.muted }]} numberOfLines={1}>{detail}</Text>
-      </View>
+    <TouchableOpacity style={[s.townTile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
+      <Text style={[s.townName, { color: colors.text }]} numberOfLines={1}>{town.name}</Text>
+      <Text style={[s.townDetail, { color: colors.muted }]} numberOfLines={1}>{detail}</Text>
+      <CategoryDots cats={town.cats.slice(0, 7)} />
     </TouchableOpacity>
   );
 }
 
 function TownTileSkeleton() {
+  const { colors } = useTheme();
   return (
-    <View style={s.townTile}>
-      <Skeleton width={56} height={56} radius={12} />
-      <View style={{ flex: 1, gap: 7 }}>
-        <Skeleton width="70%" height={13} radius={6} />
-        <Skeleton width="50%" height={11} radius={5} />
-      </View>
+    <View style={[s.townTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Skeleton width="65%" height={14} radius={6} />
+      <Skeleton width="50%" height={11} radius={5} />
+      <Skeleton width="40%" height={9} radius={4.5} />
     </View>
   );
 }
@@ -768,7 +749,7 @@ function Results({
           {results.towns.slice(0, 4).map((t) => {
             const card = townCardByKey.get(t.key);
             const detail = `${t.count} ${t.count === 1 ? "plats" : "platser"}${card?.open ? `  ·  ${card.open} öppna nu` : ""}`;
-            return <TownRow key={t.key} name={t.name} detail={detail} images={card?.images ?? []} onPress={() => onTown(t.name)} />;
+            return <TownRow key={t.key} name={t.name} detail={detail} cats={card?.cats.slice(0, 7) ?? []} onPress={() => onTown(t.name)} />;
           })}
         </View>
       )}
@@ -1014,8 +995,8 @@ const s = StyleSheet.create({
   nearName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, letterSpacing: -0.2 },
   nearOpen: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
 
-  townGrid: { flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 14, marginTop: 8 },
-  townTile: { width: "47.5%", flexDirection: "row", alignItems: "center", gap: 12 },
+  townGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 6 },
+  townTile: { width: "48.4%", gap: 6, padding: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
   townName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, letterSpacing: -0.2 },
   townDetail: { fontFamily: "Inter_400Regular", fontSize: 12.5 },
 

@@ -145,48 +145,30 @@ export const EventResultRow = memo(function EventResultRow({ event, tokens, onPr
   );
 });
 
-/**
- * En orts bild: en mosaik av upp till fyra olika platser därifrån (helst olika slags ställen) —
- * en ort är mer än en enda plats. Två–tre bilder blir två halvor, en bild hela rutan.
- */
-export function Mosaic({ images, size, radius = 12 }: { images: string[]; size: number; radius?: number }) {
-  const { colors } = useTheme();
-  const gap = 1.5;
-  const half = (size - gap) / 2;
-  const img = (uri: string, style: object) => (
-    <ExpoImage key={uri} source={{ uri }} style={style} contentFit="cover" transition={150} cachePolicy="memory-disk" />
-  );
+/** Vad som finns i en ort: en prick per slags ställe, i kartans färger (flest först) */
+export function CategoryDots({ cats }: { cats: CategoryId[] }) {
+  const { scheme } = useTheme();
   return (
-    <View style={{ width: size, height: size, borderRadius: radius, overflow: "hidden", backgroundColor: colors.bg }}>
-      {images.length === 0 ? (
-        <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", backgroundColor: colors.goldSoft }]}>
-          <MapPin size={size * 0.38} color={colors.gold} strokeWidth={2} />
-        </View>
-      ) : images.length === 1 ? img(images[0], StyleSheet.absoluteFill) : images.length < 4 ? (
-        <View style={{ flex: 1, flexDirection: "row", gap }}>
-          {img(images[0], { width: half, height: size })}
-          {img(images[1], { width: half, height: size })}
-        </View>
-      ) : (
-        <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap }}>
-          {images.slice(0, 4).map((uri) => img(uri, { width: half, height: half }))}
-        </View>
-      )}
+    <View style={s.dots}>
+      {cats.map((c) => <View key={c} style={[s.dotLg, { backgroundColor: CATEGORY_DOT[scheme][c] }]} />)}
     </View>
   );
 }
 
-/** En ort: bilder därifrån, namnet, och hur många platser (och hur långt bort) */
-export function TownRow({ name, detail, images, size = 60, onPress }: {
-  name: string; detail: string; images: string[]; size?: number; onPress: () => void;
+/** En ort: namnet, hur många platser, och prickar för vad som finns där */
+export function TownRow({ name, detail, cats, onPress }: {
+  name: string; detail: string; cats: CategoryId[]; onPress: () => void;
 }) {
   const { colors } = useTheme();
   return (
     <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={onPress}>
-      <Mosaic images={images} size={size} />
+      <View style={[s.pinTile, { backgroundColor: colors.goldSoft }]}>
+        <MapPin size={20} color={colors.gold} strokeWidth={2} />
+      </View>
       <View style={s.rowBody}>
         <Text style={[s.title, { color: colors.text }]} numberOfLines={1}>{name}</Text>
         <Text style={[s.meta, { color: colors.muted }]}>{detail}</Text>
+        {cats.length > 0 && <CategoryDots cats={cats} />}
       </View>
     </TouchableOpacity>
   );
@@ -362,6 +344,9 @@ export function SectionHeader({ title, count, action, onAction }: {
 
 const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
+  dots: { flexDirection: "row", gap: 5, marginTop: 2 },
+  dotLg: { width: 9, height: 9, borderRadius: 4.5 },
+  pinTile: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   catLine: { flexDirection: "row", alignItems: "center", gap: 7 },
   meta: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 13 },
   open: { fontFamily: "Inter_600SemiBold", fontSize: 12.5 },
