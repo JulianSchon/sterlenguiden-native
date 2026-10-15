@@ -14,7 +14,7 @@ import {
 } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
-import { findCategory, type CategoryId } from "@/theme/categories";
+import { findCategory, withAlpha, type CategoryId } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { distanceLabel } from "@/lib/mapFilters";
 import { eventWhen } from "@/lib/events";
@@ -23,7 +23,7 @@ import { DateBox } from "@/components/events/EventCards";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 
 /** Kategoriprickarna — samma färger som kartans nålar (scripts/render-map-pins.js) */
-const DOT: Record<"dark" | "light", Record<CategoryId, string>> = {
+export const CATEGORY_DOT: Record<"dark" | "light", Record<CategoryId, string>> = {
   dark: {
     "mat-dryck": "#C23A5E", "hotell-bb": "#3F7BEA", "cafe-bageri": "#D4BE86", "butiker": "#EA6A35",
     "natur-upplevelser": "#2BA36A", "aktiviteter": "#2499C2", "sevardheter": "#A55BE0", "hantverk-service": "#A7AFBC",
@@ -93,7 +93,7 @@ export function CategoryLine({ place, extra }: { place: Place; extra?: string | 
   const parts = [cat?.label ?? "Plats", place.nearest_town, extra].filter(Boolean);
   return (
     <View style={s.catLine}>
-      <View style={[s.dot, { backgroundColor: cat ? DOT[scheme][cat.id] : colors.faint }]} />
+      <View style={[s.dot, { backgroundColor: cat ? CATEGORY_DOT[scheme][cat.id] : colors.faint }]} />
       <Text style={[s.meta, { color: colors.muted }]} numberOfLines={1}>{parts.join("  ·  ")}</Text>
     </View>
   );
@@ -145,18 +145,45 @@ export const EventResultRow = memo(function EventResultRow({ event, tokens, onPr
   );
 });
 
-/** En ort: ett foto därifrån, namnet, och hur många platser (och hur långt bort) */
-export function TownRow({ name, detail, image, size = 60, onPress }: {
-  name: string; detail: string; image: string | null; size?: number; onPress: () => void;
+/**
+ * En orts bild: en mosaik av upp till fyra olika platser därifrån (helst olika slags ställen) —
+ * en ort är mer än en enda plats. Två–tre bilder blir två halvor, en bild hela rutan.
+ */
+export function Mosaic({ images, size, radius = 12 }: { images: string[]; size: number; radius?: number }) {
+  const { colors } = useTheme();
+  const gap = 1.5;
+  const half = (size - gap) / 2;
+  const img = (uri: string, style: object) => (
+    <ExpoImage key={uri} source={{ uri }} style={style} contentFit="cover" transition={150} cachePolicy="memory-disk" />
+  );
+  return (
+    <View style={{ width: size, height: size, borderRadius: radius, overflow: "hidden", backgroundColor: colors.bg }}>
+      {images.length === 0 ? (
+        <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", backgroundColor: colors.goldSoft }]}>
+          <MapPin size={size * 0.38} color={colors.gold} strokeWidth={2} />
+        </View>
+      ) : images.length === 1 ? img(images[0], StyleSheet.absoluteFill) : images.length < 4 ? (
+        <View style={{ flex: 1, flexDirection: "row", gap }}>
+          {img(images[0], { width: half, height: size })}
+          {img(images[1], { width: half, height: size })}
+        </View>
+      ) : (
+        <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap }}>
+          {images.slice(0, 4).map((uri) => img(uri, { width: half, height: half }))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** En ort: bilder därifrån, namnet, och hur många platser (och hur långt bort) */
+export function TownRow({ name, detail, images, size = 60, onPress }: {
+  name: string; detail: string; images: string[]; size?: number; onPress: () => void;
 }) {
   const { colors } = useTheme();
   return (
     <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={onPress}>
-      {image ? <Thumb uri={image} size={size} /> : (
-        <View style={[s.iconTile, { width: size, height: size, backgroundColor: colors.goldSoft }]}>
-          <MapPin size={22} color={colors.gold} strokeWidth={2} />
-        </View>
-      )}
+      <Mosaic images={images} size={size} />
       <View style={s.rowBody}>
         <Text style={[s.title, { color: colors.text }]} numberOfLines={1}>{name}</Text>
         <Text style={[s.meta, { color: colors.muted }]}>{detail}</Text>
@@ -247,18 +274,26 @@ function ActionButton({ Icon, label, onPress }: { Icon: LucideIcon; label: strin
   );
 }
 
-export interface Chip { key: string; label: string; Icon: LucideIcon; onRemove?: () => void; onPress?: () => void }
+export interface Chip {
+  key: string;
+  label: string;
+  Icon: LucideIcon;
+  /** Ikonens färg (kategorins, som kartans prickar) — annars guld */
+  color?: string;
+  onRemove?: () => void;
+  onPress?: () => void;
+}
 
 /** Sammanfattningen överst: vad söket förstått, hur många, och det viktigaste direkt */
-export function SummaryAnswer({ Icon, title, subtitle, chips, note }: {
-  Icon: LucideIcon; title: string; subtitle: string; chips: Chip[]; note?: string | null;
+export function SummaryAnswer({ Icon, tint, title, subtitle, chips, note }: {
+  Icon: LucideIcon; tint: string; title: string; subtitle: string; chips: Chip[]; note?: string | null;
 }) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   return (
     <View style={[s.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={s.summaryHead}>
-        <View style={[s.summaryIcon, { backgroundColor: colors.goldSoft }]}>
-          <Icon size={22} color={colors.gold} strokeWidth={2} />
+        <View style={[s.summaryIcon, { backgroundColor: withAlpha(tint, scheme === "dark" ? 0.16 : 0.1) }]}>
+          <Icon size={22} color={tint} strokeWidth={2} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[s.summaryTitle, { color: colors.text }]} numberOfLines={2}>{title}</Text>
@@ -285,7 +320,7 @@ export function ChipView({ chip }: { chip: Chip }) {
   const { Icon } = chip;
   const body = (
     <>
-      <Icon size={13} color={colors.goldText} strokeWidth={2.2} />
+      <Icon size={13} color={chip.color ?? colors.goldText} strokeWidth={2.2} />
       <Text style={[s.chipText, { color: colors.text }]}>{chip.label}</Text>
       {chip.onRemove && <X size={12} color={colors.muted} strokeWidth={2.4} />}
     </>
@@ -340,7 +375,6 @@ const s = StyleSheet.create({
   when: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1 },
   thumbDate: { position: "absolute", top: 5, left: 5 },
   thumbDateSmall: { position: "absolute", top: 3, left: 3, transform: [{ scale: 0.82 }] },
-  iconTile: { width: 60, height: 60, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 
   historyRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 7 },
   historyMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14 },

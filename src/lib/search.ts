@@ -89,6 +89,9 @@ SINGLE.helgen = { kind: "when", value: "weekend" };
   "om", "nagon", "nagot", "nagonstans", "nanstans", "nan", "nat", "bra", "lite", "mycket", "hos", "sa", "da", "nar",
   "hur", "finns", "tips", "tipsa", "nagra", "fa", "bli", "inatt", "natt", "gar", "ga", "kommer",
   "efter", "under", "mellan", "mest", "basta", "bast", "gott", "god", "goda", "the", "where", "eat",
+  "eller", "samt", "plus", "bade", "antingen", "ocksa", "aven", "kanske", "garna", "helst", "typ", "vid", "kring",
+  "runt", "omkring", "dar", "hit", "dit", "stalle", "stallen", "platser", "hitta", "hittar", "leta", "letar",
+  "soka", "soker", "rekommendera", "rekommenderar", "forslag", "nagonting", "ngt",
 ].forEach((w) => { SINGLE[w] ??= { kind: "filler" }; });
 
 /** Två ord som hör ihop ("öppet sent", "nära mig", "i morgon") */
@@ -185,8 +188,12 @@ export interface Parsed {
   intents: Intent[];
   /** Orden som blev över: söks i namn, kategori, ort och text */
   text: string[];
+  /** Samma ord som de skrevs (med å, ä, ö och stora bokstäver) */
+  textOriginal: string[];
   /** "Nära mig" — sorteras alltid på avstånd ändå, men ordet ska inte sökas som text */
   near: boolean;
+  /** "göra eller sova" / "äta och sova" — rubriken använder samma ord */
+  conj: "och" | "eller";
 }
 
 /** Hur olika två ord är (antal tecken som måste ändras), avbryter när det blir fler än max */
@@ -211,7 +218,9 @@ export function editDistance(a: string, b: string, max: number): number {
 const tolerance = (len: number) => (len >= 7 ? 2 : len >= 4 ? 1 : 0);
 
 export function parseQuery(query: string, towns: Town[]): Parsed {
-  const tokens = words(norm(query).replace(/b\s*&\s*b/g, "bnb"));
+  // Orden som de skrevs, och samma ord i sökform (så de alltid hör ihop, ord för ord)
+  const originals = query.replace(/b\s*&\s*b/gi, "bnb").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const tokens = originals.map((w) => norm(w));
   const used = new Set<number>();
   const intents: Intent[] = [];
   let near = false;
@@ -267,13 +276,49 @@ export function parseQuery(query: string, towns: Town[]): Parsed {
     seen.add(key);
     return true;
   });
-  return { tokens, intents: unique, text: tokens.filter((t, i) => !used.has(i) && t.length >= 2), near };
+  const textIdx = tokens.flatMap((t, i) => (!used.has(i) && t.length >= 2 ? [i] : []));
+  return {
+    tokens,
+    intents: unique,
+    text: textIdx.map((i) => tokens[i]),
+    textOriginal: textIdx.map((i) => originals[i]),
+    near,
+    conj: tokens.includes("eller") ? "eller" : "och",
+  };
 }
 
-/** Frågan utan orden en tolkning kom från (krysset på ett "förstod"-chip) */
-export function withoutIntent(parsed: Parsed, intent: Intent): string {
-  const drop = new Set(intent.tokens);
-  return parsed.tokens.filter((_, i) => !drop.has(i)).join(" ");
+const CAT_WORD: Record<CategoryId, string> = {
+  "mat-dryck": "äta", "cafe-bageri": "fika", "hotell-bb": "sova", "natur-upplevelser": "natur",
+  "aktiviteter": "aktiviteter", "sevardheter": "sevärdheter", "butiker": "handla", "hantverk-service": "design",
+};
+const PRACTICAL_WORD: Record<PracticalKey, string> = {
+  family: "barn", pets: "hund", outdoor: "uteservering", accessible: "tillgängligt", vegetarian: "vegetariskt",
+  parking: "parkering", wifi: "wifi", ev: "laddstolpe",
+};
+const WHEN_WORDS: Record<When, string> = { today: "i dag", tomorrow: "i morgon", weekend: "i helgen" };
+
+/**
+ * Frågan utan en av tolkningarna (krysset på ett chip), skriven som en riktig mening av det som
+ * är kvar: "äta och sova i Simrishamn" utan Hotell & B&B blir "äta i Simrishamn".
+ */
+export function withoutIntent(parsed: Parsed, drop: Intent): string {
+  const keep = parsed.intents.filter((x) => x !== drop);
+  const cats = keep.flatMap((x) => (x.kind === "category" ? [CAT_WORD[x.value]] : []));
+  const withWords = keep.flatMap((x) => (x.kind === "practical" && (x.value === "family" || x.value === "pets") ? [PRACTICAL_WORD[x.value]] : []));
+  const otherPractical = keep.flatMap((x) => (x.kind === "practical" && x.value !== "family" && x.value !== "pets" ? [PRACTICAL_WORD[x.value]] : []));
+  const out: string[] = [];
+  if (cats.length > 0) out.push(cats.join(` ${parsed.conj} `));
+  if (parsed.textOriginal.length > 0) out.push(parsed.textOriginal.join(" "));
+  if (keep.some((x) => x.kind === "open")) out.push(cats.length > 0 ? "nu" : "öppet nu");
+  if (keep.some((x) => x.kind === "late")) out.push(cats.length > 0 ? "sent" : "öppet sent");
+  if (withWords.length > 0) out.push(`med ${withWords.join(" och ")}`);
+  out.push(...otherPractical);
+  if (keep.some((x) => x.kind === "events")) out.push("evenemang");
+  const when = keep.find((x) => x.kind === "when");
+  if (when?.kind === "when") out.push(WHEN_WORDS[when.value]);
+  const town = keep.find((x) => x.kind === "town");
+  if (town?.kind === "town") out.push(`i ${town.value.name}`);
+  return out.join(" ");
 }
 
 // ── Öppettider ───────────────────────────────────────────────────────────────
@@ -294,10 +339,11 @@ function todaysHours(place: Place, now: Date): { from: number; to: number } | "c
   return { from: Number(m[1]) * 60 + Number(m[2] ?? 0), to };
 }
 
+/** "06", "17", "08:30" — timmen alltid med två siffror; midnatt som "24" */
 const clock = (min: number) => {
-  const h = Math.floor(min / 60) % 24;
+  const h = min === 24 * 60 ? "24" : String(Math.floor(min / 60) % 24).padStart(2, "0");
   const m = min % 60;
-  return m ? `${h}:${String(m).padStart(2, "0")}` : `${h}`;
+  return m ? `${h}:${String(m).padStart(2, "0")}` : h;
 };
 
 export interface OpenInfo { open: boolean; label: string }
@@ -350,6 +396,8 @@ export interface PlaceResult {
   hits: PlaceHit[];
   /** Det som släpptes för att det inte gav några träffar (uppgifter platserna inte angett än) */
   relaxed: Intent[];
+  /** Ord som ingen av platserna hade, och därför inte räknades med (som de skrevs) */
+  ignored: string[];
 }
 
 /** Hur bra ett ord träffar en plats (0 = inte alls) */
@@ -386,8 +434,11 @@ export function searchPlaces(
     tokens.every((i) => p.nameWords.some((w) => w.startsWith(parsed.tokens[i])));
   const catTokens = parsed.intents.flatMap((x) => (x.kind === "category" ? x.tokens : []));
 
+  const understood = parsed.intents.some((x) => x.kind !== "events" && x.kind !== "when");
+  let ignored: string[] = [];
+
   const run = (rules: Intent[], soft: PracticalKey[] = []): PlaceHit[] => {
-    const out: PlaceHit[] = [];
+    const candidates: { p: IndexedPlace; bonus: number }[] = [];
     for (const p of index) {
       let bonus = 0;
       if (cats.length > 0 && !cats.some((c) => p.cats.has(c))) {
@@ -411,14 +462,22 @@ export function searchPlaces(
         }
       }
       if (!ok) continue;
+      candidates.push({ p, bonus });
+    }
+    const active = understood
+      ? parsed.text.filter((t) => candidates.some(({ p }) => tokenScore(p, t) > 0))
+      : parsed.text;
+    ignored = parsed.textOriginal.filter((_, i) => !active.includes(parsed.text[i]));
+    const out: PlaceHit[] = [];
+    for (const { p, bonus } of candidates) {
       let score = 0;
-      for (const t of parsed.text) {
+      for (const t of active) {
         const s = tokenScore(p, t);
         if (s === 0) { score = -1; break; }
         score += s;
       }
       if (score < 0) continue;
-      const phrase = parsed.text.join(" ");
+      const phrase = active.join(" ");
       if (phrase && p.name.startsWith(phrase)) score += p.name === phrase ? 80 : 40;
       score += bonus + p.tier * 2;
       const km = loc && p.place.lat != null && p.place.lng != null
@@ -428,7 +487,7 @@ export function searchPlaces(
       const mentions = soft.filter((k) => MENTION_WORDS[k].some((w) => p.text.includes(w) || p.catText.includes(w)));
       out.push({ place: p.place, score, km, open: openInfo(p.place, now), mentions });
     }
-    const byText = parsed.text.length > 0;
+    const byText = active.length > 0;
     return out.sort((a, b) => {
       if (a.mentions.length !== b.mentions.length) return b.mentions.length - a.mentions.length;
       if (byText && a.score !== b.score) return b.score - a.score;
@@ -457,7 +516,7 @@ export function searchPlaces(
       relaxed.push(...rest);
     }
   }
-  return { hits, relaxed };
+  return { hits, relaxed, ignored };
 }
 
 // ── Evenemang ────────────────────────────────────────────────────────────────

@@ -41,7 +41,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { CATEGORIES, findCategory, withAlpha, type CategoryId } from "@/theme/categories";
 import { PRACTICAL, distanceLabel } from "@/lib/mapFilters";
 import {
-  PRACTICAL_LABELS, buildIndex, buildTowns, didYouMean, norm, openInfo, openLate, parseQuery, searchEvents,
+  PRACTICAL_LABELS, buildIndex, buildTowns, didYouMean, norm, openInfo, openLate, parseQuery, placeCategories, searchEvents,
   searchPlaces, searchTowns, withoutIntent, type IndexedPlace, type Intent, type Parsed, type PlaceHit, type Town,
 } from "@/lib/search";
 import { distanceMeters } from "@/lib/checkin";
@@ -54,8 +54,8 @@ import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { Skeleton } from "@/components/Skeleton";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
-  CategoryLine, ChipView, EventResultRow, HistoryRow, PlaceAnswer, PlaceResultRow, SectionHeader, SummaryAnswer,
-  TownRow, useOpenColors, type Chip,
+  CATEGORY_DOT, CategoryLine, ChipView, EventResultRow, HistoryRow, Mosaic, PlaceAnswer, PlaceResultRow, SectionHeader,
+  SummaryAnswer, TownRow, useOpenColors, type Chip,
 } from "@/components/search/SearchParts";
 
 /** Tomt medan något laddas: alltid samma tomma lista (en ny vid varje uppritning räknar om allt) */
@@ -71,20 +71,45 @@ const FIRST_ROWS = 6;
 /** Orter som syns innan "Visa alla" */
 const FIRST_TOWNS = 8;
 
+type Tint = { dark: string; light: string };
 /**
- * "Vad vill du göra?" — varje ruta är en färdig fråga till söket. Färgen: kategorins (samma som
- * kartans prickar) där det finns en, annars en egen som inte krockar med kategorierna.
+ * Rutornas och svarskortets färger: kategorins (samma som kartans prickar) där det finns en,
+ * annars en egen som inte krockar med kategorierna.
  */
-const TILES: { key: string; label: string; query: string; Icon: LucideIcon; tint: { dark: string; light: string } }[] = [
-  { key: "eat", label: "Äta nu", query: "äta nu", Icon: UtensilsCrossed, tint: { dark: "#C23A5E", light: "#881337" } },
-  { key: "fika", label: "Fika", query: "fika", Icon: Coffee, tint: { dark: "#D4BE86", light: "#8A6A2E" } },
-  { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble, tint: { dark: "#3F7BEA", light: "#1E3A8A" } },
-  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: { dark: "#E5A93B", light: "#A16207" } },
-  { key: "kids", label: "Med barn", query: "med barn", Icon: Baby, tint: { dark: "#2499C2", light: "#0C4A6E" } },
-  { key: "dog", label: "Med hund", query: "med hund", Icon: Dog, tint: { dark: "#C08A5B", light: "#7C4A21" } },
-  { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees, tint: { dark: "#2BA36A", light: "#064E3B" } },
-  { key: "events", label: "Händer snart", query: "evenemang", Icon: CalendarDays, tint: { dark: "#A55BE0", light: "#581C87" } },
+const TINT = {
+  eat: { dark: "#C23A5E", light: "#881337" },
+  fika: { dark: "#D4BE86", light: "#8A6A2E" },
+  sleep: { dark: "#3F7BEA", light: "#1E3A8A" },
+  kids: { dark: "#2499C2", light: "#0C4A6E" },
+  late: { dark: "#E5A93B", light: "#A16207" },
+  dog: { dark: "#C08A5B", light: "#7C4A21" },
+  nature: { dark: "#2BA36A", light: "#064E3B" },
+  events: { dark: "#A55BE0", light: "#581C87" },
+  open: { dark: "#4ADE80", light: "#15803D" },
+  gold: { dark: "#E8C674", light: "#8A6A2E" },
+} satisfies Record<string, Tint>;
+
+/** "Vad vill du göra?" — varje ruta är en färdig fråga till söket (ordningen håller lika färger isär) */
+const TILES: { key: string; label: string; query: string; Icon: LucideIcon; tint: Tint }[] = [
+  { key: "eat", label: "Äta nu", query: "äta nu", Icon: UtensilsCrossed, tint: TINT.eat },
+  { key: "fika", label: "Fika", query: "fika", Icon: Coffee, tint: TINT.fika },
+  { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble, tint: TINT.sleep },
+  { key: "kids", label: "Med barn", query: "med barn", Icon: Baby, tint: TINT.kids },
+  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: TINT.late },
+  { key: "dog", label: "Med hund", query: "med hund", Icon: Dog, tint: TINT.dog },
+  { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees, tint: TINT.nature },
+  { key: "events", label: "Händer snart", query: "evenemang", Icon: CalendarDays, tint: TINT.events },
 ];
+
+/** Färgen för något söket förstått (svarskortets ring och chipsens ikoner) */
+function intentTint(x: Intent, scheme: "dark" | "light"): string {
+  if (x.kind === "category") return CATEGORY_DOT[scheme][x.value];
+  if (x.kind === "practical") return (x.value === "family" ? TINT.kids : x.value === "pets" ? TINT.dog : TINT.gold)[scheme];
+  if (x.kind === "open") return TINT.open[scheme];
+  if (x.kind === "late") return TINT.late[scheme];
+  if (x.kind === "events" || x.kind === "when") return TINT.events[scheme];
+  return TINT.gold[scheme];
+}
 
 /** Rubriken i sammanfattningen per kategori, och ordet en kategori-chip söker med */
 const CAT_TITLE: Record<CategoryId, string> = {
@@ -94,6 +119,12 @@ const CAT_TITLE: Record<CategoryId, string> = {
 const CAT_QUERY: Record<CategoryId, string> = {
   "mat-dryck": "äta", "cafe-bageri": "fika", "hotell-bb": "sova", "natur-upplevelser": "natur",
   "aktiviteter": "aktiviteter", "sevardheter": "sevärdheter", "butiker": "handla", "hantverk-service": "design",
+};
+/** Vad en kategori kallas i sammanfattningen ("6 caféer · 4 boenden") */
+const CAT_NOUN: Record<CategoryId, [string, string]> = {
+  "mat-dryck": ["matställe", "matställen"], "cafe-bageri": ["café", "caféer"], "hotell-bb": ["boende", "boenden"],
+  "natur-upplevelser": ["naturplats", "naturplatser"], "aktiviteter": ["aktivitet", "aktiviteter"],
+  "sevardheter": ["sevärdhet", "sevärdheter"], "butiker": ["butik", "butiker"], "hantverk-service": ["ställe för design & hantverk", "ställen för design & hantverk"],
 };
 const WHEN_LABEL = { today: "i dag", tomorrow: "i morgon", weekend: "i helgen" } as const;
 /** Ord som föreslås bara om de faktiskt finns hos minst två platser */
@@ -109,14 +140,14 @@ function openDirections(lat: number | null, lng: number | null) {
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`).catch(() => {}));
 }
 
-/** En ort med det sidan visar om den: ett foto därifrån, hur långt bort, hur många som har öppet */
-interface TownCard extends Town { image: string | null; km: number | null; open: number }
+/** En ort med det sidan visar om den: bilder därifrån, hur långt bort, hur många som har öppet */
+interface TownCard extends Town { images: string[]; km: number | null; open: number }
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const inputRef = useRef<TextInput>(null);
 
   const { data: places = NONE as Place[], isFetched: placesFetched } = usePlaces();
@@ -148,7 +179,8 @@ export default function ExploreScreen() {
   const placeById = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
   const eventById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
 
-  // ── Orterna: ett foto (helst natur eller en sevärdhet), avstånd till mitten av orten, öppet nu ──
+  // ── Orterna: bilder från upp till fyra olika slags ställen (en ort är mer än en plats), avstånd
+  // till mitten av orten, öppet nu ──
   const townCards = useMemo<TownCard[]>(() => {
     const byTown = new Map<string, IndexedPlace[]>();
     index.forEach((p) => {
@@ -156,12 +188,27 @@ export default function ExploreScreen() {
       const list = byTown.get(p.town);
       if (list) list.push(p); else byTown.set(p.town, [p]);
     });
-    const scenic = (p: IndexedPlace) => (p.cats.has("natur-upplevelser") || p.cats.has("sevardheter") ? 1 : 0);
     const cards = towns.map((t) => {
       const list = byTown.get(t.key) ?? [];
-      const photo = list
+      // En bild per slags ställe i tur och ordning (flest först), så mosaiken visar bredden
+      const groups = new Map<string, string[]>();
+      list
         .filter((p) => firstImageUrl(p.place.image_url))
-        .sort((a, b) => scenic(b) - scenic(a) || b.tier - a.tier || a.place.name.localeCompare(b.place.name, "sv"))[0];
+        .sort((a, b) => b.tier - a.tier || a.place.name.localeCompare(b.place.name, "sv"))
+        .forEach((p) => {
+          const kind = [...p.cats][0] ?? "other";
+          const urls = groups.get(kind) ?? [];
+          urls.push(firstImageUrl(p.place.image_url)!);
+          groups.set(kind, urls);
+        });
+      const ordered = [...groups.values()].sort((a, b) => b.length - a.length);
+      const images: string[] = [];
+      for (let round = 0; images.length < 4 && ordered.some((g) => g.length > round); round++) {
+        for (const g of ordered) {
+          if (images.length >= 4) break;
+          if (g[round] && !images.includes(g[round])) images.push(g[round]);
+        }
+      }
       const pts = list.filter((p) => p.place.lat != null && p.place.lng != null);
       const km = loc && pts.length > 0
         ? distanceMeters(
@@ -172,7 +219,7 @@ export default function ExploreScreen() {
         : null;
       return {
         ...t,
-        image: photo ? firstImageUrl(photo.place.image_url) : null,
+        images,
         km,
         open: list.filter((p) => openInfo(p.place)?.open).length,
       };
@@ -355,7 +402,7 @@ export default function ExploreScreen() {
     const now = new Date();
     const placeIntents = parsed.intents.some((x) => x.kind !== "events" && x.kind !== "when");
     const showPlaces = parsed.text.length > 0 || placeIntents;
-    const placeResult = showPlaces ? searchPlaces(index, parsed, loc, now) : { hits: [] as PlaceHit[], relaxed: [] as Intent[] };
+    const placeResult = showPlaces ? searchPlaces(index, parsed, loc, now) : { hits: [] as PlaceHit[], relaxed: [] as Intent[], ignored: [] as string[] };
     const eventHits = searchEvents(events, parsed, now);
     const townHits = searchTowns(towns, parsed);
     const empty = placeResult.hits.length === 0 && eventHits.length === 0 && townHits.length === 0
@@ -370,8 +417,8 @@ export default function ExploreScreen() {
   }, [query, parsed, index, towns, events, loc]);
 
   const answer = useMemo(
-    () => (results ? buildAnswer(parsed, results.places.hits, results.places.relaxed, results.events, index.length, index, ask) : null),
-    [results, parsed, index, ask],
+    () => (results ? buildAnswer(parsed, results.places, results.events, index, scheme, ask) : null),
+    [results, parsed, index, scheme, ask],
   );
 
   const bottomPad = FLOATING_NAV_HEIGHT + insets.bottom + 110;
@@ -614,17 +661,13 @@ function NearCardSkeleton() {
   );
 }
 
-/** En ort i rutnätet: ett foto därifrån, namnet, hur många platser och hur långt bort */
+/** En ort i rutnätet: bilder därifrån, namnet, hur många platser och hur långt bort */
 function TownTile({ town, onPress }: { town: TownCard; onPress: () => void }) {
   const { colors } = useTheme();
   const detail = `${town.count} ${town.count === 1 ? "plats" : "platser"}${town.km != null ? `  ·  ${distanceLabel(town.km)}` : ""}`;
   return (
     <TouchableOpacity style={s.townTile} activeOpacity={0.75} onPress={onPress}>
-      <View style={[s.townImage, { backgroundColor: colors.fill }]}>
-        {town.image
-          ? <ExpoImage source={{ uri: town.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />
-          : <MapPin size={20} color={colors.faint} strokeWidth={2} />}
-      </View>
+      <Mosaic images={town.images} size={56} />
       <View style={{ flex: 1, gap: 3 }}>
         <Text style={[s.townName, { color: colors.text }]} numberOfLines={1}>{town.name}</Text>
         <Text style={[s.townDetail, { color: colors.muted }]} numberOfLines={1}>{detail}</Text>
@@ -649,11 +692,11 @@ function TownTileSkeleton() {
 
 type Answer =
   | { kind: "place"; hit: PlaceHit }
-  | { kind: "summary"; Icon: LucideIcon; title: string; subtitle: string; chips: Chip[]; note: string | null }
+  | { kind: "summary"; Icon: LucideIcon; tint: string; title: string; subtitle: string; chips: Chip[]; note: string | null }
   | null;
 
 interface SearchResults {
-  places: { hits: PlaceHit[]; relaxed: Intent[] };
+  places: { hits: PlaceHit[]; relaxed: Intent[]; ignored: string[] };
   events: Event[];
   towns: Town[];
 }
@@ -714,7 +757,7 @@ function Results({
         />
       )}
       {answer?.kind === "summary" && (
-        <SummaryAnswer Icon={answer.Icon} title={answer.title} subtitle={answer.subtitle} chips={answer.chips} note={answer.note} />
+        <SummaryAnswer Icon={answer.Icon} tint={answer.tint} title={answer.title} subtitle={answer.subtitle} chips={answer.chips} note={answer.note} />
       )}
 
       {eventsFirst ? <>{eventsSection}{placesSection}</> : <>{placesSection}{eventsSection}</>}
@@ -725,7 +768,7 @@ function Results({
           {results.towns.slice(0, 4).map((t) => {
             const card = townCardByKey.get(t.key);
             const detail = `${t.count} ${t.count === 1 ? "plats" : "platser"}${card?.open ? `  ·  ${card.open} öppna nu` : ""}`;
-            return <TownRow key={t.key} name={t.name} detail={detail} image={card?.image ?? null} onPress={() => onTown(t.name)} />;
+            return <TownRow key={t.key} name={t.name} detail={detail} images={card?.images ?? []} onPress={() => onTown(t.name)} />;
           })}
         </View>
       )}
@@ -754,13 +797,14 @@ function Corrected({ text, words }: { text: string; words: string[] }) {
  */
 function buildAnswer(
   parsed: Parsed,
-  hits: PlaceHit[],
-  relaxed: Intent[],
+  placeResult: SearchResults["places"],
   events: Event[],
-  totalPlaces: number,
   index: IndexedPlace[],
+  scheme: "dark" | "light",
   ask: (q: string) => void,
 ): Answer {
+  const { hits, relaxed, ignored } = placeResult;
+  const totalPlaces = index.length;
   const top = hits[0];
   const second = hits[1];
   if (parsed.text.length > 0 && top && top.score >= 85 && (!second || second.score <= top.score - 20)) {
@@ -780,20 +824,28 @@ function buildAnswer(
   const chips: Chip[] = parsed.intents.map((x) => {
     const remove = () => ask(withoutIntent(parsed, x));
     const key = `${x.kind}-${"value" in x ? (typeof x.value === "object" ? x.value.key : x.value) : ""}`;
-    if (x.kind === "category") return { key, label: CATEGORIES.find((c) => c.id === x.value)?.label ?? x.value, Icon: catIcon(x.value), onRemove: remove };
-    if (x.kind === "practical") return { key, label: PRACTICAL_LABELS[x.value], Icon: practicalIcon(x.value), onRemove: remove };
-    if (x.kind === "open") return { key, label: "Öppet nu", Icon: Clock, onRemove: remove };
-    if (x.kind === "late") return { key, label: "Öppet sent", Icon: Moon, onRemove: remove };
-    if (x.kind === "town") return { key, label: x.value.name, Icon: MapPin, onRemove: remove };
-    if (x.kind === "when") return { key, label: WHEN_LABEL[x.value].replace(/^./, (c) => c.toUpperCase()), Icon: CalendarDays, onRemove: remove };
-    return { key, label: "Evenemang", Icon: CalendarDays, onRemove: remove };
+    const color = intentTint(x, scheme);
+    if (x.kind === "category") return { key, label: CATEGORIES.find((c) => c.id === x.value)?.label ?? x.value, Icon: catIcon(x.value), color, onRemove: remove };
+    if (x.kind === "practical") return { key, label: PRACTICAL_LABELS[x.value], Icon: practicalIcon(x.value), color, onRemove: remove };
+    if (x.kind === "open") return { key, label: "Öppet nu", Icon: Clock, color, onRemove: remove };
+    if (x.kind === "late") return { key, label: "Öppet sent", Icon: Moon, color, onRemove: remove };
+    if (x.kind === "town") return { key, label: x.value.name, Icon: MapPin, color, onRemove: remove };
+    if (x.kind === "when") return { key, label: WHEN_LABEL[x.value].replace(/^./, (c) => c.toUpperCase()), Icon: CalendarDays, color, onRemove: remove };
+    return { key, label: "Evenemang", Icon: CalendarDays, color, onRemove: remove };
   });
+  // Ringens färg: det viktigaste söket förstått (kategorin först)
+  const lead = parsed.intents.find((x) => x.kind === "category")
+    ?? parsed.intents.find((x) => x.kind === "practical")
+    ?? parsed.intents.find((x) => x.kind === "late" || x.kind === "open")
+    ?? parsed.intents[0];
+  const tint = intentTint(lead, scheme);
 
   if (eventsOnly) {
     const n = events.length;
     return {
       kind: "summary",
       Icon: CalendarDays,
+      tint: TINT.events[scheme],
       title: `Evenemang${when?.kind === "when" ? ` ${WHEN_LABEL[when.value]}` : ""}`,
       subtitle: n === 0 ? "Inga inlagda än" : `${n} ${when ? "evenemang" : "kommande"}`,
       chips: chips.length > 1 ? chips : [],
@@ -817,11 +869,13 @@ function buildAnswer(
         key: id,
         label: `${CATEGORIES.find((c) => c.id === id)?.label ?? id}  ${n}`,
         Icon: catIcon(id),
+        color: CATEGORY_DOT[scheme][id],
         onPress: () => ask(`${CAT_QUERY[id]} i ${town.value.name}`),
       }));
     return {
       kind: "summary",
       Icon: MapPin,
+      tint: TINT.gold[scheme],
       title: town.value.name,
       subtitle: `${town.value.count} ${town.value.count === 1 ? "plats" : "platser"}${openCount ? `  ·  ${openCount} öppna nu` : ""}`,
       chips: catChips,
@@ -831,21 +885,25 @@ function buildAnswer(
 
   // Rubriken: vad man vill (Äta, Fika …), annars egenskapen eller tiden, och orten
   let base = cats.length > 0
-    ? cats.map((c, i) => (i === 0 ? CAT_TITLE[c] : CAT_TITLE[c].toLowerCase())).join(" & ")
+    ? cats.map((c, i) => (i === 0 ? CAT_TITLE[c] : CAT_TITLE[c].toLowerCase())).join(` ${parsed.conj} `)
     : practical.length > 0 ? practical.map((p) => PRACTICAL_LABELS[p]).join(" · ")
       : late ? "Öppet sent" : open ? "Öppet nu" : town?.kind === "town" ? town.value.name : "Platser";
   if (town?.kind === "town" && (cats.length > 0 || practical.length > 0 || open || late)) base += ` i ${town.value.name}`;
 
   const n = hits.length;
-  const onlyHotels = cats.length === 1 && cats[0] === "hotell-bb";
-  const noun = onlyHotels ? (n === 1 ? "boende" : "boenden") : n === 1 ? "ställe" : "ställen";
   const openNow = hits.filter((h) => h.open?.open).length;
   const nearest = hits.reduce<number | null>((min, h) => (h.km != null && (min == null || h.km < min) ? h.km : min), null);
-  const parts = [`${n} ${noun}`];
+  // Hur många av varje kategori ("2 aktiviteter · 3 boenden" — det är alla av båda, inte bara de
+  // som är båda), annars hur många ställen
+  const countOf = (c: CategoryId) => hits.filter((h) => placeCategories(h.place.category).has(c)).length;
+  const parts = cats.length > 0
+    ? cats.map((c) => { const k = countOf(c); return `${k} ${CAT_NOUN[c][k === 1 ? 0 : 1]}`; })
+    : [`${n} ${n === 1 ? "ställe" : "ställen"}`];
   if (!open && openNow > 0 && openNow < n) parts.push(`${openNow} öppna nu`);
   if (nearest != null) parts.push(`närmast ${distanceLabel(nearest)}`);
 
-  // Det som släpptes (uppgifter platserna inte fyllt i än) sägs rakt ut
+  // Det som släpptes (uppgifter platserna inte fyllt i än) och ord som inget hade sägs rakt ut
+  const notes: string[] = [];
   let note: string | null = null;
   const relaxedPractical = relaxed.flatMap((x) => (x.kind === "practical" ? [PRACTICAL_LABELS[x.value].toLowerCase()] : []));
   if (relaxedPractical.length > 0) {
@@ -856,14 +914,17 @@ function buildAnswer(
   } else if (relaxed.some((x) => x.kind === "late")) {
     note = "Inget har öppet efter 21 i dag, så alla visas.";
   }
+  if (note) notes.push(note);
+  if (ignored.length > 0) notes.push(`Hittade inget om ${ignored.map((w) => `”${w}”`).join(" eller ")}, så det räknades inte med.`);
 
   return {
     kind: "summary",
     Icon: cats.length > 0 ? catIcon(cats[0]) : practical.length > 0 ? practicalIcon(practical[0]) : late ? Moon : open ? Clock : MapPin,
+    tint,
     title: base,
     subtitle: n === 0 ? "Inga ställen än" : parts.join("  ·  "),
     chips,
-    note,
+    note: notes.length > 0 ? notes.join(" ") : null,
   };
 }
 
@@ -953,7 +1014,6 @@ const s = StyleSheet.create({
 
   townGrid: { flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 14, marginTop: 8 },
   townTile: { width: "47.5%", flexDirection: "row", alignItems: "center", gap: 12 },
-  townImage: { width: 56, height: 56, borderRadius: 12, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   townName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, letterSpacing: -0.2 },
   townDetail: { fontFamily: "Inter_400Regular", fontSize: 12.5 },
 
