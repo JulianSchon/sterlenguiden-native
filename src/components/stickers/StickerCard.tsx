@@ -9,16 +9,15 @@
  * Avståndet räknas ur användarens live-position (kartan följer den redan). Pulsen går bara medan
  * kortet är öppet — inget i bakgrunden.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  FlatList, View, Text, TouchableOpacity, StyleSheet, useWindowDimensions,
-  type NativeScrollEvent, type NativeSyntheticEvent,
-} from "react-native";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import Reanimated, {
-  Easing, interpolateColor, useAnimatedStyle, useSharedValue, withTiming,
+  Easing, interpolateColor, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence,
+  withTiming,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
-import { X } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
@@ -48,17 +47,13 @@ function warmth(d: number): string {
 }
 
 function StickerCard({
-  collectible, collectedAt, userLoc, active, onClose, onHeight,
+  collectible, collectedAt, userLoc, onClose,
 }: {
   collectible: Collectible;
   /** ISO-tid när skatten hittades, eller undefined om användaren inte har den */
   collectedAt: string | undefined;
   userLoc: { latitude: number; longitude: number } | null;
-  /** Kortet i mitten — bara det pulserar i telefonen, och bara det visar mätaren och knappen */
-  active: boolean;
   onClose: () => void;
-  /** Kortets höjd när det är färdigt utfällt (bara kortet i mitten rapporterar) */
-  onHeight?: (height: number) => void;
 }) {
   const router = useRouter();
   const { data: collectibles = [] } = useCollectibles();
@@ -83,29 +78,15 @@ function StickerCard({
   // "framme"-vibration när man kommer innanför radien
   const wasNear = useRef(near);
   useEffect(() => {
-    if (!active || found || distance == null) return;
+    if (found || distance == null) return;
     if (near && !wasNear.current) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     wasNear.current = near;
     if (near || distance > 300) return;
     const every = 700 + ((distance - STICKER_RADIUS_M) / (300 - STICKER_RADIUS_M)) * 1800;
     const id = setInterval(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}), every);
     return () => clearInterval(id);
-  }, [active, found, near, distance]);
+  }, [found, near, distance]);
 
-
-  // Lågt kort som standard. En ej hittad skatt i mitten fäller ut sin del (avståndet, mätaren,
-  // knappen) — den glider upp medan man sveper fram den, och ner igen när man sveper vidare
-  const [fixedH, setFixedH] = useState(0);
-  const [bodyH, setBodyH] = useState(0);
-  const unfold = useSharedValue(active ? 1 : 0);
-  useEffect(() => {
-    unfold.value = withTiming(active ? 1 : 0, { duration: 280, easing: Easing.out(Easing.cubic) });
-  }, [active, unfold]);
-  const unfoldStyle = useAnimatedStyle(() => ({ height: bodyH * unfold.value, opacity: unfold.value }));
-  useEffect(() => {
-    // Kortets padding (16 + 16) och kant (0,5 + 0,5) runt innehållet
-    if (active && fixedH > 0) onHeight?.(33 + fixedH + (found ? 0 : bodyH));
-  }, [active, fixedH, bodyH, found, onHeight]);
 
   const meterStyle = useAnimatedStyle(() => ({
     width: `${Math.max(4, meter.value * 100)}%`,
@@ -118,7 +99,6 @@ function StickerCard({
         <X size={18} color="rgba(255,255,255,0.6)" strokeWidth={2} />
       </TouchableOpacity>
 
-      <View onLayout={(e) => setFixedH(e.nativeEvent.layout.height)}>
       <View style={s.row}>
         <View style={s.art}>
           <StickerArt imagePath={collectible.imagePath} size={96} silhouette={!found} />
@@ -141,11 +121,9 @@ function StickerCard({
           {collectible.description ? <Text style={s.description}>{collectible.description}</Text> : null}
         </View>
       )}
-      </View>
 
       {!found && (
-        <Reanimated.View style={[s.unfold, unfoldStyle]}>
-        <View style={s.body} onLayout={(e) => setBodyH(e.nativeEvent.layout.height + 14)}>
+        <View style={s.body}>
           {distance == null ? (
             <Text style={s.hint}>Slå på platsåtkomst för att kunna hitta skatten.</Text>
           ) : (
@@ -172,7 +150,6 @@ function StickerCard({
             </View>
           )}
         </View>
-        </Reanimated.View>
       )}
 
       {revealing && (
@@ -190,20 +167,13 @@ function StickerCard({
   );
 }
 
-/** Kortens avstånd till skärmkanten och mellan korten (nästa skymtar 10 punkter, som platskorten) */
-const SIDE = 18;
-const GAP = 8;
-/** Luft i karusellen ovanför och under korten, så att deras skugga får plats */
-const PAD_T = 16;
-const PAD_B = 28;
-
 /**
- * Skattkorten i en karusell, som platskorten på kartan: den öppnade skatten och de närmaste runt
- * den. Svep åt sidan = nästa/föregående (korten följer fingret och snäpper på plats), och nästa
- * kort skymtar i kanten så man ser att det går. Korten kan vara olika höga — de står alla på
- * samma nederkant.
+ * Skattkorten, ett i taget: den öppnade skatten och de närmaste runt den. Svep åt sidan = nästa /
+ * föregående (kortet följer fingret, glider ut, och nästa glider in från andra hållet). Varje kort
+ * har sin egen höjd, och kartans nederkant (Googles logga) följer den. En pil i kanten som puttar
+ * till ibland visar att det finns fler att svepa till.
  */
-export function TreasureCarousel({
+export function TreasureCards({
   treasures, index, bottom, userLoc, collected, onIndexChange, onClose, onHeight,
 }: {
   treasures: Collectible[];
@@ -214,82 +184,103 @@ export function TreasureCarousel({
   collected: Map<string, string>;
   onIndexChange: (index: number) => void;
   onClose: () => void;
-  /** Hur högt kortet i mitten blir (kartans nederkant och Googles logga följer det) */
+  /** Kortets höjd (kartans nederkant och Googles logga följer den) */
   onHeight: (height: number) => void;
 }) {
   const { width } = useWindowDimensions();
-  const cardW = width - SIDE * 2;
-  const step = cardW + GAP;
-  const listRef = useRef<FlatList<Collectible>>(null);
+  const canPrev = index > 0;
+  const canNext = index < treasures.length - 1;
+  const treasure = treasures[index];
 
-  // Väljs en annan skatt utifrån (en nål trycks) glider karusellen dit; nya kort → direkt dit
-  const shown = useRef(index);
-  const shownList = useRef(treasures);
-  useLayoutEffect(() => {
-    const newCards = shownList.current !== treasures;
-    shownList.current = treasures;
-    if (index === shown.current && !newCards) return;
-    shown.current = index;
-    listRef.current?.scrollToOffset({ offset: index * step, animated: !newCards });
-  }, [index, treasures, step]);
-
-  const settle = useCallback((x: number) => {
-    const i = Math.max(0, Math.min(shownList.current.length - 1, Math.round(x / step)));
-    if (i === shown.current) return;
-    shown.current = i;
+  const tx = useSharedValue(0);
+  const stepDir = useRef<0 | 1 | -1>(0);
+  const step = (dir: 1 | -1) => {
+    stepDir.current = dir;
     Haptics.selectionAsync().catch(() => {});
-    onIndexChange(i);
-  }, [step, onIndexChange]);
+    onIndexChange(index + dir);
+  };
+  // Nästa skatt glider in från andra hållet
+  useLayoutEffect(() => {
+    if (!stepDir.current) return;
+    tx.value = stepDir.current * width * 0.6;
+    tx.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
+    stepDir.current = 0;
+  }, [treasure?.id, tx, width]);
+  const swipe = useMemo(() => Gesture.Pan()
+    .activeOffsetX([-14, 14])
+    .failOffsetY([-12, 12])
+    .onUpdate((e) => {
+      const can = e.translationX < 0 ? canNext : canPrev;
+      tx.value = can ? e.translationX : e.translationX * 0.25;
+    })
+    .onEnd((e) => {
+      const dir = e.translationX < -60 && canNext ? 1 : e.translationX > 60 && canPrev ? -1 : 0;
+      if (dir === 0) {
+        tx.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });
+        return;
+      }
+      tx.value = withTiming(-dir * width * 0.6, { duration: 150, easing: Easing.in(Easing.quad) }, (done) => {
+        if (done) runOnJS(step)(dir as 1 | -1);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [canPrev, canNext, width, tx, index]);
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }],
+    opacity: 1 - Math.min(0.6, Math.abs(tx.value) / width),
+  }));
 
+  if (!treasure) return null;
   return (
     <Reanimated.View
       entering={cardIn}
       exiting={cardOut}
-      style={[s.carousel, { bottom: bottom - PAD_B }]}
-      pointerEvents="box-none"
+      style={[s.cards, { bottom }]}
+      onLayout={(e) => onHeight(e.nativeEvent.layout.height)}
     >
-      <FlatList
-        ref={listRef}
-        data={treasures}
-        horizontal
-        keyExtractor={(t) => t.id}
-        renderItem={({ item, index: i }) => (
-          <View style={{ width: step, paddingHorizontal: GAP / 2 }}>
-            <StickerCard
-              collectible={item}
-              collectedAt={collected.get(item.id)}
-              userLoc={userLoc}
-              active={i === index}
-              onClose={onClose}
-              onHeight={i === index ? onHeight : undefined}
-            />
-          </View>
-        )}
-        extraData={[index, userLoc, collected]}
-        getItemLayout={(_, i) => ({ length: step, offset: i * step, index: i })}
-        initialScrollIndex={index}
-        snapToInterval={step}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        disableIntervalMomentum
-        scrollEnabled={treasures.length > 1}
-        showsHorizontalScrollIndicator={false}
-        onScrollEndDrag={(e: NativeSyntheticEvent<NativeScrollEvent & { targetContentOffset?: { x: number } }>) => {
-          const target = e.nativeEvent.targetContentOffset;
-          if (target) settle(target.x);
-        }}
-        onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.x)}
-        contentContainerStyle={{ paddingHorizontal: SIDE - GAP / 2, paddingTop: PAD_T, paddingBottom: PAD_B, alignItems: "flex-end" }}
-        initialNumToRender={2}
-        maxToRenderPerBatch={2}
-        windowSize={3}
-      />
+      <GestureDetector gesture={swipe}>
+        <Reanimated.View style={cardStyle}>
+          <StickerCard
+            key={treasure.id}
+            collectible={treasure}
+            collectedAt={collected.get(treasure.id)}
+            userLoc={userLoc}
+            onClose={onClose}
+          />
+        </Reanimated.View>
+      </GestureDetector>
+      {canPrev && <SwipeHint side="left" />}
+      {canNext && <SwipeHint side="right" />}
+    </Reanimated.View>
+  );
+}
+
+/** Pilen i kortets kant: puttar till åt sitt håll med jämna mellanrum, så man ser att det går att svepa */
+function SwipeHint({ side }: { side: "left" | "right" }) {
+  const nudge = useSharedValue(0);
+  useEffect(() => {
+    const out = { duration: 220, easing: Easing.out(Easing.quad) };
+    nudge.value = withRepeat(
+      withSequence(withDelay(2200, withTiming(1, out)), withTiming(0, { duration: 260 }), withTiming(1, out), withTiming(0, { duration: 260 })),
+      -1,
+      false,
+    );
+  }, [nudge]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: nudge.value * (side === "right" ? 5 : -5) }] }));
+  const Icon = side === "right" ? ChevronRight : ChevronLeft;
+  return (
+    <Reanimated.View pointerEvents="none" style={[s.swipeHint, side === "right" ? { right: -6 } : { left: -6 }, style]}>
+      <Icon size={18} color={PURPLE} strokeWidth={2.6} />
     </Reanimated.View>
   );
 }
 
 const s = StyleSheet.create({
-  carousel: { position: "absolute", left: 0, right: 0 },
+  cards: { position: "absolute", left: 12, right: 12 },
+  swipeHint: {
+    position: "absolute", top: "50%", marginTop: -16, width: 24, height: 32, borderRadius: 12,
+    alignItems: "center", justifyContent: "center", backgroundColor: "#121216",
+    borderWidth: 0.5, borderColor: "rgba(167,139,250,0.45)",
+  },
   card: {
     borderRadius: 22, padding: 16,
     backgroundColor: "#121216", borderWidth: 0.5, borderColor: "rgba(167,139,250,0.45)",
@@ -306,8 +297,6 @@ const s = StyleSheet.create({
   town: { fontFamily: "Inter_400Regular", fontSize: 13.5, color: MUTED, marginTop: 2 },
   placeLink: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: PURPLE, marginTop: 6 },
   body: { marginTop: 14, gap: 10 },
-  // Den utfällbara delen: växer från 0 till sin höjd; innehållet ligger kvar i full höjd under
-  unfold: { overflow: "hidden" },
   hint: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: MUTED },
   warmRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   warmText: { fontFamily: "Inter_700Bold", fontSize: 15, color: FG },

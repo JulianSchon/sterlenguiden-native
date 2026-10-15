@@ -606,7 +606,7 @@ function IntentTile({ label, sub, Icon, tint, onPress }: {
   return (
     <TouchableOpacity style={[s.tile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
       <View style={[s.tileIcon, { backgroundColor: tint.ring === "night" ? (scheme === "dark" ? "rgba(255,255,255,0.10)" : "rgba(35,28,15,0.08)") : withAlpha(color, scheme === "dark" ? 0.16 : 0.1) }]}>
-        <Icon size={19} color={color} fill={tint.ring === "night" ? color : "transparent"} strokeWidth={2.1} />
+        <Icon size={19} color={color} strokeWidth={2.1} />
       </View>
       <View style={s.tileBody}>
         <Text style={[s.tileLabel, { color: colors.text }]} numberOfLines={1}>{label}</Text>

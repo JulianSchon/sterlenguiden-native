@@ -63,7 +63,7 @@ import { pushOnce } from "@/lib/navigateOnce";
 import {
   CLUSTER, EMPTY_FILTERS, SUBCATEGORIES, countFilters, distanceLabel, filterPlaces, type MapFilters,
 } from "@/lib/mapFilters";
-import { TreasureCarousel } from "@/components/stickers/StickerCard";
+import { TreasureCards } from "@/components/stickers/StickerCard";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
   CENTER_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
@@ -976,7 +976,7 @@ export default function MapScreen() {
       )}
 
       {selectedSticker && treasureCards.length > 0 && (
-        <TreasureCarousel
+        <TreasureCards
           treasures={treasureCards}
           index={Math.max(0, treasureNeighbors.indexOf(selectedSticker.id))}
           bottom={cardBottom}
