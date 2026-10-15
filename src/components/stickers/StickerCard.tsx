@@ -48,15 +48,17 @@ function warmth(d: number): string {
 }
 
 function StickerCard({
-  collectible, collectedAt, userLoc, active, onClose,
+  collectible, collectedAt, userLoc, active, onClose, onHeight,
 }: {
   collectible: Collectible;
   /** ISO-tid när skatten hittades, eller undefined om användaren inte har den */
   collectedAt: string | undefined;
   userLoc: { latitude: number; longitude: number } | null;
-  /** Kortet i mitten — bara det pulserar i telefonen */
+  /** Kortet i mitten — bara det pulserar i telefonen, och bara det visar mätaren och knappen */
   active: boolean;
   onClose: () => void;
+  /** Kortets höjd när det är färdigt utfällt (bara kortet i mitten rapporterar) */
+  onHeight?: (height: number) => void;
 }) {
   const router = useRouter();
   const { data: collectibles = [] } = useCollectibles();
@@ -91,6 +93,20 @@ function StickerCard({
   }, [active, found, near, distance]);
 
 
+  // Lågt kort som standard. En ej hittad skatt i mitten fäller ut sin del (avståndet, mätaren,
+  // knappen) — den glider upp medan man sveper fram den, och ner igen när man sveper vidare
+  const [fixedH, setFixedH] = useState(0);
+  const [bodyH, setBodyH] = useState(0);
+  const unfold = useSharedValue(active ? 1 : 0);
+  useEffect(() => {
+    unfold.value = withTiming(active ? 1 : 0, { duration: 280, easing: Easing.out(Easing.cubic) });
+  }, [active, unfold]);
+  const unfoldStyle = useAnimatedStyle(() => ({ height: bodyH * unfold.value, opacity: unfold.value }));
+  useEffect(() => {
+    // Kortets padding (16 + 16) och kant (0,5 + 0,5) runt innehållet
+    if (active && fixedH > 0) onHeight?.(33 + fixedH + (found ? 0 : bodyH));
+  }, [active, fixedH, bodyH, found, onHeight]);
+
   const meterStyle = useAnimatedStyle(() => ({
     width: `${Math.max(4, meter.value * 100)}%`,
     backgroundColor: interpolateColor(meter.value, [0, 0.5, 1], ["#5B8DEF", "#E9A23B", "#FF6A2B"]),
@@ -102,6 +118,7 @@ function StickerCard({
         <X size={18} color="rgba(255,255,255,0.6)" strokeWidth={2} />
       </TouchableOpacity>
 
+      <View onLayout={(e) => setFixedH(e.nativeEvent.layout.height)}>
       <View style={s.row}>
         <View style={s.art}>
           <StickerArt imagePath={collectible.imagePath} size={96} silhouette={!found} />
@@ -118,13 +135,17 @@ function StickerCard({
         </View>
       </View>
 
-      {found ? (
+      {found && (
         <View style={s.body}>
           <Text style={s.foundAt}>Hittad {format(new Date(collectedAt!), "d MMMM yyyy", { locale: sv })}</Text>
           {collectible.description ? <Text style={s.description}>{collectible.description}</Text> : null}
         </View>
-      ) : (
-        <View style={s.body}>
+      )}
+      </View>
+
+      {!found && (
+        <Reanimated.View style={[s.unfold, unfoldStyle]}>
+        <View style={s.body} onLayout={(e) => setBodyH(e.nativeEvent.layout.height + 14)}>
           {distance == null ? (
             <Text style={s.hint}>Slå på platsåtkomst för att kunna hitta skatten.</Text>
           ) : (
@@ -151,6 +172,7 @@ function StickerCard({
             </View>
           )}
         </View>
+        </Reanimated.View>
       )}
 
       {revealing && (
@@ -192,7 +214,7 @@ export function TreasureCarousel({
   collected: Map<string, string>;
   onIndexChange: (index: number) => void;
   onClose: () => void;
-  /** Hur högt korten når över nederkanten (Googles logga ska ligga ovanför) */
+  /** Hur högt kortet i mitten blir (kartans nederkant och Googles logga följer det) */
   onHeight: (height: number) => void;
 }) {
   const { width } = useWindowDimensions();
@@ -225,7 +247,6 @@ export function TreasureCarousel({
       exiting={cardOut}
       style={[s.carousel, { bottom: bottom - PAD_B }]}
       pointerEvents="box-none"
-      onLayout={(e) => onHeight(e.nativeEvent.layout.height - PAD_B)}
     >
       <FlatList
         ref={listRef}
@@ -240,6 +261,7 @@ export function TreasureCarousel({
               userLoc={userLoc}
               active={i === index}
               onClose={onClose}
+              onHeight={i === index ? onHeight : undefined}
             />
           </View>
         )}
@@ -284,6 +306,8 @@ const s = StyleSheet.create({
   town: { fontFamily: "Inter_400Regular", fontSize: 13.5, color: MUTED, marginTop: 2 },
   placeLink: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: PURPLE, marginTop: 6 },
   body: { marginTop: 14, gap: 10 },
+  // Den utfällbara delen: växer från 0 till sin höjd; innehållet ligger kvar i full höjd under
+  unfold: { overflow: "hidden" },
   hint: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: MUTED },
   warmRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   warmText: { fontFamily: "Inter_700Bold", fontSize: 15, color: FG },
