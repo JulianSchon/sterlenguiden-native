@@ -145,12 +145,18 @@ export const EventResultRow = memo(function EventResultRow({ event, tokens, onPr
   );
 });
 
-/** Vad som finns i en ort: en prick per slags ställe, i kartans färger (flest först) */
+/** Prickarnas ordning: runt färgcirkeln (rött → orange → gult → grönt → blått → lila → silver), lugnt för ögat */
+const HUE_ORDER: CategoryId[] = [
+  "mat-dryck", "butiker", "cafe-bageri", "natur-upplevelser", "aktiviteter", "hotell-bb", "sevardheter", "hantverk-service",
+];
+
+/** Vad som finns i en ort: en prick per slags ställe, i kartans färger och i färgordning */
 export function CategoryDots({ cats }: { cats: CategoryId[] }) {
   const { scheme } = useTheme();
+  const sorted = [...cats].sort((a, b) => HUE_ORDER.indexOf(a) - HUE_ORDER.indexOf(b));
   return (
     <View style={s.dots}>
-      {cats.map((c) => <View key={c} style={[s.dotLg, { backgroundColor: CATEGORY_DOT[scheme][c] }]} />)}
+      {sorted.map((c) => <View key={c} style={[s.dotLg, { backgroundColor: CATEGORY_DOT[scheme][c] }]} />)}
     </View>
   );
 }
