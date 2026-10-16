@@ -11,7 +11,7 @@
  * prickarna visar att det finns fler. Svepet startar inte vid skärmens kant, den zonen
  * är reserverad för iOS "tillbaka".
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -76,10 +76,19 @@ export default function OffersScreen() {
 
   // Vilken biljett som är öppen och var dess sidoband satt (bandet flyger därifrån och tillbaka)
   // Rivkantens läge, delas mellan panelen (skriver) och biljetterna (läser)
-  const edge: TearEdge = { amt: useSharedValue(0), prog: useSharedValue(0), active: useSharedValue(0) };
+  const edgeAmt = useSharedValue(0);
+  const edgeProg = useSharedValue(0);
+  const edgeActive = useSharedValue(0);
+  // Samma objekt hela tiden, så biljetterna (memo) inte ritas om när sidan gör det
+  const edge: TearEdge = useMemo(() => ({ amt: edgeAmt, prog: edgeProg, active: edgeActive }), [edgeAmt, edgeProg, edgeActive]);
   // När listan senast scrollade: ett nudd på en biljett medan den glider stoppar bara listan
   const scrollAt = useSharedValue(0);
   const [open, setOpen] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
+  const openTicket = useCallback((offer: Offer, origin: OriginRect | null) => setOpen({ offer, origin }), []);
+  const closeDrawer = useCallback(() => setOpen(null), []);
+  const openPlace = useCallback(() => {
+    if (open) router.push(`/place/${open.offer.place_id}` as never);
+  }, [open, router]);
   // Panelen byggs i förväg (osynlig) strax efter att sidan öppnats, så rivningen alltid syns —
   // men inte medan sidan själv glider fram
   const [drawerReady, setDrawerReady] = useState(false);
@@ -200,8 +209,8 @@ export default function OffersScreen() {
           focusOffer={open?.offer}
           origin={open?.origin}
           edge={edge}
-          onOpenPlace={() => open && router.push(`/place/${open.offer.place_id}` as any)}
-          onClose={() => setOpen(null)}
+          onOpenPlace={openPlace}
+          onClose={closeDrawer}
         />
       }
       onScroll={(y) => { scrollY.current = y; scrollAt.value = Date.now(); }}
@@ -285,7 +294,7 @@ export default function OffersScreen() {
                         setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
                       }}
                     >
-                      <OfferPage data={page} openOfferId={open?.origin ? open.offer.id : null} edge={edge} scrollAt={scrollAt} onOpen={(offer, origin) => setOpen({ offer, origin })} />
+                      <OfferPage data={page} openOfferId={open?.origin ? open.offer.id : null} edge={edge} scrollAt={scrollAt} onOpen={openTicket} />
                     </View>
                   </View>
                 )

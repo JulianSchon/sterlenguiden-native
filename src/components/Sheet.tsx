@@ -35,16 +35,35 @@ export function Sheet({
   //
   // Glidningen startar när modalen faktiskt visas (onShow), inte när den byggs — startade den direkt
   // hann de första bildrutorna gå förlorade medan modalen kom fram, och rutan såg ut att hacka upp.
-  // Rutan glider sin egen höjd (inte hela skärmens), så rörelsen blir lugn.
+  // Rutan glider sin egen höjd (inte hela skärmens), så rörelsen blir lugn. Glidningen väntar tills
+  // höjden är mätt, och sträckan ändras aldrig medan rutan glider (då hade den hoppat).
   const [mounted, setMounted] = useState(visible);
   const presented = useRef(false);
+  const measured = useRef(false);
+  const waiting = useRef(false);
   const backdrop = useSharedValue(0);
   const progress = useSharedValue(0);
   const travel = useSharedValue(winH);
+  const gliding = useSharedValue(false);
 
   const animateIn = () => {
+    if (!measured.current) {
+      waiting.current = true;
+      return;
+    }
+    gliding.value = true;
     backdrop.value = withTiming(1, { duration: 240 });
-    progress.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+    progress.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }, () => {
+      gliding.value = false;
+    });
+  };
+  const onSheetLayout = (h: number) => {
+    if (!gliding.value) travel.value = h + 24;
+    measured.current = true;
+    if (waiting.current) {
+      waiting.current = false;
+      animateIn();
+    }
   };
 
   useEffect(() => {
@@ -53,15 +72,20 @@ export function Sheet({
       if (mounted && presented.current) animateIn();
       else setMounted(true);
     } else if (mounted) {
+      waiting.current = false;
+      gliding.value = true;
       backdrop.value = withTiming(0, { duration: 200 });
       progress.value = withTiming(0, { duration: 240, easing: Easing.in(Easing.quad) }, (done) => {
+        gliding.value = false;
         if (done) runOnJS(setMounted)(false);
       });
     }
   }, [visible]);
 
   useEffect(() => {
-    if (!mounted) presented.current = false;
+    if (mounted) return;
+    presented.current = false;
+    measured.current = false;
   }, [mounted]);
 
   // Tangentbordet ska stänga SAMTIDIGT som modalen börjar tonas bort, inte snärta undan efteråt
@@ -104,7 +128,7 @@ export function Sheet({
             formulär) i stället för att rutan hoppar direkt till sin nya storlek. */}
         <Reanimated.View
           layout={LinearTransition.duration(220)}
-          onLayout={(e) => { travel.value = e.nativeEvent.layout.height + 24; }}
+          onLayout={(e) => onSheetLayout(e.nativeEvent.layout.height)}
           style={[
             centered ? s.centerSheet : s.sheet,
             tall && !centered && { height: "85%" },

@@ -11,7 +11,7 @@
  * Bilden får sticka ut nedåt när den glider; innehållet under den har en hel bakgrund och ligger
  * ovanpå. Toningen sitter fast i bildytans nederkant, så övergången är mjuk hela tiden.
  */
-import { memo, useCallback, useEffect, useRef } from "react";
+import { forwardRef, memo, useCallback, useImperativeHandle, useRef } from "react";
 import {
   Pressable, StyleSheet, View, useWindowDimensions, type FlatList, type NativeScrollEvent, type NativeSyntheticEvent,
 } from "react-native";
@@ -29,39 +29,38 @@ const FADE_H = 130;
 const DOT = 6;
 const DOT_ON = 18;
 
-export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpen, Icon, topInset }: {
+/** Sidan hoppar till en bild (när helskärmen stängs på en annan bild än den man öppnade) */
+export interface PlaceHeroHandle { show: (index: number) => void }
+
+export const PlaceHero = memo(forwardRef<PlaceHeroHandle, {
   images: string[];
   height: number;
   /** Sidans scroll */
   scrollY: SharedValue<number>;
-  /** Bilden som visas (sidan hoppar hit när helskärmen stängs) */
-  index: number;
-  onIndexChange: (index: number) => void;
   onOpen: (index: number) => void;
   /** Kategorins ikon, om platsen saknar bilder */
   Icon: LucideIcon;
   topInset: number;
-}) {
+}>(function PlaceHero({ images, height, scrollY, onOpen, Icon, topInset }, ref) {
   const { width } = useWindowDimensions();
   const { colors, scheme } = useTheme();
   const listRef = useRef<FlatList<string>>(null);
-  const shown = useRef(index);
-  const scrollX = useSharedValue(index * width);
+  // Bilden som visas hålls här (inte i sidans state), så att ett svep inte ritar om hela sidan
+  const shown = useRef(0);
+  const scrollX = useSharedValue(0);
 
-  // Bytt bild utifrån (helskärmen stängdes på en annan bild): hoppa dit utan glidning
-  useEffect(() => {
-    if (index === shown.current) return;
-    shown.current = index;
-    listRef.current?.scrollToOffset({ offset: index * width, animated: false });
-  }, [index, width]);
+  useImperativeHandle(ref, () => ({
+    show: (index: number) => {
+      if (index === shown.current) return;
+      shown.current = index;
+      listRef.current?.scrollToOffset({ offset: index * width, animated: false });
+    },
+  }), [width]);
 
   const onScrollX = useAnimatedScrollHandler({ onScroll: (e) => { scrollX.value = e.contentOffset.x; } });
   const onMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (i === shown.current) return;
-    shown.current = i;
-    onIndexChange(i);
-  }, [width, onIndexChange]);
+    shown.current = Math.round(e.nativeEvent.contentOffset.x / width);
+  }, [width]);
 
   const depth = useAnimatedStyle(() => {
     const y = scrollY.value;
@@ -84,7 +83,6 @@ export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpe
             horizontal
             pagingEnabled
             scrollEnabled={images.length > 1}
-            initialScrollIndex={index}
             getItemLayout={(_, i) => ({ length: width, offset: i * width, index: i })}
             keyExtractor={(uri, i) => `${i}-${uri}`}
             renderItem={renderItem}
@@ -128,7 +126,7 @@ export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpe
       )}
     </View>
   );
-}
+}));
 
 /** En prick: utdragen och vit för bilden man står på, grå för de andra — följer svepet mjukt */
 function Dot({ i, scrollX, width, dark }: { i: number; scrollX: SharedValue<number>; width: number; dark: boolean }) {

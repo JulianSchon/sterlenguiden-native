@@ -7,40 +7,38 @@
  * Uppifrån: bilderna (svep, tryck = helskärm med zoom), loggan, namnet och läget just nu
  * ("Öppet · stänger 17"), knapparna (Ring, Hemsida, Karta …), "Jag är här!" när man står på
  * platsen, Om platsen, Österlenpasset-biljetterna (rivs som på Förmåner), vänner som varit här,
- * Praktiskt, Öppettider, Evenemang här, Hitta hit (karta, hållplats och en skatt i närheten),
- * Kontakt, I närheten och "Stämmer något inte?". Längst ner, alltid synlig: hjärtat och
- * huvudknappen — Boka om platsen tar bokningar, annars Hitta hit.
+ * Praktiskt, Öppettider, Evenemang här, Hitta hit, Skatt i närheten, Kontakt, I närheten och
+ * "Stämmer något inte?". Längst ner, alltid synlig: hjärtat och huvudknappen — Boka om platsen tar
+ * bokningar, annars Hitta hit.
  *
- * Det som ligger långt ner (kartan, listorna) byggs först när sidan glidit fram, så inget hackar
- * medan den öppnas.
+ * Laggfritt: sidan själv ritas nästan aldrig om. Det som ändras ofta sköter sitt eget läge och ritar
+ * bara om sig självt:
+ * - toppraden och statusraden (när bilden scrollats bort) och hjärtat (PlaceChrome)
+ * - bildspelet (vilken bild som visas)
+ * - panelerna och helskärmen, som öppnas via ref (PlaceOverlays)
+ * - den lilla kartan (byggs när man närmar sig den)
+ * Innehållet (PlaceContent) ritas bara om när ny data kommer. När hela sidan ritades om varje gång
+ * toppraden bytte läge hackade scrollen. Det som ligger långt ner byggs först när sidan glidit fram.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Share, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, {
-  Extrapolation, FadeInDown, interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle,
-  useSharedValue, withDelay, withSequence, withSpring, withTiming,
+  FadeInDown, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useSharedValue, type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
-import { StatusBar } from "expo-status-bar";
-import { BlurView } from "expo-blur";
 import { Image as ExpoImage } from "expo-image";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import {
-  ArrowLeft, Bus, CalendarCheck, Check, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone, Plus,
-  type LucideIcon,
-} from "lucide-react-native";
+import { Bus, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone } from "lucide-react-native";
 import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useEvents, type Event } from "@/hooks/useEvents";
-import { useCollected, useCollectibles } from "@/hooks/useCollectibles";
-import { useFriendsAtPlace } from "@/hooks/useFriendsAtPlace";
-import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
+import { useCollected, useCollectibles, type Collectible } from "@/hooks/useCollectibles";
+import { useFriendsAtPlace, type FriendAtPlace } from "@/hooks/useFriendsAtPlace";
 import { useKnownLocation } from "@/hooks/useUserLocation";
 import { CATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -48,39 +46,42 @@ import { distanceMeters } from "@/lib/checkin";
 import { dayKey, lastDay } from "@/lib/events";
 import { openEvent } from "@/lib/eventSheet";
 import { distanceLabel, parseAmenities, PRACTICAL } from "@/lib/mapFilters";
-import { offerEligibility, type Offer } from "@/lib/offers";
+import { offerEligibility, type Offer, type RedemptionRow } from "@/lib/offers";
 import { hoursStatus, weekRows } from "@/lib/openingHours";
 import { openInfo, placeCategories } from "@/lib/search";
 import { pushOnce } from "@/lib/navigateOnce";
 import {
   callPhone, copyText, openDirections, openExternal, openWebsite, sendEmail, siteName, withProtocol,
 } from "@/lib/placeLinks";
-import { ShareIcon } from "@/components/ShareIcon";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
-import { HeartButton, LikeBurst, useLikeBurst } from "@/components/LikeHeart";
+import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import { CATEGORY_DOT } from "@/components/search/SearchParts";
 import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
 import { OfferTicket, TICKET_H } from "@/components/offers/OfferTicket";
 import { CheckInSection } from "@/components/checkin/CheckInSection";
-import { SaveToListSheet } from "@/components/lists/SaveToListSheet";
-import { PlaceHero } from "@/components/place/PlaceHero";
-import { PhotoViewer } from "@/components/place/PhotoViewer";
+import { PlaceHero, type PlaceHeroHandle } from "@/components/place/PlaceHero";
 import { PlaceHours, useHoursColors } from "@/components/place/PlaceHours";
 import { PlaceMiniMap } from "@/components/place/PlaceMiniMap";
 import { EventsHere, NearbyRail, type NearbyItem } from "@/components/place/PlaceNearby";
 import {
   AboutText, ActionRow, Amenities, ContactList, GUTTER, Section, type ContactRow, type PlaceAction,
 } from "@/components/place/PlaceSections";
-import { FriendsHere, FriendsSheet, TreasureHint } from "@/components/place/PlaceSocial";
-import { ReportSheet } from "@/components/place/ReportSheet";
+import { FriendsHere, TreasureHint } from "@/components/place/PlaceSocial";
+import {
+  BackButton, BOTTOM_BAR_H, BottomBar, PlaceStatusBar, Toast, TOP_BAR_H, TopBar, type ToastHandle,
+} from "@/components/place/PlaceChrome";
+import {
+  PhotoViewerHost, PlaceSheets, type PhotoViewerHandle, type PlaceSheet, type PlaceSheetsHandle,
+} from "@/components/place/PlaceOverlays";
 
+// Alltid samma tomma listor medan något laddas (nya tomma listor vid varje uppritning räknade om allt)
 const NO_PLACES: Place[] = [];
 const NO_EVENTS: Event[] = [];
 const NO_OFFERS: Offer[] = [];
-const TOP_BAR_H = 60;
-/** Glascirklarna i toppraden */
-const ROUND = 46;
+const NO_REDEMPTIONS: RedemptionRow[] = [];
+const NO_COLLECTIBLES: Collectible[] = [];
+const NO_FRIENDS: FriendAtPlace[] = [];
 const LOGO = 76;
 /** Så nära en skatt får ligga för att visas på platssidan */
 const TREASURE_NEAR_M = 1500;
@@ -88,8 +89,11 @@ const NEARBY_COUNT = 8;
 const EVENTS_SHOWN = 3;
 
 /** Bilderna ur image_url (flera adresser skilda med komma — Wix-adresser har komman i sig) */
-const imagesOf = (place: Place | undefined) =>
-  (place?.image_url ?? "").split(/,(?=\s*https?:\/\/)/).map((u) => u.trim()).filter(Boolean);
+const imagesOf = (imageUrl: string | null | undefined) =>
+  (imageUrl ?? "").split(/,(?=\s*https?:\/\/)/).map((u) => u.trim()).filter(Boolean);
+
+/** Bildens höjd överst */
+const heroHeight = (width: number) => Math.round(Math.min(width * 0.95, 420));
 
 /** Hela raden (även det listan inte hämtar), om i bakgrunden */
 function usePlaceDetail(id: number) {
@@ -118,24 +122,14 @@ export default function PlaceScreen() {
 }
 
 function PlacePage({ place, places }: { place: Place; places: Place[] }) {
-  const router = useRouter();
   const navigation = useNavigation();
-  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-  const { width, height: winH } = useWindowDimensions();
-  const { colors, scheme } = useTheme();
-  const dark = scheme === "dark";
-  const hoursTint = useHoursColors();
-  const heroH = Math.round(Math.min(width * 0.95, 420));
-
-  // ── Data ──
+  const { width } = useWindowDimensions();
+  const { colors } = useTheme();
+  const heroH = heroHeight(width);
+  const collapseAt = heroH - insets.top - TOP_BAR_H;
+  // Bara för att veta om erbjudandepanelen behövs (innehållet läser samma lista)
   const { data: offers = NO_OFFERS } = useOffers(place.id);
-  const { data: redemptions = [] } = useOfferRedemptions();
-  const { data: events = NO_EVENTS } = useEvents();
-  const { data: collectibles = [] } = useCollectibles();
-  const { data: collected } = useCollected();
-  const { data: friends = [] } = useFriendsAtPlace(place.id);
-  const me = useKnownLocation();
 
   // Det som ligger långt ner byggs när sidan glidit fram (eller efter en stund)
   const [later, setLater] = useState(false);
@@ -147,25 +141,7 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
     return () => { unsub(); clearTimeout(t); };
   }, [navigation]);
 
-  // ── Hjärtat: visas direkt, sparas på servern, och resten av appen uppdateras när man lämnar sidan ──
-  const { data: favorites = [] } = useFavorites();
-  const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
-  const saved = savedOverride ?? favorites.some((f) => f.place_id === place.id);
-  const favDirty = useRef(false);
-  const toggleSave = useCallback(() => {
-    const next = !saved;
-    favDirty.current = true;
-    setSavedOverride(next);
-    savePlaceFavorite(place.id, next).catch(() => setSavedOverride(!next));
-  }, [saved, place.id]);
-  useFocusEffect(useCallback(() => () => {
-    if (!favDirty.current) return;
-    favDirty.current = false;
-    queryClient.invalidateQueries({ queryKey: ["favorites"] }).then(() => setSavedOverride(null));
-  }, [queryClient]));
-  const { burst, show: showBurst } = useLikeBurst();
-
-  // ── Scroll: bildens djup, toppraden som tonar in, kartan som byggs när man närmar sig ──
+  // Scrollen läses bara på UI-tråden (bildens djup, toppraden, kartan) — ingen omritning medan man scrollar
   const scrollY = useSharedValue(0);
   // När sidan senast scrollade: ett nudd på en biljett medan sidan glider stoppar bara sidan
   const scrollAt = useSharedValue(0);
@@ -175,53 +151,122 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
       scrollAt.value = Date.now();
     },
   });
-  const collapseAt = heroH - insets.top - TOP_BAR_H;
-  const barStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [collapseAt - 60, collapseAt - 10], [0, 1], Extrapolation.CLAMP),
-  }));
-  const [barSolid, setBarSolid] = useState(false);
-  useAnimatedReaction(
-    () => scrollY.value > collapseAt - 30,
-    (solid, prev) => { if (solid !== prev) runOnJS(setBarSolid)(solid); },
-  );
-  const mapY = useSharedValue(Number.MAX_SAFE_INTEGER);
-  const [mapNear, setMapNear] = useState(false);
-  useAnimatedReaction(
-    () => scrollY.value + winH * 1.6 > mapY.value,
-    (near, prev) => { if (near && !prev) runOnJS(setMapNear)(true); },
-  );
 
-  // ── Bilderna ──
-  const images = useMemo(() => imagesOf(place), [place]);
-  const [heroIndex, setHeroIndex] = useState(0);
-  const [viewer, setViewer] = useState<number | null>(null);
+  // Det som öppnas ovanpå sidan, via ref (bara det ritas om)
+  const heroRef = useRef<PlaceHeroHandle>(null);
+  const viewerRef = useRef<PhotoViewerHandle>(null);
+  const sheetsRef = useRef<PlaceSheetsHandle>(null);
+  const toastRef = useRef<ToastHandle>(null);
+  const openViewer = useCallback((i: number) => viewerRef.current?.open(i), []);
+  const onViewerClose = useCallback((i: number) => heroRef.current?.show(i), []);
+  const openSheet = useCallback((sheet: PlaceSheet) => sheetsRef.current?.open(sheet), []);
+  const openSave = useCallback(() => openSheet("save"), [openSheet]);
+  const showToast = useCallback((text: string) => toastRef.current?.show(text), []);
+  const { burst, show: showBurst } = useLikeBurst();
 
-  // ── Paneler ──
-  const [saveOpen, setSaveOpen] = useState(false);
-  const [friendsOpen, setFriendsOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportKey, setReportKey] = useState(0);
-  const [eventsAll, setEventsAll] = useState(false);
-
-  // ── Erbjudandena: biljetterna rivs som på Förmåner ──
+  // Erbjudandena: biljetterna rivs som på Förmåner
   const edgeAmt = useSharedValue(0);
   const edgeProg = useSharedValue(0);
   const edgeActive = useSharedValue(0);
   const edge: TearEdge = useMemo(() => ({ amt: edgeAmt, prog: edgeProg, active: edgeActive }), [edgeAmt, edgeProg, edgeActive]);
   const [openOffer, setOpenOffer] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
-  const ticketList = useMemo(() => offers
-    .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions).canUse }))
-    .sort((a, b) => Number(a.used) - Number(b.used)), [offers, redemptions]);
+  const onOpenOffer = useCallback((offer: Offer, origin: OriginRect | null) => setOpenOffer({ offer, origin }), []);
+  const closeOffer = useCallback(() => setOpenOffer(null), []);
 
-  // ── Kopiera (långt tryck) ──
-  const toast = useToast();
-  const copy = useCallback(async (text: string) => {
-    const ok = await copyText(text);
-    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    toast.show(ok ? "Kopierat" : "Det gick inte att kopiera");
-  }, [toast]);
+  const images = useMemo(() => imagesOf(place.image_url), [place.image_url]);
+  const HeroIcon = findCategory(place.category)?.icon ?? MapPin;
 
-  // ── Platsen ──
+  return (
+    <View style={[s.screen, { backgroundColor: colors.bg }]}>
+      <PlaceStatusBar scrollY={scrollY} collapseAt={collapseAt} overImage={images.length > 0} />
+      <Reanimated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: BOTTOM_BAR_H + 36 + insets.bottom }}
+      >
+        <PlaceHero
+          ref={heroRef}
+          images={images}
+          height={heroH}
+          scrollY={scrollY}
+          onOpen={openViewer}
+          Icon={HeroIcon}
+          topInset={insets.top}
+        />
+        <PlaceContent
+          place={place}
+          places={places}
+          later={later}
+          heroH={heroH}
+          scrollY={scrollY}
+          scrollAt={scrollAt}
+          edge={edge}
+          openOfferId={openOffer?.origin ? openOffer.offer.id : null}
+          onOpenOffer={onOpenOffer}
+          openSheet={openSheet}
+          showToast={showToast}
+        />
+      </Reanimated.ScrollView>
+
+      <TopBar place={place} scrollY={scrollY} collapseAt={collapseAt} onSave={openSave} />
+      <BottomBar place={place} onBurst={showBurst} />
+      <Toast ref={toastRef} />
+
+      <PhotoViewerHost ref={viewerRef} images={images} onClose={onViewerClose} />
+      <PlaceSheets ref={sheetsRef} placeId={place.id} />
+      {/* Byggs i förväg (osynlig) när sidan glidit fram, så rivningen alltid syns från första bildrutan */}
+      {later && offers.length > 0 && (
+        <OfferDrawer
+          visible={openOffer != null}
+          placeId={place.id}
+          focusOffer={openOffer?.offer}
+          origin={openOffer?.origin}
+          edge={edge}
+          onClose={closeOffer}
+        />
+      )}
+      <LikeBurst burst={burst} />
+    </View>
+  );
+}
+
+/** Det som dyker upp när datan kommit: samma lugna inglidning som Rise, utan väntan */
+const RISE_IN = (i: number) =>
+  FadeInDown.withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] }).duration(380).delay(i * 60);
+
+/**
+ * Allt under bilden. Ritas bara om när ny data kommer (eller en biljett öppnas) — aldrig av scroll,
+ * paneler eller hjärtat. Allt har hel bakgrund och ligger ovanpå bilden (som glider in under).
+ */
+const PlaceContent = memo(function PlaceContent({
+  place, places, later, heroH, scrollY, scrollAt, edge, openOfferId, onOpenOffer, openSheet, showToast,
+}: {
+  place: Place;
+  places: Place[];
+  later: boolean;
+  heroH: number;
+  scrollY: SharedValue<number>;
+  scrollAt: SharedValue<number>;
+  edge: TearEdge;
+  /** Biljetten vars band är bortrivet just nu */
+  openOfferId: string | null;
+  onOpenOffer: (offer: Offer, origin: OriginRect | null) => void;
+  openSheet: (sheet: PlaceSheet) => void;
+  showToast: (text: string) => void;
+}) {
+  const router = useRouter();
+  const { colors, scheme } = useTheme();
+  const hoursTint = useHoursColors();
+
+  const { data: offers = NO_OFFERS } = useOffers(place.id);
+  const { data: redemptions = NO_REDEMPTIONS } = useOfferRedemptions();
+  const { data: events = NO_EVENTS } = useEvents();
+  const { data: collectibles = NO_COLLECTIBLES } = useCollectibles();
+  const { data: collected } = useCollected();
+  const { data: friends = NO_FRIENDS } = useFriendsAtPlace(place.id);
+  const me = useKnownLocation();
+
   const hasCoords = place.lat != null && place.lng != null;
   const catIds = useMemo(() => [...placeCategories(place.category)], [place.category]);
   const mainCat = findCategory(place.category);
@@ -230,17 +275,16 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
   const status = isHotel ? null : hoursStatus(hours);
   const hasHours = weekRows(hours).length > 0;
   const myKm = me && hasCoords ? distanceMeters(me.lat, me.lng, place.lat!, place.lng!) / 1000 : null;
-  const transit = (place as Place & { transit_stop_name?: string | null }).transit_stop_name;
-  const bookUrl = place.book_url;
   const website = place.website_url;
+
   const amenities = useMemo(() => {
     const a = parseAmenities((place as Place & { amenities?: unknown }).amenities);
     return PRACTICAL.filter((p) => p.id !== "openNow" && a[p.id] === true);
   }, [place]);
 
-  const showOnMap = useCallback(() => {
-    router.dismissTo({ pathname: "/(tabs)/map", params: { place: String(place.id) } } as never);
-  }, [router, place.id]);
+  const ticketList = useMemo(() => offers
+    .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions).canUse }))
+    .sort((a, b) => Number(a.used) - Number(b.used)), [offers, redemptions]);
 
   const upcoming = useMemo(() => {
     const today = dayKey(new Date());
@@ -270,7 +314,17 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
     return candidates[0] ?? null;
   }, [collectibles, place, hasCoords]);
 
-  // ── Knapparna ──
+  const showOnMap = useCallback(() => {
+    router.dismissTo({ pathname: "/(tabs)/map", params: { place: String(place.id) } } as never);
+  }, [router, place.id]);
+
+  // Långt tryck på telefon, e-post och hemsida kopierar
+  const copy = useCallback(async (text: string) => {
+    const ok = await copyText(text);
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    showToast(ok ? "Kopierat" : "Det gick inte att kopiera");
+  }, [showToast]);
+
   const actions = useMemo((): PlaceAction[] => {
     const out: PlaceAction[] = [];
     if (place.phone) out.push({ key: "call", label: "Ring", Icon: Phone, onPress: () => callPhone(place.phone!) });
@@ -282,6 +336,7 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
     return out;
   }, [place, website, hasCoords, showOnMap]);
 
+  // Telefon, e-post och hemsidans namn skrivs ut; Instagram och Facebook bara som namn
   const contact = useMemo((): ContactRow[] => {
     const out: ContactRow[] = [];
     if (place.phone) out.push({ key: "phone", Icon: Phone, label: "Telefon", value: place.phone, onPress: () => callPhone(place.phone!), onLongPress: () => copy(place.phone!) });
@@ -292,287 +347,206 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
     return out;
   }, [place, website, copy]);
 
-  // Huvudknappen: Boka om platsen tar bokningar, annars Hitta hit
-  const primary: { label: string; Icon: LucideIcon; onPress: () => void } | null = bookUrl
-    ? {
-      label: mainCat?.id === "mat-dryck" ? "Boka bord" : mainCat?.id === "hotell-bb" ? "Boka rum" : "Boka",
-      Icon: CalendarCheck,
-      onPress: () => openWebsite(bookUrl),
-    }
-    : hasCoords ? { label: "Hitta hit", Icon: Navigation, onPress: () => openDirections(place.lat!, place.lng!) } : null;
-
-  const share = () => {
-    const town = place.nearest_town ? `, ${place.nearest_town}` : "";
-    const link = website ? `\n${withProtocol(website)}` : "";
-    Share.share({ message: `${place.name}${town}${link}` }).catch(() => {});
-  };
-
-  const onOpenFriend = (userId: string) => {
-    setFriendsOpen(false);
-    router.push({ pathname: "/friend/[id]", params: { id: userId } });
-  };
-
   return (
-    <View style={[s.screen, { backgroundColor: colors.bg }]}>
-      {/* Ljus statusrad över bilden och i helskärm; temats när toppraden tagit över */}
-      <StatusBar style={viewer != null || dark || (!barSolid && images.length > 0) ? "light" : "dark"} />
-      <Reanimated.ScrollView
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}
-      >
-        <PlaceHero
-          images={images}
-          height={heroH}
-          scrollY={scrollY}
-          index={heroIndex}
-          onIndexChange={setHeroIndex}
-          onOpen={setViewer}
-          Icon={mainCat?.icon ?? MapPin}
-          topInset={insets.top}
-        />
-
-        {/* Allt under bilden har hel bakgrund och ligger ovanpå den (bilden glider in under) */}
-        <View style={{ backgroundColor: colors.bg }}>
-          <Rise index={0}>
-            <View style={s.identity}>
-              <Logo place={place} catId={mainCat?.id} />
-              <Text style={[s.name, { color: colors.text }]}>{place.name}</Text>
-              <View style={s.meta}>
-                {catIds.map((c) => (
-                  <View key={c} style={s.metaItem}>
-                    <View style={[s.dot, { backgroundColor: CATEGORY_DOT[scheme][c] }]} />
-                    <Text style={[s.metaText, { color: colors.muted }]}>{CATEGORIES.find((d) => d.id === c)?.label}</Text>
-                  </View>
-                ))}
-                {[place.nearest_town, myKm != null ? distanceLabel(myKm) : null, place.price_level ? "$".repeat(place.price_level) : null]
-                  .filter(Boolean)
-                  .map((t, i) => (
-                    <Text key={i} style={[s.metaText, { color: colors.muted }]}>
-                      {(i > 0 || catIds.length > 0) && <Text style={{ color: colors.faint }}>·  </Text>}
-                      {t}
-                    </Text>
-                  ))}
+    <View style={{ backgroundColor: colors.bg }}>
+      <Rise index={0}>
+        <View style={s.identity}>
+          <Logo place={place} catId={mainCat?.id} />
+          <Text style={[s.name, { color: colors.text }]}>{place.name}</Text>
+          <View style={s.meta}>
+            {catIds.map((c) => (
+              <View key={c} style={s.metaItem}>
+                <View style={[s.dot, { backgroundColor: CATEGORY_DOT[scheme][c] }]} />
+                <Text style={[s.metaText, { color: colors.muted }]}>{CATEGORIES.find((d) => d.id === c)?.label}</Text>
               </View>
-              {status && (
-                <View style={s.status}>
-                  <View style={[s.statusDot, { backgroundColor: hoursTint[status.state] }]} />
-                  <Text style={[s.statusText, { color: hoursTint[status.state] }]}>{status.label}</Text>
-                </View>
-              )}
+            ))}
+            {[place.nearest_town, myKm != null ? distanceLabel(myKm) : null, place.price_level ? "$".repeat(place.price_level) : null]
+              .filter(Boolean)
+              .map((t, i) => (
+                <Text key={i} style={[s.metaText, { color: colors.muted }]}>
+                  {(i > 0 || catIds.length > 0) && <Text style={{ color: colors.faint }}>·  </Text>}
+                  {t}
+                </Text>
+              ))}
+          </View>
+          {status && (
+            <View style={s.status}>
+              <View style={[s.statusDot, { backgroundColor: hoursTint[status.state] }]} />
+              <Text style={[s.statusText, { color: hoursTint[status.state] }]}>{status.label}</Text>
             </View>
-          </Rise>
+          )}
+        </View>
+      </Rise>
 
-          <Rise index={1}>
-            <ActionRow actions={actions} />
-          </Rise>
+      <Rise index={1}>
+        <ActionRow actions={actions} />
+      </Rise>
 
-          <CheckInSection place={place} />
+      <CheckInSection place={place} />
 
-          {(place.short_description || place.description) && (
-            <Rise index={2}>
-              <Section title="Om platsen">
-                <AboutText
-                  lead={place.description && place.short_description !== place.description ? place.short_description : null}
-                  body={place.description ?? place.short_description}
+      {(place.short_description || place.description) && (
+        <Rise index={2}>
+          <Section title="Om platsen">
+            <AboutText
+              lead={place.description && place.short_description !== place.description ? place.short_description : null}
+              body={place.description ?? place.short_description}
+            />
+          </Section>
+        </Rise>
+      )}
+
+      {ticketList.length > 0 && (
+        <Section title="Österlenpasset">
+          <View style={{ gap: 14 }}>
+            {ticketList.map(({ offer, used }, i) => (later ? (
+              <Reanimated.View key={offer.id} entering={RISE_IN(i)}>
+                <OfferTicket
+                  offer={offer}
+                  used={used}
+                  torn={offer.id === openOfferId}
+                  edge={edge}
+                  scrollAt={scrollAt}
+                  linkPlace={false}
+                  onOpen={onOpenOffer}
                 />
-              </Section>
-            </Rise>
-          )}
-
-          {ticketList.length > 0 && (
-            <Section title="Österlenpasset">
-              <View style={{ gap: 14 }}>
-                {ticketList.map(({ offer, used }, i) => (later ? (
-                  <Reanimated.View key={offer.id} entering={RISE_IN(i)}>
-                    <OfferTicket
-                      offer={offer}
-                      used={used}
-                      torn={openOffer?.origin != null && openOffer.offer.id === offer.id}
-                      edge={edge}
-                      scrollAt={scrollAt}
-                      linkPlace={false}
-                      onOpen={(o, origin) => setOpenOffer({ offer: o, origin })}
-                    />
-                  </Reanimated.View>
-                ) : <Skeleton key={offer.id} height={TICKET_H} radius={18} />))}
-              </View>
-            </Section>
-          )}
-
-          {friends.length > 0 && (
-            <Section title="Vänner">
-              <Reanimated.View entering={RISE_IN(0)}>
-                <FriendsHere friends={friends} onPress={() => setFriendsOpen(true)} />
               </Reanimated.View>
-            </Section>
-          )}
+            ) : <Skeleton key={offer.id} height={TICKET_H} radius={18} />))}
+          </View>
+        </Section>
+      )}
 
-          {amenities.length > 0 && (
-            <Section title="Praktiskt">
-              <Amenities items={amenities} />
-            </Section>
-          )}
+      {friends.length > 0 && (
+        <Section title="Vänner">
+          <Reanimated.View entering={RISE_IN(0)}>
+            <FriendsHere friends={friends} onPress={() => openSheet("friends")} />
+          </Reanimated.View>
+        </Section>
+      )}
 
-          {hasHours && (
-            <Section title="Öppettider">
-              <PlaceHours hours={hours} showStatus={!isHotel} />
-            </Section>
-          )}
+      {amenities.length > 0 && (
+        <Section title="Praktiskt">
+          <Amenities items={amenities} />
+        </Section>
+      )}
 
-          {later && upcoming.length > 0 && (
-            <Section
-              title="Evenemang här"
-              action={upcoming.length > EVENTS_SHOWN ? (eventsAll ? "Visa färre" : `Visa alla ${upcoming.length}`) : undefined}
-              onAction={() => setEventsAll((v) => !v)}
-            >
-              <EventsHere
-                events={eventsAll ? upcoming : upcoming.slice(0, EVENTS_SHOWN)}
-                onOpen={(e) => openEvent(e.id, { event: e })}
-              />
-            </Section>
-          )}
+      {hasHours && (
+        <Section title="Öppettider">
+          <PlaceHours hours={hours} showStatus={!isHotel} />
+        </Section>
+      )}
 
-          {hasCoords && (
-            <View onLayout={(e) => { mapY.value = heroH + e.nativeEvent.layout.y; }}>
-              <Section title="Hitta hit">
-                <View style={[s.locCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <PlaceMiniMap lat={place.lat!} lng={place.lng!} mount={later && mapNear} onPress={showOnMap} />
-                  <View style={s.locInfo}>
-                    <View style={s.whereRow}>
-                      <MapPin size={17} color={colors.muted} strokeWidth={2} />
-                      <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>{place.nearest_town ?? "Österlen"}</Text>
-                      {myKm != null && <Text style={[s.whereKm, { color: colors.muted }]}>{distanceLabel(myKm)} från dig</Text>}
-                    </View>
-                    {!!transit && (
-                      <View style={s.whereRow}>
-                        <Bus size={17} color={colors.muted} strokeWidth={2} />
-                        <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
-                          <Text style={{ color: colors.muted }}>Hållplats  </Text>{transit}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <TouchableOpacity
-                    style={[s.locButton, { borderTopColor: colors.border }]}
-                    activeOpacity={0.7}
-                    onPress={() => openDirections(place.lat, place.lng)}
-                  >
-                    <Navigation size={17} color={colors.goldText} strokeWidth={2.2} />
-                    <Text style={[s.locButtonText, { color: colors.goldText }]}>Vägbeskrivning</Text>
-                  </TouchableOpacity>
-                </View>
-              </Section>
-            </View>
-          )}
+      {later && upcoming.length > 0 && <EventsSection events={upcoming} />}
 
-          {treasure && (
-            <Section title="Skatt i närheten">
-              <TreasureHint
-                meters={treasure.m}
-                found={collected?.has(treasure.c.id) ?? false}
-                name={treasure.c.name}
-                onPress={() => router.dismissTo({ pathname: "/(tabs)/map", params: { sticker: treasure.c.id } } as never)}
-              />
-            </Section>
-          )}
+      {hasCoords && (
+        <LocationSection place={place} myKm={myKm} mount={later} heroH={heroH} scrollY={scrollY} onShowOnMap={showOnMap} />
+      )}
 
-          {contact.length > 0 && (
-            <Section title="Kontakt">
-              <ContactList rows={contact} />
-              <Text style={[s.hint, { color: colors.faint }]}>Håll inne för att kopiera</Text>
-            </Section>
-          )}
+      {treasure && (
+        <Section title="Skatt i närheten">
+          <TreasureHint
+            meters={treasure.m}
+            found={collected?.has(treasure.c.id) ?? false}
+            name={treasure.c.name}
+            onPress={() => router.dismissTo({ pathname: "/(tabs)/map", params: { sticker: treasure.c.id } } as never)}
+          />
+        </Section>
+      )}
 
-          {later && nearby.length > 0 && (
-            <Section title="I närheten">
-              <NearbyRail items={nearby} onPress={(p) => pushOnce(router, `/place/${p.id}`)} />
-            </Section>
-          )}
+      {contact.length > 0 && (
+        <Section title="Kontakt">
+          <ContactList rows={contact} />
+          <Text style={[s.hint, { color: colors.faint }]}>Håll inne för att kopiera</Text>
+        </Section>
+      )}
 
-          <TouchableOpacity style={[s.report, { borderColor: colors.border }]} activeOpacity={0.7} onPress={() => { setReportKey((k) => k + 1); setReportOpen(true); }}>
-            <PenLine size={16} color={colors.muted} strokeWidth={2} />
-            <Text style={[s.reportText, { color: colors.muted }]}>
-              Stämmer något inte? <Text style={{ color: colors.goldText }}>Tipsa oss</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Reanimated.ScrollView>
+      {later && nearby.length > 0 && (
+        <Section title="I närheten">
+          <NearbyRail items={nearby} onPress={(p) => pushOnce(router, `/place/${p.id}`)} />
+        </Section>
+      )}
 
-      {/* ── Toppraden: knapparna ligger kvar, bakgrunden och namnet tonar in när bilden scrollats bort ── */}
-      <View style={[s.topBar, { paddingTop: insets.top, height: insets.top + TOP_BAR_H }]} pointerEvents="box-none">
-        <Reanimated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, borderBottomColor: colors.border }, s.topBarBg, barStyle]}
-          pointerEvents="none"
-        />
-        <RoundButton label="Tillbaka" onPress={() => router.back()}>
-          <ArrowLeft size={24} color={glassFg(dark)} strokeWidth={2.2} />
-        </RoundButton>
-        <Reanimated.Text style={[s.barTitle, { top: insets.top, color: colors.text }, barStyle]} numberOfLines={1} pointerEvents="none">
-          {place.name.toUpperCase()}
-        </Reanimated.Text>
-        <View style={s.topRight}>
-          <RoundButton label="Dela" onPress={share}>
-            <ShareIcon size={21} color={glassFg(dark)} strokeWidth={2.2} />
-          </RoundButton>
-          <RoundButton label="Spara i lista" onPress={() => setSaveOpen(true)}>
-            <Plus size={26} color={glassFg(dark)} strokeWidth={2.2} />
-          </RoundButton>
-        </View>
-      </View>
-
-      {/* ── Längst ner: hjärtat och huvudknappen ── */}
-      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 10, backgroundColor: colors.bg, borderTopColor: colors.border }]}>
-        <View style={[s.heartBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <HeartButton isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={24} outline={colors.text} />
-        </View>
-        {primary ? (
-          <TouchableOpacity style={[s.primary, { backgroundColor: colors.gold }]} activeOpacity={0.85} onPress={primary.onPress}>
-            <primary.Icon size={19} color={colors.onGold} strokeWidth={2.3} />
-            <Text style={[s.primaryText, { color: colors.onGold }]}>{primary.label}</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={[s.primary, { backgroundColor: colors.gold }]} activeOpacity={0.85} onPress={share}>
-            <ShareIcon size={19} color={colors.onGold} strokeWidth={2.3} />
-            <Text style={[s.primaryText, { color: colors.onGold }]}>Dela platsen</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <Reanimated.View style={[s.toast, { bottom: insets.bottom + 86 }, toast.style]} pointerEvents="none">
-        <Check size={15} color="#FFFFFF" strokeWidth={2.6} />
-        <Text style={s.toastText}>{toast.text}</Text>
-      </Reanimated.View>
-
-      <PhotoViewer
-        images={images}
-        start={viewer ?? 0}
-        visible={viewer != null}
-        onClose={(i) => { setHeroIndex(i); setViewer(null); }}
-      />
-      <SaveToListSheet visible={saveOpen} onClose={() => setSaveOpen(false)} placeId={place.id} />
-      <FriendsSheet visible={friendsOpen} friends={friends} onClose={() => setFriendsOpen(false)} onOpenFriend={onOpenFriend} />
-      <ReportSheet key={reportKey} visible={reportOpen} placeId={place.id} onClose={() => setReportOpen(false)} />
-      {/* Byggs i förväg (osynlig) när sidan glidit fram, så rivningen alltid syns från första bildrutan */}
-      {later && ticketList.length > 0 && <OfferDrawer
-        visible={openOffer != null}
-        placeId={place.id}
-        focusOffer={openOffer?.offer}
-        origin={openOffer?.origin}
-        edge={edge}
-        onClose={() => setOpenOffer(null)}
-      />}
-      <LikeBurst burst={burst} />
+      <TouchableOpacity style={[s.report, { borderColor: colors.border }]} activeOpacity={0.7} onPress={() => openSheet("report")}>
+        <PenLine size={16} color={colors.muted} strokeWidth={2} />
+        <Text style={[s.reportText, { color: colors.muted }]}>
+          Stämmer något inte? <Text style={{ color: colors.goldText }}>Tipsa oss</Text>
+        </Text>
+      </TouchableOpacity>
     </View>
+  );
+});
+
+// ── Delarna ──────────────────────────────────────────────────────────────────
+
+/** Kommande evenemang på platsen: tre först, resten bakom Visa alla */
+function EventsSection({ events }: { events: Event[] }) {
+  const [all, setAll] = useState(false);
+  return (
+    <Section
+      title="Evenemang här"
+      action={events.length > EVENTS_SHOWN ? (all ? "Visa färre" : `Visa alla ${events.length}`) : undefined}
+      onAction={() => setAll((v) => !v)}
+    >
+      <EventsHere events={all ? events : events.slice(0, EVENTS_SHOWN)} onOpen={(e) => openEvent(e.id, { event: e })} />
+    </Section>
   );
 }
 
-/** Det som dyker upp när datan kommit: samma lugna inglidning som Rise, utan väntan */
-const RISE_IN = (i: number) =>
-  FadeInDown.withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] }).duration(380).delay(i * 60);
+/**
+ * Hitta hit: ett kort med kartan överst, orten och hållplatsen, och Vägbeskrivning längst ner.
+ * Kartan byggs när man scrollat nära den (läget hålls här, så det bara ritar om det här kortet).
+ */
+function LocationSection({ place, myKm, mount, heroH, scrollY, onShowOnMap }: {
+  place: Place;
+  myKm: number | null;
+  /** Sidan har glidit fram */
+  mount: boolean;
+  heroH: number;
+  scrollY: SharedValue<number>;
+  onShowOnMap: () => void;
+}) {
+  const { colors } = useTheme();
+  const { height: winH } = useWindowDimensions();
+  const y = useSharedValue(Number.MAX_SAFE_INTEGER);
+  const [near, setNear] = useState(false);
+  useAnimatedReaction(
+    () => scrollY.value + winH * 1.6 > y.value,
+    (now, prev) => { if (now && !prev) runOnJS(setNear)(true); },
+  );
+  const transit = (place as Place & { transit_stop_name?: string | null }).transit_stop_name;
 
-// ── Småbitar ─────────────────────────────────────────────────────────────────
+  return (
+    <View onLayout={(e) => { y.value = heroH + e.nativeEvent.layout.y; }}>
+      <Section title="Hitta hit">
+        <View style={[s.locCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <PlaceMiniMap lat={place.lat!} lng={place.lng!} mount={mount && near} onPress={onShowOnMap} />
+          <View style={s.locInfo}>
+            <View style={s.whereRow}>
+              <MapPin size={17} color={colors.muted} strokeWidth={2} />
+              <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>{place.nearest_town ?? "Österlen"}</Text>
+              {myKm != null && <Text style={[s.whereKm, { color: colors.muted }]}>{distanceLabel(myKm)} från dig</Text>}
+            </View>
+            {!!transit && (
+              <View style={s.whereRow}>
+                <Bus size={17} color={colors.muted} strokeWidth={2} />
+                <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
+                  <Text style={{ color: colors.muted }}>Hållplats  </Text>{transit}
+                </Text>
+              </View>
+            )}
+          </View>
+          <TouchableOpacity
+            style={[s.locButton, { borderTopColor: colors.border }]}
+            activeOpacity={0.7}
+            onPress={() => openDirections(place.lat, place.lng)}
+          >
+            <Navigation size={17} color={colors.goldText} strokeWidth={2.2} />
+            <Text style={[s.locButtonText, { color: colors.goldText }]}>Vägbeskrivning</Text>
+          </TouchableOpacity>
+        </View>
+      </Section>
+    </View>
+  );
+}
 
 /** Platsens logga i en vit cirkel som sticker upp över bildens nederkant (kategorins ikon om loggan saknas) */
 function Logo({ place, catId }: { place: Place; catId: CategoryId | undefined }) {
@@ -591,59 +565,14 @@ function Logo({ place, catId }: { place: Place; catId: CategoryId | undefined })
   );
 }
 
-/** Ikonernas färg på glaset */
-const glassFg = (dark: boolean) => (dark ? "rgba(255,255,255,0.9)" : "#1A1A1A");
-
-/** Rund glasknapp i toppraden — samma frostade glas som kartans filterknapp, mot bilden och mot toppraden */
-function RoundButton({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
-  const dark = useTheme().scheme === "dark";
-  const press = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => { press.value = withTiming(0.92, { duration: 90 }); }}
-      onPressOut={() => { press.value = withSpring(1, { damping: 14, stiffness: 300 }); }}
-      hitSlop={6}
-      accessibilityLabel={label}
-    >
-      <Reanimated.View style={[s.round, pressStyle]}>
-        <BlurView
-          intensity={20}
-          tint={dark ? "dark" : "light"}
-          style={[StyleSheet.absoluteFill, s.roundGlass, {
-            backgroundColor: dark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)",
-            borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
-          }]}
-        />
-        {children}
-      </Reanimated.View>
-    </Pressable>
-  );
-}
-
-/** Ett kort besked nere vid knapparna ("Kopierat") som tonar bort av sig själv */
-function useToast() {
-  const [text, setText] = useState("");
-  const v = useSharedValue(0);
-  const show = useCallback((t: string) => {
-    setText(t);
-    v.value = withSequence(withTiming(1, { duration: 160 }), withDelay(1300, withTiming(0, { duration: 240 })));
-  }, [v]);
-  const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 8 }] }));
-  return useMemo(() => ({ text, show, style }), [text, show, style]);
-}
-
 /** Platsen finns inte i telefonen än (öppnad från en länk direkt efter start): sidans form i grått */
 function PlaceSkeleton() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { colors, scheme } = useTheme();
-  const heroH = Math.round(Math.min(width * 0.95, 420));
+  const { colors } = useTheme();
   return (
     <View style={[s.screen, { backgroundColor: colors.bg }]}>
-      <Skeleton height={heroH} radius={0} />
+      <Skeleton height={heroHeight(width)} radius={0} />
       <View style={{ paddingHorizontal: GUTTER, paddingTop: 54, gap: 10 }}>
         <Skeleton width="72%" height={26} radius={8} />
         <Skeleton width="48%" height={14} radius={6} />
@@ -652,10 +581,8 @@ function PlaceSkeleton() {
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} height={68} radius={16} style={{ flex: 1 }} />)}
         </View>
       </View>
-      <View style={[s.topBar, { paddingTop: insets.top, height: insets.top + TOP_BAR_H }]}>
-        <RoundButton label="Tillbaka" onPress={() => router.back()}>
-          <ArrowLeft size={24} color={glassFg(scheme === "dark")} strokeWidth={2.2} />
-        </RoundButton>
+      <View style={[s.skeletonBar, { paddingTop: insets.top, height: insets.top + TOP_BAR_H }]}>
+        <BackButton />
       </View>
     </View>
   );
@@ -669,7 +596,7 @@ function NotFound() {
       <MapPin size={34} color={colors.faint} strokeWidth={1.6} />
       <Text style={[s.notFoundTitle, { color: colors.text }]}>Vi hittar inte den här platsen</Text>
       <Text style={[s.notFoundText, { color: colors.muted }]}>Den kan ha tagits bort, eller så är du utan nät just nu.</Text>
-      <TouchableOpacity style={[s.quiet, { backgroundColor: colors.card, borderColor: colors.border, flex: 0, paddingHorizontal: 22 }]} onPress={() => router.back()}>
+      <TouchableOpacity style={[s.quiet, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.back()}>
         <Text style={[s.quietText, { color: colors.text }]}>Tillbaka</Text>
       </TouchableOpacity>
     </View>
@@ -708,11 +635,6 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   locButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
-  quiet: {
-    flex: 1, height: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
-  },
-  quietText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
   hint: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 8, textAlign: "center" },
 
   report: {
@@ -722,42 +644,14 @@ const s = StyleSheet.create({
   },
   reportText: { fontFamily: "Inter_500Medium", fontSize: 14 },
 
-  topBar: {
-    position: "absolute", top: 0, left: 0, right: 0,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12,
-  },
-  topBarBg: { borderBottomWidth: StyleSheet.hairlineWidth },
-  barTitle: {
-    position: "absolute", left: 124, right: 124, height: TOP_BAR_H, lineHeight: TOP_BAR_H, textAlign: "center",
-    fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5,
-  },
-  topRight: { flexDirection: "row", gap: 8 },
-  round: {
-    width: ROUND, height: ROUND, borderRadius: ROUND / 2, alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6,
-  },
-  // Glaset har själv de runda hörnen (som kartans knappar) — klipps det av föräldern blir kanterna kantiga
-  roundGlass: { borderRadius: ROUND / 2, overflow: "hidden", borderWidth: 1 },
-
-  bottomBar: {
-    position: "absolute", left: 0, right: 0, bottom: 0,
-    flexDirection: "row", gap: 10, paddingHorizontal: GUTTER, paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  heartBox: {
-    width: 54, height: 54, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center", justifyContent: "center",
-  },
-  primary: { flex: 1, height: 54, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
-  primaryText: { fontFamily: "Inter_700Bold", fontSize: 16 },
-
-  toast: {
-    position: "absolute", alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: "#1C1C1E",
-  },
-  toastText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#FFFFFF" },
+  skeletonBar: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 12 },
 
   notFound: { alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
   notFoundTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, textAlign: "center" },
   notFoundText: { fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 8 },
+  quiet: {
+    height: 44, paddingHorizontal: 22, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center", justifyContent: "center",
+  },
+  quietText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
 });

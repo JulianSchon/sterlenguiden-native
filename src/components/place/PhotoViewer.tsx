@@ -15,6 +15,7 @@ import Reanimated, {
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as ExpoImage } from "expo-image";
+import { StatusBar } from "expo-status-bar";
 import { X } from "lucide-react-native";
 
 const MAX_ZOOM = 4;
@@ -103,6 +104,8 @@ export function PhotoViewer({ images, start, visible, onClose }: {
       onRequestClose={close}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
+        {/* Ljus statusrad mot det svarta, oavsett tema (sidans egen tar över igen när helskärmen stängs) */}
+        <StatusBar style="light" />
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
         <GestureDetector gesture={dismiss}>
           <Reanimated.View style={[StyleSheet.absoluteFill, stageStyle]}>

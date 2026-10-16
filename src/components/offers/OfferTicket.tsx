@@ -10,7 +10,7 @@
  * Bara ett riktigt tryck öppnar: rör sig fingret mer än några punkter är det en scroll, och rör
  * man en lista som fortfarande glider (för att stoppa den) räknas det inte heller (scrollAt).
  */
-import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { memo, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import Reanimated, { runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -97,7 +97,8 @@ function Perforation() {
   );
 }
 
-export function OfferTicket({
+/** Ritas bara om när den egna biljetten ändras (inte när sidan runt den gör det) */
+export const OfferTicket = memo(function OfferTicket({
   offer, used, torn, edge, scrollAt, linkPlace = true, onOpen,
 }: {
   offer: Offer;
@@ -153,9 +154,11 @@ export function OfferTicket({
     }), [arm, open, openPlace, logoTap, scrollAt, stillScrolling, width]);
 
   // Bandet göms och skuggan försvinner först när panelens band faktiskt börjat röra sig
+  // Under biljetten: sidans egen färg (syns aldrig, men en hel bakgrund gör att skuggan räknas ut en
+  // gång i stället för vid varje bildruta när man scrollar)
   const ticketStyle = useAnimatedStyle(() => {
     const gone = torn && edge.active.value === 1;
-    return { shadowOpacity: gone ? 0 : 0.28, elevation: gone ? 0 : 6, backgroundColor: gone ? "transparent" : colors.tile };
+    return { shadowOpacity: gone ? 0 : 0.28, elevation: gone ? 0 : 6, backgroundColor: gone ? "transparent" : colors.bg };
   });
   const stubStyle = useAnimatedStyle(() => ({ opacity: torn && edge.active.value === 1 ? 0 : 1 }));
 
@@ -248,11 +251,11 @@ export function OfferTicket({
     </Reanimated.View>
     </GestureDetector>
   );
-}
+});
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   ticket: {
-    height: TICKET_H, borderRadius: 18, backgroundColor: c.tile,
+    height: TICKET_H, borderRadius: 18, backgroundColor: c.bg,
     shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 14, elevation: 6,
   },
   ticketClip: {

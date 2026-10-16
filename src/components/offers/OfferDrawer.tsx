@@ -24,7 +24,7 @@
  * Här kopplas också aktiveringskedjan ihop: håll-inne-knapp → bekräftelseruta → 60-sekundersskärm.
  * Panelen går medvetet inte att stänga medan bekräftelse- eller aktiv vy ligger ovanpå.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert, useWindowDimensions } from "react-native";
 import Animated, {
   Easing, useAnimatedReaction, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
@@ -81,7 +81,7 @@ const RIP_TICKS = 9;       // små vibrationer under rivningen
 const ease = Easing.bezier(0.3, 0, 0.2, 1);
 const easeOut = Easing.out(Easing.cubic);
 
-export function OfferDrawer({
+export const OfferDrawer = memo(function OfferDrawer({
   visible,
   placeId,
   focusOffer,
@@ -445,7 +445,7 @@ export function OfferDrawer({
       )}
     </Animated.View>
   );
-}
+});
 
 // ─── Pappersbitar som yr iväg när biljetten rivs ─────────────────────────────
 
