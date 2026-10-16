@@ -95,7 +95,7 @@ const TILES: { key: string; label: string; query: string; Icon: LucideIcon; tint
   { key: "eat", label: "Äta nu", query: "äta nu", Icon: UtensilsCrossed, tint: TINT.eat },
   { key: "fika", label: "Fika", query: "fika", Icon: Coffee, tint: TINT.fika },
   { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble, tint: TINT.sleep },
-  { key: "kids", label: "Med barn", query: "med barn", Icon: Baby, tint: TINT.kids },
+  { key: "kids", label: "Familj", query: "familj", Icon: Baby, tint: TINT.kids },
   { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: { ...TINT.late, ring: "night" } },
   { key: "dog", label: "Med hund", query: "med hund", Icon: Dog, tint: TINT.dog },
   { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees, tint: TINT.nature },
@@ -312,7 +312,7 @@ export default function ExploreScreen() {
     const upcoming = searchEvents(events, parseQuery("evenemang", towns), now).length;
     const n = {
       eat: count("äta nu"), fika: count("fika"), sleep: count("sova"), late: count("öppet sent"),
-      kids: count("med barn"), dog: count("med hund"), nature: count("natur"),
+      kids: count("familj"), dog: count("med hund"), nature: count("natur"),
     };
     const subs: Record<string, string> = {
       eat: n.eat ? `${n.eat} öppna nu` : "Inget öppet just nu",
@@ -367,7 +367,7 @@ export default function ExploreScreen() {
     push(inBestTown("fika", "cafe-bageri", 2));
     push(has((p) => p.cats.has("mat-dryck") && !!openInfo(p.place, now)?.open) ? "äta nu" : inBestTown("äta", "mat-dryck", 2));
     push(inBestTown("sova", "hotell-bb", 1));
-    if (has((p) => p.amenities.family === true || p.catText.includes("barn & familj"))) push("med barn");
+    if (has((p) => p.amenities.family === true || p.catText.includes("barn & familj"))) push("familj");
     if (has((p) => openLate(p.place, now))) push("öppet sent");
     if (searchEvents(events, parseQuery("i helgen", towns), now).length > 0) push("i helgen");
     else if (searchEvents(events, parseQuery("evenemang", towns), now).length > 0) push("evenemang");
