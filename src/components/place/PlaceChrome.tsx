@@ -19,7 +19,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { BlurView } from "expo-blur";
-import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 import { ArrowLeft, CalendarCheck, Check, Navigation, Plus, type LucideIcon } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
 import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
@@ -33,8 +32,6 @@ import { GUTTER } from "./PlaceSections";
 export const TOP_BAR_H = 60;
 /** Glascirklarna i toppraden */
 const ROUND = 46;
-/** Skuggans bredd runt cirklarna */
-const HALO = 11;
 
 /** Dela platsen: namnet, orten och hemsidan */
 export function sharePlace(place: Place) {
@@ -48,28 +45,7 @@ export function sharePlace(place: Place) {
 /** Ikonernas färg på glaset */
 const glassFg = (dark: boolean) => (dark ? "rgba(255,255,255,0.9)" : "#1A1A1A");
 
-/**
- * Skuggan runt en cirkel, ritad en gång (en mjuk mörk ring som tonar ut). En vanlig skugga på en
- * genomskinlig glasknapp räknas om för varje bildruta medan sidan scrollar under den — det kostade.
- */
-function GlassHalo() {
-  const size = ROUND + HALO * 2;
-  const inner = (ROUND / 2 - 1) / (size / 2);
-  return (
-    <Svg width={size} height={size} style={s.halo} pointerEvents="none">
-      <Defs>
-        <RadialGradient id="glassHalo" cx="50%" cy="50%" r="50%">
-          <Stop offset={inner} stopColor="#000" stopOpacity={0} />
-          <Stop offset={inner + 0.05} stopColor="#000" stopOpacity={0.24} />
-          <Stop offset={1} stopColor="#000" stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="url(#glassHalo)" />
-    </Svg>
-  );
-}
-
-/** Rund glasknapp — samma frostade glas som kartans filterknapp, mot bilden och mot toppraden */
+/** Rund glasknapp: bara den frostade cirkeln, ingen kant eller skugga runt */
 export function RoundButton({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
   const dark = useTheme().scheme === "dark";
   const press = useSharedValue(1);
@@ -83,14 +59,10 @@ export function RoundButton({ label, onPress, children }: { label: string; onPre
       accessibilityLabel={label}
     >
       <Reanimated.View style={[s.round, pressStyle]}>
-        <GlassHalo />
         <BlurView
           intensity={20}
           tint={dark ? "dark" : "light"}
-          style={[StyleSheet.absoluteFill, s.roundGlass, {
-            backgroundColor: dark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)",
-            borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
-          }]}
+          style={[StyleSheet.absoluteFill, s.roundGlass, { backgroundColor: dark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)" }]}
         />
         {children}
       </Reanimated.View>
@@ -264,9 +236,8 @@ const s = StyleSheet.create({
   },
   topRight: { flexDirection: "row", gap: 8 },
   round: { width: ROUND, height: ROUND, alignItems: "center", justifyContent: "center" },
-  halo: { position: "absolute", left: -HALO, top: -HALO + 2 },
   // Glaset har själv de runda hörnen (som kartans knappar) — klipps det av föräldern blir kanterna kantiga
-  roundGlass: { borderRadius: ROUND / 2, overflow: "hidden", borderWidth: 1 },
+  roundGlass: { borderRadius: ROUND / 2, overflow: "hidden" },
 
   bottomBar: {
     position: "absolute", left: 0, right: 0, bottom: 0,
