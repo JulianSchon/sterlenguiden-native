@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { isOpenNow } from "@/lib/openingHours";
 
 export type Place = Tables<"places"> & {
   category: string | null;
@@ -35,7 +36,7 @@ export function usePlaces() {
       const { data, error } = await supabase
         .from("places")
         .select(
-          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, price_level, checkin_enabled, qr_token, site_group, amenities, transit_stop_name"
+          "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, business_tier, phone, email, website_url, facebook_url, instagram_url, book_url, price_level, checkin_enabled, qr_token, site_group, amenities, transit_stop_name"
         )
         .order("name");
       if (error) throw error;
@@ -86,30 +87,7 @@ export function useSearchPlaces(searchQuery: string) {
   });
 }
 
-export function isPlaceOpen(
-  openingHours: Record<string, string> | null
-): boolean {
-  if (!openingHours) return false;
-  const now = new Date();
-  const days = [
-    "Söndag",
-    "Måndag",
-    "Tisdag",
-    "Onsdag",
-    "Torsdag",
-    "Fredag",
-    "Lördag",
-  ];
-  const currentDay = days[now.getDay()];
-  const currentTime = now.getHours() * 60 + now.getMinutes();
-  const todayHours = openingHours[currentDay];
-  if (!todayHours || todayHours.toLowerCase() === "stängt") return false;
-  const match = todayHours.match(
-    /(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?/
-  );
-  if (!match) return false;
-  const openTime = parseInt(match[1]) * 60 + (match[2] ? parseInt(match[2]) : 0);
-  const closeTime =
-    parseInt(match[3]) * 60 + (match[4] ? parseInt(match[4]) : 0);
-  return currentTime >= openTime && currentTime <= closeTime;
+/** Har platsen öppet just nu (lunchstängt och tider över midnatt räknas, se lib/openingHours) */
+export function isPlaceOpen(openingHours: Record<string, string> | null): boolean {
+  return isOpenNow(openingHours);
 }

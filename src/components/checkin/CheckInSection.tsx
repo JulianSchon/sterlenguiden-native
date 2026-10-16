@@ -6,11 +6,14 @@
  *
  * Lägen: långt bort (>500 m) = inget alls · 100–500 m = grå knapp med avstånd
  * · inom 100 m = aktiv knapp (håll inne, se HoldToCheckIn) · nyss incheckad = spärrtiden visas.
+ * Medan positionen hämtas visas inget (oftast är man långt bort, och då ska inget dyka upp och
+ * försvinna igen); kortet glider in när det har något att säga.
  * Efter en lyckad incheckning: hela belöningen (CheckInCelebration — stämpeln, progressen och
  * "Skapa minne").
  */
 import { useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Linking } from "react-native";
+import Reanimated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { MapPin, CheckCircle2 } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
@@ -21,17 +24,18 @@ import { fetchMyMonthStanding, type LeaderboardEntry } from "@/hooks/useLeaderbo
 import {
   CHECKIN_RADIUS_M, CHECKIN_NEAR_M, distanceMeters, formatDistance, cooldownEnd, formatClock,
 } from "@/lib/checkin";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 import { CheckInCelebration, type CelebrationExit, type CelebrationState } from "./CheckInCelebration";
 import { HoldToCheckIn } from "./HoldToCheckIn";
-
-const GOLD = "#C9A24C";
-const GOLD_LT = "#E6C77A";
 
 export function CheckInSection({ place }: { place: Place }) {
   // Saknar platsen koordinater kan GPS inte avgöra något (QR-kod kommer senare)
   const canCheckIn = place.checkin_enabled !== false && place.lat != null && place.lng != null;
 
   const router = useRouter();
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { location, refresh } = useUserLocation(canCheckIn);
   const { data: visits = [] } = useVisits();
   const checkIn = useCheckIn();
@@ -124,7 +128,7 @@ export function CheckInSection({ place }: { place: Place }) {
     card = (
       <View style={s.card}>
         <View style={s.row}>
-          <View style={s.iconCircle}><CheckCircle2 size={22} color={GOLD_LT} strokeWidth={2} /></View>
+          <View style={s.iconCircle}><CheckCircle2 size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>Besök registrerat</Text>
             <Text style={s.sub}>Du kan checka in här igen efter {formatClock(blockedUntil)}</Text>
@@ -133,17 +137,12 @@ export function CheckInSection({ place }: { place: Place }) {
       </View>
     );
   } else if (location.status === "loading") {
-    card = (
-      <View style={[s.card, s.row]}>
-        <ActivityIndicator size="small" color={GOLD} />
-        <Text style={[s.sub, { marginTop: 0 }]}>Kollar din plats…</Text>
-      </View>
-    );
+    card = null;
   } else if (location.status === "denied") {
     card = (
       <View style={s.card}>
         <View style={s.row}>
-          <View style={s.iconCircle}><MapPin size={22} color={GOLD_LT} strokeWidth={2} /></View>
+          <View style={s.iconCircle}><MapPin size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>Slå på platstjänster</Text>
             <Text style={s.sub}>Appen behöver veta var du är för att du ska kunna checka in.</Text>
@@ -158,14 +157,14 @@ export function CheckInSection({ place }: { place: Place }) {
     card = (
       <View style={s.card}>
         <View style={s.row}>
-          <View style={s.iconCircle}><MapPin size={22} color={GOLD_LT} strokeWidth={2} /></View>
+          <View style={s.iconCircle}><MapPin size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>Kunde inte hämta din plats</Text>
             <Text style={s.sub}>Kontrollera att platstjänster är påslagna.</Text>
           </View>
         </View>
         <TouchableOpacity style={s.buttonGrey} activeOpacity={0.8} onPress={handleRecheck}>
-          {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.buttonGreyText}>Försök igen</Text>}
+          <Text style={s.buttonGreyText}>{busy ? "Kollar…" : "Försök igen"}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -173,7 +172,7 @@ export function CheckInSection({ place }: { place: Place }) {
     card = (
       <View style={s.card}>
         <View style={s.row}>
-          <View style={s.iconCircle}><MapPin size={22} color={GOLD_LT} strokeWidth={2} /></View>
+          <View style={s.iconCircle}><MapPin size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>Du är på plats</Text>
             <Text style={s.sub}>Registrera ditt besök här</Text>
@@ -194,14 +193,14 @@ export function CheckInSection({ place }: { place: Place }) {
     card = (
       <View style={s.card}>
         <View style={s.row}>
-          <View style={s.iconCircle}><MapPin size={22} color="rgba(255,255,255,0.45)" strokeWidth={2} /></View>
+          <View style={s.iconCircle}><MapPin size={22} color={colors.faint} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
             <Text style={s.title}>Du är {formatDistance(distance)} bort</Text>
             <Text style={s.sub}>Kom närmare för att kunna checka in</Text>
           </View>
         </View>
         <TouchableOpacity style={s.buttonGrey} activeOpacity={0.8} onPress={handleRecheck}>
-          {busy ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.buttonGreyText}>Jag är här!</Text>}
+          <Text style={s.buttonGreyText}>{busy ? "Kollar…" : "Jag är här!"}</Text>
         </TouchableOpacity>
         {message && <Text style={s.message}>{message}</Text>}
       </View>
@@ -211,28 +210,28 @@ export function CheckInSection({ place }: { place: Place }) {
 
   return (
     <>
-      {card}
+      {card && <Reanimated.View entering={FadeInDown.duration(320)}>{card}</Reanimated.View>}
       {celebration && <CheckInCelebration place={place} state={celebration} onNavigate={handleCelebrationNavigate} onClose={() => setCelebration(null)} />}
     </>
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   card: {
-    marginHorizontal: 16, marginTop: 20, marginBottom: 12, padding: 16, borderRadius: 20,
-    backgroundColor: "#1A1A1D", borderWidth: 0.5, borderColor: "rgba(197,160,89,0.35)",
+    marginHorizontal: 16, marginTop: 20, marginBottom: 4, padding: 16, borderRadius: 20,
+    backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.goldBorder,
   },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   iconCircle: {
     width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(212,168,79,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.40)",
+    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder,
   },
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: "#FFFFFF" },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.60)", marginTop: 2 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: c.text },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted, marginTop: 2 },
   buttonGrey: {
     marginTop: 14, height: 54, borderRadius: 14, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
   },
-  buttonGreyText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: "rgba(255,255,255,0.45)" },
-  message: { fontFamily: "Inter_400Regular", fontSize: 13, color: "#E8A0A0", marginTop: 10, textAlign: "center" },
+  buttonGreyText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: c.muted },
+  message: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.danger, marginTop: 10, textAlign: "center" },
 });

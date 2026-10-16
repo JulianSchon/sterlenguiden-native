@@ -132,6 +132,8 @@ const SEL_PATH = "M18 0C8.06 0 0 8.06 0 18c0 12.6 18 26 18 26s18-13.4 18-26C36 8
 
 /** Guldnålens spets i sin yta */
 export const SELECTED_ANCHOR = { x: 0.5, y: (SEL_H - SEL_FOOT) / SEL_H };
+/** Guldnålens yta (platssidans lilla karta lägger nålen ovanpå kartan själv) */
+export const SELECTED_SIZE = { width: SEL_W, height: SEL_H };
 
 export function SelectedPin() {
   const t = useSharedValue(0);

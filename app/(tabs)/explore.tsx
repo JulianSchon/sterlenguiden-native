@@ -18,7 +18,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BackHandler, Keyboard, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  BackHandler, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import Reanimated, {
   Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming, FadeInDown,
@@ -49,6 +49,7 @@ import { useSearchHistory, type HistoryEntry } from "@/lib/searchHistory";
 import { eventWhen } from "@/lib/events";
 import { openEvent } from "@/lib/eventSheet";
 import { pushOnce } from "@/lib/navigateOnce";
+import { openDirections } from "@/lib/placeLinks";
 import { registerScrollCallback } from "@/lib/scrollRefs";
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { Skeleton } from "@/components/Skeleton";
@@ -133,13 +134,6 @@ const MAYBE_WORDS = ["konst", "glass", "vin", "keramik", "loppis", "gårdsbutik"
 
 const catIcon = (id: CategoryId): LucideIcon => CATEGORIES.find((c) => c.id === id)?.icon ?? MapPin;
 const practicalIcon = (id: string): LucideIcon => PRACTICAL.find((p) => p.id === id)?.Icon ?? Sparkles;
-
-function openDirections(lat: number | null, lng: number | null) {
-  if (lat == null || lng == null) return;
-  const url = Platform.OS === "ios" ? `maps://?daddr=${lat},${lng}` : `google.navigation:q=${lat},${lng}`;
-  Linking.openURL(url).catch(() =>
-    Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`).catch(() => {}));
-}
 
 /** En ort med det sidan visar om den: vad som finns där (kategorierna, flest först), hur långt bort, öppet nu */
 interface TownCard extends Town { cats: CategoryId[]; km: number | null; open: number }

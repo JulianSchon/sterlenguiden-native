@@ -16,6 +16,7 @@ import type { Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
 import { lastDay } from "@/lib/events";
 import { distanceMeters } from "@/lib/checkin";
+import { DAY_NAMES, clock, parseDay, todayHours, type Hours } from "@/lib/openingHours";
 import { parseAmenities } from "@/lib/mapFilters";
 import { findCategory, type CategoryId } from "@/theme/categories";
 
@@ -328,51 +329,26 @@ export function withoutIntent(parsed: Parsed, drop: Intent): string {
   return out.join(" ");
 }
 
-// ── Öppettider ───────────────────────────────────────────────────────────────
-
-const DAYS = ["Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag"];
-
-/** Dagens öppettider i minuter, eller "stängt", eller null om platsen inte angett några */
-function todaysHours(place: Place, now: Date): { from: number; to: number } | "closed" | null {
-  const hours = place.opening_hours as Record<string, string> | null;
-  const today = hours?.[DAYS[now.getDay()]];
-  if (!today) return null;
-  if (/st[aä]ngt/i.test(today)) return "closed";
-  if (/dygnet/i.test(today)) return { from: 0, to: 24 * 60 };
-  const m = today.match(/(\d{1,2})(?:[:.](\d{2}))?\s*[-–]\s*(\d{1,2})(?:[:.](\d{2}))?/);
-  if (!m) return null;
-  let to = Number(m[3]) * 60 + Number(m[4] ?? 0);
-  if (to === 0) to = 24 * 60;
-  return { from: Number(m[1]) * 60 + Number(m[2] ?? 0), to };
-}
-
-/** "06", "17", "08:30" — timmen alltid med två siffror; midnatt som "24" */
-const clock = (min: number) => {
-  const h = min === 24 * 60 ? "24" : String(Math.floor(min / 60) % 24).padStart(2, "0");
-  const m = min % 60;
-  return m ? `${h}:${String(m).padStart(2, "0")}` : h;
-};
+// ── Öppettider (tolkningen i lib/openingHours) ──────────────────────────────
 
 export interface OpenInfo { open: boolean; label: string }
 
-/** "Öppet till 17", "Öppnar 10", "Stängt", "Stängt i dag" — null om platsen inte har öppettider */
+const hoursOf = (place: Place) => place.opening_hours as Hours;
+
+/** "Öppet till 17", "Öppnar 10", "Stängt", "Stängt i dag" — null om dagens öppettider inte är kända */
 export function openInfo(place: Place, now = new Date()): OpenInfo | null {
-  const h = todaysHours(place, now);
+  const h = todayHours(hoursOf(place), now);
   if (!h) return null;
-  if (h === "closed") return { open: false, label: "Stängt i dag" };
-  const t = now.getHours() * 60 + now.getMinutes();
-  const overMidnight = h.to <= h.from;
-  const open = overMidnight ? t >= h.from || t < h.to : t >= h.from && t < h.to;
-  if (open) return { open: true, label: h.to >= 24 * 60 && h.from === 0 ? "Öppet dygnet runt" : `Öppet till ${clock(h.to)}` };
-  if (t < h.from) return { open: false, label: `Öppnar ${clock(h.from)}` };
-  return { open: false, label: "Stängt" };
+  if (h.open) return { open: true, label: h.allDay ? "Öppet dygnet runt" : `Öppet till ${clock(h.closes!)}` };
+  if (h.opens != null) return { open: false, label: `Öppnar ${clock(h.opens)}` };
+  const closedAllDay = parseDay(hoursOf(place)?.[DAY_NAMES[now.getDay()]]) === "closed";
+  return { open: false, label: closedAllDay ? "Stängt i dag" : "Stängt" };
 }
 
 /** Har öppet efter 21 i dag */
 export function openLate(place: Place, now = new Date()): boolean {
-  const h = todaysHours(place, now);
-  if (!h || h === "closed") return false;
-  return h.to <= h.from || h.to >= 21 * 60;
+  const today = parseDay(hoursOf(place)?.[DAY_NAMES[now.getDay()]]);
+  return Array.isArray(today) && today.some((r) => r.to >= 21 * 60);
 }
 
 // ── Platser ──────────────────────────────────────────────────────────────────

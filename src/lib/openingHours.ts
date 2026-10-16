@@ -1,0 +1,145 @@
+/**
+ * Öppettider. En plats har en text per veckodag ("10-17", "11:30-14, 17-22", "Stängt", "Dygnet
+ * runt" …). Här tolkas texterna till tider, och här finns det sidorna säger om dem:
+ * "Öppet · stänger 17", "Stänger snart · 17", "Stängt · öppnar tis 10" och veckans rader.
+ *
+ * Klarar lunchstängt (flera tider samma dag) och tider över midnatt ("18-02" på fredagen gör att
+ * platsen är öppen natten till lördag). En text som inte är tider ("Enligt överenskommelse") visas
+ * som den är, och då påstår appen inget om öppet eller stängt.
+ */
+
+/** Veckodagarna som de heter i databasen, söndag först (som Date.getDay()) */
+export const DAY_NAMES = ["Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag"];
+const DAY_SHORT = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
+const DAY = 24 * 60;
+
+/** En öppen tid i minuter från dagens början. `to` är alltid större än `from` (över midnatt: mer än 24 h) */
+export interface Range { from: number; to: number }
+
+/** En dag: tiderna, "closed", eller null om dagen saknas eller texten inte är tider */
+export type DayHours = Range[] | "closed" | null;
+
+export type Hours = Record<string, string> | null | undefined;
+
+export function parseDay(text: string | null | undefined): DayHours {
+  if (!text?.trim()) return null;
+  if (/st[aä]ngt/i.test(text)) return "closed";
+  if (/dygnet/i.test(text)) return [{ from: 0, to: DAY }];
+  const ranges: Range[] = [];
+  for (const m of text.matchAll(/(\d{1,2})(?:[:.](\d{2}))?\s*[-–]\s*(\d{1,2})(?:[:.](\d{2}))?/g)) {
+    const from = Number(m[1]) * 60 + Number(m[2] ?? 0);
+    let to = Number(m[3]) * 60 + Number(m[4] ?? 0);
+    if (to <= from) to += DAY;
+    if (from < DAY) ranges.push({ from, to });
+  }
+  return ranges.length > 0 ? ranges : null;
+}
+
+/** "06", "17", "08:30" — timmen alltid med två siffror, midnatt som "24" */
+export function clock(min: number): string {
+  if (min === DAY) return "24";
+  const m = ((min % DAY) + DAY) % DAY;
+  const h = String(Math.floor(m / 60)).padStart(2, "0");
+  return m % 60 ? `${h}:${String(m % 60).padStart(2, "0")}` : h;
+}
+
+const dayOf = (hours: Hours, day: number): DayHours => parseDay(hours?.[DAY_NAMES[((day % 7) + 7) % 7]]);
+const minutesOf = (now: Date) => now.getHours() * 60 + now.getMinutes();
+const ranges = (d: DayHours): Range[] => (Array.isArray(d) ? d : []);
+
+/** Tiden platsen har öppet just nu (gårdagens tid om den går över midnatt), med stängningen räknad från i dag */
+function openRange(hours: Hours, now: Date): Range | null {
+  const t = minutesOf(now);
+  const today = ranges(dayOf(hours, now.getDay())).find((r) => t >= r.from && t < r.to);
+  if (today) return today;
+  const late = ranges(dayOf(hours, now.getDay() - 1)).find((r) => r.to > DAY && t < r.to - DAY);
+  return late ? { from: 0, to: late.to - DAY } : null;
+}
+
+/** Har platsen öppet just nu */
+export function isOpenNow(hours: Hours, now = new Date()): boolean {
+  return openRange(hours, now) != null;
+}
+
+export interface TodayHours {
+  /** Öppet just nu */
+  open: boolean;
+  /** Stängningen (öppet) eller nästa öppning i dag (stängt), i minuter */
+  closes: number | null;
+  opens: number | null;
+  /** Öppet hela dygnet */
+  allDay: boolean;
+  /** Stängt resten av dagen (eller hela) */
+  doneToday: boolean;
+}
+
+/** Dagens läge, eller null om dagens öppettider inte är kända */
+export function todayHours(hours: Hours, now = new Date()): TodayHours | null {
+  const open = openRange(hours, now);
+  if (open) {
+    return { open: true, closes: open.to, opens: null, allDay: open.from === 0 && open.to >= DAY, doneToday: false };
+  }
+  const today = dayOf(hours, now.getDay());
+  if (today === null) return null;
+  const t = minutesOf(now);
+  const next = ranges(today).find((r) => r.from > t);
+  return { open: false, closes: null, opens: next?.from ?? null, allDay: false, doneToday: !next };
+}
+
+export type HoursState = "open" | "closingSoon" | "closed";
+
+export interface HoursStatus { state: HoursState; label: string }
+
+/** Så länge innan stängning det heter "Stänger snart" */
+const SOON_MIN = 60;
+
+/**
+ * Det platssidan säger om läget: "Öppet · stänger 17", "Öppet dygnet runt", "Stänger snart · 17",
+ * "Stängt · öppnar 10", "Stängt · öppnar i morgon 10", "Stängt · öppnar tis 10" eller "Stängt".
+ * null om dagens öppettider inte är kända.
+ */
+export function hoursStatus(hours: Hours, now = new Date()): HoursStatus | null {
+  const today = todayHours(hours, now);
+  if (!today) return null;
+  if (today.open) {
+    if (today.allDay) return { state: "open", label: "Öppet dygnet runt" };
+    const left = today.closes! - minutesOf(now);
+    return left <= SOON_MIN
+      ? { state: "closingSoon", label: `Stänger snart · ${clock(today.closes!)}` }
+      : { state: "open", label: `Öppet · stänger ${clock(today.closes!)}` };
+  }
+  if (today.opens != null) return { state: "closed", label: `Stängt · öppnar ${clock(today.opens)}` };
+  for (let i = 1; i <= 7; i++) {
+    const first = ranges(dayOf(hours, now.getDay() + i))[0];
+    if (!first) continue;
+    const when = i === 1 ? "i morgon" : DAY_SHORT[(now.getDay() + i) % 7];
+    return { state: "closed", label: `Stängt · öppnar ${when} ${clock(first.from)}` };
+  }
+  return { state: "closed", label: "Stängt" };
+}
+
+export interface WeekRow {
+  /** Dagens nummer som Date.getDay() */
+  day: number;
+  name: string;
+  /** "10–17", "11:30–14, 17–22", "Stängt", "Dygnet runt", eller platsens egen text */
+  text: string;
+  today: boolean;
+}
+
+/** Veckans rader, måndag först. Tomt om platsen inte angett några öppettider alls */
+export function weekRows(hours: Hours, now = new Date()): WeekRow[] {
+  if (!hours || !DAY_NAMES.some((d) => hours[d]?.trim())) return [];
+  return [1, 2, 3, 4, 5, 6, 0].map((day) => {
+    const raw = hours[DAY_NAMES[day]]?.trim() ?? "";
+    const parsed = parseDay(raw);
+    const text = parsed === "closed"
+      ? "Stängt"
+      : parsed === null
+        ? raw || "–"
+        : parsed.length === 1 && parsed[0].from === 0 && parsed[0].to >= DAY
+          ? "Dygnet runt"
+          : parsed.map((r) => `${clock(r.from)}–${clock(r.to)}`).join(", ");
+    return { day, name: DAY_NAMES[day], text, today: day === now.getDay() };
+  });
+}

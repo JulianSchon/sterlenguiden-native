@@ -51,7 +51,7 @@ export interface OriginRect { x: number; y: number; w: number; h: number }
 /** Rivkantens läge, skrivs av panelen och läses av biljetten i listan */
 export interface TearEdge { amt: SharedValue<number>; prog: SharedValue<number> }
 
-// Måtten på sidobandet i biljetten (måste stämma med OfferListCard i app/offers.tsx)
+// Måtten på sidobandet i biljetten (måste stämma med OfferTicket)
 const TICKET_H = 190;
 const STUB_W = 58;
 const SIDE_MARGIN = 16;

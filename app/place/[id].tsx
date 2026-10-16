@@ -1,705 +1,738 @@
-import { useState, useRef, useEffect } from "react";
-import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  Linking,
-  StyleSheet,
-  ActivityIndicator,
-  Platform,
-  Share,
-  Animated,
-  Dimensions,
-} from "react-native";
+/**
+ * Platssidan — allt om en plats på ett ställe.
+ *
+ * Öppnas direkt: platserna finns redan i telefonen (Karta och Sök hämtar dem), så namn, bilder,
+ * öppettider och länkar syns från första bildrutan; hela raden hämtas om i bakgrunden.
+ *
+ * Uppifrån: bilderna (svep, tryck = helskärm med zoom), loggan, namnet och läget just nu
+ * ("Öppet · stänger 17"), knapparna (Ring, Hemsida, Karta …), "Jag är här!" när man står på
+ * platsen, Om platsen, Österlenpasset-biljetterna (rivs som på Förmåner), vänner som varit här,
+ * Praktiskt, Öppettider, Evenemang här, Hitta hit (karta, hållplats och en skatt i närheten),
+ * Kontakt, I närheten och "Stämmer något inte?". Längst ner, alltid synlig: hjärtat och
+ * huvudknappen — Boka om platsen tar bokningar, annars Hitta hit.
+ *
+ * Det som ligger långt ner (kartan, listorna) byggs först när sidan glidit fram, så inget hackar
+ * medan den öppnas.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Share, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import Reanimated, {
+  Extrapolation, FadeInDown, interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle,
+  useSharedValue, withDelay, withSequence, withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { ShareIcon } from "@/components/ShareIcon";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { StatusBar } from "expo-status-bar";
+import { Image as ExpoImage } from "expo-image";
+import { useImage } from "@shopify/react-native-skia";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import {
-  ArrowLeft,
-  MapPin,
-  Navigation,
-  Phone,
-  Mail,
-  Globe,
-  Calendar,
-  Heart,
-  Bookmark,
-  UtensilsCrossed,
-  BedDouble,
-  Coffee,
-  ShoppingBag,
-  Trees,
-  Zap,
-  Landmark,
-  Palette,
-  Mountain,
-  Crown,
-  ChevronRight,
+  ArrowLeft, Bookmark, Bus, CalendarCheck, Check, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone,
+  type LucideIcon,
 } from "lucide-react-native";
-import { FontAwesome } from "@expo/vector-icons";
-import Svg, {
-  Defs,
-  LinearGradient as SvgGrad,
-  RadialGradient as SvgRadial,
-  Stop,
-  Rect as SvgRect,
-} from "react-native-svg";
+import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
 import { supabase } from "@/integrations/supabase/client";
-import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
-import { colors } from "@/lib/colors";
+import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useOffers } from "@/hooks/useOffers";
-import { useToggleFavorite, useIsFavorite } from "@/hooks/useFavorites";
-import { OfferDrawer } from "@/components/offers/OfferDrawer";
+import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
+import { useEvents, type Event } from "@/hooks/useEvents";
+import { useCollected, useCollectibles } from "@/hooks/useCollectibles";
+import { useFriendsAtPlace } from "@/hooks/useFriendsAtPlace";
+import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
+import { useKnownLocation } from "@/hooks/useUserLocation";
+import { CATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
+import { useTheme } from "@/theme/ThemeProvider";
+import { distanceMeters } from "@/lib/checkin";
+import { dayKey, lastDay } from "@/lib/events";
+import { openEvent } from "@/lib/eventSheet";
+import { distanceLabel, parseAmenities, PRACTICAL } from "@/lib/mapFilters";
+import { offerEligibility, type Offer } from "@/lib/offers";
+import { hoursStatus, weekRows } from "@/lib/openingHours";
+import { openInfo, placeCategories } from "@/lib/search";
+import { pushOnce } from "@/lib/navigateOnce";
+import {
+  callPhone, copyText, instagramHandle, openDirections, openExternal, openWebsite, prettyUrl, sendEmail, withProtocol,
+} from "@/lib/placeLinks";
+import { ShareIcon } from "@/components/ShareIcon";
+import { Rise } from "@/components/Rise";
+import { Skeleton } from "@/components/Skeleton";
+import { HeartButton, LikeBurst, useLikeBurst } from "@/components/LikeHeart";
+import { CATEGORY_DOT } from "@/components/search/SearchParts";
+import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
+import { OfferTicket, TICKET_H } from "@/components/offers/OfferTicket";
 import { CheckInSection } from "@/components/checkin/CheckInSection";
 import { SaveToListSheet } from "@/components/lists/SaveToListSheet";
+import { PlaceHero } from "@/components/place/PlaceHero";
+import { PhotoViewer } from "@/components/place/PhotoViewer";
+import { PlaceHours, useHoursColors } from "@/components/place/PlaceHours";
+import { PlaceMiniMap } from "@/components/place/PlaceMiniMap";
+import { EventsHere, NearbyRail, type NearbyItem } from "@/components/place/PlaceNearby";
+import {
+  AboutText, ActionRow, Amenities, ContactList, GUTTER, Section, type ContactRow, type PlaceAction,
+} from "@/components/place/PlaceSections";
+import { FriendsHere, FriendsSheet, TreasureHint } from "@/components/place/PlaceSocial";
+import { ReportSheet } from "@/components/place/ReportSheet";
 
-const GOLD = "#C9A24C";
-const CHARCOAL = "#121212";
-const SCREEN_W = Dimensions.get("window").width;
-const HERO_H   = 350;
+const NO_PLACES: Place[] = [];
+const NO_EVENTS: Event[] = [];
+const NO_OFFERS: Offer[] = [];
+const TOP_BAR_H = 56;
+const LOGO = 76;
+/** Så nära en skatt får ligga för att visas på platssidan */
+const TREASURE_NEAR_M = 1500;
+const NEARBY_COUNT = 8;
+const EVENTS_SHOWN = 3;
 
-// Category → Lucide icon component
-function CategoryIcon({ category, size = 12, color = "#A8A192" }: { category: string; size?: number; color?: string }) {
-  const cat = category.toLowerCase();
-  const props = { size, color, strokeWidth: 2 } as const;
-  if (cat.includes("mat") || cat.includes("dryck") || cat.includes("restaurang") || cat.includes("café") || cat.includes("cafe")) return <UtensilsCrossed {...props} />;
-  if (cat.includes("hotell") || cat.includes("b&b") || cat.includes("boende")) return <BedDouble {...props} />;
-  if (cat.includes("café") || cat.includes("cafe") || cat.includes("bageri")) return <Coffee {...props} />;
-  if (cat.includes("butik") || cat.includes("shop") || cat.includes("handel")) return <ShoppingBag {...props} />;
-  if (cat.includes("natur") || cat.includes("skog") || cat.includes("upplevelse")) return <Trees {...props} />;
-  if (cat.includes("aktivitet") || cat.includes("sport")) return <Zap {...props} />;
-  if (cat.includes("sevärdhet")) return <Landmark {...props} />;
-  if (cat.includes("design") || cat.includes("hantverk")) return <Palette {...props} />;
-  if (cat.includes("vandring") || cat.includes("cykel")) return <Mountain {...props} />;
-  return <MapPin {...props} />;
-}
+/** Bilderna ur image_url (flera adresser skilda med komma — Wix-adresser har komman i sig) */
+const imagesOf = (place: Place | undefined) =>
+  (place?.image_url ?? "").split(/,(?=\s*https?:\/\/)/).map((u) => u.trim()).filter(Boolean);
 
-function usePlaceDetail(id: string) {
+/** Hela raden (även det listan inte hämtar), om i bakgrunden */
+function usePlaceDetail(id: number) {
   return useQuery({
     queryKey: ["place", id],
+    enabled: Number.isFinite(id),
+    staleTime: 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("places")
-        .select("*")
-        .eq("id", Number(id))
-        .single();
+      const { data, error } = await supabase.from("places").select("*").eq("id", id).single();
       if (error) throw error;
       return { ...data, category: data.categories } as Place;
     },
   });
 }
 
-function OpeningHoursSection({ hours }: { hours: Record<string, string> | null }) {
-  if (!hours) return null;
-  const days = ["Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag", "Söndag"];
-  const now = new Date();
-  const todayName = days[now.getDay() === 0 ? 6 : now.getDay() - 1];
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Öppettider</Text>
-      {days.map((day) => (
-        <View key={day} style={styles.hoursRow}>
-          <Text style={[styles.hoursDay, day === todayName && styles.hoursDayToday]}>{day}</Text>
-          <Text style={[styles.hoursTime, day === todayName && styles.hoursTimeToday]}>{hours[day] ?? "—"}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function openNavigation(lat?: number | null, lng?: number | null, name?: string) {
-  if (lat && lng) {
-    const url = Platform.select({
-      ios: `maps://?daddr=${lat},${lng}&dirflg=d`,
-      android: `google.navigation:q=${lat},${lng}`,
-    }) ?? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    Linking.openURL(url).catch(() => {
-      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
-    });
-  } else if (name) {
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`);
-  }
-}
-
-// Gold CTA button with press scale + shimmer
-function GoldButton({ label, icon, onPress }: { label: string; icon: React.ReactNode; onPress: () => void }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const shimmerX = useRef(new Animated.Value(-200)).current;
-
-  const handlePressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true, speed: 50 }).start();
-  const handlePressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
-
-  useEffect(() => {
-    shimmerX.setValue(-200);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(2000),
-        Animated.timing(shimmerX, { toValue: 500, duration: 700, useNativeDriver: true }),
-        Animated.timing(shimmerX, { toValue: -200, duration: 0, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, []);
-
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={styles.goldButton}
-      >
-        {icon}
-        <Text style={styles.goldButtonText}>{label}</Text>
-        <Animated.View
-          style={[styles.goldButtonShimmer, { transform: [{ translateX: shimmerX }, { skewX: "-20deg" }] }]}
-        />
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
-
-// ─── Hero-karusell ────────────────────────────────────────────────────────────
-// image_url innehåller flera bilder separerade med komma. Tidigare skickades
-// hela strängen in som en URL, vilket gjorde att inget alls visades.
-function HeroCarousel({ images }: { images: string[] }) {
-  const [index, setIndex] = useState(0);
-
-  if (images.length === 0) {
-    return <View style={[styles.heroImage, styles.heroPlaceholder]} />;
-  }
-
-  return (
-    <View>
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={images.length > 1}
-        onMomentumScrollEnd={(e) =>
-          setIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))
-        }
-      >
-        {images.map((uri, i) => (
-          <Image
-            key={`${uri}-${i}`}
-            source={{ uri }}
-            style={{ width: SCREEN_W, height: HERO_H }}
-            resizeMode="cover"
-          />
-        ))}
-      </ScrollView>
-
-      {images.length > 1 && (
-        <View style={styles.dots} pointerEvents="none">
-          {images.map((_, i) => (
-            <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
-
-export default function PlaceDetailScreen() {
+export default function PlaceScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const placeId = Number(id);
+  const { data: places = NO_PLACES } = usePlaces();
+  const listed = useMemo(() => places.find((p) => p.id === placeId), [places, placeId]);
+  const { data: detail, isError } = usePlaceDetail(placeId);
+  const place = detail ?? listed;
+
+  if (!place) return isError ? <NotFound /> : <PlaceSkeleton />;
+  return <PlacePage place={place} places={places} />;
+}
+
+function PlacePage({ place, places }: { place: Place; places: Place[] }) {
   const router = useRouter();
+  const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-  const { data: place, isLoading, error } = usePlaceDetail(id ?? "");
-  const { data: offers = [] } = useOffers(id ? Number(id) : undefined);
+  const { width, height: winH } = useWindowDimensions();
+  const { colors, scheme } = useTheme();
+  const dark = scheme === "dark";
+  const hoursTint = useHoursColors();
+  const heroH = Math.round(Math.min(width * 0.95, 420));
 
-  // image_url är en kommaseparerad lista, inte en enda URL
-  const heroImages = (place?.image_url ?? "")
-    .split(",")
-    .map((u) => u.trim())
-    .filter(Boolean);
+  // ── Data ──
+  const { data: offers = NO_OFFERS } = useOffers(place.id);
+  const { data: redemptions = [] } = useOfferRedemptions();
+  const { data: events = NO_EVENTS } = useEvents();
+  const { data: collectibles = [] } = useCollectibles();
+  const { data: collected } = useCollected();
+  const { data: friends = [] } = useFriendsAtPlace(place.id);
+  const me = useKnownLocation();
 
-  // Hjärtat var tidigare bara lokal knapp-state som aldrig sparades — bytt mot det riktiga
-  // favoritsystemet (samma som Hem, Kalender och Discover redan använder).
-  const toggleFavorite = useToggleFavorite();
-  const favorited = useIsFavorite(place?.id);
-  const [offersOpen, setOffersOpen] = useState(false);
+  // Det som ligger långt ner byggs när sidan glidit fram (eller efter en stund)
+  const [later, setLater] = useState(false);
+  useEffect(() => {
+    const unsub = navigation.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
+      if (!e?.data?.closing) setLater(true);
+    });
+    const t = setTimeout(() => setLater(true), 700);
+    return () => { unsub(); clearTimeout(t); };
+  }, [navigation]);
+
+  // ── Hjärtat: visas direkt, sparas på servern, och resten av appen uppdateras när man lämnar sidan ──
+  const { data: favorites = [] } = useFavorites();
+  const [savedOverride, setSavedOverride] = useState<boolean | null>(null);
+  const saved = savedOverride ?? favorites.some((f) => f.place_id === place.id);
+  const favDirty = useRef(false);
+  const toggleSave = useCallback(() => {
+    const next = !saved;
+    favDirty.current = true;
+    setSavedOverride(next);
+    savePlaceFavorite(place.id, next).catch(() => setSavedOverride(!next));
+  }, [saved, place.id]);
+  useFocusEffect(useCallback(() => () => {
+    if (!favDirty.current) return;
+    favDirty.current = false;
+    queryClient.invalidateQueries({ queryKey: ["favorites"] }).then(() => setSavedOverride(null));
+  }, [queryClient]));
+  const { burst, show: showBurst } = useLikeBurst();
+
+  // ── Scroll: bildens djup, toppraden som tonar in, kartan som byggs när man närmar sig ──
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({ onScroll: (e) => { scrollY.value = e.contentOffset.y; } });
+  const collapseAt = heroH - insets.top - TOP_BAR_H;
+  const barStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [collapseAt - 60, collapseAt - 10], [0, 1], Extrapolation.CLAMP),
+  }));
+  const [barSolid, setBarSolid] = useState(false);
+  useAnimatedReaction(
+    () => scrollY.value > collapseAt - 30,
+    (solid, prev) => { if (solid !== prev) runOnJS(setBarSolid)(solid); },
+  );
+  const mapY = useSharedValue(Number.MAX_SAFE_INTEGER);
+  const [mapNear, setMapNear] = useState(false);
+  useAnimatedReaction(
+    () => scrollY.value + winH * 1.6 > mapY.value,
+    (near, prev) => { if (near && !prev) runOnJS(setMapNear)(true); },
+  );
+
+  // ── Bilderna ──
+  const images = useMemo(() => imagesOf(place), [place]);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [viewer, setViewer] = useState<number | null>(null);
+
+  // ── Paneler ──
   const [saveOpen, setSaveOpen] = useState(false);
-  const heartScale = useRef(new Animated.Value(1)).current;
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [eventsAll, setEventsAll] = useState(false);
 
-  const handleHeart = () => {
-    if (place) toggleFavorite.mutate({ placeId: place.id });
-    Animated.sequence([
-      Animated.spring(heartScale, { toValue: 1.3, useNativeDriver: true, speed: 80 }),
-      Animated.spring(heartScale, { toValue: 0.9, useNativeDriver: true, speed: 80 }),
-      Animated.spring(heartScale, { toValue: 1.1, useNativeDriver: true, speed: 80 }),
-      Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, speed: 80 }),
-    ]).start();
+  // ── Erbjudandena: biljetterna rivs som på Förmåner ──
+  const edgeAmt = useSharedValue(0);
+  const edgeProg = useSharedValue(0);
+  const edge: TearEdge = useMemo(() => ({ amt: edgeAmt, prog: edgeProg }), [edgeAmt, edgeProg]);
+  const [armedImage, setArmedImage] = useState<string | null>(null);
+  const scrapImage = useImage(armedImage);
+  const [openOffer, setOpenOffer] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
+  const ticketList = useMemo(() => offers
+    .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions).canUse }))
+    .sort((a, b) => Number(a.used) - Number(b.used)), [offers, redemptions]);
+
+  // ── Kopiera (långt tryck) ──
+  const toast = useToast();
+  const copy = useCallback(async (text: string) => {
+    const ok = await copyText(text);
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    toast.show(ok ? "Kopierat" : "Det gick inte att kopiera");
+  }, [toast]);
+
+  // ── Platsen ──
+  const hasCoords = place.lat != null && place.lng != null;
+  const catIds = useMemo(() => [...placeCategories(place.category)], [place.category]);
+  const mainCat = findCategory(place.category);
+  const isHotel = catIds.length > 0 && catIds.every((c) => c === "hotell-bb");
+  const hours = place.opening_hours as Record<string, string> | null;
+  const status = isHotel ? null : hoursStatus(hours);
+  const hasHours = weekRows(hours).length > 0;
+  const myKm = me && hasCoords ? distanceMeters(me.lat, me.lng, place.lat!, place.lng!) / 1000 : null;
+  const transit = (place as Place & { transit_stop_name?: string | null }).transit_stop_name;
+  const bookUrl = place.book_url;
+  const website = place.website_url;
+  const amenities = useMemo(() => {
+    const a = parseAmenities((place as Place & { amenities?: unknown }).amenities);
+    return PRACTICAL.filter((p) => p.id !== "openNow" && a[p.id] === true);
+  }, [place]);
+
+  const showOnMap = useCallback(() => {
+    router.dismissTo({ pathname: "/(tabs)/map", params: { place: String(place.id) } } as never);
+  }, [router, place.id]);
+
+  const upcoming = useMemo(() => {
+    const today = dayKey(new Date());
+    return events
+      .filter((e) => (e.place_id === place.id || e.place?.id === place.id) && (lastDay(e) ?? "") >= today)
+      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  }, [events, place.id]);
+
+  const nearby = useMemo((): NearbyItem[] => {
+    if (!hasCoords) return [];
+    const now = new Date();
+    return places
+      .filter((p) => p.id !== place.id && p.lat != null && p.lng != null)
+      .map((p) => ({ place: p, km: distanceMeters(place.lat!, place.lng!, p.lat!, p.lng!) / 1000, open: openInfo(p, now) }))
+      .sort((a, b) => a.km - b.km)
+      .slice(0, NEARBY_COUNT);
+  }, [places, place, hasCoords]);
+
+  // Skatten som hör till platsen, annars den närmaste inom 1,5 km
+  const treasure = useMemo(() => {
+    if (!hasCoords) return null;
+    const own = collectibles.find((c) => c.placeId === place.id);
+    const candidates = (own ? [own] : collectibles)
+      .map((c) => ({ c, m: distanceMeters(place.lat!, place.lng!, c.lat, c.lng) }))
+      .filter((x) => own || x.m <= TREASURE_NEAR_M)
+      .sort((a, b) => a.m - b.m);
+    return candidates[0] ?? null;
+  }, [collectibles, place, hasCoords]);
+
+  // ── Knapparna ──
+  const actions = useMemo((): PlaceAction[] => {
+    const out: PlaceAction[] = [];
+    if (place.phone) out.push({ key: "call", label: "Ring", Icon: Phone, onPress: () => callPhone(place.phone!) });
+    if (website) out.push({ key: "web", label: "Hemsida", Icon: Globe, onPress: () => openWebsite(website) });
+    if (hasCoords) out.push({ key: "map", label: "Karta", Icon: MapIcon, onPress: showOnMap });
+    if (place.instagram_url) out.push({ key: "ig", label: "Instagram", Icon: InstagramIcon, onPress: () => openExternal(place.instagram_url!) });
+    if (place.facebook_url) out.push({ key: "fb", label: "Facebook", Icon: FacebookIcon, onPress: () => openExternal(place.facebook_url!) });
+    if (place.email) out.push({ key: "mail", label: "E-post", Icon: Mail, onPress: () => sendEmail(place.email!) });
+    return out;
+  }, [place, website, hasCoords, showOnMap]);
+
+  const contact = useMemo((): ContactRow[] => {
+    const out: ContactRow[] = [];
+    if (place.phone) out.push({ key: "phone", Icon: Phone, label: "Telefon", value: place.phone, onPress: () => callPhone(place.phone!), onLongPress: () => copy(place.phone!) });
+    if (website) out.push({ key: "web", Icon: Globe, label: "Hemsida", value: prettyUrl(website), onPress: () => openWebsite(website), onLongPress: () => copy(withProtocol(website)) });
+    if (bookUrl) out.push({ key: "book", Icon: CalendarCheck, label: "Bokning", value: prettyUrl(bookUrl), onPress: () => openWebsite(bookUrl), onLongPress: () => copy(withProtocol(bookUrl)) });
+    if (place.email) out.push({ key: "mail", Icon: Mail, label: "E-post", value: place.email, onPress: () => sendEmail(place.email!), onLongPress: () => copy(place.email!) });
+    if (place.instagram_url) out.push({ key: "ig", Icon: InstagramIcon, label: "Instagram", value: instagramHandle(place.instagram_url) ?? "Instagram", onPress: () => openExternal(place.instagram_url!) });
+    if (place.facebook_url) out.push({ key: "fb", Icon: FacebookIcon, label: "Facebook", value: prettyUrl(place.facebook_url).replace(/^(m\.)?facebook\.com\//i, "") || "Facebook", onPress: () => openExternal(place.facebook_url!) });
+    return out;
+  }, [place, website, bookUrl, copy]);
+
+  // Huvudknappen: Boka om platsen tar bokningar, annars Hitta hit
+  const primary: { label: string; Icon: LucideIcon; onPress: () => void } | null = bookUrl
+    ? {
+      label: mainCat?.id === "mat-dryck" ? "Boka bord" : mainCat?.id === "hotell-bb" ? "Boka rum" : "Boka",
+      Icon: CalendarCheck,
+      onPress: () => openWebsite(bookUrl),
+    }
+    : hasCoords ? { label: "Hitta hit", Icon: Navigation, onPress: () => openDirections(place.lat!, place.lng!) } : null;
+
+  const share = () => {
+    const town = place.nearest_town ? `, ${place.nearest_town}` : "";
+    const link = website ? `\n${withProtocol(website)}` : "";
+    Share.share({ message: `${place.name}${town}${link}` }).catch(() => {});
   };
 
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={GOLD} />
-        </View>
-      </View>
-    );
-  }
-
-  if (error || !place) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.center}>
-          <Text style={styles.errorText}>Platsen hittades inte</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const open = isPlaceOpen(place.opening_hours as Record<string, string> | null);
-  const openingHours = place.opening_hours as Record<string, string> | null;
-  const bookUrl = (place as any).book_url as string | null | undefined;
-  const hasBook = !!bookUrl;
-  const hasNav = !!(place.lat || place.lng || place.name);
-
-  // Build action pills
-  type Pill = { label: string; icon: React.ReactNode; onPress: () => void };
-  const pills: Pill[] = [];
-  if (place.website_url)
-    pills.push({ label: "Hemsida", icon: <Globe size={14} color={GOLD} />, onPress: () => Linking.openURL(place.website_url!) });
-  if (place.phone)
-    pills.push({ label: "Ring", icon: <Phone size={14} color={GOLD} />, onPress: () => Linking.openURL(`tel:${place.phone}`) });
-  if (place.email)
-    pills.push({ label: "E-post", icon: <Mail size={14} color={GOLD} />, onPress: () => Linking.openURL(`mailto:${place.email}`) });
-  if (place.instagram_url)
-    pills.push({ label: "Instagram", icon: <FontAwesome name="instagram" size={14} color={GOLD} />, onPress: () => Linking.openURL(place.instagram_url!) });
-  if (place.facebook_url)
-    pills.push({ label: "Facebook", icon: <FontAwesome name="facebook" size={14} color={GOLD} />, onPress: () => Linking.openURL(place.facebook_url!) });
-  if (hasBook && hasNav)
-    pills.push({ label: "Navigera", icon: <Navigation size={14} color={GOLD} />, onPress: () => openNavigation(place.lat, place.lng, place.name) });
-
-  const handleShare = () => {
-    Share.share({ message: `${place.name} — ${place.nearest_town ?? "Österlen"}` });
+  const onOpenFriend = (userId: string) => {
+    setFriendsOpen(false);
+    router.push({ pathname: "/friend/[id]", params: { id: userId } });
   };
-
-  const topBtnTop = insets.top + 12;
 
   return (
-    <View style={styles.container}>
-      <ScrollView
+    <View style={[s.screen, { backgroundColor: colors.bg }]}>
+      {/* Ljus statusrad över bilden och i helskärm; temats när toppraden tagit över */}
+      <StatusBar style={viewer != null || dark || (!barSolid && images.length > 0) ? "light" : "dark"} />
+      <Reanimated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}
       >
-        {/* Hero image */}
-        <View style={styles.heroContainer}>
-          <HeroCarousel images={heroImages} />
+        <PlaceHero
+          images={images}
+          height={heroH}
+          scrollY={scrollY}
+          index={heroIndex}
+          onIndexChange={setHeroIndex}
+          onOpen={setViewer}
+          Icon={mainCat?.icon ?? MapPin}
+          topInset={insets.top}
+        />
 
-          {/* Fade: bild → svart via SVG */}
-          <Svg
-            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 140 }}
-            width="100%"
-            height={140}
-            pointerEvents="none"
-          >
-            <Defs>
-              <SvgGrad id="heroFade" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={CHARCOAL} stopOpacity={0} />
-                <Stop offset="100%" stopColor={CHARCOAL} stopOpacity={1} />
-              </SvgGrad>
-            </Defs>
-            <SvgRect x={0} y={0} width="100%" height={140} fill="url(#heroFade)" />
-          </Svg>
-
-          {/* Back button — absolutely positioned top-left */}
-          <TouchableOpacity
-            style={[styles.overlayBtnOuter, { position: "absolute", top: topBtnTop, left: 16 }]}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <View style={styles.overlayBtnBlur}>
-              <ArrowLeft size={24} color="#fff" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Share + Heart — row so marginLeft overlap works */}
-          <View style={[styles.topRightRow, { top: topBtnTop }]}>
-            <TouchableOpacity style={styles.overlayBtnOuter} onPress={handleShare} activeOpacity={0.8}>
-              <View style={styles.overlayBtnBlur}>
-                <ShareIcon size={20} color="#fff" />
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.overlayBtnOuter, styles.heartOverlap]} onPress={handleHeart} activeOpacity={0.8}>
-              <View style={styles.overlayBtnBlur}>
-                <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                  <Heart
-                    size={20}
-                    color={favorited ? "#B83434" : "#fff"}
-                    fill={favorited ? "#B83434" : "transparent"}
-                  />
-                </Animated.View>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Open/closed badge */}
-          {place.opening_hours && (
-            <View style={[styles.openBadge, open ? styles.openBadgeOpen : styles.openBadgeClosed]}>
-              <Text style={[styles.openBadgeText, open ? styles.openTextOpen : styles.openTextClosed]}>
-                {open ? "Öppet nu" : "Stängt"}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Content */}
-        <View style={styles.content}>
-          {/* Header: name full-width on top, then logo row below */}
-          <View style={styles.headerWrapper}>
-            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
-              {place.name}
-            </Text>
-            <View style={styles.header}>
-              {/* Logo */}
-              <View style={styles.logoOuter}>
-                {place.logo_url ? (
-                  <Image source={{ uri: place.logo_url }} style={styles.logoImage} />
-                ) : (
-                  <View style={[styles.logoImage, { backgroundColor: "#2A2A2A" }]} />
-                )}
-              </View>
-              {/* Location + Category */}
-              <View style={styles.meta}>
-                {place.nearest_town && (
-                  <View style={styles.locationRow}>
-                    <MapPin size={14} color="rgba(255,255,255,0.70)" />
-                    <Text style={styles.locationText}>{place.nearest_town}</Text>
+        {/* Allt under bilden har hel bakgrund och ligger ovanpå den (bilden glider in under) */}
+        <View style={{ backgroundColor: colors.bg }}>
+          <Rise index={0}>
+            <View style={s.identity}>
+              <Logo place={place} catId={mainCat?.id} />
+              <Text style={[s.name, { color: colors.text }]}>{place.name}</Text>
+              <View style={s.meta}>
+                {catIds.map((c) => (
+                  <View key={c} style={s.metaItem}>
+                    <View style={[s.dot, { backgroundColor: CATEGORY_DOT[scheme][c] }]} />
+                    <Text style={[s.metaText, { color: colors.muted }]}>{CATEGORIES.find((d) => d.id === c)?.label}</Text>
                   </View>
-                )}
-                {place.categories && (
-                  <View style={styles.categoryRow}>
-                    <CategoryIcon category={place.categories} size={14} color="rgba(255,255,255,0.60)" />
-                    <Text style={styles.categoryText}>{place.categories}</Text>
-                  </View>
-                )}
+                ))}
+                {[place.nearest_town, myKm != null ? distanceLabel(myKm) : null, place.price_level ? "$".repeat(place.price_level) : null]
+                  .filter(Boolean)
+                  .map((t, i) => (
+                    <Text key={i} style={[s.metaText, { color: colors.muted }]}>
+                      {(i > 0 || catIds.length > 0) && <Text style={{ color: colors.faint }}>·  </Text>}
+                      {t}
+                    </Text>
+                  ))}
               </View>
+              {status && (
+                <View style={s.status}>
+                  <View style={[s.statusDot, { backgroundColor: hoursTint[status.state] }]} />
+                  <Text style={[s.statusText, { color: hoursTint[status.state] }]}>{status.label}</Text>
+                </View>
+              )}
             </View>
-          </View>
+          </Rise>
 
-          {/* Action pills */}
-          {pills.length > 0 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.pillsScroll}
-              contentContainerStyle={{ paddingLeft: 16, paddingRight: 16, paddingTop: 8, paddingBottom: 8, gap: 8, flexDirection: "row" }}
-            >
-              {pills.map((p) => (
-                <TouchableOpacity key={p.label} style={styles.pill} onPress={p.onPress} activeOpacity={0.75}>
-                  {p.icon}
-                  <Text style={styles.pillText}>{p.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
+          <Rise index={1}>
+            <ActionRow actions={actions} />
+          </Rise>
 
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* "Jag är här!" — visas bara när man är nära nog (se CheckInSection) */}
           <CheckInSection place={place} />
 
-          {/* Spara platsen i en av dina (gemensamma) listor */}
-          <TouchableOpacity style={styles.saveToList} activeOpacity={0.7} onPress={() => setSaveOpen(true)}>
-            <Bookmark size={18} color="#C5A059" strokeWidth={2} />
-            <Text style={styles.saveToListText}>Spara i lista</Text>
-          </TouchableOpacity>
-          <SaveToListSheet visible={saveOpen} onClose={() => setSaveOpen(false)} placeId={place.id} />
-
-          {/* Österlenpasset — dörren in till platsens erbjudanden.
-              Visas för alla, även icke-medlemmar: syftet är att locka. */}
-          {offers.length > 0 && (
-            <TouchableOpacity
-              style={styles.offerCard}
-              activeOpacity={0.9}
-              onPress={() => setOffersOpen(true)}
-            >
-              {/* Guldglans i övre högra hörnet */}
-              <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-                <Defs>
-                  <SvgRadial id="offerCardGlow" cx="100%" cy="0%" rx="120%" ry="80%">
-                    <Stop offset="0%"   stopColor="#E6C77A" stopOpacity={0.14} />
-                    <Stop offset="55%"  stopColor="#E6C77A" stopOpacity={0}    />
-                  </SvgRadial>
-                </Defs>
-                <SvgRect width="100%" height="100%" fill="url(#offerCardGlow)" />
-              </Svg>
-
-              <View style={styles.offerPill}>
-                <Crown size={12} color="#E6C77A" strokeWidth={2} />
-                <Text style={styles.offerPillText}>ÖSTERLENPASSET</Text>
-              </View>
-
-              <Text style={styles.offerTitle}>
-                {offers.length === 1 ? "1 aktivt erbjudande" : `${offers.length} aktiva erbjudanden`}
-              </Text>
-              <Text style={styles.offerSub}>Exklusivt för medlemmar</Text>
-
-              <View style={styles.offerCta}>
-                <Text style={styles.offerCtaText}>SE ERBJUDANDEN</Text>
-                <ChevronRight size={20} color="rgba(230,199,122,0.8)" strokeWidth={2} />
-              </View>
-            </TouchableOpacity>
+          {(place.short_description || place.description) && (
+            <Rise index={2}>
+              <Section title="Om platsen">
+                <AboutText
+                  lead={place.description && place.short_description !== place.description ? place.short_description : null}
+                  body={place.description ?? place.short_description}
+                />
+              </Section>
+            </Rise>
           )}
 
-          {/* Om platsen */}
-          {(place.description || place.short_description) && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Om platsen</Text>
-              <Text style={styles.description}>
-                {place.description ?? place.short_description}
-              </Text>
+          {ticketList.length > 0 && (
+            <Section title="Österlenpasset">
+              <View style={{ gap: 14 }}>
+                {ticketList.map(({ offer, used }, i) => (later ? (
+                  <Reanimated.View key={offer.id} entering={RISE_IN(i)}>
+                    <OfferTicket
+                      offer={offer}
+                      used={used}
+                      stubHidden={openOffer?.origin != null && openOffer.offer.id === offer.id}
+                      edge={edge}
+                      linkPlace={false}
+                      onArm={setArmedImage}
+                      onOpen={(o, origin) => setOpenOffer({ offer: o, origin })}
+                    />
+                  </Reanimated.View>
+                ) : <Skeleton key={offer.id} height={TICKET_H} radius={18} />))}
+              </View>
+            </Section>
+          )}
+
+          {friends.length > 0 && (
+            <Section title="Vänner">
+              <Reanimated.View entering={RISE_IN(0)}>
+                <FriendsHere friends={friends} onPress={() => setFriendsOpen(true)} />
+              </Reanimated.View>
+            </Section>
+          )}
+
+          {amenities.length > 0 && (
+            <Section title="Praktiskt">
+              <Amenities items={amenities} />
+            </Section>
+          )}
+
+          {hasHours && (
+            <Section title="Öppettider">
+              <PlaceHours hours={hours} showStatus={!isHotel} />
+            </Section>
+          )}
+
+          {later && upcoming.length > 0 && (
+            <Section
+              title="Evenemang här"
+              action={upcoming.length > EVENTS_SHOWN ? (eventsAll ? "Visa färre" : `Visa alla ${upcoming.length}`) : undefined}
+              onAction={() => setEventsAll((v) => !v)}
+            >
+              <EventsHere
+                events={eventsAll ? upcoming : upcoming.slice(0, EVENTS_SHOWN)}
+                onOpen={(e) => openEvent(e.id, { event: e })}
+              />
+            </Section>
+          )}
+
+          {hasCoords && (
+            <View onLayout={(e) => { mapY.value = heroH + e.nativeEvent.layout.y; }}>
+              <Section title="Hitta hit">
+                <PlaceMiniMap lat={place.lat!} lng={place.lng!} mount={later && mapNear} onPress={showOnMap} />
+                <View style={s.where}>
+                  <View style={s.whereRow}>
+                    <MapPin size={16} color={colors.muted} strokeWidth={2} />
+                    <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
+                      {place.nearest_town ?? "Österlen"}
+                      {myKm != null && <Text style={{ color: colors.muted }}>{`  ·  ${distanceLabel(myKm)} från dig`}</Text>}
+                    </Text>
+                  </View>
+                  {!!transit && (
+                    <View style={s.whereRow}>
+                      <Bus size={16} color={colors.muted} strokeWidth={2} />
+                      <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
+                        <Text style={{ color: colors.muted }}>Hållplats  </Text>{transit}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View style={s.whereButtons}>
+                  <QuietAction Icon={MapIcon} label="Visa på kartan" onPress={showOnMap} />
+                  <QuietAction Icon={Navigation} label="Vägbeskrivning" onPress={() => openDirections(place.lat!, place.lng!)} />
+                </View>
+                {treasure && (
+                  <View style={{ marginTop: 12 }}>
+                    <TreasureHint
+                      meters={treasure.m}
+                      found={collected?.has(treasure.c.id) ?? false}
+                      name={treasure.c.name}
+                      onPress={() => router.dismissTo({ pathname: "/(tabs)/map", params: { sticker: treasure.c.id } } as never)}
+                    />
+                  </View>
+                )}
+              </Section>
             </View>
           )}
 
-          {/* Opening hours */}
-          <OpeningHoursSection hours={openingHours} />
-        </View>
-      </ScrollView>
+          {contact.length > 0 && (
+            <Section title="Kontakt">
+              <ContactList rows={contact} />
+              <Text style={[s.hint, { color: colors.faint }]}>Håll inne för att kopiera</Text>
+            </Section>
+          )}
 
-      {/* Fixed CTA bar */}
-      <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 20 }]}>
-        {hasBook ? (
-          <GoldButton
-            label="Boka"
-            icon={<Calendar size={16} color={CHARCOAL} />}
-            onPress={() => Linking.openURL(bookUrl!)}
-          />
-        ) : hasNav ? (
-          <GoldButton
-            label="Navigera"
-            icon={<Navigation size={16} color={CHARCOAL} />}
-            onPress={() => openNavigation(place.lat, place.lng, place.name)}
-          />
-        ) : null}
+          {later && nearby.length > 0 && (
+            <Section title="I närheten">
+              <NearbyRail items={nearby} onPress={(p) => pushOnce(router, `/place/${p.id}`)} />
+            </Section>
+          )}
+
+          <TouchableOpacity style={[s.report, { borderColor: colors.border }]} activeOpacity={0.7} onPress={() => setReportOpen(true)}>
+            <PenLine size={16} color={colors.muted} strokeWidth={2} />
+            <Text style={[s.reportText, { color: colors.muted }]}>
+              Stämmer något inte? <Text style={{ color: colors.goldText }}>Tipsa oss</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Reanimated.ScrollView>
+
+      {/* ── Toppraden: knapparna ligger kvar, bakgrunden och namnet tonar in när bilden scrollats bort ── */}
+      <View style={[s.topBar, { paddingTop: insets.top, height: insets.top + TOP_BAR_H }]} pointerEvents="box-none">
+        <Reanimated.View
+          style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, borderBottomColor: colors.border }, s.topBarBg, barStyle]}
+          pointerEvents="none"
+        />
+        <RoundButton label="Tillbaka" onPress={() => router.back()}>
+          <ArrowLeft size={21} color={colors.text} strokeWidth={2.2} />
+        </RoundButton>
+        <Reanimated.Text style={[s.barTitle, { top: insets.top, color: colors.text }, barStyle]} numberOfLines={1} pointerEvents="none">
+          {place.name.toUpperCase()}
+        </Reanimated.Text>
+        <View style={s.topRight}>
+          <RoundButton label="Dela" onPress={share}>
+            <ShareIcon size={19} color={colors.text} strokeWidth={2.2} />
+          </RoundButton>
+          <RoundButton label="Spara i lista" onPress={() => setSaveOpen(true)}>
+            <Bookmark size={19} color={colors.text} strokeWidth={2.2} />
+          </RoundButton>
+        </View>
       </View>
 
-      <OfferDrawer
-        visible={offersOpen}
-        placeId={Number(id)}
-        onClose={() => setOffersOpen(false)}
+      {/* ── Längst ner: hjärtat och huvudknappen ── */}
+      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 10, backgroundColor: colors.bg, borderTopColor: colors.border }]}>
+        <View style={[s.heartBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <HeartButton isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={24} outline={colors.text} />
+        </View>
+        {primary ? (
+          <TouchableOpacity style={[s.primary, { backgroundColor: colors.gold }]} activeOpacity={0.85} onPress={primary.onPress}>
+            <primary.Icon size={19} color={colors.onGold} strokeWidth={2.3} />
+            <Text style={[s.primaryText, { color: colors.onGold }]}>{primary.label}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[s.primary, { backgroundColor: colors.gold }]} activeOpacity={0.85} onPress={share}>
+            <ShareIcon size={19} color={colors.onGold} strokeWidth={2.3} />
+            <Text style={[s.primaryText, { color: colors.onGold }]}>Dela platsen</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <Reanimated.View style={[s.toast, { bottom: insets.bottom + 86 }, toast.style]} pointerEvents="none">
+        <Check size={15} color="#FFFFFF" strokeWidth={2.6} />
+        <Text style={s.toastText}>{toast.text}</Text>
+      </Reanimated.View>
+
+      <PhotoViewer
+        images={images}
+        start={viewer ?? 0}
+        visible={viewer != null}
+        onClose={(i) => { setHeroIndex(i); setViewer(null); }}
       />
+      <SaveToListSheet visible={saveOpen} onClose={() => setSaveOpen(false)} placeId={place.id} />
+      <FriendsSheet visible={friendsOpen} friends={friends} onClose={() => setFriendsOpen(false)} onOpenFriend={onOpenFriend} />
+      <ReportSheet visible={reportOpen} placeId={place.id} onClose={() => setReportOpen(false)} />
+      <OfferDrawer
+        visible={openOffer != null}
+        placeId={place.id}
+        focusOffer={openOffer?.offer}
+        origin={openOffer?.origin}
+        edge={edge}
+        scrapImage={scrapImage}
+        onClose={() => setOpenOffer(null)}
+      />
+      <LikeBurst burst={burst} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  saveToList: {
-    flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start",
-    marginHorizontal: 20, marginTop: 12, paddingVertical: 8,
-  },
-  saveToListText: { fontFamily: "Inter_500Medium", fontSize: 14, color: "#C5A059" },
-  container: { flex: 1, backgroundColor: CHARCOAL },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  errorText: { color: "#A8A192", fontSize: 16 },
+/** Det som dyker upp när datan kommit: samma lugna inglidning som Rise, utan väntan */
+const RISE_IN = (i: number) =>
+  FadeInDown.withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] }).duration(380).delay(i * 60);
 
-  // Österlenpasset-kortet
-  offerCard: {
-    marginHorizontal: 16, // content saknar sidmarginal, den sätts per sektion
-    marginBottom: 28,
-    padding: 16,
-    borderRadius: 20,
-    overflow: "hidden",
-    backgroundColor: "#1A1A1D",
-    borderWidth: 0.5,
-    borderColor: "rgba(197,160,89,0.35)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.65,
-    shadowRadius: 24,
-    elevation: 10,
-  },
-  offerPill: {
-    alignSelf: "flex-start",
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: "rgba(212,168,79,0.12)",
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.50)",
-    marginBottom: 10,
-  },
-  offerPillText: {
-    fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#E6C77A",
-    letterSpacing: 1.6,
-  },
-  offerTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 17, color: "#FFFFFF" },
-  offerSub: {
-    fontFamily: "Inter_400Regular", fontSize: 12,
-    color: "rgba(255,255,255,0.55)", marginTop: 2,
-  },
-  offerCta: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginTop: 14,
-  },
-  offerCtaText: {
-    fontFamily: "Inter_600SemiBold", fontSize: 11, color: "#E6C77A",
-    letterSpacing: 1.76,
-  },
+// ── Småbitar ─────────────────────────────────────────────────────────────────
 
-  // Hero
-  heroContainer: { position: "relative" },
-  heroImage: { width: "100%", height: HERO_H },
-  heroPlaceholder: { backgroundColor: "#1E1E1E" },
+/** Platsens logga i en vit cirkel som sticker upp över bildens nederkant (kategorins ikon om loggan saknas) */
+function Logo({ place, catId }: { place: Place; catId: CategoryId | undefined }) {
+  const { colors, scheme } = useTheme();
+  const Icon = CATEGORIES.find((c) => c.id === catId)?.icon ?? MapPin;
+  return (
+    <View style={[s.logoRing, { backgroundColor: colors.bg }]}>
+      <View style={[s.logo, { backgroundColor: place.logo_url ? "#FFFFFF" : colors.card, borderColor: colors.border }]}>
+        {place.logo_url ? (
+          <ExpoImage source={{ uri: place.logo_url }} style={s.logoImage} contentFit="contain" cachePolicy="memory-disk" transition={120} />
+        ) : (
+          <Icon size={30} color={catId ? CATEGORY_DOT[scheme][catId] : colors.muted} strokeWidth={1.8} />
+        )}
+      </View>
+    </View>
+  );
+}
 
-  // Bläddringsmarkör — aktiv pricka blir avlång så den syns tydligt
-  dots: {
-    position: "absolute",
-    bottom: 18, left: 0, right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 6,
-  },
-  dot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.35)",
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: "rgba(255,255,255,0.95)",
-  },
+/** Rund, hel knapp i toppraden — syns både mot bilden och mot toppradens bakgrund */
+function RoundButton({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity
+      style={[s.round, { backgroundColor: colors.card, borderColor: colors.border }]}
+      activeOpacity={0.8}
+      onPress={onPress}
+      hitSlop={6}
+      accessibilityLabel={label}
+    >
+      {children}
+    </TouchableOpacity>
+  );
+}
 
-  // Overlay circle buttons — outer clips to circle, BlurView fills inside
-  overlayBtnOuter: {
-    width: 48,
-    height: 48,
-    borderRadius: 9999,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-  },
-  overlayBtnBlur: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.50)",
-  },
-  topRightRow: {
-    position: "absolute",
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  heartOverlap: {
-    marginLeft: -12,
-    zIndex: 10,
-  },
+function QuietAction({ Icon, label, onPress }: { Icon: LucideIcon; label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity style={[s.quiet, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
+      <Icon size={16} color={colors.text} strokeWidth={2.2} />
+      <Text style={[s.quietText, { color: colors.text }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 
-  // Open badge
-  openBadge: {
-    position: "absolute", bottom: 12, right: 12,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+/** Ett kort besked nere vid knapparna ("Kopierat") som tonar bort av sig själv */
+function useToast() {
+  const [text, setText] = useState("");
+  const v = useSharedValue(0);
+  const show = useCallback((t: string) => {
+    setText(t);
+    v.value = withSequence(withTiming(1, { duration: 160 }), withDelay(1300, withTiming(0, { duration: 240 })));
+  }, [v]);
+  const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 8 }] }));
+  return useMemo(() => ({ text, show, style }), [text, show, style]);
+}
+
+/** Platsen finns inte i telefonen än (öppnad från en länk direkt efter start): sidans form i grått */
+function PlaceSkeleton() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const { colors } = useTheme();
+  const heroH = Math.round(Math.min(width * 0.95, 420));
+  return (
+    <View style={[s.screen, { backgroundColor: colors.bg }]}>
+      <Skeleton height={heroH} radius={0} />
+      <View style={{ paddingHorizontal: GUTTER, paddingTop: 54, gap: 10 }}>
+        <Skeleton width="72%" height={26} radius={8} />
+        <Skeleton width="48%" height={14} radius={6} />
+        <Skeleton width="36%" height={14} radius={6} />
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} height={68} radius={16} style={{ flex: 1 }} />)}
+        </View>
+      </View>
+      <View style={[s.topBar, { paddingTop: insets.top, height: insets.top + TOP_BAR_H }]}>
+        <RoundButton label="Tillbaka" onPress={() => router.back()}>
+          <ArrowLeft size={21} color={colors.text} strokeWidth={2.2} />
+        </RoundButton>
+      </View>
+    </View>
+  );
+}
+
+function NotFound() {
+  const router = useRouter();
+  const { colors } = useTheme();
+  return (
+    <View style={[s.screen, s.notFound, { backgroundColor: colors.bg }]}>
+      <MapPin size={34} color={colors.faint} strokeWidth={1.6} />
+      <Text style={[s.notFoundTitle, { color: colors.text }]}>Vi hittar inte den här platsen</Text>
+      <Text style={[s.notFoundText, { color: colors.muted }]}>Den kan ha tagits bort, eller så är du utan nät just nu.</Text>
+      <TouchableOpacity style={[s.quiet, { backgroundColor: colors.card, borderColor: colors.border, flex: 0, paddingHorizontal: 22 }]} onPress={() => router.back()}>
+        <Text style={[s.quietText, { color: colors.text }]}>Tillbaka</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  screen: { flex: 1 },
+
+  identity: { paddingHorizontal: GUTTER, paddingTop: LOGO / 2 + 14 },
+  logoRing: {
+    position: "absolute", left: GUTTER - 4, top: -LOGO / 2 - 4,
+    width: LOGO + 8, height: LOGO + 8, borderRadius: (LOGO + 8) / 2, alignItems: "center", justifyContent: "center",
   },
-  openBadgeOpen: { backgroundColor: colors.successBg },
-  openBadgeClosed: { backgroundColor: colors.errorBg },
-  openBadgeText: { fontSize: 12, fontWeight: "700" },
-  openTextOpen: { color: colors.successText },
-  openTextClosed: { color: colors.errorText },
-
-  // Content — no horizontal padding here; pills ScrollView uses its own paddingLeft/Right
-  content: { paddingTop: 20 },
-
-  // Header: name on top, then logo+meta row
-  headerWrapper: { paddingHorizontal: 16, marginBottom: 18 },
-  name: { fontSize: 21, fontWeight: "800", color: "#F4EFE3", marginBottom: 6 },
-  header: { flexDirection: "row", gap: 12, alignItems: "center", marginTop: 6 },
-
-  // Logo: 44px outer with 1.5px charcoal border, 39px inner image
-  logoOuter: {
-    width: 44,
-    height: 44,
-    borderRadius: 9999,
-    borderWidth: 1.5,
-    borderColor: CHARCOAL,
-    overflow: "hidden",
-    backgroundColor: "#fff",
+  logo: {
+    width: LOGO, height: LOGO, borderRadius: LOGO / 2, overflow: "hidden", alignItems: "center", justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  logoImage: { width: "100%", height: "100%" },
-  logoPlaceholder: {
-    width: 44, height: 44, borderRadius: 9999, backgroundColor: "#2A2A2A",
+  logoImage: { width: LOGO * 0.82, height: LOGO * 0.82 },
+  name: { fontFamily: "Montserrat_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.6 },
+  meta: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 4, marginTop: 8 },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  metaText: { fontFamily: "Inter_500Medium", fontSize: 14 },
+  status: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 9 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontFamily: "Inter_700Bold", fontSize: 14 },
+
+  where: { gap: 9, marginTop: 14 },
+  whereRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  whereText: { flexShrink: 1, fontFamily: "Inter_500Medium", fontSize: 14.5 },
+  whereButtons: { flexDirection: "row", gap: 8, marginTop: 14 },
+  quiet: {
+    flex: 1, height: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
   },
+  quietText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
+  hint: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 8, textAlign: "center" },
 
-  meta: { flex: 1 },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  locationText: { fontSize: 14, lineHeight: 20, color: "rgba(255,255,255,0.70)" },
-  categoryRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
-  categoryText: { fontSize: 14, lineHeight: 20, color: "rgba(255,255,255,0.60)" },
-
-  // Pills — no horizontal margin so it spans full screen width
-  pillsScroll: { marginBottom: 0 },
-  divider: {
-    height: 2,
-    backgroundColor: "rgba(46,46,46,0.50)",
-    marginHorizontal: 24,
-    marginTop: 8,
-    marginBottom: 0,
-  },
-  pill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    minHeight: 44,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: "rgba(46,46,46,0.5)",
-    backgroundColor: "rgba(38,38,38,0.8)",
-  },
-  pillText: { fontSize: 14, fontWeight: "500", color: "#F4EFE3" },
-
-  section: { paddingTop: 16, paddingBottom: 32, paddingHorizontal: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#F4EFE3", lineHeight: 28, marginBottom: 12 },
-  description: { fontSize: 15, color: "#A8A192", lineHeight: 24 },
-
-  hoursRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
-  hoursDay: { fontSize: 14, color: "#A8A192", width: 100 },
-  hoursDayToday: { color: GOLD, fontWeight: "700" },
-  hoursTime: { fontSize: 14, color: "#F4EFE3" },
-  hoursTimeToday: { color: GOLD, fontWeight: "700" },
-
-  // CTA bar
-  ctaBar: {
-    position: "absolute",
-    bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    backgroundColor: CHARCOAL,
+  report: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    marginHorizontal: GUTTER, marginTop: 40, paddingVertical: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(46,46,46,0.6)",
+  },
+  reportText: { fontFamily: "Inter_500Medium", fontSize: 14 },
+
+  topBar: {
+    position: "absolute", top: 0, left: 0, right: 0,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12,
+  },
+  topBarBg: { borderBottomWidth: StyleSheet.hairlineWidth },
+  barTitle: {
+    position: "absolute", left: 112, right: 112, height: TOP_BAR_H, lineHeight: TOP_BAR_H, textAlign: "center",
+    fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5,
+  },
+  topRight: { flexDirection: "row", gap: 8 },
+  round: {
+    width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 3,
   },
 
-  // Gold button
-  goldButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 9999,
-    backgroundColor: GOLD,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
+  bottomBar: {
+    position: "absolute", left: 0, right: 0, bottom: 0,
+    flexDirection: "row", gap: 10, paddingHorizontal: GUTTER, paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  goldButtonText: { fontSize: 16, fontWeight: "600", color: CHARCOAL },
-  goldButtonShimmer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 60,
-    backgroundColor: "rgba(255,255,255,0.24)",
+  heartBox: {
+    width: 54, height: 54, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center", justifyContent: "center",
   },
+  primary: { flex: 1, height: 54, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  primaryText: { fontFamily: "Inter_700Bold", fontSize: 16 },
+
+  toast: {
+    position: "absolute", alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 7,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: "#1C1C1E",
+  },
+  toastText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#FFFFFF" },
+
+  notFound: { alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
+  notFoundTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, textAlign: "center" },
+  notFoundText: { fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 8 },
 });
