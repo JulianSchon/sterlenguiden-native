@@ -4,11 +4,10 @@
  */
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowUpRight, type LucideIcon } from "lucide-react-native";
 import type { IconProps } from "@/components/BrandIcons";
-import { PressableScale } from "@/components/PressableScale";
 import { useTheme } from "@/theme/ThemeProvider";
 import { withAlpha } from "@/theme/categories";
 
@@ -46,26 +45,35 @@ export interface PlaceAction {
   onPress: () => void;
 }
 
-/** Upp till fyra lika breda knappar med ikon och text under: det man oftast vill göra direkt */
+/** Upp till fyra lika breda knappar med ikon och text under, över hela bredden: det man oftast vill göra direkt */
 export function ActionRow({ actions }: { actions: PlaceAction[] }) {
-  const { colors } = useTheme();
   if (actions.length === 0) return null;
   return (
     <View style={s.actions}>
-      {actions.slice(0, 4).map(({ key, label, Icon, onPress }) => (
-        <PressableScale
-          key={key}
-          onPress={onPress}
-          scale={0.94}
-          style={[s.action, { backgroundColor: colors.card, borderColor: colors.border }]}
-          accessibilityRole="button"
-          accessibilityLabel={label}
-        >
-          <Icon size={20} color={colors.text} strokeWidth={2} />
-          <Text style={[s.actionLabel, { color: colors.text }]} numberOfLines={1}>{label}</Text>
-        </PressableScale>
-      ))}
+      {actions.slice(0, 4).map((a) => <ActionButton key={a.key} action={a} />)}
     </View>
+  );
+}
+
+function ActionButton({ action: { label, Icon, onPress } }: { action: PlaceAction }) {
+  const { colors } = useTheme();
+  const press = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
+  return (
+    // Den tryckbara ytan tar sin del av raden; knappen i den fyller den helt
+    <Pressable
+      style={s.actionSlot}
+      onPress={onPress}
+      onPressIn={() => { press.value = withSpring(0.94, { damping: 36, stiffness: 320 }); }}
+      onPressOut={() => { press.value = withSpring(1, { damping: 32, stiffness: 260 }); }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Reanimated.View style={[s.action, { backgroundColor: colors.card, borderColor: colors.border }, pressStyle]}>
+        <Icon size={20} color={colors.text} strokeWidth={2} />
+        <Text style={[s.actionLabel, { color: colors.text }]} numberOfLines={1}>{label}</Text>
+      </Reanimated.View>
+    </Pressable>
   );
 }
 
@@ -152,8 +160,8 @@ export interface ContactRow {
   Icon: IconType;
   /** "Telefon", "Hemsida" … */
   label: string;
-  /** Det som står: numret, adressen */
-  value: string;
+  /** Det som står: numret, adressen. Utan värde står bara namnet (Instagram, Facebook) */
+  value?: string;
   onPress: () => void;
   /** Långt tryck: kopiera värdet */
   onLongPress?: () => void;
@@ -170,16 +178,20 @@ export function ContactList({ rows }: { rows: ContactRow[] }) {
           onLongPress={r.onLongPress}
           delayLongPress={350}
           style={({ pressed }) => [s.contactRow, pressed && { backgroundColor: colors.fill }]}
-          accessibilityLabel={`${r.label}: ${r.value}`}
+          accessibilityLabel={r.value ? `${r.label}: ${r.value}` : r.label}
         >
           {i > 0 && <View style={[s.contactLine, { backgroundColor: colors.border }]} />}
           <View style={[s.contactIcon, { backgroundColor: colors.fill }]}>
             <r.Icon size={17} color={colors.text} strokeWidth={2} />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[s.contactLabel, { color: colors.muted }]}>{r.label}</Text>
-            <Text style={[s.contactValue, { color: colors.text }]} numberOfLines={1}>{r.value}</Text>
-          </View>
+          {r.value ? (
+            <View style={{ flex: 1 }}>
+              <Text style={[s.contactLabel, { color: colors.muted }]}>{r.label}</Text>
+              <Text style={[s.contactValue, { color: colors.text }]} numberOfLines={1}>{r.value}</Text>
+            </View>
+          ) : (
+            <Text style={[s.contactValue, { flex: 1, marginTop: 0, color: colors.text }]} numberOfLines={1}>{r.label}</Text>
+          )}
           <ArrowUpRight size={18} color={colors.faint} strokeWidth={2} />
         </Pressable>
       ))}
@@ -194,8 +206,9 @@ const s = StyleSheet.create({
   sectionAction: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
 
   actions: { flexDirection: "row", gap: 8, paddingHorizontal: GUTTER, marginTop: 20 },
+  actionSlot: { flex: 1 },
   action: {
-    flex: 1, height: 68, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
+    height: 68, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center", justifyContent: "center", gap: 7,
   },
   actionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12.5 },

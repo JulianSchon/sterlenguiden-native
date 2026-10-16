@@ -15,21 +15,22 @@
  * medan den öppnas.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Share, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Pressable, Share, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Extrapolation, FadeInDown, interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle,
-  useSharedValue, withDelay, withSequence, withTiming,
+  useSharedValue, withDelay, withSequence, withSpring, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
+import { BlurView } from "expo-blur";
 import { Image as ExpoImage } from "expo-image";
 import { useImage } from "@shopify/react-native-skia";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import {
-  ArrowLeft, Bookmark, Bus, CalendarCheck, Check, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone,
+  ArrowLeft, Bus, CalendarCheck, Check, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone, Plus,
   type LucideIcon,
 } from "lucide-react-native";
 import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
@@ -53,7 +54,7 @@ import { hoursStatus, weekRows } from "@/lib/openingHours";
 import { openInfo, placeCategories } from "@/lib/search";
 import { pushOnce } from "@/lib/navigateOnce";
 import {
-  callPhone, copyText, instagramHandle, openDirections, openExternal, openWebsite, prettyUrl, sendEmail, withProtocol,
+  callPhone, copyText, openDirections, openExternal, openWebsite, sendEmail, siteName, withProtocol,
 } from "@/lib/placeLinks";
 import { ShareIcon } from "@/components/ShareIcon";
 import { Rise } from "@/components/Rise";
@@ -276,13 +277,12 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
   const contact = useMemo((): ContactRow[] => {
     const out: ContactRow[] = [];
     if (place.phone) out.push({ key: "phone", Icon: Phone, label: "Telefon", value: place.phone, onPress: () => callPhone(place.phone!), onLongPress: () => copy(place.phone!) });
-    if (website) out.push({ key: "web", Icon: Globe, label: "Hemsida", value: prettyUrl(website), onPress: () => openWebsite(website), onLongPress: () => copy(withProtocol(website)) });
-    if (bookUrl) out.push({ key: "book", Icon: CalendarCheck, label: "Bokning", value: prettyUrl(bookUrl), onPress: () => openWebsite(bookUrl), onLongPress: () => copy(withProtocol(bookUrl)) });
     if (place.email) out.push({ key: "mail", Icon: Mail, label: "E-post", value: place.email, onPress: () => sendEmail(place.email!), onLongPress: () => copy(place.email!) });
-    if (place.instagram_url) out.push({ key: "ig", Icon: InstagramIcon, label: "Instagram", value: instagramHandle(place.instagram_url) ?? "Instagram", onPress: () => openExternal(place.instagram_url!) });
-    if (place.facebook_url) out.push({ key: "fb", Icon: FacebookIcon, label: "Facebook", value: prettyUrl(place.facebook_url).replace(/^(m\.)?facebook\.com\//i, "") || "Facebook", onPress: () => openExternal(place.facebook_url!) });
+    if (website) out.push({ key: "web", Icon: Globe, label: "Hemsida", value: siteName(website), onPress: () => openWebsite(website), onLongPress: () => copy(withProtocol(website)) });
+    if (place.instagram_url) out.push({ key: "ig", Icon: InstagramIcon, label: "Instagram", onPress: () => openExternal(place.instagram_url!) });
+    if (place.facebook_url) out.push({ key: "fb", Icon: FacebookIcon, label: "Facebook", onPress: () => openExternal(place.facebook_url!) });
     return out;
-  }, [place, website, bookUrl, copy]);
+  }, [place, website, copy]);
 
   // Huvudknappen: Boka om platsen tar bokningar, annars Hitta hit
   const primary: { label: string; Icon: LucideIcon; onPress: () => void } | null = bookUrl
@@ -429,40 +429,45 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
           {hasCoords && (
             <View onLayout={(e) => { mapY.value = heroH + e.nativeEvent.layout.y; }}>
               <Section title="Hitta hit">
-                <PlaceMiniMap lat={place.lat!} lng={place.lng!} mount={later && mapNear} onPress={showOnMap} />
-                <View style={s.where}>
-                  <View style={s.whereRow}>
-                    <MapPin size={16} color={colors.muted} strokeWidth={2} />
-                    <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
-                      {place.nearest_town ?? "Österlen"}
-                      {myKm != null && <Text style={{ color: colors.muted }}>{`  ·  ${distanceLabel(myKm)} från dig`}</Text>}
-                    </Text>
-                  </View>
-                  {!!transit && (
+                <View style={[s.locCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <PlaceMiniMap lat={place.lat!} lng={place.lng!} mount={later && mapNear} onPress={showOnMap} />
+                  <View style={s.locInfo}>
                     <View style={s.whereRow}>
-                      <Bus size={16} color={colors.muted} strokeWidth={2} />
-                      <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
-                        <Text style={{ color: colors.muted }}>Hållplats  </Text>{transit}
-                      </Text>
+                      <MapPin size={17} color={colors.muted} strokeWidth={2} />
+                      <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>{place.nearest_town ?? "Österlen"}</Text>
+                      {myKm != null && <Text style={[s.whereKm, { color: colors.muted }]}>{distanceLabel(myKm)} från dig</Text>}
                     </View>
-                  )}
-                </View>
-                <View style={s.whereButtons}>
-                  <QuietAction Icon={MapIcon} label="Visa på kartan" onPress={showOnMap} />
-                  <QuietAction Icon={Navigation} label="Vägbeskrivning" onPress={() => openDirections(place.lat!, place.lng!)} />
-                </View>
-                {treasure && (
-                  <View style={{ marginTop: 12 }}>
-                    <TreasureHint
-                      meters={treasure.m}
-                      found={collected?.has(treasure.c.id) ?? false}
-                      name={treasure.c.name}
-                      onPress={() => router.dismissTo({ pathname: "/(tabs)/map", params: { sticker: treasure.c.id } } as never)}
-                    />
+                    {!!transit && (
+                      <View style={s.whereRow}>
+                        <Bus size={17} color={colors.muted} strokeWidth={2} />
+                        <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
+                          <Text style={{ color: colors.muted }}>Hållplats  </Text>{transit}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                )}
+                  <TouchableOpacity
+                    style={[s.locButton, { borderTopColor: colors.border }]}
+                    activeOpacity={0.7}
+                    onPress={() => openDirections(place.lat, place.lng)}
+                  >
+                    <Navigation size={17} color={colors.goldText} strokeWidth={2.2} />
+                    <Text style={[s.locButtonText, { color: colors.goldText }]}>Vägbeskrivning</Text>
+                  </TouchableOpacity>
+                </View>
               </Section>
             </View>
+          )}
+
+          {treasure && (
+            <Section title="Skatt i närheten">
+              <TreasureHint
+                meters={treasure.m}
+                found={collected?.has(treasure.c.id) ?? false}
+                name={treasure.c.name}
+                onPress={() => router.dismissTo({ pathname: "/(tabs)/map", params: { sticker: treasure.c.id } } as never)}
+              />
+            </Section>
           )}
 
           {contact.length > 0 && (
@@ -494,17 +499,17 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
           pointerEvents="none"
         />
         <RoundButton label="Tillbaka" onPress={() => router.back()}>
-          <ArrowLeft size={21} color={colors.text} strokeWidth={2.2} />
+          <ArrowLeft size={21} color={glassFg(dark)} strokeWidth={2.2} />
         </RoundButton>
         <Reanimated.Text style={[s.barTitle, { top: insets.top, color: colors.text }, barStyle]} numberOfLines={1} pointerEvents="none">
           {place.name.toUpperCase()}
         </Reanimated.Text>
         <View style={s.topRight}>
           <RoundButton label="Dela" onPress={share}>
-            <ShareIcon size={19} color={colors.text} strokeWidth={2.2} />
+            <ShareIcon size={19} color={glassFg(dark)} strokeWidth={2.2} />
           </RoundButton>
           <RoundButton label="Spara i lista" onPress={() => setSaveOpen(true)}>
-            <Bookmark size={19} color={colors.text} strokeWidth={2.2} />
+            <Plus size={22} color={glassFg(dark)} strokeWidth={2.2} />
           </RoundButton>
         </View>
       </View>
@@ -578,29 +583,34 @@ function Logo({ place, catId }: { place: Place; catId: CategoryId | undefined })
   );
 }
 
-/** Rund, hel knapp i toppraden — syns både mot bilden och mot toppradens bakgrund */
+/** Ikonernas färg på glaset */
+const glassFg = (dark: boolean) => (dark ? "rgba(255,255,255,0.9)" : "#1A1A1A");
+
+/** Rund glasknapp i toppraden — samma frostade glas som kartans filterknapp, mot bilden och mot toppraden */
 function RoundButton({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
-  const { colors } = useTheme();
+  const dark = useTheme().scheme === "dark";
+  const press = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
   return (
-    <TouchableOpacity
-      style={[s.round, { backgroundColor: colors.card, borderColor: colors.border }]}
-      activeOpacity={0.8}
+    <Pressable
       onPress={onPress}
+      onPressIn={() => { press.value = withTiming(0.92, { duration: 90 }); }}
+      onPressOut={() => { press.value = withSpring(1, { damping: 14, stiffness: 300 }); }}
       hitSlop={6}
       accessibilityLabel={label}
     >
-      {children}
-    </TouchableOpacity>
-  );
-}
-
-function QuietAction({ Icon, label, onPress }: { Icon: LucideIcon; label: string; onPress: () => void }) {
-  const { colors } = useTheme();
-  return (
-    <TouchableOpacity style={[s.quiet, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
-      <Icon size={16} color={colors.text} strokeWidth={2.2} />
-      <Text style={[s.quietText, { color: colors.text }]}>{label}</Text>
-    </TouchableOpacity>
+      <Reanimated.View style={[s.round, pressStyle]}>
+        <BlurView
+          intensity={20}
+          tint={dark ? "dark" : "light"}
+          style={[StyleSheet.absoluteFill, s.roundGlass, {
+            backgroundColor: dark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)",
+            borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+          }]}
+        />
+        {children}
+      </Reanimated.View>
+    </Pressable>
   );
 }
 
@@ -621,7 +631,7 @@ function PlaceSkeleton() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const heroH = Math.round(Math.min(width * 0.95, 420));
   return (
     <View style={[s.screen, { backgroundColor: colors.bg }]}>
@@ -636,7 +646,7 @@ function PlaceSkeleton() {
       </View>
       <View style={[s.topBar, { paddingTop: insets.top, height: insets.top + TOP_BAR_H }]}>
         <RoundButton label="Tillbaka" onPress={() => router.back()}>
-          <ArrowLeft size={21} color={colors.text} strokeWidth={2.2} />
+          <ArrowLeft size={21} color={glassFg(scheme === "dark")} strokeWidth={2.2} />
         </RoundButton>
       </View>
     </View>
@@ -680,10 +690,16 @@ const s = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontFamily: "Inter_700Bold", fontSize: 14 },
 
-  where: { gap: 9, marginTop: 14 },
-  whereRow: { flexDirection: "row", alignItems: "center", gap: 9 },
-  whereText: { flexShrink: 1, fontFamily: "Inter_500Medium", fontSize: 14.5 },
-  whereButtons: { flexDirection: "row", gap: 8, marginTop: 14 },
+  locCard: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
+  locInfo: { paddingHorizontal: 16, paddingVertical: 16, gap: 12 },
+  whereRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  whereText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 15 },
+  whereKm: { fontFamily: "Inter_500Medium", fontSize: 13.5, fontVariant: ["tabular-nums"] },
+  locButton: {
+    height: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  locButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
   quiet: {
     flex: 1, height: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
@@ -710,9 +726,10 @@ const s = StyleSheet.create({
   topRight: { flexDirection: "row", gap: 8 },
   round: {
     width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 3,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6,
   },
+  // Glaset har själv de runda hörnen (som kartans knappar) — klipps det av föräldern blir kanterna kantiga
+  roundGlass: { borderRadius: 20, overflow: "hidden", borderWidth: 1 },
 
   bottomBar: {
     position: "absolute", left: 0, right: 0, bottom: 0,

@@ -12,15 +12,9 @@ import { requireOptionalNativeModule } from "expo-modules-core";
 /** Adressen med https:// om den saknar början */
 export const withProtocol = (url: string) => (/^[a-z]+:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`);
 
-/** "osterlen.se/meny" — utan https://, www. och snedstreck på slutet */
-export function prettyUrl(url: string): string {
-  return url.trim().replace(/^[a-z]+:\/\//i, "").replace(/^www\./i, "").replace(/\/+$/, "");
-}
-
-/** "@kiviksmusteri" ur en Instagram-adress, annars null */
-export function instagramHandle(url: string): string | null {
-  const m = url.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
-  return m ? `@${m[1]}` : null;
+/** "kiviksmusteri.se" — bara själva namnet, utan https://, www. och sidorna efter */
+export function siteName(url: string): string {
+  return url.trim().replace(/^[a-z]+:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0];
 }
 
 export async function openWebsite(url: string): Promise<void> {

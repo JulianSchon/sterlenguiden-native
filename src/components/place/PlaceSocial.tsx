@@ -114,12 +114,12 @@ export function TreasureHint({ meters, found, name, onPress }: {
       <TreasurePin height={38} found={found} />
       <View style={{ flex: 1 }}>
         <Text style={[s.friendsTitle, { color: colors.text }]} numberOfLines={2}>
-          {found ? `Du har hittat ${name}` : far ? "En skatt gömmer sig i närheten" : "En skatt gömmer sig här"}
+          {found ? `Du har hittat ${name}` : far ? `En skatt gömmer sig ${formatDistance(meters)} härifrån` : "En skatt gömmer sig här"}
         </Text>
         <Text style={[s.friendsDetail, { color: colors.muted }]} numberOfLines={1}>
           {found
             ? far ? `${formatDistance(meters)} härifrån  ·  Visa på kartan` : "Visa på kartan"
-            : far ? `${formatDistance(meters)} härifrån  ·  Hitta den på kartan` : "Hitta den på kartan"}
+            : "Hitta den på kartan och lås upp den"}
         </Text>
       </View>
       <ChevronRight size={20} color={colors.purple} strokeWidth={2.2} />

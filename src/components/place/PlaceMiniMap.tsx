@@ -1,7 +1,7 @@
 /**
- * Den lilla kartan på platssidan: samma svartvita karta som Karta, med platsen mitt i och
- * guldnålen som studsar ner när kartan syns. Går inte att dra i — ett tryck öppnar den stora
- * kartan på platsen. Nålen ligger ovanpå kartan (inte som en markör), eftersom kartan står still
+ * Den lilla kartan på platssidan (överst i Hitta hit-kortet): samma svartvita karta som Karta,
+ * med platsen mitt i och guldnålen som studsar ner när kartan syns. Går inte att dra i — ett tryck
+ * öppnar den stora kartan på platsen (glasknappen i hörnet visar att det går). Nålen ligger ovanpå kartan (inte som en markör), eftersom kartan står still
  * med platsen i mitten; på Android är kartan en färdig bild (liteMode), det billigaste som finns.
  *
  * Kartan byggs först när sidan ber om det (när man närmar sig den), och tonar in när Google
@@ -9,6 +9,8 @@
  */
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
+import { Maximize2 } from "lucide-react-native";
 import MapView from "react-native-maps";
 import Reanimated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Skeleton } from "@/components/Skeleton";
@@ -16,7 +18,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE, MAP_IS_STYLEABLE, MAP_PROVIDER } from "@/components/map/mapStyle";
 import { SELECTED_ANCHOR, SELECTED_SIZE, SelectedPin } from "@/components/map/MapPins";
 
-export const MINI_MAP_H = 172;
+export const MINI_MAP_H = 180;
 
 export function PlaceMiniMap({ lat, lng, mount, onPress }: {
   lat: number;
@@ -25,7 +27,7 @@ export function PlaceMiniMap({ lat, lng, mount, onPress }: {
   mount: boolean;
   onPress: () => void;
 }) {
-  const { scheme, colors } = useTheme();
+  const { scheme } = useTheme();
   const dark = scheme === "dark";
   const [width, setWidth] = useState(0);
   const [drawn, setDrawn] = useState(false);
@@ -51,7 +53,7 @@ export function PlaceMiniMap({ lat, lng, mount, onPress }: {
     <Pressable
       onPress={onPress}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={[s.wrap, { borderColor: colors.border }]}
+      style={s.wrap}
       accessibilityLabel="Visa på kartan"
     >
       {!shown && <Skeleton radius={0} style={StyleSheet.absoluteFill} />}
@@ -84,11 +86,24 @@ export function PlaceMiniMap({ lat, lng, mount, onPress }: {
           )}
         </Reanimated.View>
       )}
+      <View style={s.expand} pointerEvents="none">
+        <BlurView
+          intensity={20}
+          tint={dark ? "dark" : "light"}
+          style={[StyleSheet.absoluteFill, s.glass, {
+            backgroundColor: dark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)",
+            borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)",
+          }]}
+        />
+        <Maximize2 size={15} color={dark ? "rgba(255,255,255,0.85)" : "#1A1A1A"} strokeWidth={2.2} />
+      </View>
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  wrap: { height: MINI_MAP_H, borderRadius: 18, overflow: "hidden", borderWidth: StyleSheet.hairlineWidth },
+  wrap: { height: MINI_MAP_H, overflow: "hidden" },
   pin: { position: "absolute" },
+  expand: { position: "absolute", top: 10, right: 10, width: 34, height: 34, alignItems: "center", justifyContent: "center" },
+  glass: { borderRadius: 17, overflow: "hidden", borderWidth: 1 },
 });

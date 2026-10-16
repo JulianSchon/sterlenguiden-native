@@ -1,22 +1,33 @@
 /**
- * Platssidans stora bild överst: platsens bilder att svepa mellan, med en räknare ("2 / 5").
+ * Platssidans stora bild överst: platsens bilder att svepa mellan, med prickar längst ner som
+ * visar var man är (pricken för bilden man står på är vit och utdragen, och följer fingret medan
+ * man sveper). Nederkanten tonar mjukt över i sidans bakgrund i stället för att sluta med en rak
+ * kant.
+ *
  * Följer sidans scroll — bilden glider lite långsammare än sidan (djup), och drar man ner sidan
  * i toppen sträcks den i stället för att lämna ett tomt glapp. Trycker man öppnas bilderna i
  * helskärm (PhotoViewer).
  *
  * Bilden får sticka ut nedåt när den glider; innehållet under den har en hel bakgrund och ligger
- * ovanpå.
+ * ovanpå. Toningen sitter fast i bildytans nederkant, så övergången är mjuk hela tiden.
  */
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 import {
-  FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions,
-  type NativeScrollEvent, type NativeSyntheticEvent,
+  Pressable, StyleSheet, View, useWindowDimensions, type FlatList, type NativeScrollEvent, type NativeSyntheticEvent,
 } from "react-native";
-import Reanimated, { useAnimatedStyle, type SharedValue } from "react-native-reanimated";
+import Reanimated, {
+  interpolateColor, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue,
+} from "react-native-reanimated";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import type { LucideIcon } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
+import { withAlpha } from "@/theme/categories";
+
+/** Hur hög toningen ner mot bakgrunden är */
+const FADE_H = 130;
+const DOT = 6;
+const DOT_ON = 18;
 
 export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpen, Icon, topInset }: {
   images: string[];
@@ -32,24 +43,23 @@ export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpe
   topInset: number;
 }) {
   const { width } = useWindowDimensions();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const listRef = useRef<FlatList<string>>(null);
   const shown = useRef(index);
-  const [counter, setCounter] = useState(index);
+  const scrollX = useSharedValue(index * width);
 
   // Bytt bild utifrån (helskärmen stängdes på en annan bild): hoppa dit utan glidning
   useEffect(() => {
     if (index === shown.current) return;
     shown.current = index;
-    setCounter(index);
     listRef.current?.scrollToOffset({ offset: index * width, animated: false });
   }, [index, width]);
 
+  const onScrollX = useAnimatedScrollHandler({ onScroll: (e) => { scrollX.value = e.contentOffset.x; } });
   const onMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
     if (i === shown.current) return;
     shown.current = i;
-    setCounter(i);
     onIndexChange(i);
   }, [width, onIndexChange]);
 
@@ -68,8 +78,8 @@ export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpe
     <View style={{ height }}>
       <Reanimated.View style={[StyleSheet.absoluteFill, depth]}>
         {images.length > 0 ? (
-          <FlatList
-            ref={listRef}
+          <Reanimated.FlatList
+            ref={listRef as never}
             data={images}
             horizontal
             pagingEnabled
@@ -79,6 +89,8 @@ export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpe
             keyExtractor={(uri, i) => `${i}-${uri}`}
             renderItem={renderItem}
             showsHorizontalScrollIndicator={false}
+            onScroll={onScrollX}
+            scrollEventThrottle={16}
             onMomentumScrollEnd={onMomentumEnd}
             initialNumToRender={1}
             maxToRenderPerBatch={2}
@@ -99,13 +111,34 @@ export function PlaceHero({ images, height, scrollY, index, onIndexChange, onOpe
         )}
       </Reanimated.View>
 
+      {/* Nederkanten tonar över i bakgrunden — mjukt i början, helt i botten */}
+      <LinearGradient
+        colors={[withAlpha(colors.bg, 0), withAlpha(colors.bg, 0.25), withAlpha(colors.bg, 0.72), colors.bg]}
+        locations={[0, 0.35, 0.72, 1]}
+        style={s.bottomFade}
+        pointerEvents="none"
+      />
+
       {images.length > 1 && (
-        <View style={s.counter} pointerEvents="none">
-          <Text style={s.counterText}>{counter + 1} / {images.length}</Text>
+        <View style={s.dots} pointerEvents="none">
+          {images.map((_, i) => (
+            <Dot key={i} i={i} scrollX={scrollX} width={width} dark={scheme === "dark"} />
+          ))}
         </View>
       )}
     </View>
   );
+}
+
+/** En prick: utdragen och vit för bilden man står på, grå för de andra — följer svepet mjukt */
+function Dot({ i, scrollX, width, dark }: { i: number; scrollX: SharedValue<number>; width: number; dark: boolean }) {
+  const off = dark ? "rgba(255,255,255,0.38)" : "rgba(29,27,22,0.22)";
+  const on = dark ? "#FFFFFF" : "#1D1B16";
+  const style = useAnimatedStyle(() => {
+    const t = Math.max(0, 1 - Math.abs(scrollX.value / width - i));
+    return { width: DOT + (DOT_ON - DOT) * t, backgroundColor: interpolateColor(t, [0, 1], [off, on]) };
+  });
+  return <Reanimated.View style={[s.dot, style]} />;
 }
 
 const HeroImage = memo(function HeroImage({ uri, width, height, first, onPress }: {
@@ -129,9 +162,10 @@ const HeroImage = memo(function HeroImage({ uri, width, height, first, onPress }
 const s = StyleSheet.create({
   empty: { alignItems: "center", justifyContent: "center" },
   topShade: { position: "absolute", top: 0, left: 0, right: 0 },
-  counter: {
-    position: "absolute", right: 16, bottom: 14,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: "#141416",
+  bottomFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: FADE_H },
+  dots: {
+    position: "absolute", left: 0, right: 0, bottom: 16,
+    flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6,
   },
-  counterText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#FFFFFF", fontVariant: ["tabular-nums"] },
+  dot: { height: DOT, borderRadius: DOT / 2 },
 });
