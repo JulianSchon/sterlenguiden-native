@@ -1,9 +1,12 @@
 /**
  * "Stämmer något inte?" — ett tips om fel på platssidan (öppettider, länkar, bilder …). Man väljer
  * vad det gäller och kan skriva en rad. Tipsen hamnar i place_reports och läses i Supabase.
+ *
+ * Sidan ger panelen en ny key varje gång den öppnas, så den börjar alltid tom utan att något ritas
+ * om medan den glider upp. Ett tryck var som helst utanför textrutan stänger tangentbordet.
  */
-import { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useState } from "react";
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Check } from "lucide-react-native";
 import { PrimaryButton, SecondaryButton, Sheet, useSheetInput } from "@/components/Sheet";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -29,17 +32,9 @@ export function ReportSheet({ visible, placeId, onClose }: {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Ett nytt tips börjar från början
-  useEffect(() => {
-    if (!visible) return;
-    setKind(null);
-    setMessage("");
-    setSent(false);
-    setError(null);
-  }, [visible]);
-
   const send = () => {
     if (!kind) return;
+    Keyboard.dismiss();
     setError(null);
     report.mutate(
       { placeId, kind, message },
@@ -69,7 +64,7 @@ export function ReportSheet({ visible, placeId, onClose }: {
           </View>
         </View>
       ) : (
-        <View>
+        <Pressable onPress={Keyboard.dismiss} accessible={false}>
           <Text style={[s.text, { color: colors.muted }]}>Tipsa oss, så rättar vi det. Vad gäller det?</Text>
           <View style={s.kinds}>
             {KINDS.map((k) => {
@@ -79,7 +74,7 @@ export function ReportSheet({ visible, placeId, onClose }: {
                   key={k.id}
                   style={[s.kind, { backgroundColor: on ? colors.goldSoft : colors.fill, borderColor: on ? colors.gold : colors.border }]}
                   activeOpacity={0.75}
-                  onPress={() => setKind(k.id)}
+                  onPress={() => { Keyboard.dismiss(); setKind(k.id); }}
                   accessibilityState={{ selected: on }}
                 >
                   <Text style={[s.kindText, { color: on ? colors.goldText : colors.text }]}>{k.label}</Text>
@@ -98,7 +93,7 @@ export function ReportSheet({ visible, placeId, onClose }: {
           />
           {!!error && <Text style={[s.error, { color: colors.danger }]}>{error}</Text>}
           <PrimaryButton label="Skicka" onPress={send} disabled={!kind} loading={report.isPending} />
-        </View>
+        </Pressable>
       )}
     </Sheet>
   );

@@ -26,7 +26,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { BlurView } from "expo-blur";
 import { Image as ExpoImage } from "expo-image";
-import { useImage } from "@shopify/react-native-skia";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import {
@@ -79,7 +78,9 @@ import { ReportSheet } from "@/components/place/ReportSheet";
 const NO_PLACES: Place[] = [];
 const NO_EVENTS: Event[] = [];
 const NO_OFFERS: Offer[] = [];
-const TOP_BAR_H = 56;
+const TOP_BAR_H = 60;
+/** Glascirklarna i toppraden */
+const ROUND = 46;
 const LOGO = 76;
 /** Så nära en skatt får ligga för att visas på platssidan */
 const TREASURE_NEAR_M = 1500;
@@ -166,7 +167,14 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
 
   // ── Scroll: bildens djup, toppraden som tonar in, kartan som byggs när man närmar sig ──
   const scrollY = useSharedValue(0);
-  const onScroll = useAnimatedScrollHandler({ onScroll: (e) => { scrollY.value = e.contentOffset.y; } });
+  // När sidan senast scrollade: ett nudd på en biljett medan sidan glider stoppar bara sidan
+  const scrollAt = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+      scrollAt.value = Date.now();
+    },
+  });
   const collapseAt = heroH - insets.top - TOP_BAR_H;
   const barStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [collapseAt - 60, collapseAt - 10], [0, 1], Extrapolation.CLAMP),
@@ -192,14 +200,14 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
   const [saveOpen, setSaveOpen] = useState(false);
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [reportKey, setReportKey] = useState(0);
   const [eventsAll, setEventsAll] = useState(false);
 
   // ── Erbjudandena: biljetterna rivs som på Förmåner ──
   const edgeAmt = useSharedValue(0);
   const edgeProg = useSharedValue(0);
-  const edge: TearEdge = useMemo(() => ({ amt: edgeAmt, prog: edgeProg }), [edgeAmt, edgeProg]);
-  const [armedImage, setArmedImage] = useState<string | null>(null);
-  const scrapImage = useImage(armedImage);
+  const edgeActive = useSharedValue(0);
+  const edge: TearEdge = useMemo(() => ({ amt: edgeAmt, prog: edgeProg, active: edgeActive }), [edgeAmt, edgeProg, edgeActive]);
   const [openOffer, setOpenOffer] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
   const ticketList = useMemo(() => offers
     .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions).canUse }))
@@ -381,10 +389,10 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
                     <OfferTicket
                       offer={offer}
                       used={used}
-                      stubHidden={openOffer?.origin != null && openOffer.offer.id === offer.id}
+                      torn={openOffer?.origin != null && openOffer.offer.id === offer.id}
                       edge={edge}
+                      scrollAt={scrollAt}
                       linkPlace={false}
-                      onArm={setArmedImage}
                       onOpen={(o, origin) => setOpenOffer({ offer: o, origin })}
                     />
                   </Reanimated.View>
@@ -483,7 +491,7 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
             </Section>
           )}
 
-          <TouchableOpacity style={[s.report, { borderColor: colors.border }]} activeOpacity={0.7} onPress={() => setReportOpen(true)}>
+          <TouchableOpacity style={[s.report, { borderColor: colors.border }]} activeOpacity={0.7} onPress={() => { setReportKey((k) => k + 1); setReportOpen(true); }}>
             <PenLine size={16} color={colors.muted} strokeWidth={2} />
             <Text style={[s.reportText, { color: colors.muted }]}>
               Stämmer något inte? <Text style={{ color: colors.goldText }}>Tipsa oss</Text>
@@ -499,17 +507,17 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
           pointerEvents="none"
         />
         <RoundButton label="Tillbaka" onPress={() => router.back()}>
-          <ArrowLeft size={21} color={glassFg(dark)} strokeWidth={2.2} />
+          <ArrowLeft size={24} color={glassFg(dark)} strokeWidth={2.2} />
         </RoundButton>
         <Reanimated.Text style={[s.barTitle, { top: insets.top, color: colors.text }, barStyle]} numberOfLines={1} pointerEvents="none">
           {place.name.toUpperCase()}
         </Reanimated.Text>
         <View style={s.topRight}>
           <RoundButton label="Dela" onPress={share}>
-            <ShareIcon size={19} color={glassFg(dark)} strokeWidth={2.2} />
+            <ShareIcon size={21} color={glassFg(dark)} strokeWidth={2.2} />
           </RoundButton>
           <RoundButton label="Spara i lista" onPress={() => setSaveOpen(true)}>
-            <Plus size={22} color={glassFg(dark)} strokeWidth={2.2} />
+            <Plus size={26} color={glassFg(dark)} strokeWidth={2.2} />
           </RoundButton>
         </View>
       </View>
@@ -545,16 +553,16 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
       />
       <SaveToListSheet visible={saveOpen} onClose={() => setSaveOpen(false)} placeId={place.id} />
       <FriendsSheet visible={friendsOpen} friends={friends} onClose={() => setFriendsOpen(false)} onOpenFriend={onOpenFriend} />
-      <ReportSheet visible={reportOpen} placeId={place.id} onClose={() => setReportOpen(false)} />
-      <OfferDrawer
+      <ReportSheet key={reportKey} visible={reportOpen} placeId={place.id} onClose={() => setReportOpen(false)} />
+      {/* Byggs i förväg (osynlig) när sidan glidit fram, så rivningen alltid syns från första bildrutan */}
+      {later && ticketList.length > 0 && <OfferDrawer
         visible={openOffer != null}
         placeId={place.id}
         focusOffer={openOffer?.offer}
         origin={openOffer?.origin}
         edge={edge}
-        scrapImage={scrapImage}
         onClose={() => setOpenOffer(null)}
-      />
+      />}
       <LikeBurst burst={burst} />
     </View>
   );
@@ -646,7 +654,7 @@ function PlaceSkeleton() {
       </View>
       <View style={[s.topBar, { paddingTop: insets.top, height: insets.top + TOP_BAR_H }]}>
         <RoundButton label="Tillbaka" onPress={() => router.back()}>
-          <ArrowLeft size={21} color={glassFg(scheme === "dark")} strokeWidth={2.2} />
+          <ArrowLeft size={24} color={glassFg(scheme === "dark")} strokeWidth={2.2} />
         </RoundButton>
       </View>
     </View>
@@ -720,16 +728,16 @@ const s = StyleSheet.create({
   },
   topBarBg: { borderBottomWidth: StyleSheet.hairlineWidth },
   barTitle: {
-    position: "absolute", left: 112, right: 112, height: TOP_BAR_H, lineHeight: TOP_BAR_H, textAlign: "center",
+    position: "absolute", left: 124, right: 124, height: TOP_BAR_H, lineHeight: TOP_BAR_H, textAlign: "center",
     fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5,
   },
   topRight: { flexDirection: "row", gap: 8 },
   round: {
-    width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
+    width: ROUND, height: ROUND, borderRadius: ROUND / 2, alignItems: "center", justifyContent: "center",
     shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 6,
   },
   // Glaset har själv de runda hörnen (som kartans knappar) — klipps det av föräldern blir kanterna kantiga
-  roundGlass: { borderRadius: 20, overflow: "hidden", borderWidth: 1 },
+  roundGlass: { borderRadius: ROUND / 2, overflow: "hidden", borderWidth: 1 },
 
   bottomBar: {
     position: "absolute", left: 0, right: 0, bottom: 0,

@@ -11,16 +11,15 @@
  * prickarna visar att det finns fler. Svepet startar inte vid skärmens kant, den zonen
  * är reserverad för iOS "tillbaka".
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  FadeInDown, useSharedValue, useAnimatedStyle, withTiming, cancelAnimation, runOnJS,
+  FadeInDown, useSharedValue, useAnimatedStyle, withTiming, cancelAnimation, runOnJS, type SharedValue,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Crown } from "lucide-react-native";
-import { useImage } from "@shopify/react-native-skia";
 import { useOffers, useRedeemedOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
@@ -77,11 +76,17 @@ export default function OffersScreen() {
 
   // Vilken biljett som är öppen och var dess sidoband satt (bandet flyger därifrån och tillbaka)
   // Rivkantens läge, delas mellan panelen (skriver) och biljetterna (läser)
-  const edge: TearEdge = { amt: useSharedValue(0), prog: useSharedValue(0) };
-  // Biljettens bild läses in i Skia så fort fingret nuddar biljetten, så pappersbitarna kan klippas ur den när det rivs
-  const [armedImage, setArmedImage] = useState<string | null>(null);
-  const scrapImage = useImage(armedImage);
+  const edge: TearEdge = { amt: useSharedValue(0), prog: useSharedValue(0), active: useSharedValue(0) };
+  // När listan senast scrollade: ett nudd på en biljett medan den glider stoppar bara listan
+  const scrollAt = useSharedValue(0);
   const [open, setOpen] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
+  // Panelen byggs i förväg (osynlig) strax efter att sidan öppnats, så rivningen alltid syns —
+  // men inte medan sidan själv glider fram
+  const [drawerReady, setDrawerReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setDrawerReady(true), 450);
+    return () => clearTimeout(t);
+  }, []);
 
   // Svep mellan kategorier. Alla sidor ligger i en rad och raden förskjuts i sidled; att byta
   // sida är bara att glida till nästa plats, inget innehåll byts ut (annars blinkar det).
@@ -188,19 +193,18 @@ export default function OffersScreen() {
       title={t("offers.title")}
       page
       scrollRef={scrollRef}
-      overlay={
+      overlay={(drawerReady || open) &&
         <OfferDrawer
           visible={open != null}
           placeId={open?.offer.place_id ?? 0}
           focusOffer={open?.offer}
           origin={open?.origin}
           edge={edge}
-          scrapImage={scrapImage}
           onOpenPlace={() => open && router.push(`/place/${open.offer.place_id}` as any)}
           onClose={() => setOpen(null)}
         />
       }
-      onScroll={(y) => { scrollY.current = y; }}
+      onScroll={(y) => { scrollY.current = y; scrollAt.value = Date.now(); }}
       right={
         <Pressable
           disabled={isMember}
@@ -281,7 +285,7 @@ export default function OffersScreen() {
                         setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
                       }}
                     >
-                      <OfferPage data={page} hiddenOfferId={open?.origin ? open.offer.id : null} edge={edge} onArm={setArmedImage} onOpen={(offer, origin) => setOpen({ offer, origin })} />
+                      <OfferPage data={page} openOfferId={open?.origin ? open.offer.id : null} edge={edge} scrollAt={scrollAt} onOpen={(offer, origin) => setOpen({ offer, origin })} />
                     </View>
                   </View>
                 )
@@ -301,8 +305,8 @@ const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).dur
 
 /** En kategorisida: listorna "Att använda" och "Inlösta" (eller ett tomt-meddelande) */
 function OfferPage({
-  data, hiddenOfferId, edge, onArm, onOpen,
-}: { data: PageData; hiddenOfferId: string | null; edge: TearEdge; onArm: (imageUrl: string | null) => void; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
+  data, openOfferId, edge, scrollAt, onOpen,
+}: { data: PageData; openOfferId: string | null; edge: TearEdge; scrollAt: SharedValue<number>; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
   const { t } = useTranslation();
   const s = useThemedStyles(createStyles);
   const empty = data.available.length === 0 && data.redeemed.length === 0;
@@ -313,7 +317,7 @@ function OfferPage({
         <Section title={t("offers.sections.available")}>
           {data.available.map((offer, i) => (
             <Animated.View key={offer.id} entering={enterAt(i)}>
-              <OfferTicket offer={offer} used={false} stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
+              <OfferTicket offer={offer} used={false} torn={offer.id === openOfferId} edge={edge} scrollAt={scrollAt} onOpen={onOpen} />
             </Animated.View>
           ))}
         </Section>
@@ -322,7 +326,7 @@ function OfferPage({
         <Section title={t("offers.sections.redeemed")}>
           {data.redeemed.map((offer, i) => (
             <Animated.View key={offer.id} entering={enterAt(data.available.length + i)}>
-              <OfferTicket offer={offer} used stubHidden={offer.id === hiddenOfferId} edge={edge} onArm={onArm} onOpen={onOpen} />
+              <OfferTicket offer={offer} used torn={offer.id === openOfferId} edge={edge} scrollAt={scrollAt} onOpen={onOpen} />
             </Animated.View>
           ))}
         </Section>

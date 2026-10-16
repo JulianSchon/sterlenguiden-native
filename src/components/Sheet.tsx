@@ -2,7 +2,7 @@
  * Bottenpanel som listdialogerna delar, plus huvudknappen och textfältens
  * stil. Färgerna kommer från temat.
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Modal, View, Text, Pressable, TouchableOpacity, KeyboardAvoidingView, ActivityIndicator,
   Platform, StyleSheet, Keyboard, useWindowDimensions,
@@ -32,22 +32,37 @@ export function Sheet({
   // skjutande yta — bakgrunden såg därför ut att "skickas upp från botten" i stället för att
   // bara tona mörkare på plats. Styr i stället bakgrund och ruta separat: bakgrunden tonar in,
   // rutan glider upp — samma mönster som Lägg till plats-arket redan använder.
+  //
+  // Glidningen startar när modalen faktiskt visas (onShow), inte när den byggs — startade den direkt
+  // hann de första bildrutorna gå förlorade medan modalen kom fram, och rutan såg ut att hacka upp.
+  // Rutan glider sin egen höjd (inte hela skärmens), så rörelsen blir lugn.
   const [mounted, setMounted] = useState(visible);
+  const presented = useRef(false);
   const backdrop = useSharedValue(0);
   const progress = useSharedValue(0);
+  const travel = useSharedValue(winH);
+
+  const animateIn = () => {
+    backdrop.value = withTiming(1, { duration: 240 });
+    progress.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) });
+  };
 
   useEffect(() => {
     if (visible) {
-      setMounted(true);
-      backdrop.value = withTiming(1, { duration: 220 });
-      progress.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
+      // Öppnad igen medan den höll på att stänga: modalen syns redan, glid upp direkt
+      if (mounted && presented.current) animateIn();
+      else setMounted(true);
     } else if (mounted) {
-      backdrop.value = withTiming(0, { duration: 180 });
-      progress.value = withTiming(0, { duration: 200 }, (done) => {
+      backdrop.value = withTiming(0, { duration: 200 });
+      progress.value = withTiming(0, { duration: 240, easing: Easing.in(Easing.quad) }, (done) => {
         if (done) runOnJS(setMounted)(false);
       });
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!mounted) presented.current = false;
+  }, [mounted]);
 
   // Tangentbordet ska stänga SAMTIDIGT som modalen börjar tonas bort, inte snärta undan efteråt
   // (vilket såg ut som att rutan "hackade" tillbaka till mitten när man stängde).
@@ -60,11 +75,21 @@ export function Sheet({
   const contentStyle = useAnimatedStyle(() =>
     centered
       ? { opacity: progress.value }
-      : { transform: [{ translateY: (1 - progress.value) * winH }] }
+      : { transform: [{ translateY: (1 - progress.value) * travel.value }] }
   );
 
   return (
-    <Modal visible={mounted} transparent animationType="none" onShow={onShow} onRequestClose={handleClose}>
+    <Modal
+      visible={mounted}
+      transparent
+      animationType="none"
+      onShow={() => {
+        presented.current = true;
+        animateIn();
+        onShow?.();
+      }}
+      onRequestClose={handleClose}
+    >
       {/* Bakgrunden ligger som en egen helskärmslager under allt, så den täcker skärmen i båda
           lägena oavsett var innehållet hamnar (nederkant eller mitten). */}
       <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }, backdropStyle]}>
@@ -79,6 +104,7 @@ export function Sheet({
             formulär) i stället för att rutan hoppar direkt till sin nya storlek. */}
         <Reanimated.View
           layout={LinearTransition.duration(220)}
+          onLayout={(e) => { travel.value = e.nativeEvent.layout.height + 24; }}
           style={[
             centered ? s.centerSheet : s.sheet,
             tall && !centered && { height: "85%" },

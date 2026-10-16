@@ -3,12 +3,17 @@
  * stort i guld, platsens namn och loggan. Samma biljett på Förmåner och på platssidan.
  *
  * Trycker man på biljetten mäts sidobandets plats på skärmen, och OfferDrawer river loss bandet
- * därifrån (se OfferDrawer). Medan panelen är öppen är bandet bortrivet (stubHidden) och biljetten
- * visar den vita, hackiga rivkanten som följer panelens (edge).
+ * därifrån (se OfferDrawer). Medan panelen är öppen är bandet bortrivet och biljetten visar den vita,
+ * hackiga rivkanten som följer panelens (edge). Bandet göms i samma bildruta som panelens band
+ * börjar röra sig (edge.active), inte när man trycker.
+ *
+ * Bara ett riktigt tryck öppnar: rör sig fingret mer än några punkter är det en scroll, och rör
+ * man en lista som fortfarande glider (för att stoppa den) räknas det inte heller (scrollAt).
  */
-import { useRef } from "react";
-import { View, Text, Image, Pressable, StyleSheet } from "react-native";
-import { useDerivedValue } from "react-native-reanimated";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { View, Text, Image, StyleSheet } from "react-native";
+import Reanimated, { runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, type SharedValue } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Check, Clock, Crown } from "lucide-react-native";
@@ -25,7 +30,35 @@ import type { ThemeColors } from "@/theme/colors";
 export const TICKET_H = 190;
 const STUB_W = 58;
 const NOTCH = 28;
+// Loggans plats uppe till höger (samma som logoWrap) och hur nära man får trycka
+const LOGO = 34;
+const LOGO_TOP = 10;
+const LOGO_RIGHT = 12;
+const LOGO_SLOP = 8;
 const BLEED = 6;
+
+// ── Bilden till pappersbitarna ──
+// Läses in så fort fingret nuddar en biljett. Hålls här (inte i sidans state) så att bara panelen
+// ritas om — att rita om hela sidan vid varje nudd gjorde scrollen trög.
+let armedImage: string | null = null;
+const armedListeners = new Set<() => void>();
+
+function armTicketImage(url: string | null) {
+  if (url === armedImage) return;
+  armedImage = url;
+  armedListeners.forEach((l) => l());
+}
+
+/** Biljettbilden som senast nuddades (OfferDrawer läser in den i Skia) */
+export function useArmedTicketImage(): string | null {
+  return useSyncExternalStore(
+    (l) => { armedListeners.add(l); return () => { armedListeners.delete(l); }; },
+    () => armedImage,
+  );
+}
+
+/** Så länge efter en scrollrörelse ett nudd räknas som att stoppa listan, inte som ett tryck */
+const SCROLL_SETTLE_MS = 140;
 
 const DAY_MS = 86_400_000;
 const SOON_MS = 3 * DAY_MS;
@@ -65,17 +98,17 @@ function Perforation() {
 }
 
 export function OfferTicket({
-  offer, used, stubHidden, edge, linkPlace = true, onArm, onOpen,
+  offer, used, torn, edge, scrollAt, linkPlace = true, onOpen,
 }: {
   offer: Offer;
   used: boolean;
-  /** Bandet är bortrivet (panelen är öppen) */
-  stubHidden: boolean;
+  /** Det här är biljetten som är öppen (bandet rivs eller är bortrivet) */
+  torn: boolean;
   edge: TearEdge;
+  /** När sidan senast scrollade (Date.now(), sätts av sidans scroll) */
+  scrollAt?: SharedValue<number>;
   /** Loggan öppnar platssidan — av när man redan står på den */
   linkPlace?: boolean;
-  /** Fingret nuddade biljetten: bilden läses in i förväg (pappersbitarna klipps ur den) */
-  onArm: (imageUrl: string | null) => void;
   onOpen: (offer: Offer, origin: OriginRect | null) => void;
 }) {
   const { t } = useTranslation();
@@ -95,22 +128,50 @@ export function OfferTicket({
   const cutPath = useDerivedValue(() => tornCutRegion(TICKET_H, edge.amt.value, edge.prog.value));
 
   // Mät sidobandets plats på skärmen så panelen kan riva loss det därifrån
-  const handlePress = () => {
+  const open = useCallback(() => {
     if (!stubRef.current) return onOpen(offer, null);
     stubRef.current.measureInWindow((x, y, w, h) => onOpen(offer, { x, y, w, h }));
-  };
+  }, [offer, onOpen]);
+  const arm = useCallback(() => armTicketImage(imageUrl), [imageUrl]);
+  const openPlace = useCallback(() => router.push(`/place/${offer.place_id}` as never), [router, offer.place_id]);
+
+  // Ett tryck: fingret får inte röra sig mer än 10 punkter, och listan får inte ha glidit nyss. Trycket
+  // på loggan (uppe till höger, med lite marginal) öppnar platssidan i stället för erbjudandet
+  const width = useSharedValue(0);
+  const logoTap = linkPlace && !!offer.place?.logo_url;
+  const stillScrolling = useSharedValue(false);
+  const tap = useMemo(() => Gesture.Tap()
+    .maxDistance(10)
+    .onBegin(() => {
+      stillScrolling.value = scrollAt ? Date.now() - scrollAt.value < SCROLL_SETTLE_MS : false;
+      runOnJS(arm)();
+    })
+    .onEnd((e, success) => {
+      if (!success || stillScrolling.value) return;
+      const onLogo = logoTap && e.y <= LOGO_TOP + LOGO + LOGO_SLOP && e.x >= width.value - LOGO_RIGHT - LOGO - LOGO_SLOP;
+      runOnJS(onLogo ? openPlace : open)();
+    }), [arm, open, openPlace, logoTap, scrollAt, stillScrolling, width]);
+
+  // Bandet göms och skuggan försvinner först när panelens band faktiskt börjat röra sig
+  const ticketStyle = useAnimatedStyle(() => {
+    const gone = torn && edge.active.value === 1;
+    return { shadowOpacity: gone ? 0 : 0.28, elevation: gone ? 0 : 6, backgroundColor: gone ? "transparent" : colors.tile };
+  });
+  const stubStyle = useAnimatedStyle(() => ({ opacity: torn && edge.active.value === 1 ? 0 : 1 }));
 
   return (
-    // Yttre lagret bär skuggan, det inre klipper bilden till biljettens form (overflow: hidden tar bort skuggor)
-    <Pressable
-      onPressIn={() => onArm(imageUrl)}
-      onPress={handlePress}
-      // Ingen tryck-skala här: bandets mått mäts vid tryck, och en förminskad biljett gav ett band som var för litet
-      style={[s.ticket, used && s.ticketUsed, stubHidden && s.ticketTorn]}
+    // Yttre lagret bär skuggan, det inre klipper bilden till biljettens form (overflow: hidden tar bort skuggor).
+    // Ingen tryck-skala: bandets mått mäts vid tryck, och en förminskad biljett gav ett band som var för litet
+    <GestureDetector gesture={tap}>
+    <Reanimated.View
+      style={[s.ticket, used && s.ticketUsed, ticketStyle]}
+      onLayout={(e) => { width.value = e.nativeEvent.layout.width; }}
     >
-      <View style={[s.ticketClip, stubHidden && { borderColor: "transparent" }]}>
+      <View style={[s.ticketClip, torn && { borderColor: "transparent" }]}>
         {/* Sidoband i kategorins färg: ikon överst, kategorin på högkant under */}
-        <View ref={stubRef} collapsable={false} style={[s.stub, stubHidden && { opacity: 0 }]}>
+        <Reanimated.View style={[s.stub, stubStyle]}>
+          {/* Mätpunkten för bandets plats (panelen river loss det därifrån) */}
+          <View ref={stubRef} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <VerticalGradient colors={[from, to]} />
           <View style={s.stubIcon}>
             <CategoryIcon size={18} color="#FFFFFF" strokeWidth={2} />
@@ -120,7 +181,7 @@ export function OfferTicket({
               {offer.category ?? "Österlen"}
             </Text>
           </View>
-        </View>
+        </Reanimated.View>
 
         <View style={s.body}>
           {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
@@ -137,15 +198,10 @@ export function OfferTicket({
           )}
 
           {offer.place?.logo_url && (
-            // Loggan öppnar platssidan; resten av biljetten öppnar erbjudandet
-            <Pressable
-              style={s.logoWrap}
-              hitSlop={8}
-              disabled={!linkPlace}
-              onPress={() => router.push(`/place/${offer.place_id}` as any)}
-            >
+            // Loggan öppnar platssidan; resten av biljetten öppnar erbjudandet (se trycket ovan)
+            <View style={s.logoWrap}>
               <Image source={{ uri: offer.place.logo_url }} style={s.logo} resizeMode="cover" />
-            </Pressable>
+            </View>
           )}
 
           <View style={s.bottom}>
@@ -170,10 +226,10 @@ export function OfferTicket({
           </View>
         </View>
 
-        {!stubHidden && <Perforation />}
+        {!torn && <Perforation />}
 
-        {/* Kanten som blir kvar när bandet rivits bort: vit, hackig papperskant */}
-        {stubHidden && (
+        {/* Kanten som blir kvar när bandet rivits bort: vit, hackig papperskant (syns först när rivningen börjat) */}
+        {torn && (
           <View
             style={{ position: "absolute", left: STUB_W, top: 0, width: TEAR_DEPTH + EDGE_STROKE * 2 + 1, height: TICKET_H }}
             pointerEvents="none"
@@ -189,7 +245,8 @@ export function OfferTicket({
         <View style={[s.notch, s.notchLeft, { backgroundColor: colors.bg }]} />
         <View style={[s.notch, s.notchRight, { backgroundColor: colors.bg }]} />
       </View>
-    </Pressable>
+    </Reanimated.View>
+    </GestureDetector>
   );
 }
 
@@ -203,8 +260,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: c.tileBorder,
   },
   ticketUsed: { opacity: 0.55 },
-  // Bandet är bortrivet: ingen tom "mall" kvar, bara den kvarvarande biten mot sidans bakgrund
-  ticketTorn: { backgroundColor: "transparent", shadowOpacity: 0, elevation: 0 },
   stub: { width: STUB_W, alignItems: "center", overflow: "hidden" },
   stubIcon: { height: 50, alignItems: "center", justifyContent: "flex-end", paddingBottom: 6 },
   stubTextZone: { flex: 1, alignSelf: "stretch", alignItems: "center", justifyContent: "center", paddingBottom: 14 },
@@ -229,8 +284,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   badgeGrey: { borderColor: "rgba(255,255,255,0.3)" },
   badgeTextGrey: { color: "rgba(255,255,255,0.7)" },
   logoWrap: {
-    position: "absolute", top: 10, right: 12,
-    width: 34, height: 34, borderRadius: 17, overflow: "hidden",
+    position: "absolute", top: LOGO_TOP, right: LOGO_RIGHT,
+    width: LOGO, height: LOGO, borderRadius: LOGO / 2, overflow: "hidden",
     borderWidth: 1.5, borderColor: "rgba(230,199,122,0.55)", backgroundColor: c.tile,
   },
   // Lite förstorad så att den fyller hela cirkeln även när loggan är en kvadrat med luft i hörnen

@@ -9,6 +9,12 @@
  *
  * Panelen är ett lager på sidan, inte en Modal, så att bandet kan flyga från listan in i den.
  * Lagret måste ligga som barn direkt under en helskärmsyta (se SettingsScreen `overlay`).
+ *
+ * Lagret finns hela tiden (osynligt när det är stängt): bandet och pappersbitarna är Skia-ytor, och
+ * byggdes de först vid trycket hann rivningen ibland börja innan de ritats — då syntes ingen rivning
+ * alls. Nu ritas bara det nya innehållet in, och rivningen startar två bildrutor efter trycket.
+ * Biljettens band göms i samma bildruta som rivningen börjar (TearEdge.active), och syns igen i
+ * samma bildruta som bandet landat tillbaka — aldrig ett ögonblick utan band.
  * Rivningen har tre delar: bandet lossnar underifrån (svänger ut kring sin övre kant med en
  * hackig, vit rivkant och små vibrationer som ett riktigt ryck), flyger sedan till toppen och
  * vrids, och sist glider panelen upp. Hela rörelsen styrs av ett enda tal, `p` (0 = biljetten,
@@ -25,7 +31,8 @@ import Animated, {
   withTiming, type SharedValue,
 } from "react-native-reanimated";
 import {
-  Canvas, Path, Rect, RoundedRect, Group, Image as SkiaImage, LinearGradient, RadialGradient, Skia, vec, type SkImage,
+  Canvas, Fill, Path, Rect, RoundedRect, Group, Image as SkiaImage, LinearGradient, RadialGradient, Skia, useImage, vec,
+  type SkImage,
 } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -44,12 +51,14 @@ import type { ThemeColors } from "@/theme/colors";
 import { HoldToActivate } from "./HoldToActivate";
 import { OfferConfirmDialog } from "./OfferConfirmDialog";
 import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE, EDGE_STROKE } from "./tear";
+import { useArmedTicketImage } from "./OfferTicket";
 
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
 export interface OriginRect { x: number; y: number; w: number; h: number }
 
-/** Rivkantens läge, skrivs av panelen och läses av biljetten i listan */
-export interface TearEdge { amt: SharedValue<number>; prog: SharedValue<number> }
+/** Rivkantens läge, skrivs av panelen och läses av biljetten i listan. active = bandet är ute (1),
+ *  då är biljettens eget band gömt */
+export interface TearEdge { amt: SharedValue<number>; prog: SharedValue<number>; active: SharedValue<number> }
 
 // Måtten på sidobandet i biljetten (måste stämma med OfferTicket)
 const TICKET_H = 190;
@@ -78,7 +87,6 @@ export function OfferDrawer({
   focusOffer,
   origin,
   edge,
-  scrapImage,
   onOpenPlace,
   onClose,
 }: {
@@ -89,12 +97,10 @@ export function OfferDrawer({
   /** Var biljettens sidoband satt. Utan den öppnas panelen med en vanlig glidning underifrån. */
   origin?: OriginRect | null;
   /** Delas med biljetterna i listan: hur mycket rivkant som syns, så biljettens kant följer bandets.
-   *  Utan biljetter (platssidan) behövs den inte. */
+   *  Utan biljetter behövs den inte. */
   edge?: TearEdge;
   /** Gör platsens namn och logga till en länk till platssidan. Utelämna om man redan är på platssidan. */
   onOpenPlace?: () => void;
-  /** Biljettens bild, inläst i Skia i förväg; pappersbitarna klipps ur den. Utan den yr vita bitar. */
-  scrapImage?: SkImage | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -108,6 +114,8 @@ export function OfferDrawer({
   const { isMember } = useMembership();
   const { isBusiness } = useIsBusiness();
   const activate = useActivateOffer();
+  // Biljettens bild läses in när fingret nuddar biljetten; pappersbitarna klipps ur den (utan den yr vita bitar)
+  const scrapImage = useImage(useArmedTicketImage());
 
   const [pending, setPending] = useState<Offer | null>(null);
   // Väntar på att servern ska registrera aktiveringen (personalskärmen visas först då)
@@ -142,6 +150,9 @@ export function OfferDrawer({
   const oh = useSharedValue(0);
   // Pappersbitarna yr bara när biljetten rivs, aldrig när bandet är på väg tillbaka
   const closing = useSharedValue(false);
+  // Rivkanten och bandets läge delas med biljetterna i listan (eller hålls här om det inte finns några)
+  const ownEdge = { amt: useSharedValue(0), prog: useSharedValue(0), active: useSharedValue(0) };
+  const sharedEdge = edge ?? ownEdge;
   const lockedSV = useSharedValue(false);
   useEffect(() => { lockedSV.value = locked; }, [locked]);
   // Gester och animationer skapas en gång, så de läser onClose via en ref
@@ -150,8 +161,10 @@ export function OfferDrawer({
 
   useEffect(() => {
     if (!visible) {
+      // Stängd på annat sätt än med krysset (t.ex. Skaffa Österlenpasset): allt tillbaka direkt
       ready.value = 0;
       p.value = 0;
+      sharedEdge.active.value = 0;
       return;
     }
     const o = origin ?? { x: 0, y: screenH, w: screenW, h: BAND_H };
@@ -159,19 +172,28 @@ export function OfferDrawer({
     vert.value = origin ? 1 : 0;
     p.value = 0;
     closing.value = false;
-    ready.value = 1;
-    p.value = withTiming(1, { duration: OPEN_MS, easing: ease });
-    // Många små ryck under rivningen, det sista hårdast, sedan en lätt känsla när bandet landar
-    const ripMs = OPEN_MS * RIP_END * 0.85;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i < RIP_TICKS; i++) {
-      const style = i === RIP_TICKS - 1
-        ? Haptics.ImpactFeedbackStyle.Heavy
-        : i % 2 === 0 ? Haptics.ImpactFeedbackStyle.Rigid : Haptics.ImpactFeedbackStyle.Light;
-      timers.push(setTimeout(() => Haptics.impactAsync(style).catch(() => {}), (ripMs * i) / (RIP_TICKS - 1)));
-    }
-    timers.push(setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}), OPEN_MS * 0.85));
-    return () => timers.forEach(clearTimeout);
+    let frame = 0;
+    const start = () => {
+      // Lagret syns, biljettens band göms och rivningen börjar — i samma bildruta
+      ready.value = 1;
+      if (origin) sharedEdge.active.value = 1;
+      p.value = withTiming(1, { duration: OPEN_MS, easing: ease });
+      // Många små ryck under rivningen, det sista hårdast, sedan en lätt känsla när bandet landar
+      const ripMs = OPEN_MS * RIP_END * 0.85;
+      for (let i = 0; i < RIP_TICKS; i++) {
+        const style = i === RIP_TICKS - 1
+          ? Haptics.ImpactFeedbackStyle.Heavy
+          : i % 2 === 0 ? Haptics.ImpactFeedbackStyle.Rigid : Haptics.ImpactFeedbackStyle.Light;
+        timers.push(setTimeout(() => Haptics.impactAsync(style).catch(() => {}), (ripMs * i) / (RIP_TICKS - 1)));
+      }
+      timers.push(setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}), OPEN_MS * 0.85));
+    };
+    frame = requestAnimationFrame(() => { frame = requestAnimationFrame(start); });
+    return () => {
+      cancelAnimationFrame(frame);
+      timers.forEach(clearTimeout);
+    };
   }, [visible]);
 
   // Bandet har landat på sin biljett igen: lite klick, sedan lämnar lagret scenen
@@ -184,7 +206,10 @@ export function OfferDrawer({
     if (locked) return;
     closing.value = true;
     p.value = withTiming(0, { duration: Math.max(320, CLOSE_MS * p.value), easing: ease }, (done) => {
-      if (done) runOnJS(finishClose)();
+      if (!done) return;
+      sharedEdge.active.value = 0;
+      ready.value = 0;
+      runOnJS(finishClose)();
     });
   };
 
@@ -199,8 +224,6 @@ export function OfferDrawer({
   // Hur mycket rivkant som syns just nu. Biljettens kant i listan läser samma tal (edgeAmt/edgeProg),
   // så bandet och biljetten passar ihop hela vägen och kanten rätas ut i samma takt när bandet landar.
   const edgeAmt = useDerivedValue(() => tear.value * edgeGrow.value);
-  const ownEdge = { amt: useSharedValue(0), prog: useSharedValue(0) };
-  const sharedEdge = edge ?? ownEdge;
   useAnimatedReaction(
     () => ({ amt: edgeAmt.value, prog: tearProgress.value }),
     (v) => { sharedEdge.amt.value = v.amt; sharedEdge.prog.value = v.prog; },
@@ -307,10 +330,8 @@ export function OfferDrawer({
     router.push("/settings/pass-buy");
   };
 
-  if (!visible) return null;
-
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { zIndex: 50 }, rootStyle]}>
+    <Animated.View style={[StyleSheet.absoluteFill, { zIndex: 50 }, rootStyle]} pointerEvents={visible ? "auto" : "none"}>
       {/* Bakgrunden fångar tryck (så listan bakom inte reagerar) men stänger inte: bara krysset stänger */}
       <Animated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
 
@@ -331,6 +352,7 @@ export function OfferDrawer({
           </Rect>
         </Canvas>
 
+        {visible && <>
         <Pressable style={s.header} onPress={onOpenPlace} disabled={!onOpenPlace}>
           <View style={s.logoCircle}>
             {place?.logo_url ? (
@@ -367,6 +389,7 @@ export function OfferDrawer({
           ))}
           {offers.length === 0 && <Text style={s.empty}>{t("offers.drawer.none")}</Text>}
         </ScrollView>
+        </>}
       </Animated.View>
 
       {/* Bandet: biljettens sidoband som blir panelens topp */}
@@ -487,15 +510,15 @@ function Scrap({ sc, p, vert, closing, ox, oy, ow, oh, image, bodyW }: ScrapProp
     };
   });
 
-  if (!image) {
-    return <Animated.View pointerEvents="none" style={[{ position: "absolute", width: sc.w, height: sc.h, borderRadius: 1, backgroundColor: "#F4F0E6" }, style]} />;
-  }
-  // Utsnittet ur fotot: biten från kanten där den satt, med samma beskärning som på biljetten
+  // Ritytan finns alltid (byggs med panelen): kommer fotot medan biten redan flyger byts bara
+  // innehållet — att bygga tolv ritytor mitt i rivningen fick den att hacka. Utan foto: vitt papper
   return (
     <Animated.View pointerEvents="none" style={[{ position: "absolute", width: w, height: h }, style]}>
       <Canvas style={StyleSheet.absoluteFill}>
         <Group clip={shape}>
-          <SkiaImage image={image} x={-6} y={-(sc.y * TICKET_H - h / 2)} width={bodyW} height={TICKET_H} fit="cover" />
+          {image
+            ? <SkiaImage image={image} x={-6} y={-(sc.y * TICKET_H - h / 2)} width={bodyW} height={TICKET_H} fit="cover" />
+            : <Fill color="#F4F0E6" />}
         </Group>
       </Canvas>
     </Animated.View>
