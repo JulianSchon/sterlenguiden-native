@@ -641,7 +641,12 @@ export function searchPlaces(
       // Dagen står med, så det inte går att missa vilken dag svaret gäller ("Öppet till 21 på måndag")
       const info = openInfo(place, target);
       const day = atIntent.weekday !== null ? `på ${WEEKDAY_WORDS[atIntent.weekday]}` : atIntent.rel === 1 ? "i morgon" : "";
-      return info && day ? { ...info, label: `${info.label} ${day}` } : info;
+      if (!info || info.open) return info && day ? { ...info, label: `${info.label} ${day}` } : info;
+      // Stängt just då, men kanske öppet andra tider samma dag: säg tiden ("Stängt på måndag 22:00")
+      const wholeDay = parseDay(hoursOf(place)?.[DAY_NAMES[target.getDay()]]) === "closed";
+      const time = wholeDay ? "" : day ? hhmm(atIntent.minutes) : `kl ${hhmm(atIntent.minutes)}`;
+      const when = [day, time].filter(Boolean).join(" ") || "i dag";
+      return { open: false, label: `Stängt ${when}`.trim() };
     }
     // Bara en dag: dagens öppettider ("Måndag 11–22")
     const day = parseDay(hoursOf(place)?.[DAY_NAMES[target.getDay()]]);
