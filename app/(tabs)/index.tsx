@@ -14,7 +14,7 @@
  * ändras (ett hjärta), och toppen sköter sin egen data.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshControl, StyleSheet, Text, View, type FlatList } from "react-native";
+import { AppState, RefreshControl, StyleSheet, Text, View, type FlatList } from "react-native";
 import Reanimated, { FadeInDown, useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -31,7 +31,7 @@ import { useCollected, useCollectibles, type Collectible } from "@/hooks/useColl
 import { saveEventFavorite, savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
 import { useTheme } from "@/theme/ThemeProvider";
-import { buildFeed, daySeed, type FeedItem } from "@/lib/homeFeed";
+import { buildFeed, type FeedItem } from "@/lib/homeFeed";
 import { openEvent } from "@/lib/eventSheet";
 import { pushOnce } from "@/lib/navigateOnce";
 import { setNavHidden } from "@/lib/navVisibility";
@@ -58,6 +58,10 @@ const FIRST_PAGE = 12;
 const MORE = 10;
 /** Det som inte är nödvändigt för flödet (nyheter, vänner …) väntas in högst så här länge */
 const OPTIONAL_WAIT_MS = 1500;
+/** Har appen legat i bakgrunden så här länge byggs flödet om när man kommer tillbaka */
+const STALE_MS = 30 * 60 * 1000;
+/** En ny blandning av platserna */
+const newSeed = () => Math.floor(Math.random() * 1_000_000_000);
 const NO_PLACES: Place[] = [];
 const NO_ITEMS: FeedItem[] = [];
 
@@ -165,10 +169,11 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   }, [coreReady]);
   const ready = coreReady && (optionalReady || waited);
 
-  // ── Flödet: byggs en gång (och när man drar ner för att uppdatera), står still medan man tittar ──
+  // ── Flödet: byggs när appen öppnas, när man drar ner för att uppdatera och när man kommer tillbaka
+  // efter en halvtimme — däremellan står det still medan man tittar. Platserna blandas nytt varje gång ──
   const [feed, setFeed] = useState<FeedItem[] | null>(null);
   const [version, setVersion] = useState(0);
-  const [seed, setSeed] = useState(() => daySeed());
+  const [seed, setSeed] = useState(newSeed);
   const [shown, setShown] = useState(FIRST_PAGE);
   const built = useRef(-1);
   const builtAt = useRef(0);
@@ -194,19 +199,38 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
     }));
   }, [ready, version]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Hämta allt på nytt och bygg om flödet med en ny blandning
+  const queries = { places, events, offers, redemptions, news, friendVisits, collectibles, collected, favorites, visits };
+  const queriesRef = useRef(queries);
+  queriesRef.current = queries;
+  const rebuild = useCallback(async () => {
+    await Promise.all([
+      ...Object.values(queriesRef.current).map((q) => q.refetch()),
+      queryClient.invalidateQueries({ queryKey: ["business-stories"] }),
+    ].map((p) => p.catch(() => {})));
+    setSeed(newSeed());
+    setShown(FIRST_PAGE);
+    setVersion((v) => v + 1);
+  }, [queryClient]);
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([
-      places.refetch(), events.refetch(), offers.refetch(), redemptions.refetch(), news.refetch(), friendVisits.refetch(),
-      collectibles.refetch(), collected.refetch(), favorites.refetch(), visits.refetch(),
-      queryClient.invalidateQueries({ queryKey: ["business-stories"] }),
-    ].map((p) => p.catch(() => {})));
-    setSeed((x) => x + 1);
-    setShown(FIRST_PAGE);
-    setVersion((v) => v + 1);
+    await rebuild();
     setRefreshing(false);
-  }, [places, events, offers, redemptions, news, friendVisits, collectibles, collected, favorites, visits, queryClient]);
+  }, [rebuild]);
+  // Tillbaka efter en halvtimme eller mer: ett nytt flöde, uppifrån
+  useEffect(() => {
+    let away = 0;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background") away = Date.now();
+      else if (state === "active" && away && Date.now() - away >= STALE_MS) {
+        away = 0;
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+        rebuild();
+      }
+    });
+    return () => sub.remove();
+  }, [rebuild]);
 
   // ── Hjärtan (platser och evenemang): visas direkt, resten av appen uppdateras när man lämnar Hem ──
   const favs = favorites.data;

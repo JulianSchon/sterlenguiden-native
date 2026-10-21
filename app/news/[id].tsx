@@ -1,301 +1,229 @@
-import {
-  View, Text, ScrollView, Image, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Linking, Dimensions,
-} from "react-native";
-import { useState as useLocalState } from "react";
+/**
+ * En nyhet: rubriken som de andra undersidorna (tillbaka, NYHET, dela), omslagsbilden med rundade
+ * hörn, datum, titel, ingress och brödtext. Bilder i texten ("![](adress)" eller en adress ensam
+ * på en rad) och galleriet visas som bilder — tryck så öppnas de i helskärm med zoom. Längst ner
+ * platsen nyheten handlar om och en länk, om de finns.
+ *
+ * Öppnas direkt om nyheten redan finns i telefonen (Hem hämtar de senaste); annars grått tills den
+ * kommit.
+ */
+import { useMemo, useState } from "react";
+import { Pressable, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ExternalLink, MapPin } from "lucide-react-native";
-import Svg, { Defs, LinearGradient as SvgGrad, Stop, Rect } from "react-native-svg";
-import { useNewsItem } from "@/hooks/useNews";
-import { colors } from "@/lib/colors";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
+import { useQueryClient } from "@tanstack/react-query";
+import { Image as ExpoImage } from "expo-image";
+import { ArrowLeft, ArrowUpRight, ChevronRight, MapPin, Newspaper } from "lucide-react-native";
+import { useNewsItem, type NewsItem } from "@/hooks/useNews";
+import { useTheme } from "@/theme/ThemeProvider";
+import { formatDate } from "@/i18n/dates";
+import { openWebsite, withProtocol } from "@/lib/placeLinks";
+import { pushOnce } from "@/lib/navigateOnce";
+import { ShareIcon } from "@/components/ShareIcon";
+import { Skeleton } from "@/components/Skeleton";
+import { Rise } from "@/components/Rise";
+import { PhotoViewer } from "@/components/place/PhotoViewer";
 
-const { width: W } = Dimensions.get("window");
-const GOLD = "#C9A24C";
-const CHARCOAL = "#121212";
-
-// Regex som matchar:
-// - Markdown: ![alt](https://...)
-// - Vilken URL som helst ensam på en rad (vi provar att ladda den som bild)
-const IMG_MD  = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
+const GUTTER = 16;
+const IMG_MD = /!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
 const LONE_URL = /^(https?:\/\/\S+)$/i;
 
-/**
- * Delar upp body-texten i segment: { type: "text" | "image", content: string }
- * Hanterar markdown-bildlänkar (![](url)) och rena bild-URLer på egna rader.
- */
-function parseBody(text: string): Array<{ type: "text" | "image"; content: string; alt?: string }> {
-  const segments: Array<{ type: "text" | "image"; content: string; alt?: string }> = [];
+type Segment = { type: "text" | "image"; content: string };
 
-  // Ersätt markdown-bilder med en platshållare och spara mappning
-  const imageMap: Record<string, { url: string; alt: string }> = {};
-  let idx = 0;
-  const withPlaceholders = text.replace(IMG_MD, (_full, alt, url) => {
-    const key = `__IMG_${idx++}__`;
-    imageMap[key] = { url, alt };
+/** Brödtexten i delar: text och bilder (markdown-bilder och adresser ensamma på en rad) */
+function parseBody(text: string): Segment[] {
+  const out: Segment[] = [];
+  const images: Record<string, string> = {};
+  let n = 0;
+  const marked = text.replace(IMG_MD, (_m, _alt, url: string) => {
+    const key = `__IMG_${n++}__`;
+    images[key] = url;
     return key;
   });
-
-  // Gå igenom rad för rad
-  const lines = withPlaceholders.split("\n");
-  let textBuffer = "";
-
-  const flushText = () => {
-    const trimmed = textBuffer.trimEnd();
-    if (trimmed) segments.push({ type: "text", content: trimmed });
-    textBuffer = "";
+  let buffer = "";
+  const flush = () => {
+    const t = buffer.trim();
+    if (t) out.push({ type: "text", content: t });
+    buffer = "";
   };
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Platshållare för markdown-bild
-    const mdKey = Object.keys(imageMap).find((k) => trimmed === k);
-    if (mdKey) {
-      flushText();
-      segments.push({ type: "image", content: imageMap[mdKey].url, alt: imageMap[mdKey].alt });
-      continue;
-    }
-
-    // Vilken URL som helst ensam på en rad → försök som bild
-    if (LONE_URL.test(trimmed)) {
-      flushText();
-      segments.push({ type: "image", content: trimmed });
-      continue;
-    }
-
-    textBuffer += line + "\n";
+  for (const line of marked.split("\n")) {
+    const t = line.trim();
+    if (images[t]) { flush(); out.push({ type: "image", content: images[t] }); continue; }
+    if (LONE_URL.test(t)) { flush(); out.push({ type: "image", content: t }); continue; }
+    buffer += line + "\n";
   }
-  flushText();
-  return segments;
+  flush();
+  return out;
 }
 
-/** Försöker visa en URL som bild. Om den misslyckas → visa klickbar länk. */
-function InlineImage({ uri }: { uri: string }) {
-  const [failed, setFailed] = useLocalState(false);
-  if (failed) {
-    return (
-      <TouchableOpacity onPress={() => Linking.openURL(uri)} activeOpacity={0.7}>
-        <Text style={{ color: GOLD, fontSize: 13, marginBottom: 12, textDecorationLine: "underline" }}>
-          {uri}
-        </Text>
-      </TouchableOpacity>
-    );
-  }
-  return (
-    <Image
-      source={{ uri }}
-      style={s.inlineImage}
-      resizeMode="cover"
-      onError={() => setFailed(true)}
-    />
-  );
-}
-
-export default function NewsDetailScreen() {
+export default function NewsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { data: item, isLoading } = useNewsItem(id ?? null);
+  const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const { data: fetched, isError } = useNewsItem(id ?? null);
+  // Finns nyheten redan i listan som Hem hämtat visas den direkt
+  const cached = useMemo(() => {
+    for (const [, list] of queryClient.getQueriesData<NewsItem[]>({ queryKey: ["news"] })) {
+      const hit = Array.isArray(list) ? list.find((n) => n.id === id) : undefined;
+      if (hit) return hit;
+    }
+    return undefined;
+  }, [queryClient, id]);
+  const item = fetched ?? cached;
 
-  const publishedDate = item?.published_at ?? item?.created_at;
-  const dateStr = publishedDate
-    ? format(new Date(publishedDate), "d MMMM yyyy", { locale: sv })
-    : null;
+  const segments = useMemo(() => (item?.body ? parseBody(item.body) : []), [item?.body]);
+  // Alla bilder i nyheten, i ordning — helskärmen bläddrar mellan dem
+  const images = useMemo(() => [
+    ...(item?.cover_image_url ? [item.cover_image_url] : []),
+    ...segments.filter((x) => x.type === "image").map((x) => x.content),
+    ...(item?.gallery_urls ?? []),
+  ], [item, segments]);
+  const [viewer, setViewer] = useState<number | null>(null);
+  const openImage = (uri: string) => setViewer(Math.max(0, images.indexOf(uri)));
 
-  // Galleri-bilder (Postgres text[])
-  const galleryImages = item?.gallery_urls ?? [];
+  const published = item?.published_at ?? item?.created_at;
+  const share = () => {
+    if (!item) return;
+    const link = item.link_url ? `\n${withProtocol(item.link_url)}` : "";
+    Share.share({ message: `${item.title}${link}` }).catch(() => {});
+  };
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
-      {/* Header */}
+    <View style={[s.screen, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+      {/* Samma rubrik som de andra undersidorna */}
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
-          <ArrowLeft size={20} color={colors.foreground} strokeWidth={2} />
+        <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={() => router.back()}>
+          <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Nyheter</Text>
-        <View style={{ width: 44 }} />
+        <Text style={[s.headerTitle, { color: colors.text }]}>NYHET</Text>
+        {item && (
+          <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={share}>
+            <ShareIcon size={20} color={colors.text} strokeWidth={2} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {isLoading ? (
-        <View style={s.center}>
-          <ActivityIndicator size="large" color={GOLD} />
-        </View>
-      ) : !item ? null : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
-
-          {/* Cover image */}
-          {item.cover_image_url ? (
-            <Image source={{ uri: item.cover_image_url }} style={s.cover} resizeMode="cover" />
-          ) : null}
-
-          <View style={s.content}>
-            {/* Badge + datum */}
-            <View style={s.metaRow}>
-              {/* Gradient badge */}
-              <View style={{ borderRadius: 12, overflow: "hidden", alignSelf: "flex-start" }}>
-                <Svg width={130} height={26} style={StyleSheet.absoluteFill}>
-                  <Defs>
-                    <SvgGrad id="bg" x1="0" y1="0" x2="1" y2="0">
-                      <Stop offset="0%"   stopColor="#FFF200" />
-                      <Stop offset="35%"  stopColor="#FFB000" />
-                      <Stop offset="75%"  stopColor="#FF5000" />
-                      <Stop offset="100%" stopColor="#FF8000" />
-                    </SvgGrad>
-                  </Defs>
-                  <Rect width="130" height="26" fill="url(#bg)" />
-                </Svg>
-                <Text style={s.badgeText}>ÖSTERLENAPPEN</Text>
-              </View>
-              {dateStr && <Text style={s.dateText}>{dateStr}</Text>}
-            </View>
-
-            {/* Titel */}
-            <Text style={s.title}>{item.title}</Text>
-
-            {/* Ingress */}
-            {item.ingress ? (
-              <Text style={s.ingress}>{item.ingress}</Text>
-            ) : null}
-
-            {/* Body – renderar inbakade bilder */}
-            {item.body
-              ? parseBody(item.body).map((seg, i) =>
-                  seg.type === "image" ? (
-                    <InlineImage key={i} uri={seg.content} />
-                  ) : (
-                    <Text key={i} style={s.body}>{seg.content}</Text>
-                  )
-                )
-              : null}
-
-            {/* Galleri-bilder */}
-            {galleryImages.map((uri, i) => (
-              <Image key={i} source={{ uri }} style={s.galleryImage} resizeMode="cover" />
-            ))}
+      {!item ? (
+        isError ? (
+          <View style={s.center}>
+            <Newspaper size={34} color={colors.faint} strokeWidth={1.6} />
+            <Text style={[s.missingTitle, { color: colors.text }]}>Vi hittar inte nyheten</Text>
+            <Text style={[s.missingText, { color: colors.muted }]}>Den kan ha tagits bort, eller så är du utan nät just nu.</Text>
           </View>
-
-          {/* Länksektion */}
-          {(item.place || item.link_url) && (
-            <View style={s.linksSection}>
-              {/* Plats i appen */}
-              {item.place && (
-                <TouchableOpacity
-                  style={s.linkRow}
-                  activeOpacity={0.8}
-                  onPress={() => router.push(`/place/${item.place!.id}` as any)}
-                >
-                  <View style={s.linkIcon}>
-                    <MapPin size={18} color={GOLD} strokeWidth={2} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.linkLabel}>LÄS MER OM PLATSEN</Text>
-                    <Text style={s.linkTitle}>{item.place.name}</Text>
-                    {item.place.nearest_town && (
-                      <Text style={s.linkSub}>{item.place.nearest_town}</Text>
-                    )}
-                  </View>
-                  <ArrowLeft size={18} color={colors.foregroundMuted} style={{ transform: [{ rotate: "180deg" }] }} />
-                </TouchableOpacity>
-              )}
-
-              {/* Extern länk */}
-              {item.link_url && (
-                <TouchableOpacity
-                  style={s.linkRow}
-                  activeOpacity={0.8}
-                  onPress={() => Linking.openURL(item.link_url!)}
-                >
-                  <View style={s.linkIcon}>
-                    <ExternalLink size={18} color={colors.foregroundMuted} strokeWidth={2} />
-                  </View>
-                  <Text style={[s.linkTitle, { flex: 1 }]}>{item.link_label ?? "Läs mer"}</Text>
-                  <ArrowLeft size={18} color={colors.foregroundMuted} style={{ transform: [{ rotate: "180deg" }] }} />
-                </TouchableOpacity>
-              )}
+        ) : (
+          <View style={{ paddingHorizontal: GUTTER, gap: 12, paddingTop: 8 }} pointerEvents="none">
+            <Skeleton height={220} radius={20} />
+            <Skeleton width={120} height={12} radius={6} style={{ marginTop: 8 }} />
+            <Skeleton width="85%" height={24} radius={8} />
+            <Skeleton width="60%" height={24} radius={8} />
+            <Skeleton height={14} radius={6} style={{ marginTop: 10 }} />
+            <Skeleton height={14} radius={6} />
+            <Skeleton width="70%" height={14} radius={6} />
+          </View>
+        )
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 48 }}>
+          <Rise index={0}>
+            {item.cover_image_url && (
+              <Pressable onPress={() => openImage(item.cover_image_url!)} style={[s.cover, { backgroundColor: colors.fill }]}>
+                <ExpoImage source={{ uri: item.cover_image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />
+              </Pressable>
+            )}
+            <View style={s.content}>
+              <Text style={[s.meta, { color: colors.goldText }]}>
+                {["Österlenappen", published ? formatDate(published, "d MMMM yyyy") : null].filter(Boolean).join("  ·  ")}
+              </Text>
+              <Text style={[s.title, { color: colors.text }]}>{item.title}</Text>
+              {!!item.ingress && <Text style={[s.ingress, { color: colors.text }]}>{item.ingress}</Text>}
             </View>
-          )}
+          </Rise>
+
+          <Rise index={1}>
+            <View style={s.content}>
+              {segments.map((seg, i) => (seg.type === "image"
+                ? <BodyImage key={i} uri={seg.content} onPress={() => openImage(seg.content)} />
+                : <Text key={i} style={[s.body, { color: colors.muted }]}>{seg.content}</Text>))}
+              {(item.gallery_urls ?? []).map((uri, i) => <BodyImage key={`g${i}`} uri={uri} onPress={() => openImage(uri)} />)}
+            </View>
+
+            {(item.place || item.link_url) && (
+              <View style={[s.links, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {item.place && (
+                  <TouchableOpacity style={s.linkRow} activeOpacity={0.7} onPress={() => pushOnce(router, `/place/${item.place!.id}`)}>
+                    <View style={[s.linkIcon, { backgroundColor: colors.fill }]}>
+                      <MapPin size={18} color={colors.text} strokeWidth={2} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.linkLabel, { color: colors.muted }]}>Läs mer om platsen</Text>
+                      <Text style={[s.linkTitle, { color: colors.text }]} numberOfLines={1}>{item.place.name}</Text>
+                    </View>
+                    <ChevronRight size={18} color={colors.faint} strokeWidth={2} />
+                  </TouchableOpacity>
+                )}
+                {item.place && item.link_url && <View style={[s.line, { backgroundColor: colors.border }]} />}
+                {item.link_url && (
+                  <TouchableOpacity style={s.linkRow} activeOpacity={0.7} onPress={() => openWebsite(item.link_url!)}>
+                    <View style={[s.linkIcon, { backgroundColor: colors.fill }]}>
+                      <ArrowUpRight size={18} color={colors.text} strokeWidth={2} />
+                    </View>
+                    <Text style={[s.linkTitle, { flex: 1, color: colors.text }]} numberOfLines={1}>{item.link_label ?? "Läs mer"}</Text>
+                    <ChevronRight size={18} color={colors.faint} strokeWidth={2} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </Rise>
         </ScrollView>
       )}
+
+      <PhotoViewer images={images} start={viewer ?? 0} visible={viewer != null} onClose={() => setViewer(null)} />
     </View>
   );
 }
 
+/** En bild i texten. Går den inte att visa blir det en länk i stället */
+function BodyImage({ uri, onPress }: { uri: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <TouchableOpacity onPress={() => openWebsite(uri)} activeOpacity={0.7}>
+        <Text style={[s.fallbackLink, { color: colors.goldText }]} numberOfLines={1}>{uri}</Text>
+      </TouchableOpacity>
+    );
+  }
+  return (
+    <Pressable onPress={onPress} style={[s.bodyImage, { backgroundColor: colors.fill }]}>
+      <ExpoImage source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" onError={() => setFailed(true)} />
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CHARCOAL },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  screen: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
+  headerBtn: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5 },
 
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12,
-  },
-  backBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
-    alignItems: "center", justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 16, fontWeight: "600", color: colors.foreground,
-    fontFamily: "Inter_600SemiBold",
-  },
+  cover: { marginHorizontal: GUTTER, marginTop: 6, aspectRatio: 16 / 10, borderRadius: 20, overflow: "hidden" },
+  content: { paddingHorizontal: GUTTER + 4, paddingTop: 20 },
+  meta: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.6, marginTop: 10 },
+  ingress: { fontFamily: "Inter_500Medium", fontSize: 17, lineHeight: 26, marginTop: 14 },
+  body: { fontFamily: "Inter_400Regular", fontSize: 16, lineHeight: 26, marginBottom: 18 },
+  bodyImage: { width: "100%", aspectRatio: 4 / 3, borderRadius: 16, overflow: "hidden", marginBottom: 18 },
+  fallbackLink: { fontFamily: "Inter_500Medium", fontSize: 13.5, marginBottom: 18, textDecorationLine: "underline" },
 
-  cover: { width: W, height: W * 0.6 },
+  links: { marginHorizontal: GUTTER, marginTop: 14, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  linkIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  linkLabel: { fontFamily: "Inter_500Medium", fontSize: 12 },
+  linkTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, marginTop: 1 },
+  line: { height: StyleSheet.hairlineWidth, marginLeft: 64 },
 
-  content: { paddingHorizontal: 20, paddingTop: 20 },
-
-  metaRow: {
-    flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14,
-  },
-  badgeText: {
-    fontSize: 10, fontWeight: "800", color: "#1a1200",
-    letterSpacing: 1, paddingHorizontal: 12, paddingVertical: 6,
-  },
-  dateText: { fontSize: 13, color: colors.foregroundMuted },
-
-  title: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 26, color: "#F4EFE3",
-    lineHeight: 34, marginBottom: 14,
-  },
-  ingress: {
-    fontSize: 16, color: "rgba(244,239,227,0.85)",
-    lineHeight: 24, marginBottom: 20,
-    fontFamily: "Inter_400Regular",
-  },
-  body: {
-    fontSize: 15, color: colors.foregroundMuted,
-    lineHeight: 24, marginBottom: 20,
-    fontFamily: "Inter_400Regular",
-  },
-  inlineImage: {
-    width: "100%", aspectRatio: 4 / 3,
-    borderRadius: 12, marginBottom: 16, marginTop: 4,
-  },
-  galleryImage: {
-    width: "100%", aspectRatio: 4 / 3,
-    borderRadius: 16, marginBottom: 16,
-  },
-
-  linksSection: {
-    marginTop: 8, marginHorizontal: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  linkRow: {
-    flexDirection: "row", alignItems: "center", gap: 14,
-    paddingVertical: 16, paddingHorizontal: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
-  },
-  linkIcon: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.card,
-    alignItems: "center", justifyContent: "center",
-  },
-  linkLabel: {
-    fontSize: 10, fontWeight: "700", color: GOLD, letterSpacing: 1, marginBottom: 2,
-  },
-  linkTitle: { fontSize: 15, fontWeight: "600", color: colors.foreground },
-  linkSub: { fontSize: 12, color: colors.foregroundMuted, marginTop: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 32, paddingBottom: 80 },
+  missingTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, textAlign: "center" },
+  missingText: { fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center", lineHeight: 20 },
 });
