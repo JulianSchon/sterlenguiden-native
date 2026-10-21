@@ -1,7 +1,7 @@
 /**
  * Korten i flödet på Hem. Samma regler som resten av appen: stor bild med rundade hörn och all
  * text UNDER bilden (inget ovanpå, utom evenemangens datumruta), hjärtat till höger. Varje kort har
- * en liten rad överst som säger varför det visas ("I dag", "Du gillar café & bageri", "Nytt
+ * en liten rad överst som säger varför det visas ("I dag", "Eftersom du gillar café & bageri", "Nytt
  * erbjudande" …), med en ikon som betyder något — eller platsens kategorifärg som prick, som på
  * kartan. Inga dekorativa symboler.
  *

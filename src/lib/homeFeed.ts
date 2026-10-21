@@ -187,7 +187,7 @@ export function buildFeed(input: FeedInput): FeedItem[] {
   const placeItems: FeedItem[] = inspiration.map(({ p, cat, likes, km }) => {
     const open = openInfo(p, now);
     const reason = likes > 0 && cat
-      ? `Du gillar ${catLabel(cat)}`
+      ? `Eftersom du gillar ${catLabel(cat)}`
       : km != null && km < 15
         ? `${distanceLabel(km)} från dig`
         : open?.open

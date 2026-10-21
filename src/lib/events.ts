@@ -4,7 +4,7 @@
  * "För dig" är EN lista rankad för just den här användaren, inte fasta sektioner ("I helgen",
  * "Nära dig" …) — företagen lägger själva ut eventen, så det kan vara tre i veckan eller trettio,
  * och fasta sektioner blir tomma och ser trasiga ut när det är glest. Varje event får ett skäl
- * ("En av dina favoritplatser", "Du gillar mat & dryck" …), det är det som gör att sidan känns
+ * ("En av dina favoritplatser", "Eftersom du gillar mat & dryck" …), det är det som gör att sidan känns
  * som att appen vet vem man är.
  */
 import { addDays, differenceInCalendarDays, eachDayOfInterval, format, getDay, parseISO } from "date-fns";
@@ -126,7 +126,7 @@ export function recommendEvents({
       .sort((a, b) => b.count - a.count)[0];
     if (best && best.count > 0) {
       const label = CATEGORIES.find((c) => c.id === best.id)?.label.toLowerCase() ?? "";
-      reasons.push({ kind: "category", text: `Du gillar ${label}`, weight: 12 + 13 * Math.min(1, best.count / 3) });
+      reasons.push({ kind: "category", text: `Eftersom du gillar ${label}`, weight: 12 + 13 * Math.min(1, best.count / 3) });
     } else if (best && hasHistory) {
       reasons.push({ kind: "discover", text: "Något nytt för dig", weight: 6 });
     }
