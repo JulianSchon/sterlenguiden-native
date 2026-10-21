@@ -1,29 +1,25 @@
 /**
- * Toppen på Hem, utan stor bild: dagens datum, hälsningen ("God morgon, Viktor") och profilbilden
- * med streaken uppe till höger (ett tryck: Mitt Österlen). Under hälsningen en rad med det som
- * händer just nu: vädret där man är (eller i Simrishamn om man inte är på Österlen) och hur många
- * ställen som har öppet — ett tryck på den visar dem i Sök.
+ * Toppen på Hem, lugn och utan stor bild: dagens datum, hälsningen ("God morgon, Viktor") och
+ * profilbilden med streaken uppe till höger (ett tryck: Mitt Österlen). Under hälsningen en enda
+ * stillsam rad med vädret, som en mening: "12° och halvklart i Simrishamn" — där man är om man är
+ * på Österlen, annars Simrishamn.
  *
- * Raden sköter sin egen data (vädret, platserna), så den ritar inte om resten av Hem.
+ * Raden sköter sin egen data (vädret, orten), så den ritar inte om resten av Hem.
  */
 import { memo, useMemo } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronRight } from "lucide-react-native";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useWeather, weatherIcon, type Weather } from "@/hooks/useWeather";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import { StreakPill } from "@/components/streak/StreakPill";
-import { useOpenColors } from "@/components/search/SearchParts";
 import { useTheme } from "@/theme/ThemeProvider";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { distanceMeters } from "@/lib/checkin";
 import { formatDate } from "@/i18n/dates";
-import { openInfo } from "@/lib/search";
-import { openSearch } from "@/lib/searchShortcuts";
 
 const AVATAR = 52;
 /** Simrishamn: vädret visas därifrån om man inte är på Österlen */
@@ -52,7 +48,7 @@ export const HomeHeader = memo(function HomeHeader({ location }: { location: { l
   const today = formatDate(new Date(), "EEEE d MMMM").toUpperCase();
 
   return (
-    <View style={[s.wrap, { paddingTop: insets.top + 10 }]}>
+    <View style={[s.wrap, { paddingTop: insets.top + 14 }]}>
       <View style={s.top}>
         <View style={{ flex: 1 }}>
           <Text style={[s.date, { color: colors.muted }]}>{today}</Text>
@@ -78,15 +74,14 @@ export const HomeHeader = memo(function HomeHeader({ location }: { location: { l
           </AvatarRing>
         </TouchableOpacity>
       </View>
-      <NowLine location={location} onOpenNow={() => openSearch(router, "öppet nu")} />
+      <WeatherLine location={location} />
     </View>
   );
 });
 
-/** "☀ 12° · Halvklart i Simrishamn   ● 42 öppna nu ›" */
-function NowLine({ location, onOpenNow }: { location: { lat: number; lng: number } | null; onOpenNow: () => void }) {
+/** "☀ 12° och halvklart i Simrishamn" (blåser det: "12°, halvklart och blåsigt i …") */
+function WeatherLine({ location }: { location: { lat: number; lng: number } | null }) {
   const { colors, scheme } = useTheme();
-  const openColor = useOpenColors().open;
   const { data: places = NO_PLACES } = usePlaces();
 
   // Var vädret gäller: där man är om man är på Österlen (orten närmast), annars Simrishamn
@@ -103,18 +98,11 @@ function NowLine({ location, onOpenNow }: { location: { lat: number; lng: number
     return { lat: location.lat, lng: location.lng, town: best?.town ?? "Österlen" };
   }, [location, places]);
   const { data: weather } = useWeather(where.lat, where.lng);
-  const openCount = useMemo(() => places.filter((p) => openInfo(p)?.open).length, [places]);
 
+  // Höjden finns från början, så inget under hoppar ner när vädret kommit
   return (
-    <View style={s.now}>
-      {weather && <WeatherText weather={weather} town={where.town} dark={scheme === "dark"} />}
-      {openCount > 0 && (
-        <TouchableOpacity style={s.openChip} onPress={onOpenNow} activeOpacity={0.7} hitSlop={8}>
-          <View style={[s.openDot, { backgroundColor: openColor }]} />
-          <Text style={[s.nowText, { color: colors.text }]}>{openCount} öppna nu</Text>
-          <ChevronRight size={15} color={colors.faint} strokeWidth={2.2} />
-        </TouchableOpacity>
-      )}
+    <View style={s.weather}>
+      {weather && <WeatherText weather={weather} town={where.town} dark={scheme === "dark"} muted={colors.muted} text={colors.text} />}
     </View>
   );
 }
@@ -128,27 +116,28 @@ function weatherColor(w: Weather, dark: boolean, muted: string): string {
   return muted;
 }
 
-function WeatherText({ weather, town, dark }: { weather: Weather; town: string; dark: boolean }) {
-  const { colors } = useTheme();
+function WeatherText({ weather, town, dark, muted, text }: {
+  weather: Weather; town: string; dark: boolean; muted: string; text: string;
+}) {
   const Icon = weatherIcon(weather);
-  const windy = weather.wind >= 10;
+  const label = weather.label.toLowerCase();
+  const rest = weather.wind >= 10 ? `, ${label} och blåsigt i ${town}` : ` och ${label} i ${town}`;
   return (
-    <View style={s.weather}>
-      <Icon size={17} color={weatherColor(weather, dark, colors.muted)} strokeWidth={2.2} />
-      <Text style={[s.nowText, { color: colors.text }]} numberOfLines={1}>
-        {weather.temp}°
-        <Text style={{ color: colors.muted }}>{`  ${weather.label}${windy ? ", blåsigt" : ""} i ${town}`}</Text>
+    <>
+      <Icon size={16} color={weatherColor(weather, dark, muted)} strokeWidth={2.2} />
+      <Text style={[s.weatherText, { color: muted }]} numberOfLines={1}>
+        <Text style={{ color: text, fontFamily: "Inter_600SemiBold" }}>{weather.temp}°</Text>{rest}
       </Text>
-    </View>
+    </>
   );
 }
 
 const s = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, paddingBottom: 6 },
+  wrap: { paddingHorizontal: 16 },
   top: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   date: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.6 },
-  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 28, lineHeight: 34, letterSpacing: -0.7, marginTop: 6 },
-  avatarGroup: { flexDirection: "row", alignItems: "flex-end", marginTop: 2 },
+  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 28, lineHeight: 34, letterSpacing: -0.7, marginTop: 8 },
+  avatarGroup: { flexDirection: "row", alignItems: "flex-end", marginTop: 4 },
   // Pillens högra kant ligger ovanpå profilbildens vänstra kant, nere vid bildens nederkant
   streakOverlap: { marginRight: -14, marginBottom: -4, zIndex: 2 },
   // Ingen egen kant — en ring runt profilbilden finns bara om man valt en i Utseende (AvatarRing)
@@ -156,10 +145,6 @@ const s = StyleSheet.create({
     width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, alignItems: "center", justifyContent: "center", overflow: "hidden",
   },
   initials: { fontSize: 19, fontFamily: "Montserrat_700Bold" },
-  // Höjden finns från början, så inget under hoppar ner när vädret kommit
-  now: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 16, rowGap: 6, marginTop: 12, minHeight: 22 },
-  weather: { flexDirection: "row", alignItems: "center", gap: 7, flexShrink: 1 },
-  nowText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
-  openChip: { flexDirection: "row", alignItems: "center", gap: 7 },
-  openDot: { width: 8, height: 8, borderRadius: 4 },
+  weather: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10, minHeight: 20 },
+  weatherText: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 14.5 },
 });

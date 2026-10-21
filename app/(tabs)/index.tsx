@@ -1,13 +1,13 @@
 ﻿/**
  * Hem — appens första sida, som ett enda långt flöde.
  *
- * Överst: dagens datum, hälsningen och profilbilden (med streaken), en rad med vädret och hur många
- * ställen som har öppet just nu, "Du verkar vara vid …" / en skatt i närheten när det stämmer,
- * berättelserna, genvägarna in i Sök ("Äta nu", "Fika" …) och Upptäck (svepet).
+ * Överst, lugnt: dagens datum, hälsningen och profilbilden (med streaken), en rad med vädret,
+ * "Du verkar vara vid …" / en skatt i närheten när det stämmer, och berättelserna. Inget mer — en
+ * topp full av knappar och rader såg ut som en katalog.
  *
  * Sedan flödet "För dig" (lib/homeFeed): evenemang, nya erbjudanden (biljetterna rivs som på
  * Förmåner), platser att inspireras av, nyheter, vänners besök och en skatt — blandat efter fasta
- * regler. Det byggs en gång när datan kommit och står still medan man tittar; dra ner för att
+ * regler. Verktygen ligger i flödet: Upptäck (svepet) och genvägarna in i Sök ("Öppet nu", "Äta nu" …). Det byggs en gång när datan kommit och står still medan man tittar; dra ner för att
  * uppdatera (då blandas platserna om). "Visa mer" längst ner laddar in nästa del, tills man är ikapp.
  *
  * Laggfritt: flödet är en lista som bara ritar det som syns, korten ritas bara om när det egna kortet
@@ -15,7 +15,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View, type FlatList } from "react-native";
-import Reanimated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
+import Reanimated, { FadeInDown, useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -44,12 +44,12 @@ import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import { NearbyCheckInPrompt } from "@/components/checkin/NearbyCheckInPrompt";
 import { NearbyStickerPrompt } from "@/components/stickers/NearbyStickerPrompt";
 import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
+import { Rise } from "@/components/Rise";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { StoryRow } from "@/components/home/StoryRow";
-import { DiscoverCard, ShortcutRow } from "@/components/home/HomeShortcuts";
 import {
-  FEED_GUTTER, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedPlaceCard, FeedSkeleton,
-  FeedTreasureCard, OpenNowRail, WeekendRail,
+  FEED_GUTTER, FeedDiscover, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedPlaceCard,
+  FeedShortcuts, FeedSkeleton, FeedTreasureCard, OpenNowRail, WeekendRail,
 } from "@/components/home/FeedCards";
 
 /** Så många kort syns först, och så många till för varje "Visa mer" */
@@ -105,25 +105,32 @@ export default function HomeScreen() {
   );
 }
 
-/** Allt ovanför flödet. Varje del sköter sin egen data */
+/** Allt ovanför flödet, med luft emellan. Varje del sköter sin egen data */
 const HomeTop = memo(function HomeTop({ location }: { location: Loc | null }) {
   const { colors } = useTheme();
   const { data: places = NO_PLACES } = usePlaces();
   return (
     <View>
-      <HomeHeader location={location} />
+      <Rise index={0}>
+        <HomeHeader location={location} />
+      </Rise>
       <NearbyCheckInPrompt places={places} lat={location?.lat ?? null} lng={location?.lng ?? null} />
       <NearbyStickerPrompt lat={location?.lat ?? null} lng={location?.lng ?? null} />
-      <StoryRow />
-      <ShortcutRow />
-      <DiscoverCard />
-      <View style={s.forYou}>
-        <Text style={[s.forYouTitle, { color: colors.text }]}>För dig</Text>
-        <Text style={[s.forYouSub, { color: colors.muted }]}>Det senaste på Österlen, och tips utifrån vad du gillar</Text>
-      </View>
+      <Rise index={1}>
+        <StoryRow />
+      </Rise>
+      <Rise index={2}>
+        <Text style={[s.forYou, { color: colors.text }]}>För dig</Text>
+      </Rise>
     </View>
   );
 });
+
+/** De första korten glider in mjukt när flödet visas (bara då — inte när man scrollar tillbaka) */
+const CARD_IN = (i: number) =>
+  FadeInDown.withInitialValues({ opacity: 0, transform: [{ translateY: 14 }] }).duration(420).delay(60 + i * 70);
+const ANIMATED_CARDS = 3;
+const REVEAL_MS = 1500;
 
 function HomeFeed({ location, locationSettled }: { location: Loc | null; locationSettled: boolean }) {
   const router = useRouter();
@@ -163,9 +170,11 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const [seed, setSeed] = useState(() => daySeed());
   const [shown, setShown] = useState(FIRST_PAGE);
   const built = useRef(-1);
+  const builtAt = useRef(0);
   useEffect(() => {
     if (!ready || built.current === version) return;
     built.current = version;
+    builtAt.current = Date.now();
     const favs = favorites.data ?? [];
     setFeed(buildFeed({
       places: places.data ?? [],
@@ -279,7 +288,16 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const onScroll = useAnimatedScrollHandler({ onScroll: () => { scrollAt.value = Date.now(); } });
 
   const openOfferId = openOffer?.origin ? openOffer.offer.id : null;
-  const renderItem = useCallback(({ item }: { item: FeedItem }) => {
+  const renderItem = useCallback(({ item, index }: { item: FeedItem; index: number }) => {
+    const card = renderCard(item);
+    // De första korten glider in när flödet just visats
+    return index < ANIMATED_CARDS && Date.now() - builtAt.current < REVEAL_MS
+      ? <Reanimated.View entering={CARD_IN(index)}>{card}</Reanimated.View>
+      : card;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeSaved, eventSaved, serverPlaces, serverEvents, openOfferId, edge, scrollAt]);
+
+  function renderCard(item: FeedItem) {
     switch (item.kind) {
       case "event":
         return (
@@ -325,9 +343,12 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
         return <OpenNowRail items={item.items} onOpen={openPlace} onShowAll={showOpenNow} />;
       case "weekend":
         return <WeekendRail events={item.events} onOpen={openEventCard} onShowAll={showCalendar} />;
+      case "discover":
+        return <FeedDiscover />;
+      case "shortcuts":
+        return <FeedShortcuts />;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placeSaved, eventSaved, serverPlaces, serverEvents, openOfferId, edge, scrollAt]);
+  }
 
   const header = useMemo(() => <HomeTop location={location} />, [location]);
   const items = feed ? feed.slice(0, shown) : NO_ITEMS;
@@ -347,7 +368,8 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
         onScroll={onScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: FLOATING_NAV_HEIGHT + insets.bottom + 40 }}
+        // Luft nog för att "Visa mer" hamnar ovanför navigeringens toning
+        contentContainerStyle={{ paddingBottom: FLOATING_NAV_HEIGHT + insets.bottom + 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} colors={[colors.gold]} />}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
@@ -371,7 +393,8 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
 
 const s = StyleSheet.create({
   screen: { flex: 1 },
-  forYou: { paddingHorizontal: FEED_GUTTER, marginTop: 34, marginBottom: 18, gap: 4 },
-  forYouTitle: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.5 },
-  forYouSub: { fontFamily: "Inter_400Regular", fontSize: 14 },
+  forYou: {
+    paddingHorizontal: FEED_GUTTER, marginTop: 40, marginBottom: 18,
+    fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.5,
+  },
 });

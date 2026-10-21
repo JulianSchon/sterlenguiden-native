@@ -2,7 +2,8 @@
  * Korten i flödet på Hem. Samma regler som resten av appen: stor bild med rundade hörn och all
  * text UNDER bilden (inget ovanpå, utom evenemangens datumruta), hjärtat till höger. Varje kort har
  * en liten rad överst som säger varför det visas ("I dag", "Du gillar café & bageri", "Nytt
- * erbjudande" …).
+ * erbjudande" …), med en ikon som betyder något — eller platsens kategorifärg som prick, som på
+ * kartan. Inga dekorativa symboler.
  *
  * Alla kort är memo: de ritas bara om när det egna kortet ändras (ett hjärta), inte när flödet gör det.
  */
@@ -10,15 +11,14 @@ import { memo, useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from "react-native-reanimated";
 import { Image as ExpoImage } from "expo-image";
-import {
-  CalendarDays, Check, ChevronRight, Crown, Heart, Newspaper, Sparkles, Star, Users, type LucideIcon,
-} from "lucide-react-native";
+import { CalendarDays, Check, ChevronRight, Crown, Heart, Newspaper, Users, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
 import type { NewsItem } from "@/hooks/useNews";
 import type { FriendVisit } from "@/hooks/useFriendVisits";
 import type { Collectible } from "@/hooks/useCollectibles";
 import { useTheme } from "@/theme/ThemeProvider";
+import { findCategory } from "@/theme/categories";
 import { dayKey, eventWhen, type EventPick } from "@/lib/events";
 import { distanceLabel } from "@/lib/mapFilters";
 import { openInfo } from "@/lib/search";
@@ -28,12 +28,13 @@ import { formatDate } from "@/i18n/dates";
 import { DateBox } from "@/components/events/EventCards";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 import { Avatar } from "@/components/profile/Avatar";
-import { CategoryLine, useOpenColors } from "@/components/search/SearchParts";
+import { CATEGORY_DOT, CategoryLine, useOpenColors } from "@/components/search/SearchParts";
 import { OfferTicket } from "@/components/offers/OfferTicket";
 import type { OriginRect, TearEdge } from "@/components/offers/OfferDrawer";
 import { NearbyRail } from "@/components/place/PlaceNearby";
 import { TreasureHint } from "@/components/place/PlaceSocial";
 import { Skeleton } from "@/components/Skeleton";
+import { DiscoverCard, ShortcutRow } from "./HomeShortcuts";
 
 export const FEED_GUTTER = 16;
 /** "I dag" och "Pågår nu": samma orange som på Kalender */
@@ -42,12 +43,17 @@ const LIVE_LIGHT = "#C2410C";
 
 // ── Raden överst på varje kort ───────────────────────────────────────────────
 
-function Eyebrow({ Icon, live, text, color, filled }: {
-  Icon?: LucideIcon; live?: boolean; text: string; color: string; filled?: boolean;
+function Eyebrow({ Icon, live, dot, text, color, filled }: {
+  Icon?: LucideIcon; live?: boolean;
+  /** En prick i den här färgen i stället för en ikon (platsens kategori, skatternas lila) */
+  dot?: string;
+  text: string; color: string; filled?: boolean;
 }) {
   return (
     <View style={s.eyebrow}>
-      {live ? <LiveDot color={color} /> : Icon ? <Icon size={14} color={color} fill={filled ? color : "transparent"} strokeWidth={2.3} /> : null}
+      {live ? <LiveDot color={color} />
+        : dot ? <View style={[s.dot, { backgroundColor: dot }]} />
+          : Icon ? <Icon size={14} color={color} fill={filled ? color : "transparent"} strokeWidth={2.3} /> : null}
       <Text style={[s.eyebrowText, { color }]} numberOfLines={1}>{text}</Text>
     </View>
   );
@@ -120,13 +126,14 @@ export const FeedPlaceCard = memo(function FeedPlaceCard({ place, reason, km, sa
   onToggleSave: (id: number) => void;
   onBurst: BurstFn;
 }) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const openColors = useOpenColors();
   const image = firstImageUrl(place.image_url);
   const open = openInfo(place);
+  const cat = findCategory(place.category)?.id;
   return (
     <View style={s.card}>
-      <Eyebrow Icon={Sparkles} text={reason} color={colors.goldText} />
+      <Eyebrow dot={cat ? CATEGORY_DOT[scheme][cat] : colors.faint} text={reason} color={colors.goldText} />
       <Pressable onPress={() => onOpen(place)} style={[s.image, { aspectRatio: 1.25, backgroundColor: colors.fill }]}>
         {image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
       </Pressable>
@@ -239,8 +246,30 @@ export const FeedTreasureCard = memo(function FeedTreasureCard({ collectible, me
   const { colors } = useTheme();
   return (
     <View style={s.card}>
-      <Eyebrow Icon={Star} text="Skatt i närheten" color={colors.purple} />
+      <Eyebrow dot={colors.purple} text="Skatt i närheten" color={colors.purple} />
       <TreasureHint meters={meters} found={false} name={collectible.name} onPress={() => onOpen(collectible)} />
+    </View>
+  );
+});
+
+// ── Verktygen i flödet ───────────────────────────────────────────────────────
+
+/** Upptäck (svepet) som ett kort i flödet */
+export const FeedDiscover = memo(function FeedDiscover() {
+  return (
+    <View style={s.card}>
+      <DiscoverCard />
+    </View>
+  );
+});
+
+/** Genvägarna in i Sök */
+export const FeedShortcuts = memo(function FeedShortcuts() {
+  const { colors } = useTheme();
+  return (
+    <View style={s.card}>
+      <Text style={[s.railTitle, { color: colors.text, marginBottom: 12 }]}>Vad vill du göra?</Text>
+      <ShortcutRow gutter={FEED_GUTTER} />
     </View>
   );
 });
@@ -341,6 +370,7 @@ const s = StyleSheet.create({
   eyebrow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 10 },
   eyebrowText: { flexShrink: 1, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   liveWrap: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  dot: { width: 8, height: 8, borderRadius: 4, marginHorizontal: 3 },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
 
   image: { width: "100%", borderRadius: 20, overflow: "hidden" },

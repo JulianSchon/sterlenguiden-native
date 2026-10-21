@@ -12,6 +12,9 @@
  *   still medan man tittar.
  * - Allt kommer från riktig data, och ingenting visas två gånger.
  * - Två rader att svepa i sidled läggs in en bit ner: "Öppet nu nära dig" och "I helgen".
+ * - Verktygen ligger i flödet, inte i toppen: Upptäck (svepet) som tredje kort och genvägarna in i
+ *   Sök ("Vad vill du göra?") en bit längre ner. Så blir toppen lugn, och man möter dem när man
+ *   scrollar.
  *
  * Flödet byggs en gång när datan kommit, och sen visas en sida i taget ("Visa mer" längst ner).
  */
@@ -38,7 +41,9 @@ export type FeedItem =
   | { kind: "friend"; key: string; visit: FriendVisit; place: Place }
   | { kind: "treasure"; key: string; collectible: Collectible; meters: number }
   | { kind: "openNow"; key: string; items: NearbyPlace[] }
-  | { kind: "weekend"; key: string; events: Event[] };
+  | { kind: "weekend"; key: string; events: Event[] }
+  | { kind: "discover"; key: string }
+  | { kind: "shortcuts"; key: string };
 
 export interface FeedInput {
   places: Place[];
@@ -213,9 +218,12 @@ export function buildFeed(input: FeedInput): FeedItem[] {
     out.push(item);
   }
 
-  // ── Raderna att svepa i sidled, en bit ner i flödet ──
-  if (openRail) out.splice(Math.min(3, out.length), 0, { kind: "openNow", key: "rail-open", items: openNear });
-  if (weekendRail) out.splice(Math.min(10, out.length), 0, { kind: "weekend", key: "rail-weekend", events: weekend });
+  // ── Verktygen och raderna att svepa, på fasta platser (i växande ordning, så platserna stämmer) ──
+  const insert = (at: number, item: FeedItem) => out.splice(Math.min(at, out.length), 0, item);
+  insert(2, { kind: "discover", key: "discover" });
+  if (openRail) insert(4, { kind: "openNow", key: "rail-open", items: openNear });
+  insert(7, { kind: "shortcuts", key: "shortcuts" });
+  if (weekendRail) insert(12, { kind: "weekend", key: "rail-weekend", events: weekend });
 
   return out;
 }

@@ -1,7 +1,7 @@
 /**
- * Två genvägar på Hem:
- * - ShortcutRow: Söks färdiga frågor som en rad att svepa ("Äta nu", "Fika", "Sova i natt" …).
- *   Ett tryck öppnar Sök med svaret redan klart — samma rutor och färger som på Sök.
+ * Två verktyg i flödet på Hem:
+ * - ShortcutRow: "Öppet nu" och Söks färdiga frågor som en rad att svepa ("Äta nu", "Fika", "Sova i
+ *   natt" …). Ett tryck öppnar Sök med svaret redan klart — samma rutor och färger som på Sök.
  * - DiscoverCard: Upptäck (svepet). En liten kortlek med bilder från platser man inte svept än,
  *   och hur många som är kvar.
  */
@@ -10,23 +10,35 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View 
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { ArrowRight } from "lucide-react-native";
+import { ArrowRight, Clock } from "lucide-react-native";
 import { firstImageUrl, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useDismissals } from "@/hooks/useDismissals";
 import { useTheme } from "@/theme/ThemeProvider";
 import { withAlpha } from "@/theme/categories";
-import { TILES, openSearch, type Shortcut } from "@/lib/searchShortcuts";
+import { TILES, TINT, openSearch, type Shortcut } from "@/lib/searchShortcuts";
 import { daySeed } from "@/lib/homeFeed";
 
 const NO_PLACES: Place[] = [];
 const NO_IDS: number[] = [];
 
-export const ShortcutRow = memo(function ShortcutRow() {
+/** Hem har "Öppet nu" först (på Sök ligger det som en egen del) */
+const HOME_SHORTCUTS: Shortcut[] = [
+  { key: "open", label: "Öppet nu", query: "öppet nu", Icon: Clock, tint: TINT.open },
+  ...TILES,
+];
+
+/** Raden går ut till skärmens kanter (kortet runt den har sidomarginal) */
+export const ShortcutRow = memo(function ShortcutRow({ gutter }: { gutter: number }) {
   const router = useRouter();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row} style={s.rowWrap}>
-      {TILES.map((t) => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[s.row, { paddingHorizontal: gutter }]}
+      style={{ marginHorizontal: -gutter }}
+    >
+      {HOME_SHORTCUTS.map((t) => (
         <ShortcutChip
           key={t.key}
           shortcut={t}
@@ -87,7 +99,6 @@ export const DiscoverCard = memo(function DiscoverCard() {
       onPress={() => router.push("/discover" as never)}
       onPressIn={() => { press.value = withSpring(0.97, { damping: 36, stiffness: 320 }); }}
       onPressOut={() => { press.value = withSpring(1, { damping: 32, stiffness: 260 }); }}
-      style={s.discoverWrap}
       accessibilityRole="button"
       accessibilityLabel="Upptäck platser"
     >
@@ -122,8 +133,7 @@ export const DiscoverCard = memo(function DiscoverCard() {
 });
 
 const s = StyleSheet.create({
-  rowWrap: { marginTop: 18 },
-  row: { paddingHorizontal: 16, gap: 8 },
+  row: { gap: 8 },
   chip: {
     flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingLeft: 7, paddingRight: 14,
     borderRadius: 22, borderWidth: StyleSheet.hairlineWidth,
@@ -131,7 +141,6 @@ const s = StyleSheet.create({
   chipIcon: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   chipLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
 
-  discoverWrap: { marginTop: 22, paddingHorizontal: 16 },
   discover: {
     flexDirection: "row", alignItems: "center", borderRadius: 22, borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 18, paddingLeft: 18, paddingRight: 8, overflow: "hidden",

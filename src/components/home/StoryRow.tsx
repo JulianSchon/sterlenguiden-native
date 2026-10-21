@@ -209,7 +209,7 @@ export const StoryRow = memo(function StoryRow() {
 });
 
 const s = StyleSheet.create({
-  row: { marginTop: 18 },
+  row: { marginTop: 30 },
   list: { paddingHorizontal: 12, gap: 6 },
   circleWrap: { alignItems: "center", width: 84 },
   image: { width: SC_INNER, height: SC_INNER, borderRadius: SC_INNER / 2, overflow: "hidden" },

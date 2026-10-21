@@ -18,7 +18,7 @@
  * ("Utmaningar"-KPI:n), så de aldrig kan räkna olika.
  */
 import {
-  Sparkles, Compass, Heart, Tag, Shuffle, Layers, Trophy as TrophyIcon,
+  Footprints, Compass, Heart, Tag, Shuffle, Layers, Trophy as TrophyIcon,
 } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
 import type { Achievement } from "@/hooks/useAchievements";
@@ -129,7 +129,7 @@ const GROUPS: GroupDef[] = [
     id: "kom-igang",
     theme: "Kom igång",
     tagline: "De första stegen på Österlen",
-    Icon: Sparkles,
+    Icon: Footprints,
     tiers: [
       { target: 1, progress: (s) => Math.min(s.uniqueVisits, 1), requirementText: "Besök en plats", levelName: "Första besöket", unit: ["plats besökt", "platser besökta"] },
       { target: 1, progress: (s) => Math.min(s.listsCreated, 1), requirementText: "Skapa en lista", levelName: "Första listan", unit: ["lista skapad", "listor skapade"] },

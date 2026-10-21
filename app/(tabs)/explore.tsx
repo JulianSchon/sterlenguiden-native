@@ -29,7 +29,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
-import { CalendarDays, Clock, MapPin, Moon, Search, Sparkles, X, type LucideIcon } from "lucide-react-native";
+import { CalendarDays, Check, Clock, MapPin, Moon, Search, X, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
@@ -100,7 +100,7 @@ const WHEN_LABEL = { today: "i dag", tomorrow: "i morgon", weekend: "i helgen" }
 const MAYBE_WORDS = ["konst", "glass", "vin", "keramik", "loppis", "gårdsbutik"];
 
 const catIcon = (id: CategoryId): LucideIcon => CATEGORIES.find((c) => c.id === id)?.icon ?? MapPin;
-const practicalIcon = (id: string): LucideIcon => PRACTICAL.find((p) => p.id === id)?.Icon ?? Sparkles;
+const practicalIcon = (id: string): LucideIcon => PRACTICAL.find((p) => p.id === id)?.Icon ?? Check;
 
 /** En ort med det sidan visar om den: vad som finns där (kategorierna, flest först), hur långt bort, öppet nu */
 interface TownCard extends Town { cats: CategoryId[]; km: number | null; open: number }
