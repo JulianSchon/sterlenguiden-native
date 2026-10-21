@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Alert, BackHandler, Keyboard, KeyboardAvoidingView, Platform, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight } from "react-native-reanimated";
@@ -69,6 +69,17 @@ export default function SignupScreen() {
   const insets = useSafeAreaInsets();
   const { colors, scheme } = useTheme();
   const { burst, show: showBurst } = useLikeBurst();
+  // Sidan har glidit in klart (då får första fältet fokus och tangentbordet kommer upp)
+  const navigation = useNavigation();
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const fallback = setTimeout(() => setEntered(true), 700);
+    const unsubscribe = navigation.addListener("transitionEnd" as never, () => {
+      clearTimeout(fallback);
+      setEntered(true);
+    });
+    return () => { clearTimeout(fallback); unsubscribe(); };
+  }, [navigation]);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState<OnboardingDraft>(() => ({
@@ -436,7 +447,7 @@ export default function SignupScreen() {
   let content: ReactNode = null;
   switch (step) {
     case "email":
-      content = <EmailStep email={email} onChange={(v) => { setEmail(v); setError(null); }} onSubmit={() => sendCode()} busy={busy} error={error} reset={reset} />;
+      content = <EmailStep ready={entered} email={email} onChange={(v) => { setEmail(v); setError(null); }} onSubmit={() => sendCode()} busy={busy} error={error} reset={reset} />;
       break;
     case "code":
       content = (
@@ -501,14 +512,14 @@ export default function SignupScreen() {
       break;
   }
 
-  // Välkomsten byggs medan man är på steget innan (en stund efter att det visats), så den inte
-  // ritas medan något rör sig
+  // Välkomsten byggs två steg innan (en stund efter att det steget visats), så kortets bilder hunnit
+  // laddas och inget ritas medan något rör sig
   const welcomeAt = path.indexOf("welcome");
-  const nearWelcome = step === "welcome" || (welcomeAt > 0 && step === path[welcomeAt - 1]);
+  const nearWelcome = welcomeAt > 0 && index >= welcomeAt - 2;
   const [welcomeMounted, setWelcomeMounted] = useState(false);
   useEffect(() => {
     if (!nearWelcome || welcomeMounted) return;
-    const timer = setTimeout(() => setWelcomeMounted(true), step === "welcome" ? 0 : 700);
+    const timer = setTimeout(() => setWelcomeMounted(true), step === "welcome" ? 0 : 500);
     return () => clearTimeout(timer);
   }, [nearWelcome, welcomeMounted, step]);
 

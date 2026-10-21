@@ -6,8 +6,11 @@ import { forwardRef, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View, type TextInputProps,
 } from "react-native";
-import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { ArrowLeft, type LucideIcon } from "lucide-react-native";
+import Reanimated, {
+  Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming,
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+import { ArrowLeft, ArrowRight, type LucideIcon } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { PressableScale } from "@/components/PressableScale";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -55,6 +58,52 @@ export function AuthButton({
         <>
           {icon}
           <Text style={[styles.buttonText, { color: look.fg }]} numberOfLines={1}>{label}</Text>
+        </>
+      )}
+    </PressableScale>
+  );
+}
+
+/**
+ * Den stora guldknappen i välkomsten: samma guld som medlemskortets baksida, versal text med luft
+ * mellan bokstäverna, en pil, och ett ljus som då och då sveper över — som över kortet.
+ */
+export function GoldButton({
+  label, onPress, loading = false,
+}: { label: string; onPress: () => void; loading?: boolean }) {
+  const [width, setWidth] = useState(0);
+  const sweep = useSharedValue(0);
+  useEffect(() => {
+    sweep.value = withDelay(900, withRepeat(withSequence(
+      withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.quad) }),
+      withDelay(3800, withTiming(0, { duration: 0 })),
+    ), -1));
+  }, [sweep]);
+  const sweepStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -120 + sweep.value * (width + 240) }, { skewX: "-20deg" }] }));
+  return (
+    <PressableScale
+      scale={0.97}
+      onPress={loading ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ busy: loading }}
+      style={styles.gold}
+    >
+      <View style={StyleSheet.absoluteFill} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        <LinearGradient colors={["#E4C67A", "#C9A24E", "#A9812F"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <Reanimated.View pointerEvents="none" style={[styles.goldSweep, sweepStyle]}>
+          <LinearGradient
+            colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.32)", "rgba(255,255,255,0)"]}
+            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill}
+          />
+        </Reanimated.View>
+      </View>
+      {loading ? (
+        <ActivityIndicator color="#1A1408" />
+      ) : (
+        <>
+          <Text style={styles.goldText} numberOfLines={1}>{label}</Text>
+          <ArrowRight size={20} color="#1A1408" strokeWidth={2.2} />
         </>
       )}
     </PressableScale>
@@ -180,6 +229,12 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 18,
   },
   buttonText: { fontFamily: "Inter_600SemiBold", fontSize: 16.5 },
+  gold: {
+    height: 60, borderRadius: 18, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 22,
+  },
+  goldSweep: { position: "absolute", top: -10, bottom: -10, width: 120 },
+  goldText: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.6, textTransform: "uppercase", color: "#1A1408" },
   textButton: { alignSelf: "center", paddingVertical: 12, paddingHorizontal: 16 },
   textButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
 

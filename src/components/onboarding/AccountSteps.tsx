@@ -19,14 +19,20 @@ export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v
 // ── E-post ───────────────────────────────────────────────────────────────────
 
 export function EmailStep({
-  email, onChange, onSubmit, busy, error, reset,
+  ready, email, onChange, onSubmit, busy, error, reset,
 }: {
+  /** Sidan har glidit in klart: då får fältet fokus (tangentbordet samtidigt som sidbytet hackade) */
+  ready: boolean;
   email: string; onChange: (v: string) => void; onSubmit: () => void; busy: boolean; error: string | null;
   /** Glömt lösenordet: samma steg, andra ord */
   reset: boolean;
 }) {
   const { t } = useTranslation();
   const valid = isEmail(email);
+  const field = useRef<TextInput>(null);
+  useEffect(() => {
+    if (ready) field.current?.focus();
+  }, [ready]);
   return (
     <StepLayout
       title={t(reset ? "onboarding.email.resetTitle" : "onboarding.email.title")}
@@ -34,6 +40,7 @@ export function EmailStep({
       footer={<AuthButton label={t("onboarding.email.send")} onPress={onSubmit} disabled={!valid} loading={busy} />}
     >
       <AuthField
+        ref={field}
         icon={Mail}
         value={email}
         onChangeText={onChange}
@@ -45,7 +52,6 @@ export function EmailStep({
         textContentType="emailAddress"
         returnKeyType="send"
         onSubmitEditing={() => valid && onSubmit()}
-        autoFocus
         invalid={!!error}
       />
       {error ? <FieldNote tone="danger" text={error} /> : null}

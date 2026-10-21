@@ -29,6 +29,8 @@ const STROKE = 2;
 const LAP_MS = 820;
 /** Snurret visas minst så här länge, även om svaret kommer fortare */
 const MIN_SPIN_MS = 950;
+/** Bocken får synas så här länge innan flödet går vidare */
+const CHECK_HOLD_MS = 650;
 
 const AnimatedRect = Reanimated.createAnimatedComponent(Rect);
 
@@ -104,7 +106,7 @@ export function CodeBoxes({
     // Rätt kod: låt varvet gå klart en stund, sedan glider rutorna ihop
     const wait = Math.max(0, MIN_SPIN_MS - (Date.now() - checkingSince.current));
     const timer = setTimeout(() => {
-      const shown = () => okRef.current();
+      const shown = () => setTimeout(() => okRef.current(), CHECK_HOLD_MS);
       const success = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       cancelAnimation(spin);
       spinOn.value = withTiming(0, { duration: 180 });

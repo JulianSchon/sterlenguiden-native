@@ -9,12 +9,12 @@ import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, {
-  Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming,
+  Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { BadgeCheck, Clock, MapPin, Navigation } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { AUTH_GUTTER, AuthButton, FieldNote, TextButton } from "@/components/auth/AuthParts";
+import { AUTH_GUTTER, AuthButton, FieldNote, GoldButton, TextButton } from "@/components/auth/AuthParts";
 import { MemberCard } from "@/components/MemberCard";
 import { StepLayout } from "./StepLayout";
 import { withAlpha } from "@/theme/categories";
@@ -71,10 +71,10 @@ export function roundedCount(n: number): { value: number; plus: boolean } {
 }
 
 /**
- * Välkomsten byggs i förväg, osynlig, medan man är på steget innan — kortet, fotot och texten finns
- * alltså redan när den visas, och inget nytt ritas medan något rör sig. När den visas tonar sidan in,
- * och kortet glider upp först när sparandet är klart (eller efter en kort stund), så telefonen inte
- * har annat att göra samtidigt. Sist räknas siffrorna upp.
+ * Välkomsten byggs i förväg, osynlig, några steg innan — kortet, fotot och texten finns alltså redan
+ * när den visas, och inget nytt ritas medan något rör sig. När den visas tonar sidan in. Kortet
+ * glider upp i ett lugnt svep först när sparandet är klart (eller efter en kort stund), sedan kommer
+ * texten, siffrorna en i taget och sist knappen.
  */
 export function WelcomeStep({
   visible, firstName, displayName, saved, saving, failed, stats, onStart,
@@ -102,8 +102,8 @@ export function WelcomeStep({
   const page = useSharedValue(0);
   const card = useSharedValue(0);
   const text = useSharedValue(0);
-  const numbers = useSharedValue(0);
-  const [counting, setCounting] = useState(false);
+  const footer = useSharedValue(0);
+  const [statsRun, setStatsRun] = useState(false);
 
   // Sidan tonar in när den visas
   useEffect(() => {
@@ -127,37 +127,32 @@ export function WelcomeStep({
       if (reduced) {
         card.value = 1;
         text.value = 1;
-        numbers.value = 1;
-        setCounting(true);
+        footer.value = 1;
+        setStatsRun(true);
         return;
       }
       const landed = () => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
       };
-      const count = () => setCounting(true);
-      card.value = withSpring(1, { damping: 18, stiffness: 110, mass: 1 }, (done) => {
+      const runStats = () => setStatsRun(true);
+      card.value = withTiming(1, { duration: 760, easing: Easing.out(Easing.cubic) }, (done) => {
         if (done) runOnJS(landed)();
       });
-      text.value = withDelay(480, withTiming(1, { duration: 460, easing: Easing.out(Easing.cubic) }));
-      numbers.value = withDelay(820, withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }, (done) => {
-        if (done) runOnJS(count)();
+      text.value = withDelay(420, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }, (done) => {
+        if (done) runOnJS(runStats)();
       }));
+      footer.value = withDelay(420 + 520 + STAT_STAGGER * 3 + 200, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
     }, wait);
     return () => clearTimeout(timer);
-  }, [shownAt, saved, reduced, card, text, numbers]);
+  }, [shownAt, saved, reduced, card, text, footer]);
 
   const pageStyle = useAnimatedStyle(() => ({ opacity: page.value }));
   const cardStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(1, card.value * 1.6),
-    transform: [
-      { perspective: 1200 },
-      { translateY: (1 - card.value) * 140 },
-      { rotateX: `${(1 - card.value) * 18}deg` },
-      { scale: 0.92 + card.value * 0.08 },
-    ],
+    opacity: Math.min(1, card.value * 2),
+    transform: [{ translateY: (1 - card.value) * 90 }, { scale: 0.94 + card.value * 0.06 }],
   }));
-  const textStyle = useAnimatedStyle(() => ({ opacity: text.value, transform: [{ translateY: (1 - text.value) * 10 }] }));
-  const numbersStyle = useAnimatedStyle(() => ({ opacity: numbers.value, transform: [{ translateY: (1 - numbers.value) * 10 }] }));
+  const textStyle = useAnimatedStyle(() => ({ opacity: text.value, transform: [{ translateY: (1 - text.value) * 12 }] }));
+  const footerStyle = useAnimatedStyle(() => ({ opacity: footer.value, transform: [{ translateY: (1 - footer.value) * 12 }] }));
 
   // Kortet ritas en gång: det animeras med sina egna värden, inte genom att ritas om
   const memberCard = useMemo(() => (
@@ -183,35 +178,37 @@ export function WelcomeStep({
           <Text style={s.welcomeSub}>{t("onboarding.done.subtitle")}</Text>
         </Reanimated.View>
         {shownStats.length > 0 ? (
-          <Reanimated.View style={[s.stats, numbersStyle]}>
+          <View style={s.stats}>
             {shownStats.map((stat, i) => (
-              <View key={stat.label} style={[s.stat, i > 0 && s.statDivider]}>
-                <CountUp to={stat.count} run={counting} delay={i * 120} />
-                <Text style={s.statLabel} numberOfLines={1}>{stat.label}</Text>
-              </View>
+              <Stat key={stat.label} label={stat.label} count={stat.count} run={statsRun} delay={i * STAT_STAGGER} divider={i > 0} />
             ))}
-          </Reanimated.View>
+          </View>
         ) : null}
       </View>
 
-      <Reanimated.View style={[s.welcomeFooter, { paddingBottom: Math.max(insets.bottom, 16) }, textStyle]}>
+      <Reanimated.View style={[s.welcomeFooter, { paddingBottom: Math.max(insets.bottom, 16) }, footerStyle]}>
         {failed ? <FieldNote tone="danger" text={t("onboarding.done.failed")} /> : null}
-        <AuthButton label={failed ? t("common.tryAgain") : t("onboarding.done.start")} onPress={onStart} loading={saving} />
+        <GoldButton label={failed ? t("common.tryAgain") : t("onboarding.done.start")} onPress={onStart} loading={saving} />
       </Reanimated.View>
     </Reanimated.View>
   );
 }
 
-/** En siffra som räknas upp från 0 (avrundad nedåt, med "+" när den är avrundad) */
-function CountUp({ to, run, delay }: { to: number; run: boolean; delay: number }) {
+/** Tiden mellan siffrorna */
+const STAT_STAGGER = 280;
+
+/** En siffra under välkomsten: glider in och räknas upp från 0 (avrundad nedåt, med "+") */
+function Stat({ label, count, run, delay, divider }: { label: string; count: number; run: boolean; delay: number; divider: boolean }) {
   const s = useThemedStyles(createStyles);
-  const { value, plus } = roundedCount(to);
+  const { value, plus } = roundedCount(count);
   const [shown, setShown] = useState(0);
+  const appear = useSharedValue(0);
   useEffect(() => {
     if (!run) return;
+    appear.value = withDelay(delay, withTiming(1, { duration: 460, easing: Easing.out(Easing.cubic) }));
     let frame = 0;
     let start = 0;
-    const duration = 900;
+    const duration = 1000;
     const tick = (now: number) => {
       if (!start) start = now;
       const p = Math.min(1, (now - start) / duration);
@@ -220,8 +217,14 @@ function CountUp({ to, run, delay }: { to: number; run: boolean; delay: number }
     };
     const timer = setTimeout(() => { frame = requestAnimationFrame(tick); }, delay);
     return () => { clearTimeout(timer); cancelAnimationFrame(frame); };
-  }, [run, value, delay]);
-  return <Text style={s.statValue}>{shown}{plus && shown === value ? "+" : ""}</Text>;
+  }, [run, value, delay, appear]);
+  const style = useAnimatedStyle(() => ({ opacity: appear.value, transform: [{ translateY: (1 - appear.value) * 10 }] }));
+  return (
+    <Reanimated.View style={[s.stat, divider && s.statDivider, style]}>
+      <Text style={s.statValue}>{shown}{plus && shown === value ? "+" : ""}</Text>
+      <Text style={s.statLabel} numberOfLines={1}>{label}</Text>
+    </Reanimated.View>
+  );
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
@@ -244,12 +247,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   welcomeTitle: { fontFamily: "Montserrat_700Bold", fontSize: 30, lineHeight: 36, letterSpacing: -0.8, color: c.text },
   welcomeSub: { fontFamily: "Inter_400Regular", fontSize: 16.5, lineHeight: 24, color: c.muted },
   welcomeFooter: { paddingHorizontal: AUTH_GUTTER, paddingTop: 10, gap: 10 },
-  stats: {
-    flexDirection: "row", marginTop: 26, paddingVertical: 14, borderRadius: 18,
-    backgroundColor: c.raised, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
-  },
-  stat: { flex: 1, alignItems: "center", gap: 2, paddingHorizontal: 6 },
-  statDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: c.borderStrong },
-  statValue: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.5, color: c.text, fontVariant: ["tabular-nums"] },
-  statLabel: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.muted },
+  stats: { flexDirection: "row", marginTop: 30 },
+  stat: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 4 },
+  statDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: c.goldBorder },
+  statValue: { fontFamily: "Montserrat_700Bold", fontSize: 30, letterSpacing: -0.8, color: c.goldText, fontVariant: ["tabular-nums"] },
+  statLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.5, textTransform: "uppercase", color: c.muted },
 });

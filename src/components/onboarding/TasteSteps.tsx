@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { StepLayout } from "./StepLayout";
 import { InterestGrid } from "./InterestGrid";
 import { findCategory, type CategoryId } from "@/theme/categories";
-import { firstImageUrl, getTierScore, type Place } from "@/hooks/usePlaces";
+import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { splitTowns } from "@/lib/towns";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -49,6 +49,14 @@ const SUGGESTED = 30;
 /** Med sökning visas som mest så här många träffar */
 const MATCHES = 60;
 
+/** Ett tal som ser slumpat ut men alltid blir samma för samma värde */
+function hash(n: number): number {
+  let t = (n + 0x6d2b79f5) | 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function FavoritesStep({
@@ -67,19 +75,21 @@ export function FavoritesStep({
   const [query, setQuery] = useState("");
   const chosen = useMemo(() => new Set(selected), [selected]);
 
-  // Förslagen: platser med foto, de man sagt att man gillar först, sedan företagen med högst nivå.
-  // Står still medan man trycker på hjärtan (ordningen beror inte på vad man sparat).
+  // Förslagen: platser med foto i slumpad ordning, de man sagt att man gillar först. Blandas en gång
+  // när steget öppnas och står sedan still medan man trycker på hjärtan.
+  const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const suggested = useMemo(() => {
     const liked = new Set(interests);
-    const rank = (p: Place) => {
+    const isLiked = (p: Place) => {
       const cat = findCategory(p.category)?.id;
-      return (cat && liked.has(cat) ? 1000 : 0) + getTierScore(p.business_tier) + (p.description ? 10 : 0);
+      return !!cat && liked.has(cat);
     };
+    const order = (p: Place) => hash(p.id + seed);
     return places
       .filter((p) => firstImageUrl(p.image_url))
-      .sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name, "sv"))
+      .sort((a, b) => Number(isLiked(b)) - Number(isLiked(a)) || order(a) - order(b))
       .slice(0, SUGGESTED);
-  }, [places, interests]);
+  }, [places, interests, seed]);
 
   const matches = useMemo(() => {
     const q = fold(query.trim());

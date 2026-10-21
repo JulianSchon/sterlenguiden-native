@@ -8,14 +8,16 @@
  * Fotot ligger i appen, inte på servern: sidan visas innan man loggat in och ska synas direkt,
  * även utan nät.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Reanimated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import Reanimated, {
+  Easing, cancelAnimation, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming,
+} from "react-native-reanimated";
 import { Mail, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { AUTH_GUTTER, AuthButton, FieldNote } from "@/components/auth/AuthParts";
@@ -32,6 +34,9 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 const PHOTO_RATIO = 3596 / 2400;
 /** En sträcka från stenarna till solen */
 const PAN_MS = 26000;
+/** Var bilden börjar och slutar (andel av hur långt den kan glida) */
+const PAN_START = 0.12;
+const PAN_END = 0.92;
 
 export default function WelcomeScreen() {
   // Sidan ligger över ett mörkt foto: knappar och text ritas alltid i det mörka temat
@@ -55,11 +60,24 @@ function Welcome() {
   const travel = Math.max(0, photoW - width);
   const reduced = useReducedMotion();
   const pan = useSharedValue(reduced ? 0.55 : 0.12);
-  useEffect(() => {
-    if (reduced) return;
-    pan.value = withRepeat(withTiming(0.92, { duration: PAN_MS, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [pan, reduced]);
+  // En sträcka i taget, mot den ände som ligger längst bort. Medan en annan sida ligger ovanpå (och
+  // medan sidbytet glider) står bilden still — rörde den sig samtidigt som sidan gled undan såg det
+  // ut som ett hack.
+  const leg = useCallback((to: number) => {
+    const duration = PAN_MS * (Math.abs(to - pan.value) / (PAN_END - PAN_START));
+    pan.value = withTiming(to, { duration, easing: Easing.inOut(Easing.quad) }, (done) => {
+      if (done) runOnJS(leg)(to === PAN_END ? PAN_START : PAN_END);
+    });
+  }, [pan]);
+  useFocusEffect(useCallback(() => {
+    if (!reduced) leg(pan.value > (PAN_START + PAN_END) / 2 ? PAN_START : PAN_END);
+    return () => cancelAnimation(pan);
+  }, [leg, pan, reduced]));
   const photoStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -pan.value * travel }] }));
+  const open = (href: "/(auth)/signup" | "/(auth)/login") => {
+    cancelAnimation(pan);
+    pushOnce(router, href);
+  };
 
   const chooseLanguage = (code: LanguageCode) => {
     setLanguage(code);
@@ -126,11 +144,11 @@ function Welcome() {
               variant="outline"
               label={t("auth.welcome.email")}
               icon={<Mail size={19} color="#FFFFFF" strokeWidth={1.8} />}
-              onPress={() => pushOnce(router, "/(auth)/signup")}
+              onPress={() => open("/(auth)/signup")}
               disabled={!!busy}
             />
             {error ? <FieldNote tone="danger" text={error} /> : null}
-            <TouchableOpacity onPress={() => pushOnce(router, "/(auth)/login")} activeOpacity={0.6} style={s.login} disabled={!!busy}>
+            <TouchableOpacity onPress={() => open("/(auth)/login")} activeOpacity={0.6} style={s.login} disabled={!!busy}>
               <Text style={s.loginText}>
                 {t("auth.welcome.haveAccount")} <Text style={s.loginLink}>{t("auth.welcome.logIn")}</Text>
               </Text>
