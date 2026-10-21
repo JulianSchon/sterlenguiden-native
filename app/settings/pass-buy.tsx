@@ -187,8 +187,8 @@ export default function PassPaywall() {
         </Rise>
       </ScrollView>
 
-      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-        <GoldButton label={mode === "gift" ? t("pass.paywall.ctaGift") : t("pass.paywall.cta")} onPress={proceed} />
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom - 8, 10) }]}>
+        <GoldButton label={mode === "gift" ? t("pass.paywall.ctaGift") : t("pass.paywall.cta")} onPress={proceed} compact />
         {fine ? <Text style={s.fine}>{fine}</Text> : null}
         <View style={s.links}>
           {legal.terms ? <FooterLink label={t("pass.paywall.terms")} onPress={() => Linking.openURL(legal.terms!)} /> : null}
@@ -365,8 +365,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  footer: { paddingHorizontal: GUTTER, paddingTop: 12, gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, backgroundColor: c.bg },
-  fine: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, color: c.muted, textAlign: "center" },
-  links: { flexDirection: "row", justifyContent: "center", flexWrap: "wrap", columnGap: 20, rowGap: 6, paddingTop: 2 },
+  footer: { paddingHorizontal: GUTTER, paddingTop: 8, gap: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, backgroundColor: c.bg },
+  fine: { fontFamily: "Inter_400Regular", fontSize: 11.5, lineHeight: 15, color: c.muted, textAlign: "center" },
+  links: { flexDirection: "row", justifyContent: "center", flexWrap: "wrap", columnGap: 20, rowGap: 4 },
   link: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.faint },
 });

@@ -70,8 +70,8 @@ export function AuthButton({
  * då sveper över — som över kortet.
  */
 export function GoldButton({
-  label, onPress, loading = false,
-}: { label: string; onPress: () => void; loading?: boolean }) {
+  label, onPress, loading = false, compact = false,
+}: { label: string; onPress: () => void; loading?: boolean; /** Lägre knapp (köpsidans botten) */ compact?: boolean }) {
   const [width, setWidth] = useState(0);
   const sweep = useSharedValue(0);
   useEffect(() => {
@@ -88,7 +88,7 @@ export function GoldButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ busy: loading }}
-      style={styles.gold}
+      style={[styles.gold, compact && styles.goldCompact]}
     >
       <View style={StyleSheet.absoluteFill} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         <LinearGradient colors={["#E4C67A", "#C9A24E", "#A9812F"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -105,7 +105,7 @@ export function GoldButton({
         <>
           <Text style={styles.goldText} numberOfLines={1}>{label}</Text>
           {/* Pilen i en mörk cirkel längst till höger */}
-          <View style={styles.goldArrow}>
+          <View style={[styles.goldArrow, compact && styles.goldArrowCompact]}>
             <ArrowRight size={20} color="#F7EBD0" strokeWidth={2.4} />
           </View>
         </>
@@ -237,6 +237,8 @@ const styles = StyleSheet.create({
     height: 64, borderRadius: 32, overflow: "hidden",
     flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 64,
   },
+  goldCompact: { height: 54, borderRadius: 27 },
+  goldArrowCompact: { top: 6, right: 6, width: 42, height: 42, borderRadius: 21 },
   goldArrow: {
     position: "absolute", right: 8, top: 8, width: 48, height: 48, borderRadius: 24,
     alignItems: "center", justifyContent: "center", backgroundColor: "#1A1408",
