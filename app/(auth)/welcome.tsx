@@ -1,7 +1,12 @@
 /**
- * Startsidan för den som inte är inloggad: Österlen överst (fotot glider långsamt närmare), vad
- * appen är på en rad, och sätten att komma in — Apple, Google eller e-post. Har man redan ett
- * konto loggar man in längst ner. Språket väljs med flaggan uppe till höger.
+ * Startsidan för den som inte är inloggad. Ales stenar i solnedgången fyller hela skärmen och glider
+ * långsamt från stenarna bort mot solen och tillbaka, så hela bilden syns. Nertill, över en mörk
+ * övertoning: loggan, vad appen är på en rad och sätten att komma in — Apple, Google eller e-post.
+ * Har man redan ett konto loggar man in längst ner. Språket väljs med flaggan uppe till höger.
+ *
+ * Sidan är alltid mörk (den ligger över ett foto), oavsett om appen står i ljust eller mörkt läge.
+ * Fotot ligger i appen, inte på servern: sidan visas innan man loggat in och ska synas direkt,
+ * även utan nät.
  */
 import { useEffect, useState } from "react";
 import { Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
@@ -11,7 +16,7 @@ import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import { Mail } from "lucide-react-native";
+import { Mail, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { AUTH_GUTTER, AuthButton, FieldNote } from "@/components/auth/AuthParts";
 import { ProviderButtons, useSocialSignIn } from "@/components/auth/ProviderButtons";
@@ -21,30 +26,40 @@ import { Rise } from "@/components/Rise";
 import { pushOnce } from "@/lib/navigateOnce";
 import { LEGAL_URLS } from "@/lib/appInfo";
 import { currentLanguage, setLanguage, type LanguageCode } from "@/i18n";
-import { withAlpha } from "@/theme/categories";
-import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
-import type { ThemeColors } from "@/theme/colors";
+import { ThemeProvider } from "@/theme/ThemeProvider";
+
+/** Fotots bredd delat med höjden (3596 × 2400) */
+const PHOTO_RATIO = 3596 / 2400;
+/** En sträcka från stenarna till solen */
+const PAN_MS = 26000;
 
 export default function WelcomeScreen() {
+  // Sidan ligger över ett mörkt foto: knappar och text ritas alltid i det mörka temat
+  return (
+    <ThemeProvider forced="dark">
+      <Welcome />
+    </ThemeProvider>
+  );
+}
+
+function Welcome() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
+  const { width, height } = useWindowDimensions();
   const { busy, error, signIn } = useSocialSignIn();
   const [langOpen, setLangOpen] = useState(false);
   const [, setLang] = useState(currentLanguage());
-  // Små telefoner (iPhone SE) får ett lägre foto, så knapparna får plats utan att scrolla
-  const photoH = Math.round(height * (height < 720 ? 0.38 : 0.46));
 
-  // Fotot glider sakta närmare och tillbaka, hela tiden — knappt märkbart, men sidan lever
+  // Fotot är lika högt som skärmen och bredare än den: det glider sakta i sidled
+  const photoW = Math.ceil(height * PHOTO_RATIO);
+  const travel = Math.max(0, photoW - width);
   const reduced = useReducedMotion();
-  const zoom = useSharedValue(1);
+  const pan = useSharedValue(reduced ? 0.55 : 0.12);
   useEffect(() => {
     if (reduced) return;
-    zoom.value = withRepeat(withTiming(1.09, { duration: 16000, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [zoom, reduced]);
-  const photoStyle = useAnimatedStyle(() => ({ transform: [{ scale: zoom.value }] }));
+    pan.value = withRepeat(withTiming(0.92, { duration: PAN_MS, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [pan, reduced]);
+  const photoStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -pan.value * travel }] }));
 
   const chooseLanguage = (code: LanguageCode) => {
     setLanguage(code);
@@ -57,20 +72,24 @@ export default function WelcomeScreen() {
   return (
     <View style={s.root}>
       <StatusBar style="light" />
-      <View style={[s.photo, { height: photoH }]}>
-        <Reanimated.View style={[StyleSheet.absoluteFill, photoStyle]}>
-          {/* De röda husen ligger till höger i bilden: visa den delen */}
-          <ExpoImage
-            source={require("../../assets/hero-osterlen.jpg")}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            contentPosition={{ left: "68%", top: "50%" }}
-          />
-        </Reanimated.View>
-        <LinearGradient colors={["rgba(0,0,0,0.32)", "rgba(0,0,0,0)"]} style={[s.topShade, { height: insets.top + 70 }]} />
-        <LinearGradient colors={[withAlpha(colors.bg, 0), colors.bg]} style={s.fade} />
+      <Reanimated.View style={[s.photo, { width: photoW, height }, photoStyle]}>
+        <ExpoImage source={require("../../assets/welcome-ales-stenar.jpg")} style={StyleSheet.absoluteFill} contentFit="cover" />
+      </Reanimated.View>
+      <LinearGradient colors={["rgba(0,0,0,0.38)", "rgba(0,0,0,0)"]} style={[s.topShade, { height: insets.top + 90 }]} pointerEvents="none" />
+      <LinearGradient
+        colors={["rgba(10,8,6,0)", "rgba(10,8,6,0.55)", "rgba(10,8,6,0.92)", "#0A0806"]}
+        locations={[0, 0.3, 0.62, 1]}
+        style={s.bottomShade}
+        pointerEvents="none"
+      />
+
+      <View style={[s.topRow, { top: insets.top + 10 }]}>
+        <View style={s.place}>
+          <MapPin size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
+          <Text style={s.placeText}>Ales stenar, Kåseberga</Text>
+        </View>
         <TouchableOpacity
-          style={[s.flag, { top: insets.top + 8 }]}
+          style={s.flag}
           onPress={() => setLangOpen(true)}
           hitSlop={10}
           accessibilityRole="button"
@@ -82,11 +101,12 @@ export default function WelcomeScreen() {
 
       {/* Scrollar bara om det inte får plats (t.ex. med extra stor text) */}
       <ScrollView
-        style={s.body}
-        contentContainerStyle={[s.bodyContent, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        style={StyleSheet.absoluteFill}
+        contentContainerStyle={[s.content, { paddingTop: insets.top + 60, paddingBottom: Math.max(insets.bottom, 16) }]}
         alwaysBounceVertical={false}
         showsVerticalScrollIndicator={false}
       >
+        <View style={{ flex: 1 }} />
         <Rise index={0}>
           <View style={s.brand}>
             <Image source={require("../../assets/Osterlenappen-logo.png")} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
@@ -95,15 +115,13 @@ export default function WelcomeScreen() {
           </View>
         </Rise>
 
-        <View style={{ flex: 1 }} />
-
         <Rise index={1}>
           <View style={s.actions}>
             <ProviderButtons busy={busy} onPress={signIn} />
             <AuthButton
               variant="outline"
               label={t("auth.welcome.email")}
-              icon={<Mail size={19} color={colors.text} strokeWidth={1.8} />}
+              icon={<Mail size={19} color="#FFFFFF" strokeWidth={1.8} />}
               onPress={() => pushOnce(router, "/(auth)/signup")}
               disabled={!!busy}
             />
@@ -126,30 +144,38 @@ export default function WelcomeScreen() {
         </Rise>
       </ScrollView>
 
-      <LanguageMenu visible={langOpen} top={insets.top + 52} onSelect={chooseLanguage} onClose={() => setLangOpen(false)} />
+      <LanguageMenu visible={langOpen} top={insets.top + 54} onSelect={chooseLanguage} onClose={() => setLangOpen(false)} />
     </View>
   );
 }
 
-const createStyles = (c: ThemeColors) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.bg },
-  photo: { overflow: "hidden" },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#0A0806", overflow: "hidden" },
+  photo: { position: "absolute", top: 0, left: 0 },
   topShade: { position: "absolute", top: 0, left: 0, right: 0 },
-  fade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "55%" },
+  bottomShade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "68%" },
+  topRow: {
+    position: "absolute", left: AUTH_GUTTER, right: 16, zIndex: 2,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  place: { flexDirection: "row", alignItems: "center", gap: 6 },
+  placeText: {
+    fontFamily: "Inter_600SemiBold", fontSize: 13, letterSpacing: 0.3, color: "rgba(255,255,255,0.92)",
+    textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+  },
   flag: {
-    position: "absolute", right: 16, width: 34, height: 34, borderRadius: 17, overflow: "hidden",
+    width: 34, height: 34, borderRadius: 17, overflow: "hidden",
     borderWidth: 1.5, borderColor: "rgba(255,255,255,0.85)",
   },
-  body: { flex: 1, marginTop: -88 },
-  bodyContent: { flexGrow: 1, paddingHorizontal: AUTH_GUTTER },
+  content: { flexGrow: 1, paddingHorizontal: AUTH_GUTTER },
   brand: { gap: 10 },
-  logo: { width: 58, height: 64, marginBottom: 6 },
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 34, lineHeight: 40, letterSpacing: -1, color: c.text },
-  tagline: { fontFamily: "Inter_400Regular", fontSize: 16.5, lineHeight: 24, color: c.muted, maxWidth: 340 },
-  actions: { gap: 12, paddingTop: 24 },
+  logo: { width: 52, height: 58, marginBottom: 8 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 38, lineHeight: 44, letterSpacing: -1.2, color: "#FFFFFF" },
+  tagline: { fontFamily: "Inter_400Regular", fontSize: 17, lineHeight: 25, color: "rgba(255,255,255,0.78)", maxWidth: 340 },
+  actions: { gap: 12, paddingTop: 30 },
   login: { alignSelf: "center", paddingVertical: 10, paddingHorizontal: 12 },
-  loginText: { fontFamily: "Inter_500Medium", fontSize: 15, color: c.muted },
-  loginLink: { fontFamily: "Inter_700Bold", color: c.goldText },
-  legal: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, color: c.faint, textAlign: "center", paddingHorizontal: 12 },
-  legalLink: { textDecorationLine: "underline", color: c.muted },
+  loginText: { fontFamily: "Inter_500Medium", fontSize: 15, color: "rgba(255,255,255,0.72)" },
+  loginLink: { fontFamily: "Inter_700Bold", color: "#E8C674" },
+  legal: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, color: "rgba(255,255,255,0.5)", textAlign: "center", paddingHorizontal: 12 },
+  legalLink: { textDecorationLine: "underline", color: "rgba(255,255,255,0.72)" },
 });

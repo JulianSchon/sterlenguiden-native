@@ -23,7 +23,22 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+/**
+ * `forced`: en del av appen som alltid har samma läge (t.ex. startsidan, som ligger över ett mörkt
+ * foto). Den läser och ändrar inte det sparade valet och rör inte telefonens tangentbord och menyer.
+ */
+export function ThemeProvider({ children, forced }: { children: ReactNode; forced?: ThemeMode }) {
+  return forced ? <ForcedTheme mode={forced}>{children}</ForcedTheme> : <AppTheme>{children}</AppTheme>;
+}
+
+function ForcedTheme({ mode, children }: { mode: ThemeMode; children: ReactNode }) {
+  const value = useMemo<ThemeContextValue>(() => ({
+    mode, setMode: () => {}, scheme: mode, colors: mode === "light" ? lightColors : darkColors,
+  }), [mode]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+function AppTheme({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>("dark");
 
   useEffect(() => {
