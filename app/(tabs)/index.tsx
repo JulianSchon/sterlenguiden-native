@@ -401,7 +401,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
         showsVerticalScrollIndicator={false}
         // Luft nog för att "Visa mer" hamnar ovanför navigeringens toning
         contentContainerStyle={{ paddingBottom: FLOATING_NAV_HEIGHT + insets.bottom + 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} colors={[colors.gold]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.muted} colors={[colors.muted]} progressViewOffset={insets.top} />}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={9}
