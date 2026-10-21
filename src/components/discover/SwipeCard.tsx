@@ -22,6 +22,7 @@ import Reanimated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { ArrowUpRight, Heart, MapPin } from "lucide-react-native";
@@ -36,8 +37,6 @@ export interface DeckState {
   top: SharedValue<number>;
   /** Hur långt kortet överst dragits, 0–1 — korten under växer fram i takt */
   progress: SharedValue<number>;
-  /** Åt vilket håll och hur långt kortet överst dragits, −1 (skippa) till 1 (spara) — ljuset bakom kortleken */
-  drag: SharedValue<number>;
   /** Knapparna: kasta kortet överst åt dir (1 = spara, −1 = skippa); n räknas upp vid varje tryck */
   fly: SharedValue<{ dir: number; n: number }>;
 }
@@ -108,7 +107,6 @@ export const SwipeCard = memo(function SwipeCard({
       if (!done) return;
       // Alla kort byter plats i samma bildruta: nästa blir det överst, i full storlek
       deck.progress.value = 0;
-      deck.drag.value = 0;
       deck.top.value = index + 1;
       runOnJS(decide)(dir);
     });
@@ -118,7 +116,6 @@ export const SwipeCard = memo(function SwipeCard({
   useAnimatedReaction(() => tx.value, (x) => {
     if (deck.top.value !== index) return;
     deck.progress.value = Math.min(1, Math.abs(x) / (width * 0.5));
-    deck.drag.value = Math.max(-1, Math.min(1, x / (width * 0.5)));
   });
   // Ett litet klick när man drar förbi gränsen (och tillbaka)
   useAnimatedReaction(() => Math.abs(tx.value) > width * THRESHOLD, (over, prev) => {
@@ -175,6 +172,9 @@ export const SwipeCard = memo(function SwipeCard({
     const y = d === 1 ? 14 - 14 * p : 28 - 14 * p;
     return { opacity: d > 2 ? 0 : 1, transform: [{ translateX: 0 }, { translateY: y }, { rotate: "0deg" }, { scale }] };
   });
+  // Ljuset bakom just det här kortet: grönt åt spara-hållet, rött åt skippa-hållet, starkare ju längre
+  const yesGlow = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, tx.value / (width * 0.5))) }));
+  const noGlow = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, -tx.value / (width * 0.5))) }));
   const likeStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, (tx.value - 20) / 80)) }));
   const nopeStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, (-tx.value - 20) / 80)) }));
 
@@ -186,6 +186,9 @@ export const SwipeCard = memo(function SwipeCard({
         style={[StyleSheet.absoluteFill, s.card, cardStyle]}
         onLayout={(e) => { height.value = e.nativeEvent.layout.height; }}
       >
+        {/* Ljuset ligger bakom kortet och följer med det; syns runt kanterna */}
+        <Glow color={YES} id={`y${place.id}`} style={yesGlow} />
+        <Glow color={NO} id={`n${place.id}`} style={noGlow} />
         <View style={s.clip}>
           {image ? (
             <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={120} />
@@ -253,7 +256,25 @@ export const SwipeCard = memo(function SwipeCard({
   );
 });
 
+/** Ett mjukt ljus runt kortet (ritat en gång, bara styrkan ändras) */
+function Glow({ color, id, style }: { color: string; id: string; style: object }) {
+  return (
+    <Reanimated.View style={[s.glow, style]} pointerEvents="none">
+      <Svg width="100%" height="100%">
+        <Defs>
+          <RadialGradient id={id} cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0.6" stopColor={color} stopOpacity={0.6} />
+            <Stop offset="1" stopColor={color} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Ellipse cx="50%" cy="50%" rx="50%" ry="50%" fill={`url(#${id})`} />
+      </Svg>
+    </Reanimated.View>
+  );
+}
+
 const s = StyleSheet.create({
+  glow: { position: "absolute", top: -50, bottom: -50, left: -50, right: -50 },
   // Skuggan på ett kort med hel bakgrund (då räknas den ut en gång, inte för varje bildruta)
   card: {
     borderRadius: 26, backgroundColor: "#1C1C1E",
