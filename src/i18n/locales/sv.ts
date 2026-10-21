@@ -113,9 +113,9 @@ export const sv = {
     title: "Österlenpasset",
     paywall: {
       close: "Stäng",
-      pitch: "Rabatter hos {{count}} ställen på Österlen. Visa kortet i kassan – så enkelt är det.",
-      pitchSave: "Spara upp till {{amount}} kr på Österlen. Visa kortet i kassan – så enkelt är det.",
-      pitchNone: "Rabatter hos lokala företag på Österlen. Visa kortet i kassan – så enkelt är det.",
+      pitch: "Rabatter hos {{count}} ställen på Österlen. Aktivera erbjudandet i mobilen och visa upp ditt digitala medlemskort i kassan – så enkelt är det.",
+      pitchSave: "Spara upp till {{amount}} kr på Österlen. Aktivera erbjudandet i mobilen och visa upp ditt digitala medlemskort i kassan – så enkelt är det.",
+      pitchNone: "Rabatter hos lokala företag på Österlen. Aktivera erbjudandet i mobilen och visa upp ditt digitala medlemskort i kassan – så enkelt är det.",
       forMe: "Till mig",
       gift: "Ge bort",
       plans: { week: "Vecka", month: "Månad", year: "År" },

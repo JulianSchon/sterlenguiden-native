@@ -110,9 +110,9 @@ export const de: typeof sv = {
     title: "Österlen-Pass",
     paywall: {
       close: "Schließen",
-      pitch: "Rabatte an {{count}} Orten in Österlen. Karte an der Kasse zeigen – fertig.",
-      pitchSave: "Spare bis zu {{amount}} SEK in Österlen. Karte an der Kasse zeigen – fertig.",
-      pitchNone: "Rabatte bei lokalen Unternehmen in Österlen. Karte an der Kasse zeigen – fertig.",
+      pitch: "Rabatte an {{count}} Orten in Österlen. Aktiviere das Angebot auf dem Handy und zeig deine digitale Mitgliedskarte an der Kasse – so einfach ist das.",
+      pitchSave: "Spare bis zu {{amount}} SEK in Österlen. Aktiviere das Angebot auf dem Handy und zeig deine digitale Mitgliedskarte an der Kasse – so einfach ist das.",
+      pitchNone: "Rabatte bei lokalen Unternehmen in Österlen. Aktiviere das Angebot auf dem Handy und zeig deine digitale Mitgliedskarte an der Kasse – so einfach ist das.",
       forMe: "Für mich",
       gift: "Verschenken",
       plans: { week: "Woche", month: "Monat", year: "Jahr" },

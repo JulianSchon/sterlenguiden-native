@@ -291,14 +291,14 @@ export default function ExploreScreen() {
     // Är det färre än 5 står en beskrivning i stället — en ensam etta ser tom ut
     const many = (k: number, text: string, few: string) => (k >= FEW ? text : few);
     const subs: Record<string, string> = {
-      eat: many(n.eat, openNowText(n.eat), n.eat ? "Mat nära dig" : "Inget öppet just nu"),
-      fika: many(n.fika, `${n.fika} ställen`, "Kaffe och bakverk"),
-      sleep: many(n.sleep, `${n.sleep} boenden`, "Hotell och B&B"),
-      late: many(n.late, `${n.late} öppna efter 21`, n.late ? "Öppet efter 21" : "Inget i kväll"),
-      kids: many(n.kids, `${n.kids} barnvänliga`, "Tips för familjen"),
-      dog: many(n.dog, `${n.dog} hundvänliga`, "Tips för dig med hund"),
-      nature: many(n.nature, `${n.nature} platser`, "Stränder och natur"),
-      events: many(upcoming, `${upcoming} kommande`, upcoming ? "Se vad som händer" : "Inga just nu"),
+      eat: many(n.eat, openNowText(n.eat), n.eat ? "Nära dig" : "Inget öppet"),
+      fika: many(n.fika, `${n.fika} ställen`, "Kaffe & bakverk"),
+      sleep: many(n.sleep, `${n.sleep} boenden`, "Hotell & B&B"),
+      late: many(n.late, `${n.late} öppna efter 21`, n.late ? "Efter 21" : "Inget i kväll"),
+      kids: many(n.kids, `${n.kids} barnvänliga`, "För familjer"),
+      dog: many(n.dog, `${n.dog} hundvänliga`, "För hundägare"),
+      nature: many(n.nature, `${n.nature} platser`, "Strand & skog"),
+      events: many(upcoming, `${upcoming} kommande`, upcoming ? "Kommande" : "Inga just nu"),
     };
     return subs;
     // eslint-disable-next-line react-hooks/exhaustive-deps

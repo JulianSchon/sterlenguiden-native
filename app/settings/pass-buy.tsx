@@ -31,7 +31,7 @@ import { GoldButton } from "@/components/auth/AuthParts";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
 import { LEGAL_URLS } from "@/lib/appInfo";
-import { roundedCountText } from "@/lib/roundedCount";
+import { roundedCount, roundedCountText } from "@/lib/roundedCount";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -161,7 +161,7 @@ export default function PassPaywall() {
             <Text style={s.title}>{t("pass.title")}</Text>
             <Text style={s.pitch}>
               {totalSavings > 0
-                ? t("pass.paywall.pitchSave", { amount: roundedCountText(Math.floor(totalSavings)) })
+                ? t("pass.paywall.pitchSave", { amount: roundedCount(Math.floor(totalSavings)).value.toLocaleString("sv-SE") })
                 : placesWithOffers > 0 ? t("pass.paywall.pitch", { count: roundedCountText(placesWithOffers) }) : t("pass.paywall.pitchNone")}
             </Text>
           </View>
