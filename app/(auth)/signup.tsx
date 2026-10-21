@@ -13,7 +13,7 @@
  * frågar vi om man vill avbryta (då loggas man ut och kan fortsätta senare).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Alert, BackHandler, Keyboard, KeyboardAvoidingView, Platform, View } from "react-native";
+import { Alert, BackHandler, Keyboard, View } from "react-native";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -539,13 +539,14 @@ export default function SignupScreen() {
           <StepBar progress={progress} onBack={back} />
         </View>
       ) : null}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {/* Tangentbordet: varje steg lyfter sina knappar själv (StepLayout) */}
+      <View style={{ flex: 1 }}>
         {ready ? (
           <Reanimated.View key={step} style={{ flex: 1 }} entering={motion.entering} exiting={motion.exiting}>
             {content}
           </Reanimated.View>
         ) : null}
-      </KeyboardAvoidingView>
+      </View>
       {welcomeMounted ? (
         <WelcomeStep
           visible={step === "welcome"}

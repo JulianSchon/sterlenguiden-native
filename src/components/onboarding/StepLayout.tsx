@@ -1,23 +1,19 @@
 /**
- * Ett stegs ram i onboardingen: rubriken överst, innehållet under, och knapparna nertill — de
- * följer med upp ovanför tangentbordet. Med `scroll` scrollar rubriken och innehållet (steg med
- * mycket att välja bland); knapparna står kvar.
+ * Ett stegs ram i onboardingen: rubriken överst, innehållet under, och knapparna nertill. Med
+ * `scroll` scrollar rubriken och innehållet (steg med mycket att välja bland); knapparna står kvar.
+ *
+ * Knapparna följer tangentbordet bildruta för bildruta (useAnimatedKeyboard, på UI-tråden) och
+ * lägger sig strax ovanför det. Tidigare flyttades de av två saker samtidigt — en mjuk rörelse och
+ * ett hopp i luften under dem — så knappen stannade till mitt i.
  */
-import { useEffect, useState, type ReactNode } from "react";
-import { Keyboard, Platform, ScrollView, StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import Reanimated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AUTH_GUTTER, StepTitle } from "@/components/auth/AuthParts";
 
-function useKeyboardShown(): boolean {
-  // Nästa steg kan börja med tangentbordet redan uppe (e-post → kod)
-  const [shown, setShown] = useState(() => Keyboard.isVisible());
-  useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", () => setShown(true));
-    const hide = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", () => setShown(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
-  return shown;
-}
+/** Så här mycket luft mellan knappen och tangentbordet */
+const ABOVE_KEYBOARD = 12;
 
 export function StepLayout({
   title, subtitle, children, footer, scroll = false,
@@ -29,7 +25,10 @@ export function StepLayout({
   scroll?: boolean;
 }) {
   const insets = useSafeAreaInsets();
-  const keyboard = useKeyboardShown();
+  const bottom = Math.max(insets.bottom, 16);
+  const keyboard = useAnimatedKeyboard();
+  // Det tangentbordet täcker, minus luften som redan finns under knappen
+  const lift = useAnimatedStyle(() => ({ height: Math.max(0, keyboard.height.value - bottom + ABOVE_KEYBOARD) }));
   const top = (
     <View style={s.top}>
       <StepTitle title={title} subtitle={subtitle} />
@@ -54,9 +53,8 @@ export function StepLayout({
           <View style={[s.content, s.root]}>{children}</View>
         </>
       )}
-      {footer ? (
-        <View style={[s.footer, { paddingBottom: keyboard ? 12 : Math.max(insets.bottom, 16) }]}>{footer}</View>
-      ) : null}
+      {footer ? <View style={[s.footer, { paddingBottom: bottom }]}>{footer}</View> : null}
+      <Reanimated.View style={lift} />
     </View>
   );
 }
