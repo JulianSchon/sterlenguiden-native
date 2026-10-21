@@ -1,15 +1,16 @@
 /**
- * Inställningar › Österlenpasset — hubben. Medlemskortet överst, sedan status,
- * snabbknappar, kortfoto, köphistorik och pass man gett bort. Köpet ligger på en
- * egen skärm (settings/pass-buy.tsx), presenten på settings/pass-gift.tsx och
- * medlemskapet hanteras på settings/pass-manage.tsx. Tomma listor visas inte alls.
+ * Inställningar › Österlenpasset — hubben. Medlemskortet överst (inte medlem: baksidan är låst),
+ * sedan status, snabbknappar, kortfoto, köphistorik och gåvor man gett bort. Köpet och gåvor görs
+ * på köpsidan (settings/pass-buy.tsx, Ge bort = samma sida med gåva vald), gåvans uppgifter på
+ * settings/pass-gift.tsx och medlemskapet hanteras på settings/pass-manage.tsx. Tomma listor visas
+ * inte alls. I testversionen finns en brytare för att se allt som icke-medlem.
  */
 import { useMemo } from "react";
 import { View, Text, Pressable, TouchableOpacity, Alert, Share, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { differenceInCalendarDays } from "date-fns";
-import { ArrowDown, ArrowUp, Camera, Copy, Gift, Settings2, Tag, Ticket, type LucideIcon } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Camera, Copy, EyeOff, Gift, Settings2, Tag, Ticket, type LucideIcon } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
@@ -28,6 +29,8 @@ import { GradientCard } from "@/components/GradientCard";
 import { MemberCard, CARD_W } from "@/components/MemberCard";
 import { ActivityRow, AmountColumn, CardLine } from "@/components/pass/ActivityRow";
 import { PrimaryButton } from "@/components/Sheet";
+import { IconSwitch } from "@/components/IconSwitch";
+import { setPreviewNonMember, usePreviewNonMember } from "@/lib/memberPreview";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -65,6 +68,7 @@ export default function PassHub() {
   const periodLabel = usePeriodLabel();
   const { data: profile } = useProfile();
   const membership = useMembership();
+  const previewNonMember = usePreviewNonMember();
   const { isBusiness } = useIsBusiness();
   const { available: offers } = useAvailableOffers();
   const { data: products = [] } = usePassProducts();
@@ -149,6 +153,7 @@ export default function PassHub() {
             profileImageUrl={cardPhotoUrl}
             onBuyPress={() => router.push("/settings/pass-buy" as any)}
             startOnBack
+            lockedBack
           />
         </View>
 
@@ -182,7 +187,7 @@ export default function PassHub() {
       <View style={s.actions}>
         <QuickAction icon={Tag} label={t("pass.actions.offers")} badge={offers.length} onPress={() => router.push("/offers" as any)} />
         <QuickAction icon={Ticket} label={t("pass.actions.redeem")} onPress={() => router.push("/settings/redeem" as any)} />
-        <QuickAction icon={Gift} label={t("pass.actions.give")} onPress={() => router.push("/settings/pass-gift" as any)} />
+        <QuickAction icon={Gift} label={t("pass.actions.give")} onPress={() => router.push({ pathname: "/settings/pass-buy", params: { mode: "gift" } } as any)} />
         {membership.isMember && (
           <QuickAction icon={Settings2} label={t("pass.actions.manage")} onPress={() => router.push("/settings/pass-manage" as any)} />
         )}
@@ -268,6 +273,17 @@ export default function PassHub() {
           </View>
         </View>
       )}
+      {/* Bara i testversionen: se appen som icke-medlem utan att röra kontot */}
+      {__DEV__ ? (
+        <SettingsGroup label={t("pass.preview.label")}>
+          <SettingsRow
+            icon={EyeOff}
+            label={t("pass.preview.title")}
+            subtitle={t("pass.preview.subtitle")}
+            right={<IconSwitch value={previewNonMember} onChange={setPreviewNonMember} />}
+          />
+        </SettingsGroup>
+      ) : null}
     </SettingsScreen>
   );
 }

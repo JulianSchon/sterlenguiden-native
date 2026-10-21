@@ -23,14 +23,17 @@ import Svg, {
   Stop,
   Rect as SvgRect,
 } from "react-native-svg";
-import { Crown, Radio, Camera } from "lucide-react-native";
+import { Crown, Radio, Camera, Lock } from "lucide-react-native";
 import { cardColors } from "@/lib/cardVariants";
 import { useCardVariant } from "@/hooks/useRewardCards";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import * as Haptics from "expo-haptics";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Reanimated, {
+  Easing as ReEasing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withRepeat,
+  withSequence, withSpring, withTiming,
+} from "react-native-reanimated";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
 import { serverNow } from "@/lib/serverClock";
@@ -61,6 +64,8 @@ export function MemberCard({
   disableFlip = false,
   onCardPress,
   readOnly = false,
+  lockedBack = false,
+  autoFlip = false,
   width = CARD_W,
 }: {
   displayName: string;
@@ -90,6 +95,10 @@ export function MemberCard({
   onCardPress?: () => void;
   /** Någon annans kort (deras profilsida): bara framsidan, inget tryck och ingen uppmaning att köpa. */
   readOnly?: boolean;
+  /** Inte medlem: kortet har ändå en baksida, men den är låst (så man ser vad passet låser upp) */
+  lockedBack?: boolean;
+  /** Kortet vänder sig själv fram och tillbaka (köpsidan) */
+  autoFlip?: boolean;
   /** Kortets bredd; höjden och alla mått följer med. */
   width?: number;
 }) {
@@ -102,13 +111,14 @@ export function MemberCard({
 
   // 0 = framsidan, 1 = baksidan vänd mot betraktaren. Mellanlägena är kortet mitt i en vändning, och
   // värdet följer fingret medan man sveper.
-  const flipProgress = useSharedValue(showBackOnly || (startOnBack && isMember) ? 1 : 0);
+  const locked = !isMember && lockedBack;
+  const flipProgress = useSharedValue(showBackOnly || (startOnBack && (isMember || locked)) ? 1 : 0);
   const sweepAnim = useRef(new Animated.Value(0)).current;
   // Baksidans klocka och det roterande guldet går så länge baksidan är eller kan bli synlig: från att en vändning börjar
   // till en bit efter att kortet landat på framsidan. Medan framsidan visas står de still, vilket sparar batteri.
   const [clockOn, setClockOn]                = useState(showBackOnly || (startOnBack && isMember));
   // Vilken sida kortet är på väg mot; uppdateras direkt
-  const flippedRef                          = useRef(showBackOnly || (startOnBack && isMember));
+  const flippedRef                          = useRef(showBackOnly || (startOnBack && (isMember || locked)));
   const [time, setTime]                     = useState(() => new Date(serverNow()));
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
   // Vald design — en vanlig eller ett belöningskort (som hämtas från servern)
@@ -116,7 +126,7 @@ export function MemberCard({
   const bgFade                              = useRef(new Animated.Value(shownBackgrounds.has(cardVariant.id) ? 1 : 0)).current;
 
   // Baksidan ritas bara när den kan bli synlig; kort som är låsta till framsidan slipper dess animationer
-  const backVisible = isMember && (showBackOnly || startOnBack || !disableFlip);
+  const backVisible = (isMember && (showBackOnly || startOnBack || !disableFlip)) || locked;
 
   // Variant + färgpalett
   // Alla ser sin valda design på framsidan; baksidan (verifieringen) är bara för medlemmar
@@ -248,7 +258,7 @@ export function MemberCard({
 
   const handlePress = () => {
     if (swiping.current || readOnly) return;
-    if (!isMember) { onBuyPress(); return; }
+    if (!isMember && !locked) { onBuyPress(); return; }
     if (disableFlip) { onCardPress?.(); return; }
     flip();
   };
@@ -260,7 +270,7 @@ export function MemberCard({
   const swipeRange = cardW * 0.7;
   const startProgress = useSharedValue(0);
   const swipe = Gesture.Pan()
-    .enabled(isMember && !disableFlip && !showBackOnly && !readOnly)
+    .enabled((isMember || locked) && !disableFlip && !showBackOnly && !readOnly && !autoFlip)
     .activeOffsetX([-16, 16])
     .failOffsetY([-24, 24])
     .onStart(() => {
@@ -282,7 +292,7 @@ export function MemberCard({
   // Roterande guldgradient — körs så länge baksidan är eller kan bli synlig (se clockOn). Den startar redan när en
   // vändning börjar, innan baksidan syns, så inget hopp märks
   useEffect(() => {
-    if (!backVisible || !clockOn) return;
+    if (!backVisible || !clockOn || locked) return;
     const spin = () => {
       gradRotAnim.setValue(0);
       Animated.timing(gradRotAnim, {
@@ -296,7 +306,7 @@ export function MemberCard({
     };
     spin();
     return () => gradRotAnim.stopAnimation();
-  }, [backVisible, clockOn]);
+  }, [backVisible, clockOn, locked]);
 
   const gradRotate = gradRotAnim.interpolate({
     inputRange: [0, 1],
@@ -305,10 +315,21 @@ export function MemberCard({
 
   // Live clock — only when back is showing
   useEffect(() => {
-    if (!clockOn) return;
+    if (!clockOn || locked) return;
     const id = setInterval(() => setTime(new Date(serverNow())), 1000);
     return () => clearInterval(id);
-  }, [clockOn]);
+  }, [clockOn, locked]);
+
+  // Köpsidan: kortet vänder sig själv, lugnt, och visar den låsta baksidan en stund
+  useEffect(() => {
+    if (!autoFlip || !backVisible) return;
+    const turn = { duration: 1100, easing: ReEasing.inOut(ReEasing.cubic) };
+    flipProgress.value = withRepeat(withSequence(
+      withDelay(1700, withTiming(1, turn)),
+      withDelay(2600, withTiming(0, turn)),
+    ), -1, false);
+    return () => cancelAnimation(flipProgress);
+  }, [autoFlip, backVisible, flipProgress]);
 
   // ── Front ─────────────────────────────────────────────────────────────────
   const Front = (
@@ -431,6 +452,31 @@ export function MemberCard({
   // ── Back ──────────────────────────────────────────────────────────────────
   const clockStr = format(time, "HH:mm:ss", { locale: sv });
 
+  // ── Låst baksida (inte medlem) ────────────────────────────────────────────
+  const LockedBack = (
+    <Reanimated.View style={[mc.card, backStyle]}>
+      <Svg style={StyleSheet.absoluteFill} width={cardW} height={cardH}>
+        <Defs>
+          <SvgGrad id="locked_bg" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0%" stopColor="#D4AF37" />
+            <Stop offset="50%" stopColor="#8B6914" />
+            <Stop offset="100%" stopColor="#B8860B" />
+          </SvgGrad>
+        </Defs>
+        <SvgRect x={0} y={0} width={cardW} height={cardH} fill="url(#locked_bg)" />
+      </Svg>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(14,11,5,0.66)" }]} pointerEvents="none" />
+      <View style={mc.lockedCol}>
+        <View style={mc.lockCircle}>
+          <Lock size={22 * k} color="#F3E3BE" strokeWidth={1.8} />
+        </View>
+        <Text style={mc.lockedTitle}>Lås upp med Österlenpasset</Text>
+        <Text style={mc.lockedSub}>Här visar du kortet vid kassan och får rabatten</Text>
+      </View>
+      {finish("glareLocked", "rgba(255,255,255,0.22)")}
+    </Reanimated.View>
+  );
+
   const Back = (
     <Reanimated.View style={[mc.card, backStyle]}>
       {/* ── Roterande guldgradient — GPU-driven, native driver ── */}
@@ -511,7 +557,7 @@ export function MemberCard({
             />
           )}
           {!showBackOnly && Front}
-          {backVisible && Back}
+          {backVisible && (locked ? LockedBack : Back)}
         </TouchableOpacity>
       </View>
     </GestureDetector>
@@ -668,4 +714,13 @@ const createStyles = (k: number, cardW: number, cardH: number) => StyleSheet.cre
     textAlign: "center",
     letterSpacing: 0.2 * k,
   },
+
+  // Låst baksida
+  lockedCol: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 8 * k, paddingHorizontal: 28 * k },
+  lockCircle: {
+    width: 50 * k, height: 50 * k, borderRadius: 25 * k, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(243,227,190,0.12)", borderWidth: 1, borderColor: "rgba(243,227,190,0.35)", marginBottom: 2 * k,
+  },
+  lockedTitle: { fontFamily: "Montserrat_700Bold", fontSize: 15 * k, letterSpacing: 0.2 * k, color: "#F7EBD0", textAlign: "center" },
+  lockedSub: { fontFamily: "Inter_400Regular", fontSize: 11.5 * k, lineHeight: 16 * k, color: "rgba(247,235,208,0.72)", textAlign: "center" },
 });

@@ -128,7 +128,8 @@ function AppStack() {
         <Stack.Screen name="settings/interests" options={{ headerShown: false }} />
         <Stack.Screen name="settings/suggest" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/pass-buy" options={{ headerShown: false }} />
+        {/* Köpsidan (paywall) glider upp underifrån, över hela skärmen */}
+        <Stack.Screen name="settings/pass-buy" options={{ headerShown: false, presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="settings/pass-gift" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass-manage" options={{ headerShown: false }} />
         <Stack.Screen name="settings/redeem" options={{ headerShown: false }} />

@@ -18,6 +18,7 @@ import { AUTH_GUTTER, AuthButton, FieldNote, GoldButton, TextButton } from "@/co
 import { MemberCard } from "@/components/MemberCard";
 import { StepLayout } from "./StepLayout";
 import { withAlpha } from "@/theme/categories";
+import { roundedCount } from "@/lib/roundedCount";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -62,13 +63,6 @@ export function LocationStep({ busy, onAllow, onLater }: { busy: boolean; onAllo
 }
 
 // ── Välkommen ────────────────────────────────────────────────────────────────
-
-/** Siffrorna under välkomsten: avrundade nedåt, så de alltid stämmer ("312" → "300+") */
-export function roundedCount(n: number): { value: number; plus: boolean } {
-  if (n >= 100) return { value: Math.floor(n / 50) * 50, plus: true };
-  if (n >= 20) return { value: Math.floor(n / 10) * 10, plus: true };
-  return { value: n, plus: false };
-}
 
 /**
  * Välkomsten byggs i förväg, osynlig, några steg innan — kortet, fotot och texten finns alltså redan

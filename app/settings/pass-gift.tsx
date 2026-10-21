@@ -1,7 +1,7 @@
 /**
- * Inställningar › Ge bort ett pass (spec: Lovables GiftPassSheet). Köparen väljer
- * period och leveranssätt, fyller i mottagare och betalar; databasen skapar en kod
- * som mottagaren löser in under Lös in kod.
+ * Ge bort ett pass: gåvans uppgifter. Passet väljs på köpsidan (Ge bort) och kommer hit som
+ * `period`; utan det väljer man period här. Köparen väljer leveranssätt, fyller i mottagare och
+ * betalar; servern skapar en kod som mottagaren löser in under Lös in kod.
  *
  * Betalningen är inte inkopplad än, så köpknappen säger att den öppnar vid
  * lansering och ingen present skapas utan betalning. När betalningen finns tillkommer
@@ -9,6 +9,7 @@
  * (kräver paket i nästa EAS-bygge). Tills dess skrivs startdatumet som dag/månad/år.
  */
 import { useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Gift, Send, Printer, User, Mail, Calendar, MessageSquareText } from "lucide-react-native";
@@ -41,9 +42,12 @@ export default function GiftPassScreen() {
   const s = useThemedStyles(createStyles);
   const periodLabel = usePeriodLabel();
   const { data: products = [] } = usePassProducts();
+  // Valt på köpsidan: då visas inte valet av period igen
+  const params = useLocalSearchParams<{ period?: string }>();
+  const chosenOnPaywall = !!params.period;
 
   const today = new Date();
-  const [periodId, setPeriodId] = useState(DEFAULT_PRODUCT);
+  const [periodId, setPeriodId] = useState(params.period ?? DEFAULT_PRODUCT);
   const [delivery, setDelivery] = useState<Delivery>("email");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -76,6 +80,7 @@ export default function GiftPassScreen() {
         <Text style={s.subtitle}>{t("pass.gift.subtitle")}</Text>
       </View>
 
+      {!chosenOnPaywall && (
       <View>
         <Text style={s.groupLabel}>{t("pass.gift.period")}</Text>
         <View style={s.grid}>
@@ -90,6 +95,7 @@ export default function GiftPassScreen() {
           })}
         </View>
       </View>
+      )}
 
       <View>
         <Text style={s.groupLabel}>{t("pass.gift.delivery")}</Text>
