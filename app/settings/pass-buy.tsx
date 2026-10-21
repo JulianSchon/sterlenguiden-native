@@ -348,7 +348,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   switchText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.muted },
   switchTextOn: { color: c.text },
 
-  perks: { gap: 12, alignSelf: "center", maxWidth: 340 },
+  perks: { gap: 12, alignSelf: "center", width: "100%", maxWidth: 340 },
   perk: { flexDirection: "row", alignItems: "center", gap: 12 },
   perkCheck: { width: 22, height: 22, borderRadius: 11, backgroundColor: c.gold, alignItems: "center", justifyContent: "center" },
   perkText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 15, lineHeight: 21, color: c.text },
