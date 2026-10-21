@@ -28,6 +28,7 @@ import { Caveat_600SemiBold, Caveat_700Bold } from "@expo-google-fonts/caveat";
 import { supabase } from "@/integrations/supabase/client";
 import { loadSavedLanguage } from "@/i18n";
 import { forgetGoogleAccount } from "@/lib/socialAuth";
+import { tabsEnterFromBelow } from "@/lib/tabsEntrance";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 export default function RootLayout() {
@@ -111,7 +112,8 @@ function AppStack() {
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* Efter onboardingen glider Hem upp underifrån (lib/tabsEntrance) */}
+        <Stack.Screen name="(tabs)" options={() => ({ headerShown: false, animation: tabsEnterFromBelow() ? "slide_from_bottom" : "default" })} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="category/[categoryId]" options={{ headerShown: false }} />
         <Stack.Screen name="place/[id]" options={{ headerShown: false }} />

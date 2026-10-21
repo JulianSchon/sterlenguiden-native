@@ -77,9 +77,11 @@ export function roundedCount(n: number): { value: number; plus: boolean } {
  * texten, siffrorna en i taget och sist knappen.
  */
 export function WelcomeStep({
-  visible, firstName, displayName, saved, saving, failed, stats, onStart,
+  visible, leaving, firstName, displayName, saved, saving, failed, stats, onStart,
 }: {
   visible: boolean;
+  /** Man har tryckt på Börja utforska: sidan glider undan uppåt medan Hem kommer underifrån */
+  leaving: boolean;
   firstName: string;
   displayName: string;
   /** Sparandet är klart (lyckat eller inte) */
@@ -146,7 +148,14 @@ export function WelcomeStep({
     return () => clearTimeout(timer);
   }, [shownAt, saved, reduced, card, text, footer]);
 
-  const pageStyle = useAnimatedStyle(() => ({ opacity: page.value }));
+  const away = useSharedValue(0);
+  useEffect(() => {
+    if (leaving) away.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
+  }, [leaving, away]);
+  const pageStyle = useAnimatedStyle(() => ({
+    opacity: page.value * (1 - away.value * 0.5),
+    transform: [{ translateY: -away.value * height * 0.22 }, { scale: 1 - away.value * 0.04 }],
+  }));
   const cardStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, card.value * 2),
     transform: [{ translateY: (1 - card.value) * 90 }, { scale: 0.94 + card.value * 0.06 }],

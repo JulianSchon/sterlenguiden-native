@@ -41,6 +41,7 @@ import {
   suggestUsername, usernameBase, type OnboardingDraft,
 } from "@/lib/onboarding";
 import { nearestOsterlenTown } from "@/lib/osterlenTowns";
+import { enterTabsFromBelow } from "@/lib/tabsEntrance";
 import { dayKey, lastDay } from "@/lib/events";
 import type { CategoryId } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -431,8 +432,13 @@ export default function SignupScreen() {
     if (step === "welcome" && saving === "idle") finish();
   }, [step, saving, finish]);
   useEffect(() => {
-    if (startPressed && saving === "done") router.replace("/(tabs)");
+    if (!startPressed || saving !== "done") return;
+    // Hem glider upp underifrån medan välkomsten glider undan uppåt — som att låsa upp telefonen
+    enterTabsFromBelow();
+    setLeaving(true);
+    router.replace("/(tabs)");
   }, [startPressed, saving]);
+  const [leaving, setLeaving] = useState(false);
   const start = useCallback(() => {
     if (saving === "failed") {
       finish();
@@ -543,6 +549,7 @@ export default function SignupScreen() {
       {welcomeMounted ? (
         <WelcomeStep
           visible={step === "welcome"}
+          leaving={leaving}
           firstName={draft.firstName}
           displayName={`${draft.firstName.trim()} ${draft.lastName.trim()}`.trim()}
           saved={saving === "done" || saving === "failed"}
