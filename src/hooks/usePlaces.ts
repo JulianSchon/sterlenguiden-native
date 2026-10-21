@@ -6,6 +6,8 @@ import { isOpenNow } from "@/lib/openingHours";
 export type Place = Tables<"places"> & {
   category: string | null;
   business_tier?: string;
+  /** När platsens fasta info (öppettider, länkar, beskrivning …) senast ändrades — migration 042 */
+  info_updated_at?: string | null;
 };
 
 /**

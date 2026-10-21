@@ -29,6 +29,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
+import { sv } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
 import { Bus, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone } from "lucide-react-native";
 import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
@@ -471,6 +473,11 @@ const PlaceContent = memo(function PlaceContent({
           Stämmer något inte? <Text style={{ color: colors.goldText }}>Tipsa oss</Text>
         </Text>
       </TouchableOpacity>
+      {place.info_updated_at && (
+        <Text style={[s.updated, { color: colors.faint }]}>
+          Senast uppdaterad {format(parseISO(place.info_updated_at), "d MMMM yyyy", { locale: sv })}
+        </Text>
+      )}
     </View>
   );
 });
@@ -643,6 +650,7 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   reportText: { fontFamily: "Inter_500Medium", fontSize: 14 },
+  updated: { fontFamily: "Inter_400Regular", fontSize: 12, textAlign: "center", marginTop: 2 },
 
   skeletonBar: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 12 },
 

@@ -6,6 +6,7 @@
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { useRouter } from "expo-router";
 import { useFriendsAtPlace } from "@/hooks/useFriendsAtPlace";
+import { pushOnce } from "@/lib/navigateOnce";
 import { SaveToListSheet } from "@/components/lists/SaveToListSheet";
 import { PhotoViewer } from "./PhotoViewer";
 import { FriendsSheet } from "./PlaceSocial";
@@ -46,10 +47,14 @@ export const PlaceSheets = forwardRef<PlaceSheetsHandle, { placeId: number }>(fu
     setOpen(null);
     router.push({ pathname: "/friend/[id]", params: { id: userId } });
   }, [router]);
+  const openList = useCallback((listId: string) => {
+    setOpen(null);
+    pushOnce(router, `/lists/${listId}`);
+  }, [router]);
 
   return (
     <>
-      <SaveToListSheet visible={open === "save"} onClose={close} placeId={placeId} />
+      <SaveToListSheet visible={open === "save"} onClose={close} placeId={placeId} onOpenList={openList} />
       <FriendsSheet visible={open === "friends"} friends={friends} onClose={close} onOpenFriend={openFriend} />
       <ReportSheet key={reportKey} visible={open === "report"} placeId={placeId} onClose={close} />
     </>
