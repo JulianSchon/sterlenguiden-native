@@ -3,7 +3,7 @@
  * apparna):
  *
  * - För dig: EN lista rankad för just den här användaren (src/lib/events.ts), med ett skäl per
- *   event ("Hos en av dina favoritplatser", "Eftersom du gillar mat & dryck" …). Överst det bästa valet
+ *   event ("Hos en av dina favoritplatser", "Eftersom du gillar Mat & Dryck" …). Överst det bästa valet
  *   som ett stort kort, resten som rader. Fungerar lika bra med tre event som med trettio.
  * - Alla: månadskalendern där varje dag med ett event är en rund bild (MonthCalendar). Under den
  *   månadens event; trycker man på en dag visas bara den dagens, trycker man på eventet (eller

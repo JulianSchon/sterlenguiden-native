@@ -47,6 +47,7 @@ import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers
 import { Rise } from "@/components/Rise";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { StoryRow } from "@/components/home/StoryRow";
+import { StickyGreeting } from "@/components/home/StickyGreeting";
 import {
   FEED_GUTTER, FeedDiscover, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedPlaceCard,
   FeedShortcuts, FeedSkeleton, FeedTreasureCard, OpenNowRail, WeekendRail,
@@ -285,7 +286,13 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   useEffect(() => {
     registerScrollCallback("home", () => listRef.current?.scrollToOffset({ offset: 0, animated: true }));
   }, []);
-  const onScroll = useAnimatedScrollHandler({ onScroll: () => { scrollAt.value = Date.now(); } });
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+      scrollAt.value = Date.now();
+    },
+  });
 
   const openOfferId = openOffer?.origin ? openOffer.offer.id : null;
   const renderItem = useCallback(({ item, index }: { item: FeedItem; index: number }) => {
@@ -375,6 +382,8 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
         maxToRenderPerBatch={4}
         windowSize={9}
       />
+      {/* Hälsningen och profilbilden följer med ner (gömmer sig medan man scrollar nedåt) */}
+      <StickyGreeting scrollY={scrollY} showAfter={insets.top + 90} />
       {appSettled && hasOffers && (
         <OfferDrawer
           visible={openOffer != null}

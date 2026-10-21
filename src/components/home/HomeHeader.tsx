@@ -30,7 +30,7 @@ const OSTERLEN_KM = 60;
 const NO_PLACES: Place[] = [];
 
 /** Tidsberoende hälsning */
-function greeting(now = new Date()): string {
+export function greeting(now = new Date()): string {
   const h = now.getHours();
   if (h >= 5 && h < 12) return "God morgon";
   if (h >= 12 && h < 15) return "God dag";
@@ -43,7 +43,6 @@ export const HomeHeader = memo(function HomeHeader({ location }: { location: { l
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { data: profile } = useProfile();
-  const avatarUrl = useAvatarUrl();
   const firstName = profile?.display_name?.trim().split(/\s+/)[0] ?? null;
   const today = formatDate(new Date(), "EEEE d MMMM").toUpperCase();
 
@@ -61,23 +60,31 @@ export const HomeHeader = memo(function HomeHeader({ location }: { location: { l
           <View style={s.streakOverlap}>
             <StreakPill />
           </View>
-          <AvatarRing ring={profile?.avatar_ring} size={AVATAR}>
-            <View style={[s.avatar, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-              ) : (
-                <Text style={[s.initials, { color: toneOnTone(profile?.circle_color ?? "#2A2A2A") }]}>
-                  {initialsOf(profile?.display_name ?? "") || "?"}
-                </Text>
-              )}
-            </View>
-          </AvatarRing>
+          <HomeAvatar size={AVATAR} />
         </TouchableOpacity>
       </View>
       <WeatherLine location={location} />
     </View>
   );
 });
+
+/** Profilbilden (med vald ring), initialer om bild saknas */
+export function HomeAvatar({ size }: { size: number }) {
+  const { data: profile } = useProfile();
+  const avatarUrl = useAvatarUrl();
+  const color = profile?.circle_color ?? "#2A2A2A";
+  return (
+    <AvatarRing ring={profile?.avatar_ring} size={size}>
+      <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: color }]}>
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : (
+          <Text style={[s.initials, { fontSize: size * 0.36, color: toneOnTone(color) }]}>{initialsOf(profile?.display_name ?? "") || "?"}</Text>
+        )}
+      </View>
+    </AvatarRing>
+  );
+}
 
 /** "☀ 12° och halvklart i Simrishamn" (blåser det: "12°, halvklart och blåsigt i …") */
 function WeatherLine({ location }: { location: { lat: number; lng: number } | null }) {
@@ -141,10 +148,8 @@ const s = StyleSheet.create({
   // Pillens högra kant ligger ovanpå profilbildens vänstra kant, nere vid bildens nederkant
   streakOverlap: { marginRight: -14, marginBottom: -4, zIndex: 2 },
   // Ingen egen kant — en ring runt profilbilden finns bara om man valt en i Utseende (AvatarRing)
-  avatar: {
-    width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, alignItems: "center", justifyContent: "center", overflow: "hidden",
-  },
-  initials: { fontSize: 19, fontFamily: "Montserrat_700Bold" },
+  avatar: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  initials: { fontFamily: "Montserrat_700Bold" },
   weather: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10, minHeight: 20 },
   weatherText: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 14.5 },
 });

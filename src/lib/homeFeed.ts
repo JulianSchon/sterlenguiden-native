@@ -171,7 +171,7 @@ export function buildFeed(input: FeedInput): FeedItem[] {
   const openIds = new Set(openRail ? openNear.map((x) => x.place.id) : []);
 
   // ── Platser att inspireras av: ej favoriter eller besökta, med bild ──
-  const catLabel = (id: CategoryId) => CATEGORIES.find((c) => c.id === id)?.label.toLowerCase() ?? "";
+  const catLabel = (id: CategoryId) => CATEGORIES.find((c) => c.id === id)?.label ?? "";
   const inspiration = places
     .filter((p) => p.image_url && !input.favoritePlaceIds.has(p.id) && !input.visitedPlaceIds.has(p.id)
       && !friendPlaceIds.has(p.id) && !openIds.has(p.id))
