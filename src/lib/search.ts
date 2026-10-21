@@ -94,7 +94,7 @@ SINGLE.helgen = { kind: "when", value: "weekend" };
   "efter", "under", "mellan", "mest", "basta", "bast", "gott", "god", "goda", "the", "where", "eat",
   "eller", "samt", "plus", "bade", "antingen", "ocksa", "aven", "kanske", "garna", "helst", "typ", "vid", "kring",
   "runt", "omkring", "dar", "hit", "dit", "stalle", "stallen", "platser", "hitta", "hittar", "leta", "letar",
-  "soka", "soker", "rekommendera", "rekommenderar", "forslag", "nagonting", "ngt",
+  "soka", "soker", "rekommendera", "rekommenderar", "forslag", "nagonting", "ngt", "sugen", "sugna", "suget", "gillar", "alskar",
 ].forEach((w) => { SINGLE[w] ??= { kind: "filler" }; });
 
 /** Två ord som hör ihop ("öppet sent", "nära mig", "i morgon") */
@@ -107,6 +107,73 @@ const PAIRS: Record<string, Meaning> = {
   "i helgen": { kind: "when", value: "weekend" },
   "pa gang": { kind: "events" },
 };
+
+// ── Smaker och rätter ────────────────────────────────────────────────────────
+
+/**
+ * Det man är sugen på, när det inte är en kategori: "torsk" och "räkor" är fisk & skaldjur,
+ * "köttbullar" och "dagens" är husmanskost. Appen har inga menyer, så en plats räknas om dess namn,
+ * kategori eller beskrivning nämner något av orden (terms). Ett ord med * räknas som början på ett
+ * ord ("fisk*" = fisk, fisken, fiskrökeri); utan * måste hela ordet stämma ("ost" ≠ "Österlen").
+ * category = vilken kategori smaken hör till (läggs till om man inte sagt någon).
+ */
+interface Taste { label: string; triggers: string[]; terms: string[]; category?: CategoryId }
+
+export const TASTES: Record<string, Taste> = {
+  fish: {
+    label: "Fisk & skaldjur", category: "mat-dryck",
+    triggers: ["fisk", "fisken", "fiskar", "fiskratt", "fiskratter", "fiskrestaurang", "skaldjur", "seafood", "fish",
+      "torsk", "torsken", "lax", "laxen", "sill", "sillen", "stromming", "sjotunga", "kolja", "sej", "gos", "abborre",
+      "rodspotta", "makrill", "al", "rakor", "rakmacka", "raksmorgas", "kraftor", "hummer", "musslor", "ostron", "krabba",
+      "fiskrokeri", "rokeri", "rokt", "rokta"],
+    terms: ["fisk*", "skaldjur*", "torsk*", "lax", "laxen", "sill*", "stromming*", "sjotunga", "kolja", "rodspotta", "makrill*",
+      "rakor", "raksmorgas*", "rakmacka*", "kraft*", "hummer*", "mussl*", "ostron*", "krabb*", "rokeri*", "rokt", "rokta", "seafood"],
+  },
+  homestyle: {
+    label: "Husmanskost", category: "mat-dryck",
+    triggers: ["husmanskost", "husman", "husmans", "kottbullar", "pyttipanna", "pytt", "dagens", "dagenslunch", "schnitzel",
+      "stekt", "flask", "kalops", "svensk", "svenskt", "traditionell", "traditionellt", "hemlagat", "hemlagad"],
+    terms: ["husman*", "dagens", "kottbull*", "pytt*", "schnitzel*", "kalops", "flask*", "traditionell*", "klassisk*",
+      "hemlagad*", "hemlagat", "vardshus*", "gastgiveri*", "kro", "krog*", "svensk", "svenska", "skansk*"],
+  },
+  pizza: { label: "Pizza", category: "mat-dryck", triggers: ["pizza", "pizzor", "pizzeria", "pizzan"], terms: ["pizz*"] },
+  burger: { label: "Hamburgare", category: "mat-dryck", triggers: ["burgare", "hamburgare", "burger", "burgers", "burgaren"], terms: ["burg*", "hamburg*"] },
+  asian: {
+    label: "Asiatiskt", category: "mat-dryck",
+    triggers: ["sushi", "asiatiskt", "asiatisk", "thai", "thaimat", "wok", "ramen", "kinesiskt", "indiskt", "curry"],
+    terms: ["sushi*", "asiat*", "thai*", "wok*", "ramen", "kines*", "indisk*", "curry*"],
+  },
+  meat: {
+    label: "Kött & grill", category: "mat-dryck",
+    triggers: ["kott", "biff", "entrecote", "grill", "grillat", "bbq", "steak", "oxfile", "lamm", "vilt"],
+    terms: ["kott*", "biff*", "entrecote*", "grill*", "bbq", "oxfile*", "lamm*", "vilt*", "steak*"],
+  },
+  sweets: {
+    label: "Bakverk", category: "cafe-bageri",
+    triggers: ["bakverk", "bakelse", "bakelser", "tarta", "tartor", "semla", "semlor", "kaka", "kakor", "surdeg", "brod"],
+    terms: ["bakverk*", "bakelse*", "tart*", "seml*", "kak*", "surdeg*", "brod*", "bageri*", "konditori*"],
+  },
+  icecream: { label: "Glass", triggers: ["glass", "glassen", "glassbar", "softglass", "gelato"], terms: ["glass*", "gelato*"] },
+  wine: { label: "Vin", triggers: ["vin", "vinet", "vinprovning", "vingard", "vingardar", "vinbar"], terms: ["vin", "vinet", "viner", "vingard*", "vinprov*", "vinbar*", "vinodl*"] },
+  beer: { label: "Öl", triggers: ["ol", "olen", "bryggeri", "olprovning", "mikrobryggeri"], terms: ["ol", "olen", "bryggeri*", "olprov*", "mikrobryggeri*"] },
+  cheese: { label: "Ost", triggers: ["ost", "ostar", "osten", "gardsost", "mejeri"], terms: ["ost", "ostar", "osten", "osteri*", "mejeri*", "gardsost*"] },
+  apples: { label: "Äpplen & must", triggers: ["apple", "applen", "musteri", "must", "cider", "appelmust"], terms: ["apple*", "musteri*", "must", "cider*", "appelmust*", "apelmust*"] },
+  chocolate: { label: "Choklad", triggers: ["choklad", "praliner", "pralin"], terms: ["choklad*", "pralin*"] },
+};
+const TASTE_OF: Record<string, string> = {};
+for (const [key, taste] of Object.entries(TASTES)) taste.triggers.forEach((w) => { TASTE_OF[w] ??= key; });
+
+/** Hur många av smakens ord platsen nämner (0 = inga) */
+function tasteMatches(words: Set<string>, prefixes: string[], key: string): number {
+  let n = 0;
+  for (const term of TASTES[key].terms) {
+    if (term.endsWith("*")) {
+      const stem = term.slice(0, -1);
+      if (prefixes.some((w) => w.startsWith(stem))) n++;
+    } else if (words.has(term)) n++;
+  }
+  return n;
+}
 
 // ── Platserna förberedda för sökning ─────────────────────────────────────────
 
@@ -121,6 +188,9 @@ export interface IndexedPlace {
   text: string;
   amenities: Record<string, boolean>;
   tier: number;
+  /** Alla ord i namn, kategori och beskrivning (för smakerna) */
+  allWords: Set<string>;
+  allWordList: string[];
 }
 
 const TIER: Record<string, number> = { premium: 2, partner: 1 };
@@ -149,6 +219,10 @@ export function buildIndex(places: Place[]): IndexedPlace[] {
       text: norm(`${place.short_description ?? ""} ${place.description ?? ""}`).slice(0, 1200),
       amenities: parseAmenities((place as Place & { amenities?: unknown }).amenities),
       tier: TIER[place.business_tier ?? ""] ?? 0,
+      ...(() => {
+        const list = [...new Set(words(`${name} ${norm(`${place.category ?? ""} ${sub}`)} ${norm(`${place.short_description ?? ""} ${place.description ?? ""}`)}`))];
+        return { allWords: new Set(list), allWordList: list };
+      })(),
     };
   });
 }
@@ -184,7 +258,8 @@ export type Intent =
   | { kind: "town"; value: Town; tokens: number[] }
   | { kind: "events"; tokens: number[] }
   | { kind: "when"; value: When; tokens: number[] }
-  | ({ kind: "at"; tokens: number[] } & At);
+  | ({ kind: "at"; tokens: number[] } & At)
+  | { kind: "taste"; value: string; tokens: number[] };
 
 /**
  * En dag och/eller tid man frågar efter ("på måndag", "kl 19", "i kväll"): platserna ska ha öppet då.
@@ -340,6 +415,16 @@ export function parseQuery(query: string, towns: Town[]): Parsed {
   const at = parseAt(tokens, gaps, used);
   tokens.forEach((t, i) => {
     if (used.has(i)) return;
+    const key = TASTE_OF[t];
+    if (!key) return;
+    used.add(i);
+    intents.push({ kind: "taste", value: key, tokens: [i] });
+    // Smaken säger vad man vill göra (fisk → äta), om man inte sagt det själv
+    const cat = TASTES[key].category;
+    if (cat && !tokens.some((w) => SINGLE[w]?.kind === "category")) intents.push({ kind: "category", value: cat, tokens: [] });
+  });
+  tokens.forEach((t, i) => {
+    if (used.has(i)) return;
     const m = SINGLE[t];
     if (m) { add(m, [i]); return; }
     // En felstavad ort ("kivk") — bara för ord som inte är något annat. Den närmaste stavningen
@@ -458,6 +543,7 @@ export function withoutIntent(parsed: Parsed, drop: Intent): string {
   if (when?.kind === "when") out.push(WHEN_WORDS[when.value]);
   const at = keep.find((x) => x.kind === "at");
   if (at?.kind === "at") out.push(atPhrase(at));
+  keep.forEach((x) => { if (x.kind === "taste") out.push(TASTES[x.value].label.toLowerCase()); });
   const townNames = keep.flatMap((x) => (x.kind === "town" ? [x.value.name] : []));
   // Bara orten kvar: bara namnet ("Kivik"), annars "äta i Kivik"
   if (townNames.length > 0) out.push(`${out.length > 0 ? "i " : ""}${townNames.join(` ${parsed.conj} `)}`);
@@ -545,13 +631,18 @@ export function searchPlaces(
   const cats = parsed.intents.flatMap((x) => (x.kind === "category" ? [x.value] : []));
   // Flera orter: en plats i någon av dem räcker ("Simrishamn eller Kivik")
   const townIntents = parsed.intents.flatMap((x) => (x.kind === "town" ? [x] : []));
-  const strict = parsed.intents.filter((x) => x.kind === "practical" || x.kind === "open" || x.kind === "late" || x.kind === "at");
+  const strict = parsed.intents.filter((x) => x.kind === "practical" || x.kind === "taste" || x.kind === "open" || x.kind === "late" || x.kind === "at");
   const atIntent = parsed.intents.find((x) => x.kind === "at");
   const target = atIntent?.kind === "at" ? atDate(atIntent, now) : null;
   /** Det platsen säger om tiden man frågar efter (nu, eller dagen och tiden i frågan) */
   const statusAt = (place: Place): OpenInfo | null => {
     if (!target || !atIntent || atIntent.kind !== "at") return openInfo(place, now);
-    if (atIntent.minutes !== null) return openInfo(place, target);
+    if (atIntent.minutes !== null) {
+      // Dagen står med, så det inte går att missa vilken dag svaret gäller ("Öppet till 21 på måndag")
+      const info = openInfo(place, target);
+      const day = atIntent.weekday !== null ? `på ${WEEKDAY_WORDS[atIntent.weekday]}` : atIntent.rel === 1 ? "i morgon" : "";
+      return info && day ? { ...info, label: `${info.label} ${day}` } : info;
+    }
     // Bara en dag: dagens öppettider ("Måndag 11–22")
     const day = parseDay(hoursOf(place)?.[DAY_NAMES[target.getDay()]]);
     if (day === "closed") return { open: false, label: `Stängt ${WEEKDAY_WORDS[target.getDay()]}` };
@@ -562,7 +653,7 @@ export function searchPlaces(
   // Orden bakom kategorin och orten: en plats som HETER så räknas också (sök "örum" hittar
   // Örums Nygård även om Örum också är en ort, "fika" hittar ett ställe som heter Fika …)
   const nameHas = (p: IndexedPlace, tokens: number[]) =>
-    tokens.every((i) => p.nameWords.some((w) => w.startsWith(parsed.tokens[i])));
+    tokens.length > 0 && tokens.every((i) => p.nameWords.some((w) => w.startsWith(parsed.tokens[i])));
   const catTokens = parsed.intents.flatMap((x) => (x.kind === "category" ? x.tokens : []));
 
   const understood = parsed.intents.some((x) => x.kind !== "events" && x.kind !== "when");
@@ -592,6 +683,10 @@ export function searchPlaces(
           if (!openLate(p.place, target ?? now)) { ok = false; break; }
         } else if (r.kind === "at") {
           if (!statusAt(p.place)?.open) { ok = false; break; }
+        } else if (r.kind === "taste") {
+          const n = tasteMatches(p.allWords, p.allWordList, r.value);
+          if (n === 0) { ok = false; break; }
+          bonus += n * 10;
         }
       }
       if (!ok) continue;
@@ -637,8 +732,8 @@ export function searchPlaces(
   const relaxed: Intent[] = [];
   // Inget med allt man bad om: släpp först egenskaperna (som många inte angett), sen öppettiden
   if (hits.length === 0 && strict.length > 0) {
-    const practical = strict.filter((x) => x.kind === "practical");
-    const rest = strict.filter((x) => x.kind !== "practical");
+    const practical = strict.filter((x) => x.kind === "practical" || x.kind === "taste");
+    const rest = strict.filter((x) => x.kind !== "practical" && x.kind !== "taste");
     const soft = practical.flatMap((x) => (x.kind === "practical" ? [x.value] : []));
     if (practical.length > 0) {
       hits = run(rest, soft);
