@@ -79,7 +79,24 @@ export type ReasonKind =
   | "today" | "ongoing" | "tomorrow" | "weekend" | "soon" | "later";
 
 export interface Reason { kind: ReasonKind; text: string }
-export interface EventPick { event: Event; reason: Reason; score: number }
+export interface EventPick {
+  event: Event;
+  reason: Reason;
+  /** Näst bästa skälet, utan "Du har sparat det" — visas om man tar bort hjärtat (se liveReason) */
+  alt: Reason;
+  score: number;
+}
+
+const SAVED_REASON: Reason = { kind: "saved", text: "Du har sparat det" };
+
+/**
+ * Skälet som visas just nu, efter hjärtat: sparar man eventet står det "Du har sparat det", tar man
+ * bort det byts texten direkt till nästa bästa skäl (inte först när sidan laddas om).
+ */
+export function liveReason(pick: EventPick, saved: boolean): Reason {
+  if (saved) return pick.reason.kind === "saved" ? pick.reason : SAVED_REASON;
+  return pick.reason.kind === "saved" ? pick.alt : pick.reason;
+}
 
 /** Skäl som handlar om personen (inte bara om när) — de visas hellre än "I morgon" */
 const PERSONAL: ReasonKind[] = ["saved", "favoritePlace", "visitedPlace", "category", "nearby", "discover"];
@@ -111,7 +128,7 @@ export function recommendEvents({
     const place = event.place_id != null ? placeById.get(event.place_id) : undefined;
     const reasons: { kind: ReasonKind; text: string; weight: number }[] = [];
 
-    if (savedEventIds.has(event.id)) reasons.push({ kind: "saved", text: "Du har sparat det", weight: 60 });
+    if (savedEventIds.has(event.id)) reasons.push({ ...SAVED_REASON, weight: 60 });
     if (place && favoritePlaceIds.has(place.id)) {
       reasons.push({ kind: "favoritePlace", text: "Hos en av dina favoritplatser", weight: 50 });
     } else if (place && visitedPlaceIds.has(place.id)) {
@@ -145,9 +162,12 @@ export function recommendEvents({
     else reasons.push({ kind: "later", text: "Snart på Österlen", weight: 0 });
 
     const score = reasons.reduce((sum, r) => sum + r.weight, 0) + (event.is_featured ? 6 : 0) - daysAway * 0.4;
-    const personal = reasons.filter((r) => PERSONAL.includes(r.kind)).sort((a, b) => b.weight - a.weight)[0];
-    const top = personal ?? [...reasons].sort((a, b) => b.weight - a.weight)[0];
-    picks.push({ event, score, reason: { kind: top.kind, text: top.text } });
+    const strongest = (list: typeof reasons) =>
+      list.filter((r) => PERSONAL.includes(r.kind)).sort((a, b) => b.weight - a.weight)[0]
+      ?? [...list].sort((a, b) => b.weight - a.weight)[0];
+    const top = strongest(reasons);
+    const alt = strongest(reasons.filter((r) => r.kind !== "saved"));
+    picks.push({ event, score, reason: { kind: top.kind, text: top.text }, alt: { kind: alt.kind, text: alt.text } });
   }
   return picks.sort((a, b) => b.score - a.score);
 }

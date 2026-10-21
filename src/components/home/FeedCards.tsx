@@ -19,7 +19,7 @@ import type { FriendVisit } from "@/hooks/useFriendVisits";
 import type { Collectible } from "@/hooks/useCollectibles";
 import { useTheme } from "@/theme/ThemeProvider";
 import { findCategory } from "@/theme/categories";
-import { dayKey, eventWhen, type EventPick } from "@/lib/events";
+import { dayKey, eventWhen, liveReason, type EventPick } from "@/lib/events";
 import { distanceLabel } from "@/lib/mapFilters";
 import { openInfo } from "@/lib/search";
 import type { Offer } from "@/lib/offers";
@@ -91,15 +91,17 @@ export const FeedEventCard = memo(function FeedEventCard({ pick, hero, saved, on
   const liveColor = useLiveColor();
   const e = pick.event;
   const today = dayKey(new Date());
-  const live = hero || pick.reason.kind === "today" || pick.reason.kind === "ongoing";
+  // Skälet följer hjärtat direkt ("Du har sparat det" ↔ nästa bästa skäl)
+  const reason = liveReason(pick, saved);
+  const live = hero || reason.kind === "today" || reason.kind === "ongoing";
   const liveText = e.date && e.date < today ? "Pågår nu" : "I dag";
-  const personal = pick.reason.kind === "saved" || pick.reason.kind === "favoritePlace";
+  const personal = reason.kind === "saved" || reason.kind === "favoritePlace";
   const where = e.location ?? e.place?.name ?? null;
   return (
     <View style={s.card}>
       {live
-        ? <Eyebrow live text={hero ? liveText : pick.reason.text} color={liveColor} />
-        : <Eyebrow Icon={personal ? Heart : CalendarDays} filled={personal} text={pick.reason.text} color={personal ? colors.danger : colors.goldText} />}
+        ? <Eyebrow live text={hero ? liveText : reason.text} color={liveColor} />
+        : <Eyebrow Icon={personal ? Heart : CalendarDays} filled={personal} text={reason.text} color={personal ? colors.danger : colors.goldText} />}
       <Pressable onPress={() => onOpen(e)} style={[s.image, { aspectRatio: hero ? 1.05 : 1.35, backgroundColor: colors.fill }]}>
         {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
         <DateBox event={e} style={s.dateBox} />

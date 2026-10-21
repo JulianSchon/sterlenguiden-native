@@ -62,6 +62,7 @@ const OPTIONAL_WAIT_MS = 1500;
 const STALE_MS = 30 * 60 * 1000;
 /** En ny blandning av platserna */
 const newSeed = () => Math.floor(Math.random() * 1_000_000_000);
+const MIN_REFRESH_MS = 800;
 const NO_PLACES: Place[] = [];
 const NO_ITEMS: FeedItem[] = [];
 
@@ -212,10 +213,13 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
     setShown(FIRST_PAGE);
     setVersion((v) => v + 1);
   }, [queryClient]);
+  // Snurran syns minst en kort stund, så man ser att det laddades om även när det går fort
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    const started = Date.now();
     await rebuild();
+    await new Promise((r) => setTimeout(r, Math.max(0, MIN_REFRESH_MS - (Date.now() - started))));
     setRefreshing(false);
   }, [rebuild]);
   // Tillbaka efter en halvtimme eller mer: ett nytt flöde, uppifrån
@@ -389,6 +393,8 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
 
   return (
     <>
+      {/* Listan börjar under statusraden: där syns dra-ner-snurran (bakom klockan och kameran syntes den inte) */}
+      <View style={{ flex: 1, paddingTop: insets.top }}>
       <Reanimated.FlatList
         ref={listRef as never}
         data={items}
@@ -401,13 +407,14 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
         showsVerticalScrollIndicator={false}
         // Luft nog för att "Visa mer" hamnar ovanför navigeringens toning
         contentContainerStyle={{ paddingBottom: FLOATING_NAV_HEIGHT + insets.bottom + 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.muted} colors={[colors.muted]} progressViewOffset={insets.top} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.muted} colors={[colors.muted]} />}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={9}
       />
+      </View>
       {/* Hälsningen och profilbilden följer med ner (gömmer sig medan man scrollar nedåt) */}
-      <StickyGreeting scrollY={scrollY} showAfter={insets.top + 90} />
+      <StickyGreeting scrollY={scrollY} showAfter={90} />
       {appSettled && hasOffers && (
         <OfferDrawer
           visible={openOffer != null}

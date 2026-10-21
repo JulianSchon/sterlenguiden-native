@@ -33,7 +33,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useKnownLocation } from "@/hooks/useUserLocation";
 import { registerScrollCallback } from "@/lib/scrollRefs";
 import {
-  EVENT_CATEGORIES, dayKey, eventDays, lastDay, likedCategories, recommendEvents, type EventPick,
+  EVENT_CATEGORIES, dayKey, eventDays, lastDay, likedCategories, liveReason, recommendEvents, type EventPick,
 } from "@/lib/events";
 import { openEvent } from "@/lib/eventSheet";
 import { EventHeroCard, EventRow } from "@/components/events/EventCards";
@@ -338,7 +338,7 @@ function ForYouView({
       <Reanimated.View entering={enterAt(1)} style={{ marginTop: 22 }}>
         <EventHeroCard
           event={hero.event}
-          reason={hero.reason}
+          reason={liveReason(hero, savedIds.has(hero.event.id))}
           saved={savedIds.has(hero.event.id)}
           onOpen={onOpen}
           onToggleSave={onToggleSave}
@@ -356,7 +356,7 @@ function ForYouView({
               <Reanimated.View key={p.event.id} entering={enterAt(i + 3)}>
                 <EventRow
                   event={p.event}
-                  reason={p.reason}
+                  reason={liveReason(p, savedIds.has(p.event.id))}
                   saved={savedIds.has(p.event.id)}
                   onOpen={onOpen}
                   onToggleSave={onToggleSave}

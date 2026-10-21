@@ -9,7 +9,6 @@
 import { memo, useMemo } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
@@ -40,14 +39,14 @@ export function greeting(now = new Date()): string {
 
 export const HomeHeader = memo(function HomeHeader({ location }: { location: { lat: number; lng: number } | null }) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { data: profile } = useProfile();
   const firstName = profile?.display_name?.trim().split(/\s+/)[0] ?? null;
   const today = formatDate(new Date(), "EEEE d MMMM").toUpperCase();
 
   return (
-    <View style={[s.wrap, { paddingTop: insets.top + 14 }]}>
+    // Listan på Hem börjar under statusraden (så dra-ner-snurran syns), så här räcker en vanlig marginal
+    <View style={[s.wrap, { paddingTop: 14 }]}>
       <View style={s.top}>
         <View style={{ flex: 1 }}>
           <Text style={[s.date, { color: colors.muted }]}>{today}</Text>
