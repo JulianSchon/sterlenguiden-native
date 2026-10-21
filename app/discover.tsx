@@ -24,7 +24,8 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { distanceMeters } from "@/lib/checkin";
 import { pushOnce } from "@/lib/navigateOnce";
 import { Skeleton } from "@/components/Skeleton";
-import { SwipeCard, imagesOf, type DeckState } from "@/components/discover/SwipeCard";
+import { NO, SwipeCard, YES, imagesOf, type DeckState } from "@/components/discover/SwipeCard";
+import Svg, { Defs, Ellipse, RadialGradient, Stop } from "react-native-svg";
 
 /** Så många kort ligger byggda åt gången (det överst och två under) */
 const WINDOW = 3;
@@ -71,8 +72,9 @@ export default function DiscoverScreen() {
   // Kortlekens gemensamma läge (samma objekt hela tiden, så korten inte ritas om när sidan gör det)
   const top = useSharedValue(0);
   const progress = useSharedValue(0);
+  const drag = useSharedValue(0);
   const fly = useSharedValue({ dir: 0, n: 0 });
-  const deck: DeckState = useMemo(() => ({ top, progress, fly }), [top, progress, fly]);
+  const deck: DeckState = useMemo(() => ({ top, progress, drag, fly }), [top, progress, drag, fly]);
 
   // Kortleken: bredden som korten räknar sina gränser med
   const [width, setWidth] = useState(0);
@@ -123,6 +125,9 @@ export default function DiscoverScreen() {
 
       <View style={s.deck} onLayout={(e) => setWidth(e.nativeEvent.layout.width - DECK_SIDE * 2)}>
         <View style={s.deckInner}>
+          {/* Ljuset bakom kortleken: grönt åt spara-hållet, rött åt skippa-hållet, starkare ju längre man drar */}
+          <DeckGlow drag={drag} color={YES} side={1} />
+          <DeckGlow drag={drag} color={NO} side={-1} />
           {!queue || width === 0 ? (
             <Skeleton radius={26} style={StyleSheet.absoluteFill} />
           ) : !current ? (
@@ -147,13 +152,32 @@ export default function DiscoverScreen() {
 
       <View style={[s.actions, { paddingBottom: insets.bottom + 18 }]}>
         <ActionButton label="Skippa" disabled={!current} onPress={() => throwTop(-1)}>
-          <X size={30} color={colors.text} strokeWidth={2.6} />
+          <X size={30} color={NO} strokeWidth={2.8} />
         </ActionButton>
         <ActionButton label="Spara" disabled={!current} onPress={() => throwTop(1)}>
-          <Heart size={28} color="#EF4444" fill="#EF4444" strokeWidth={2} />
+          <Heart size={28} color={YES} fill={YES} strokeWidth={2} />
         </ActionButton>
       </View>
     </View>
+  );
+}
+
+/** Ett mjukt ljus bakom kortleken som syns runt kortets kanter (ritat en gång, bara styrkan ändras) */
+function DeckGlow({ drag, color, side }: { drag: DeckState["drag"]; color: string; side: 1 | -1 }) {
+  const style = useAnimatedStyle(() => ({ opacity: Math.max(0, drag.value * side) }));
+  const id = side === 1 ? "glowYes" : "glowNo";
+  return (
+    <Reanimated.View style={[s.glow, style]} pointerEvents="none">
+      <Svg width="100%" height="100%">
+        <Defs>
+          <RadialGradient id={id} cx="50%" cy="50%" rx="50%" ry="50%">
+            <Stop offset="0.55" stopColor={color} stopOpacity={0.55} />
+            <Stop offset="1" stopColor={color} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Ellipse cx="50%" cy="50%" rx="50%" ry="50%" fill={`url(#${id})`} />
+      </Svg>
+    </Reanimated.View>
   );
 }
 
@@ -215,6 +239,8 @@ const s = StyleSheet.create({
 
   deck: { flex: 1, paddingHorizontal: DECK_SIDE, paddingTop: 6, paddingBottom: 18 },
   deckInner: { flex: 1 },
+  // Ljuset sticker ut runt kortet åt alla håll
+  glow: { position: "absolute", top: -40, bottom: -40, left: -60, right: -60 },
 
   actions: { flexDirection: "row", justifyContent: "center", gap: 36, paddingTop: 4 },
   // Hel bakgrund: skuggan räknas ut en gång

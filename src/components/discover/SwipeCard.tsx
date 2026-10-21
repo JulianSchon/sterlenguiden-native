@@ -36,6 +36,8 @@ export interface DeckState {
   top: SharedValue<number>;
   /** Hur långt kortet överst dragits, 0–1 — korten under växer fram i takt */
   progress: SharedValue<number>;
+  /** Åt vilket håll och hur långt kortet överst dragits, −1 (skippa) till 1 (spara) — ljuset bakom kortleken */
+  drag: SharedValue<number>;
   /** Knapparna: kasta kortet överst åt dir (1 = spara, −1 = skippa); n räknas upp vid varje tryck */
   fly: SharedValue<{ dir: number; n: number }>;
 }
@@ -50,7 +52,9 @@ const THRESHOLD = 0.3;
 const FLING = 800;
 const OPEN = "#4ADE80";
 const CLOSED = "#F87171";
-const LIKE = "#EF4444";
+/** Grönt = ja (spara), rött = nej (skippa) */
+export const YES = "#22C55E";
+export const NO = "#EF4444";
 /** Öppna-knappens tryckyta nere till höger (knappen plus lite marginal) */
 const OPEN_HIT = 84;
 
@@ -104,6 +108,7 @@ export const SwipeCard = memo(function SwipeCard({
       if (!done) return;
       // Alla kort byter plats i samma bildruta: nästa blir det överst, i full storlek
       deck.progress.value = 0;
+      deck.drag.value = 0;
       deck.top.value = index + 1;
       runOnJS(decide)(dir);
     });
@@ -111,7 +116,9 @@ export const SwipeCard = memo(function SwipeCard({
 
   // Korten under växer fram i takt med att kortet överst dras iväg
   useAnimatedReaction(() => tx.value, (x) => {
-    if (deck.top.value === index) deck.progress.value = Math.min(1, Math.abs(x) / (width * 0.5));
+    if (deck.top.value !== index) return;
+    deck.progress.value = Math.min(1, Math.abs(x) / (width * 0.5));
+    deck.drag.value = Math.max(-1, Math.min(1, x / (width * 0.5)));
   });
   // Ett litet klick när man drar förbi gränsen (och tillbaka)
   useAnimatedReaction(() => Math.abs(tx.value) > width * THRESHOLD, (over, prev) => {
@@ -210,11 +217,11 @@ export const SwipeCard = memo(function SwipeCard({
 
           {/* Stämplarna medan man drar */}
           <Reanimated.View style={[s.stamp, s.stampLike, likeStyle]} pointerEvents="none">
-            <Heart size={20} color={LIKE} fill={LIKE} strokeWidth={2} />
-            <Text style={[s.stampText, { color: LIKE }]}>SPARA</Text>
+            <Heart size={20} color={YES} fill={YES} strokeWidth={2} />
+            <Text style={[s.stampText, { color: YES }]}>SPARA</Text>
           </Reanimated.View>
           <Reanimated.View style={[s.stamp, s.stampNope, nopeStyle]} pointerEvents="none">
-            <Text style={[s.stampText, { color: "#FFFFFF" }]}>SKIPPA</Text>
+            <Text style={[s.stampText, { color: NO }]}>SKIPPA</Text>
           </Reanimated.View>
 
           <View style={s.info} pointerEvents="box-none">
@@ -262,8 +269,8 @@ const s = StyleSheet.create({
     position: "absolute", top: 40, flexDirection: "row", alignItems: "center", gap: 7,
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, borderWidth: 3,
   },
-  stampLike: { left: 22, borderColor: LIKE, transform: [{ rotate: "-12deg" }] },
-  stampNope: { right: 22, borderColor: "#FFFFFF", transform: [{ rotate: "12deg" }] },
+  stampLike: { left: 22, borderColor: YES, transform: [{ rotate: "-12deg" }] },
+  stampNope: { right: 22, borderColor: NO, transform: [{ rotate: "12deg" }] },
   stampText: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: 1.5 },
 
   info: { position: "absolute", left: 20, right: 16, bottom: 20, flexDirection: "row", alignItems: "flex-end", gap: 14 },
