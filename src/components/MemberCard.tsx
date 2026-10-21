@@ -66,6 +66,7 @@ export function MemberCard({
   readOnly = false,
   lockedBack = false,
   autoFlip = false,
+  onReady,
   width = CARD_W,
 }: {
   displayName: string;
@@ -99,6 +100,8 @@ export function MemberCard({
   lockedBack?: boolean;
   /** Kortet vänder sig själv fram och tillbaka (köpsidan) */
   autoFlip?: boolean;
+  /** Kortets design (bilden) har ritats klart — för sidor som visar kortet först då */
+  onReady?: () => void;
   /** Kortets bredd; höjden och alla mått följer med. */
   width?: number;
 }) {
@@ -132,6 +135,12 @@ export function MemberCard({
   // Alla ser sin valda design på framsidan; baksidan (verifieringen) är bara för medlemmar
   const variant = cardVariant;
   const hasPng  = !!(variant?.bgImage);          // alla varianter med bgImage får PNG
+  // Utan bild är kortet klart direkt
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  useEffect(() => {
+    if (!hasPng) onReadyRef.current?.();
+  }, [hasPng]);
   const colors  = cardColors(variant);
   const baseBg  = variant.bg;
 
@@ -349,6 +358,7 @@ export function MemberCard({
             onLoad={() => {
               if (variant) shownBackgrounds.add(variant.id);
               Animated.timing(bgFade, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+              onReadyRef.current?.();
             }}
           />
         </Animated.View>

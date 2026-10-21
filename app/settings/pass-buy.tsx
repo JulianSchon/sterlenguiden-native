@@ -10,13 +10,15 @@
  * Betalningen är inte inkopplad än (Stripe kommer när företaget finns): Fortsätt säger det. Ge bort
  * går vidare till gåvans uppgifter (settings/pass-gift) med passet redan valt.
  */
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react-native";
+import { Check, X } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useIsBusiness } from "@/hooks/useUserRole";
 import { usePassProducts, type PassProduct } from "@/hooks/usePassProducts";
@@ -30,6 +32,7 @@ import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
 import { LEGAL_URLS } from "@/lib/appInfo";
 import { roundedCountText } from "@/lib/roundedCount";
+import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -45,7 +48,7 @@ export default function PassPaywall() {
   const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { scheme } = useTheme();
+  const { colors, scheme } = useTheme();
   const s = useThemedStyles(createStyles);
   const { isBusiness } = useIsBusiness();
   const { data: products = [], isLoading } = usePassProducts();
@@ -68,6 +71,24 @@ export default function PassPaywall() {
     : 0;
 
   const cardW = Math.min(width - 72, 330);
+
+  // Kortet byggs osynligt och tonar fram först när hela designen laddats (annars syntes en enfärgad
+  // ruta en kort stund). Laddar den inte visas kortet ändå efter en stund.
+  const cardIn = useSharedValue(0);
+  const shown = useRef(false);
+  const showCard = useCallback(() => {
+    if (shown.current) return;
+    shown.current = true;
+    cardIn.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) });
+  }, [cardIn]);
+  useEffect(() => {
+    const timer = setTimeout(showCard, 1500);
+    return () => clearTimeout(timer);
+  }, [showCard]);
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: cardIn.value,
+    transform: [{ translateY: (1 - cardIn.value) * 18 }, { scale: 0.96 + cardIn.value * 0.04 }],
+  }));
   const boxW = Math.floor((width - GUTTER * 2 - GAP * 2) / 3);
   const legal = { terms: LEGAL_URLS.terms, privacy: LEGAL_URLS.privacy };
 
@@ -104,13 +125,14 @@ export default function PassPaywall() {
   return (
     <View style={s.root}>
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
+      {/* Ett varmt guldskimmer överst, bakom kortet */}
+      <LinearGradient colors={["rgba(197,160,89,0.22)", "rgba(197,160,89,0)"]} style={s.wash} pointerEvents="none" />
       <ScrollView
         contentContainerStyle={[s.scroll, { paddingTop: insets.top + 56 }]}
         showsVerticalScrollIndicator={false}
         alwaysBounceVertical={false}
       >
-        <Rise index={0}>
-          <View style={[s.cardWrap, { width: cardW }]}>
+        <Reanimated.View style={[s.cardWrap, { width: cardW }, cardStyle]}>
             <MemberCard
               width={cardW}
               displayName={profile?.display_name ?? ""}
@@ -124,24 +146,39 @@ export default function PassPaywall() {
               readOnly
               lockedBack
               autoFlip={!membership.isMember}
+              onReady={showCard}
             />
-          </View>
-        </Rise>
+        </Reanimated.View>
 
         <Rise index={1}>
           <View style={s.heading}>
             <Text style={s.title}>{t("pass.title")}</Text>
-            <Text style={s.pitch}>
-              {placesWithOffers > 0 ? t("pass.paywall.pitch", { count: roundedCountText(placesWithOffers) }) : t("pass.paywall.pitchNone")}
-            </Text>
+            <Text style={s.pitch}>{t("pass.paywall.pitch")}</Text>
           </View>
         </Rise>
 
         <Rise index={2}>
-          <ModeSwitch mode={mode} onChange={(m) => { Haptics.selectionAsync().catch(() => {}); setMode(m); }} />
+          <View style={s.perks}>
+            {[
+              placesWithOffers > 0 ? t("pass.paywall.perkPlaces", { count: roundedCountText(placesWithOffers) }) : t("pass.paywall.perkPlacesNone"),
+              t("pass.paywall.perkShow"),
+              mode === "gift" ? t("pass.paywall.perkGift") : t("pass.paywall.perkCancel"),
+            ].map((text) => (
+              <View key={text} style={s.perk}>
+                <View style={s.perkCheck}>
+                  <Check size={13} color={colors.onGold} strokeWidth={3} />
+                </View>
+                <Text style={s.perkText}>{text}</Text>
+              </View>
+            ))}
+          </View>
         </Rise>
 
         <Rise index={3}>
+          <ModeSwitch mode={mode} onChange={(m) => { Haptics.selectionAsync().catch(() => {}); setMode(m); }} />
+        </Rise>
+
+        <Rise index={4}>
           <View style={s.plans}>
             {isLoading && products.length === 0
               ? [0, 1, 2].map((i) => <Skeleton key={i} width={boxW} height={150} radius={20} />)
@@ -152,7 +189,7 @@ export default function PassPaywall() {
                   width={boxW}
                   selected={selected?.id === p.id}
                   mode={mode}
-                  badge={p.id === "month" ? t("pass.paywall.popular") : p.id === "year" ? t("pass.paywall.best") : null}
+                  popular={p.id === "month"}
                   savePercent={p.id === "year" && savePercent > 0 ? savePercent : 0}
                   onPress={() => choose(p.id)}
                 />
@@ -222,46 +259,72 @@ function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => 
   );
 }
 
-/** En av de tre boxarna: namn, pris och vad priset betyder, med märke överst (Populärast, Bäst värde) */
+/**
+ * En av de tre boxarna: namn, pris och vad priset betyder. Månad har ett guldmärke (Populärast), År
+ * en lutande etikett i appens gul–orange ("Spara 45 %"). Den valda boxen lyfts lite och får en bock.
+ */
 function PlanBox({
-  product, width, selected, mode, badge, savePercent, onPress,
+  product, width, selected, mode, popular, savePercent, onPress,
 }: {
-  product: PassProduct; width: number; selected: boolean; mode: Mode; badge: string | null; savePercent: number;
+  product: PassProduct; width: number; selected: boolean; mode: Mode; popular: boolean; savePercent: number;
   onPress: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const known = product.id === "week" || product.id === "month" || product.id === "year";
   const name = known ? t(`pass.paywall.plans.${product.id as "week" | "month" | "year"}`) : product.name;
   const price = Math.round(product.priceSek);
-  // Vad priset betyder: per månad / per år / engångsköp (en gåva är alltid ett engångsköp för en period)
+  // Vad priset betyder: per månad / ungefär per månad / engångsköp (en gåva är alltid en period)
   const unit = mode === "gift"
     ? t(`pass.periods.${product.id as "week" | "month" | "year"}`, { defaultValue: product.name })
     : product.id === "year" ? t("pass.paywall.monthlyEquiv", { price: Math.round(product.priceSek / 12) })
       : product.autoRenew ? t("pass.paywall.perMonth") : t("pass.paywall.once");
+  const lift = useSharedValue(selected ? 1 : 0);
+  useEffect(() => {
+    lift.value = withTiming(selected ? 1 : 0, { duration: 220, easing: Easing.out(Easing.cubic) });
+  }, [selected, lift]);
+  const liftStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -lift.value * 4 }, { scale: 1 + lift.value * 0.03 }] }));
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.plan, { width }, selected && s.planOn, pressed && { opacity: 0.85 }]}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      accessibilityLabel={`${name}, ${price} kr`}
-    >
-      {badge ? (
-        <View style={[s.badge, selected && s.badgeOn]}>
-          <Text style={[s.badgeText, selected && s.badgeTextOn]} numberOfLines={1}>{badge}</Text>
+    <Reanimated.View style={[{ width }, liftStyle]}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [s.plan, selected && s.planOn, pressed && { opacity: 0.9 }]}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+        accessibilityLabel={`${name}, ${price} kr`}
+      >
+        <Text style={[s.planName, selected && s.planNameOn]} numberOfLines={1}>{name}</Text>
+        <Text style={s.planPrice} numberOfLines={1}>{price} kr</Text>
+        <Text style={s.planUnit} numberOfLines={2}>{unit}</Text>
+        <View style={[s.radio, selected && { backgroundColor: colors.gold, borderColor: colors.gold }]}>
+          {selected ? <Check size={12} color={colors.onGold} strokeWidth={3.2} /> : null}
+        </View>
+      </Pressable>
+      {popular ? (
+        <View style={s.popular} pointerEvents="none">
+          <Text style={s.popularText} numberOfLines={1}>{t("pass.paywall.popular")}</Text>
         </View>
       ) : null}
-      <Text style={[s.planName, selected && s.planNameOn]} numberOfLines={1}>{name}</Text>
-      <Text style={s.planPrice} numberOfLines={1}>{price} kr</Text>
-      <Text style={s.planUnit} numberOfLines={2}>{unit}</Text>
-      {savePercent > 0 && mode === "self" ? <Text style={s.save}>{t("pass.paywall.save", { percent: savePercent })}</Text> : null}
-    </Pressable>
+      {savePercent > 0 && mode === "self" ? (
+        <View style={s.saveTag} pointerEvents="none">
+          <LinearGradient
+            colors={STORY_GRADIENT.stops.map((x) => x.color) as [string, string, ...string[]]}
+            locations={STORY_GRADIENT.stops.map((x) => parseFloat(x.offset) / 100) as [number, number, ...number[]]}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <Text style={s.saveText} numberOfLines={1}>{t("pass.paywall.save", { percent: savePercent })}</Text>
+        </View>
+      ) : null}
+    </Reanimated.View>
   );
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
+  wash: { position: "absolute", top: 0, left: 0, right: 0, height: 440 },
   center: { alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   scroll: { paddingHorizontal: GUTTER, paddingBottom: 24, gap: 26 },
   close: {
@@ -285,24 +348,38 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   switchText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.muted },
   switchTextOn: { color: c.text },
 
-  plans: { flexDirection: "row", gap: GAP, paddingTop: 12 },
+  perks: { gap: 12, alignSelf: "center", maxWidth: 340 },
+  perk: { flexDirection: "row", alignItems: "center", gap: 12 },
+  perkCheck: { width: 22, height: 22, borderRadius: 11, backgroundColor: c.gold, alignItems: "center", justifyContent: "center" },
+  perkText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 15, lineHeight: 21, color: c.text },
+
+  plans: { flexDirection: "row", gap: GAP, paddingTop: 16 },
   plan: {
-    minHeight: 150, borderRadius: 20, borderWidth: 1.5, borderColor: c.borderStrong, backgroundColor: c.raised,
-    paddingHorizontal: 8, paddingTop: 24, paddingBottom: 14, alignItems: "center", gap: 6,
+    minHeight: 168, borderRadius: 22, borderWidth: 1.5, borderColor: c.borderStrong, backgroundColor: c.raised,
+    paddingHorizontal: 8, paddingTop: 26, paddingBottom: 14, alignItems: "center", gap: 5,
   },
-  planOn: { borderWidth: 2, borderColor: c.gold, backgroundColor: c.goldSoft },
-  badge: {
-    position: "absolute", top: -12, alignSelf: "center", paddingHorizontal: 10, height: 24, borderRadius: 12,
-    justifyContent: "center", backgroundColor: c.card, borderWidth: 1, borderColor: c.borderStrong,
+  planOn: {
+    borderWidth: 2, borderColor: c.gold, backgroundColor: c.card,
+    shadowColor: c.gold, shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
   },
-  badgeOn: { backgroundColor: c.gold, borderColor: c.gold },
-  badgeText: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 0.6, textTransform: "uppercase", color: c.muted },
-  badgeTextOn: { color: c.onGold },
+  popular: {
+    position: "absolute", top: -12, alignSelf: "center", paddingHorizontal: 12, height: 25, borderRadius: 13,
+    justifyContent: "center", backgroundColor: c.gold,
+  },
+  popularText: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 0.9, textTransform: "uppercase", color: c.onGold },
+  saveTag: {
+    position: "absolute", top: -13, right: -6, height: 26, paddingHorizontal: 10, borderRadius: 13, overflow: "hidden",
+    justifyContent: "center", transform: [{ rotate: "8deg" }],
+  },
+  saveText: { fontFamily: "Inter_700Bold", fontSize: 11.5, letterSpacing: 0.4, textTransform: "uppercase", color: "#FFFFFF" },
   planName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.muted },
   planNameOn: { color: c.text },
-  planPrice: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.5, color: c.text },
+  planPrice: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.6, color: c.text },
   planUnit: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 16, color: c.muted, textAlign: "center" },
-  save: { fontFamily: "Inter_700Bold", fontSize: 11.5, color: c.goldText, marginTop: 2 },
+  radio: {
+    marginTop: "auto", width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: c.borderStrong,
+    alignItems: "center", justifyContent: "center",
+  },
 
   footer: { paddingHorizontal: GUTTER, paddingTop: 12, gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, backgroundColor: c.bg },
   fine: { fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, color: c.muted, textAlign: "center" },
