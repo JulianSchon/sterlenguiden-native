@@ -1,445 +1,234 @@
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Dimensions,
-  Animated,
-  PanResponder,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+/**
+ * Upptäck — platserna som en kortlek att svepa: åt höger sparas platsen (som favorit), åt vänster
+ * skippas den. Samma rubrik som de andra undersidorna, kortleken i mitten (nästa kort skymtar under
+ * och växer fram medan man drar, se SwipeCard) och två stora knappar under: skippa och spara.
+ *
+ * Kön blandas en gång när sidan öppnas: platser man inte sparat eller skippat, de med bild först.
+ * Sparat och skippat skrivs direkt till servern; resten av appen (Hem, Favoriter) uppdateras när
+ * man lämnar sidan — att uppdatera favoritlistan mitt i ett svep ritade om Hem, Profil m.fl.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Heart, X, ArrowLeft, MapPin, Plus, ArrowRight } from "lucide-react-native";
-import { usePlaces, isPlaceOpen, type Place } from "@/hooks/usePlaces";
-import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
+import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
+import { ArrowLeft, Check, Heart, X } from "lucide-react-native";
+import { usePlaces, type Place } from "@/hooks/usePlaces";
+import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useDismissals, useDismissPlace, useLikePlace } from "@/hooks/useDismissals";
-import { colors } from "@/lib/colors";
-import * as Location from "expo-location";
+import { useKnownLocation } from "@/hooks/useUserLocation";
+import { useTheme } from "@/theme/ThemeProvider";
+import { distanceMeters } from "@/lib/checkin";
+import { pushOnce } from "@/lib/navigateOnce";
+import { Skeleton } from "@/components/Skeleton";
+import { SwipeCard, imagesOf, type DeckState } from "@/components/discover/SwipeCard";
 
-const { width: W, height: H } = Dimensions.get("window");
-const SWIPE_THRESHOLD = 100;
+/** Så många kort ligger byggda åt gången (det överst och två under) */
+const WINDOW = 3;
+const NO_PLACES: Place[] = [];
+const NO_IDS: number[] = [];
 
-// Haversine distance in km
-function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function shuffle<T>(list: T[]): T[] {
+  const arr = [...list];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
-
-function formatDistance(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} m`;
-  return `${km.toFixed(1)} km`;
-}
-
-function getImageUrl(place: Place): string {
-  return place.image_url ? place.image_url.split(",")[0].trim() : "";
-}
-
-// ─── SwipeCard ────────────────────────────────────────────────────────────────
-
-function SwipeCard({
-  place,
-  onSwipeLeft,
-  onSwipeRight,
-  onNavigate,
-  userLat,
-  userLng,
-}: {
-  place: Place;
-  onSwipeLeft: () => void;
-  onSwipeRight: () => void;
-  onNavigate: () => void;
-  userLat: number | null;
-  userLng: number | null;
-}) {
-  const pan = useRef(new Animated.ValueXY()).current;
-  const triggered = useRef(false);
-
-  const rotate = pan.x.interpolate({
-    inputRange: [-200, 0, 200],
-    outputRange: ["-8deg", "0deg", "8deg"],
-    extrapolate: "clamp",
-  });
-
-  const likeOpacity = pan.x.interpolate({
-    inputRange: [10, 60],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-  const nopeOpacity = pan.x.interpolate({
-    inputRange: [-60, -10],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
-        useNativeDriver: false,
-      }),
-      onPanResponderRelease: (_, g) => {
-        if (triggered.current) return;
-        if (g.dx > SWIPE_THRESHOLD) {
-          triggered.current = true;
-          Animated.timing(pan, {
-            toValue: { x: W * 1.5, y: g.dy },
-            duration: 220,
-            useNativeDriver: false,
-          }).start(() => onSwipeRight());
-        } else if (g.dx < -SWIPE_THRESHOLD) {
-          triggered.current = true;
-          Animated.timing(pan, {
-            toValue: { x: -W * 1.5, y: g.dy },
-            duration: 220,
-            useNativeDriver: false,
-          }).start(() => onSwipeLeft());
-        } else {
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
-        }
-      },
-    })
-  ).current;
-
-  const imageUrl = getImageUrl(place);
-  const category = place.categories?.split(",")[0]?.trim() ?? "";
-  const isOpen = isPlaceOpen(place.opening_hours as Record<string, string> | null);
-  const hasOpeningHours = !!place.opening_hours;
-  const distance =
-    userLat !== null && userLng !== null && place.lat && place.lng
-      ? getDistanceKm(userLat, userLng, place.lat, place.lng)
-      : null;
-
-  return (
-    <Animated.View
-      style={[styles.card, { transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate }] }]}
-      {...panResponder.panHandlers}
-    >
-      {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
-      )}
-      <View style={styles.cardGradient} />
-
-      {/* GILLAR / SKIPPA */}
-      <Animated.View style={[styles.likeLabel, { opacity: likeOpacity }]}>
-        <Text style={styles.likeLabelText}>GILLAR</Text>
-      </Animated.View>
-      <Animated.View style={[styles.nopeLabel, { opacity: nopeOpacity }]}>
-        <Text style={styles.nopeLabelText}>SKIPPA</Text>
-      </Animated.View>
-
-      {/* Top badges */}
-      <View style={styles.cardTopRow}>
-        {distance !== null && (
-          <View style={styles.distanceBadge}>
-            <MapPin size={12} color="#fff" />
-            <Text style={styles.distanceText}>{formatDistance(distance)}</Text>
-          </View>
-        )}
-        {hasOpeningHours && (
-          <View style={[styles.openBadge, isOpen ? styles.openBadgeOpen : styles.openBadgeClosed]}>
-            <Text style={[styles.openBadgeText, isOpen ? styles.openTextOpen : styles.openTextClosed]}>
-              {isOpen ? "Öppet nu" : "Stängt"}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Bottom info — leave room for buttons on right */}
-      <View style={styles.cardInfo}>
-        {category ? <Text style={styles.cardCategory}>{category.toUpperCase()}</Text> : null}
-        <Text style={styles.cardName}>{place.name}</Text>
-        {place.short_description ? (
-          <Text style={styles.cardDesc} numberOfLines={2}>{place.short_description}</Text>
-        ) : null}
-        {place.nearest_town ? (
-          <View style={styles.cardLocation}>
-            <MapPin size={11} color="rgba(255,255,255,0.55)" />
-            <Text style={styles.cardLocationText}>{place.nearest_town}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Right side buttons (top to bottom inside card) */}
-      <View style={styles.cardActions}>
-        {/* Plus – listor (ej implementerat) */}
-        <TouchableOpacity style={[styles.actionCircle, styles.actionCircleGray]} activeOpacity={0.8}>
-          <Plus size={20} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
-
-        {/* Gul höger-pil – öppna platsen */}
-        <TouchableOpacity
-          style={[styles.actionCircle, styles.actionCircleGold]}
-          onPress={onNavigate}
-          activeOpacity={0.8}
-        >
-          <ArrowRight size={22} color="#1a1200" strokeWidth={2.5} />
-        </TouchableOpacity>
-
-        {/* Hjärta – spara */}
-        <TouchableOpacity
-          style={[styles.actionCircle, styles.actionCircleHeart]}
-          onPress={onSwipeRight}
-          activeOpacity={0.8}
-        >
-          <Heart size={22} color="#fff" fill="#fff" />
-        </TouchableOpacity>
-
-        {/* X – skippa */}
-        <TouchableOpacity
-          style={[styles.actionCircle, styles.actionCircleX]}
-          onPress={onSwipeLeft}
-          activeOpacity={0.8}
-        >
-          <X size={22} color="#fff" strokeWidth={2.5} />
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-}
-
-// ─── DiscoverScreen ────────────────────────────────────────────────────────────
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const location = useKnownLocation();
 
-  const { data: places = [], isLoading: placesLoading } = usePlaces();
-  const { data: favorites = [], isLoading: favsLoading } = useFavorites();
-  const { data: dismissedIds = [], isLoading: dismissalsLoading } = useDismissals();
-  const isLoading = placesLoading || favsLoading || dismissalsLoading;
+  const { data: places = NO_PLACES, isFetched: placesFetched } = usePlaces();
+  const { data: favorites = [], isFetched: favsFetched } = useFavorites();
+  const { data: dismissedIds = NO_IDS, isFetched: dismissalsFetched } = useDismissals();
+  // mutate är samma funktion hela tiden (själva objekten byts när de körs) — så korten inte ritas om
+  const { mutate: dismiss } = useDismissPlace();
+  const { mutate: like } = useLikePlace();
+  const ready = placesFetched && favsFetched && dismissalsFetched;
 
-  const toggleFavorite = useToggleFavorite();
-  const dismissPlace = useDismissPlace();
-  const likePlace = useLikePlace();
-
-  // Fixed card queue — shuffled ONCE when all data has loaded, never touched again.
-  // Advancing through it is just incrementing an index.
-  const queueRef = useRef<Place[] | null>(null);
-  const [topIndex, setTopIndex] = useState(0);
-
+  // Kön blandas EN gång när datan kommit och står sen still; att gå vidare är bara att räkna upp
+  const [queue, setQueue] = useState<Place[] | null>(null);
   useEffect(() => {
-    // Only initialize once, when all three queries have resolved
-    if (queueRef.current !== null) return;
-    if (isLoading) return;
-
-    const favIds = new Set(favorites.map((f) => f.place_id).filter(Boolean) as number[]);
-    const excluded = new Set([...dismissedIds, ...favIds]);
+    if (queue || !ready) return;
+    const excluded = new Set<number>([...dismissedIds, ...favorites.flatMap((f) => (f.place_id != null ? [f.place_id] : []))]);
     const available = places.filter((p) => !excluded.has(p.id));
+    // Platser med bild först — ett kort utan bild ser trasigt ut i början av leken
+    const withImage = available.filter((p) => imagesOf(p.image_url).length > 0);
+    const without = available.filter((p) => imagesOf(p.image_url).length === 0);
+    setQueue([...shuffle(withImage), ...shuffle(without)]);
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Fisher-Yates shuffle
-    const arr = [...available];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+  const [index, setIndex] = useState(0);
+  // Kortlekens gemensamma läge (samma objekt hela tiden, så korten inte ritas om när sidan gör det)
+  const top = useSharedValue(0);
+  const progress = useSharedValue(0);
+  const fly = useSharedValue({ dir: 0, n: 0 });
+  const deck: DeckState = useMemo(() => ({ top, progress, fly }), [top, progress, fly]);
+
+  // Kortleken: bredden som korten räknar sina gränser med
+  const [width, setWidth] = useState(0);
+
+  // Sparat och skippat skrivs direkt; favoriterna i resten av appen uppdateras när man lämnar sidan
+  const dirty = useRef(false);
+  const onDecide = useCallback((i: number, place: Place, dir: 1 | -1) => {
+    setIndex(i + 1);
+    Haptics.impactAsync(dir === 1 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (dir === 1) {
+      dirty.current = true;
+      savePlaceFavorite(place.id, true).catch(() => {});
+      // Svepet loggas för sig — räknas till Bläddraren (favoriten kan också sparas på andra ställen)
+      like(place.id);
+    } else {
+      dismiss(place.id);
     }
-    queueRef.current = arr;
-    setTopIndex(0); // reset index (safety)
-  }, [isLoading]); // only re-run if loading state changes
+  }, [like, dismiss]);
+  useFocusEffect(useCallback(() => () => {
+    if (!dirty.current) return;
+    dirty.current = false;
+    queryClient.invalidateQueries({ queryKey: ["favorites"] });
+  }, [queryClient]));
 
-  const queue = queueRef.current ?? [];
-  const currentPlace = queue[topIndex] ?? null;
-  const remaining = queue.length - topIndex;
+  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}`), [router]);
+  const throwTop = useCallback((dir: 1 | -1) => {
+    Haptics.selectionAsync().catch(() => {});
+    fly.value = { dir, n: fly.value.n + 1 };
+  }, [fly]);
 
-  const [userLat, setUserLat] = useState<number | null>(null);
-  const [userLng, setUserLng] = useState<number | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setUserLat(loc.coords.latitude);
-      setUserLng(loc.coords.longitude);
-    })();
-  }, []);
-
-  // Advance to next card — just bump the index
-  const advance = useCallback(() => {
-    setTopIndex((i) => i + 1);
-  }, []);
-
-  const handleSwipeRight = useCallback(() => {
-    if (!currentPlace) return;
-    toggleFavorite.mutate({ placeId: currentPlace.id });
-    // Svepet loggas för sig — räknas till Bläddraren (favoriten kan också sparas på andra ställen)
-    likePlace.mutate(currentPlace.id);
-    advance();
-  }, [currentPlace, toggleFavorite, likePlace, advance]);
-
-  const handleSwipeLeft = useCallback(() => {
-    if (!currentPlace) return;
-    dismissPlace.mutate(currentPlace.id);
-    advance();
-  }, [currentPlace, dismissPlace, advance]);
-
-  const handleNavigate = useCallback(() => {
-    if (!currentPlace) return;
-    router.push(`/place/${currentPlace.id}` as any);
-  }, [currentPlace, router]);
+  const left = queue ? queue.length - index : 0;
+  const current = queue?.[index] ?? null;
+  // Kortet överst och två under, det djupaste först (så det överst ritas sist)
+  const visible = useMemo(() => (queue ?? []).slice(index, index + WINDOW).map((p, k) => ({ p, i: index + k })).reverse(), [queue, index]);
+  const kmTo = (p: Place) =>
+    location && p.lat != null && p.lng != null ? distanceMeters(location.lat, location.lng, p.lat, p.lng) / 1000 : null;
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <SafeAreaView edges={["top"]} style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
-          <ArrowLeft size={20} color={colors.foreground} strokeWidth={2} />
+    <View style={[s.screen, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+      {/* Samma rubrik som de andra undersidorna */}
+      <View style={s.header}>
+        <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={() => router.back()}>
+          <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Upptäck</Text>
-          {!isLoading && remaining > 0 && (
-            <Text style={styles.headerSub}>{remaining} platser kvar</Text>
+        <Text style={[s.headerTitle, { color: colors.text }]} numberOfLines={1}>UPPTÄCK</Text>
+        {queue && left > 0 && <Text style={[s.left, { color: colors.muted }]}>{left} kvar</Text>}
+      </View>
+
+      <View style={s.deck} onLayout={(e) => setWidth(e.nativeEvent.layout.width - DECK_SIDE * 2)}>
+        <View style={s.deckInner}>
+          {!queue || width === 0 ? (
+            <Skeleton radius={26} style={StyleSheet.absoluteFill} />
+          ) : !current ? (
+            <AllSeen onFavorites={() => router.replace("/favorites" as never)} onBack={() => router.back()} />
+          ) : (
+            visible.map(({ p, i }) => (
+              <SwipeCard
+                key={p.id}
+                place={p}
+                index={i}
+                isTop={i === index}
+                km={kmTo(p)}
+                deck={deck}
+                width={width}
+                onDecide={onDecide}
+                onOpen={openPlace}
+              />
+            ))
           )}
         </View>
-        <View style={{ width: 44 }} />
-      </SafeAreaView>
+      </View>
 
-      {/* Card area */}
-      <View style={[styles.cardArea, { paddingBottom: insets.bottom + 16 }]}>
-        {isLoading ? (
-          <ActivityIndicator size="large" color={colors.gold} />
-        ) : !currentPlace ? (
-          <View style={styles.emptyState}>
-            <Heart size={52} color={colors.gold} strokeWidth={1.5} />
-            <Text style={styles.emptyTitle}>Allt utforskat!</Text>
-            <Text style={styles.emptySub}>
-              Du har sett alla platser på Österlen. Kom tillbaka snart för fler.
-            </Text>
-          </View>
-        ) : (
-          <SwipeCard
-            key={currentPlace.id}
-            place={currentPlace}
-            onSwipeRight={handleSwipeRight}
-            onSwipeLeft={handleSwipeLeft}
-            onNavigate={handleNavigate}
-            userLat={userLat}
-            userLng={userLng}
-          />
-        )}
+      <View style={[s.actions, { paddingBottom: insets.bottom + 18 }]}>
+        <ActionButton label="Skippa" disabled={!current} onPress={() => throwTop(-1)}>
+          <X size={30} color={colors.text} strokeWidth={2.6} />
+        </ActionButton>
+        <ActionButton label="Spara" disabled={!current} onPress={() => throwTop(1)}>
+          <Heart size={28} color="#EF4444" fill="#EF4444" strokeWidth={2} />
+        </ActionButton>
       </View>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+/** En av de stora runda knapparna under kortleken */
+function ActionButton({ label, disabled, onPress, children }: {
+  label: string; disabled: boolean; onPress: () => void; children: React.ReactNode;
+}) {
+  const { colors } = useTheme();
+  const press = useSharedValue(1);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      onPressIn={() => { press.value = withSpring(0.88, { damping: 30, stiffness: 400 }); }}
+      onPressOut={() => { press.value = withSpring(1, { damping: 14, stiffness: 300 }); }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Reanimated.View
+        style={[s.action, { backgroundColor: colors.card, borderColor: colors.border, opacity: disabled ? 0.4 : 1 }, style]}
+      >
+        {children}
+      </Reanimated.View>
+    </Pressable>
+  );
+}
 
-const CARD_H = H * 0.72;
+/** Alla platser svepta */
+function AllSeen({ onFavorites, onBack }: { onFavorites: () => void; onBack: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={s.allSeen}>
+      <View style={[s.allSeenIcon, { backgroundColor: colors.goldSoft }]}>
+        <Check size={28} color={colors.goldText} strokeWidth={2.4} />
+      </View>
+      <Text style={[s.allSeenTitle, { color: colors.text }]}>Du har sett alla platser</Text>
+      <Text style={[s.allSeenText, { color: colors.muted }]}>
+        Nya platser dyker upp här när de kommer till appen. Det du sparat finns under Favoriter.
+      </Text>
+      <TouchableOpacity style={[s.allSeenBtn, { backgroundColor: colors.gold }]} activeOpacity={0.85} onPress={onFavorites}>
+        <Text style={[s.allSeenBtnText, { color: colors.onGold }]}>Till Favoriter</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onBack} hitSlop={10}>
+        <Text style={[s.allSeenLink, { color: colors.muted }]}>Tillbaka</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const DECK_SIDE = 14;
 
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingBottom: 10,
-  },
-  backBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+const s = StyleSheet.create({
+  screen: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
+  headerBtn: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5 },
+  left: { fontFamily: "Inter_600SemiBold", fontSize: 13, fontVariant: ["tabular-nums"] },
+
+  deck: { flex: 1, paddingHorizontal: DECK_SIDE, paddingTop: 6, paddingBottom: 18 },
+  deckInner: { flex: 1 },
+
+  actions: { flexDirection: "row", justifyContent: "center", gap: 36, paddingTop: 4 },
+  // Hel bakgrund: skuggan räknas ut en gång
+  action: {
+    width: 68, height: 68, borderRadius: 34, borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center", justifyContent: "center",
-  },
-  headerCenter: { alignItems: "center" },
-  headerTitle: {
-    fontSize: 26, fontWeight: "700", color: colors.foreground,
-    fontFamily: "PlayfairDisplay_700Bold",
-  },
-  headerSub: { fontSize: 12, color: colors.foregroundMuted, marginTop: 1 },
-
-  cardArea: { flex: 1, alignItems: "center", justifyContent: "center" },
-
-  card: {
-    width: W - 32, height: CARD_H,
-    borderRadius: 28, overflow: "hidden",
-    backgroundColor: colors.card,
-  },
-  cardGradient: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: "60%",
-    backgroundColor: "rgba(0,0,0,0.72)",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 5,
   },
 
-  likeLabel: {
-    position: "absolute", top: 36, left: 20, zIndex: 10,
-    borderWidth: 3, borderColor: "#22C55E", borderRadius: 8,
-    paddingHorizontal: 14, paddingVertical: 5,
-    transform: [{ rotate: "-12deg" }],
-  },
-  likeLabelText: { fontSize: 24, fontWeight: "900", color: "#22C55E" },
-  nopeLabel: {
-    position: "absolute", top: 36, right: 20, zIndex: 10,
-    borderWidth: 3, borderColor: "#EF4444", borderRadius: 8,
-    paddingHorizontal: 14, paddingVertical: 5,
-    transform: [{ rotate: "12deg" }],
-  },
-  nopeLabelText: { fontSize: 24, fontWeight: "900", color: "#EF4444" },
-
-  cardTopRow: {
-    position: "absolute", top: 16, left: 16, right: 16,
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    zIndex: 5,
-  },
-  distanceBadge: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 20,
-  },
-  distanceText: { fontSize: 13, fontWeight: "600", color: "#fff" },
-  openBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  openBadgeOpen: { backgroundColor: "rgba(34,197,94,0.25)", borderWidth: 1, borderColor: "rgba(34,197,94,0.6)" },
-  openBadgeClosed: { backgroundColor: "rgba(239,68,68,0.2)", borderWidth: 1, borderColor: "rgba(239,68,68,0.5)" },
-  openBadgeText: { fontSize: 12, fontWeight: "700" },
-  openTextOpen: { color: "#4ADE80" },
-  openTextClosed: { color: "#F87171" },
-
-  cardInfo: {
-    position: "absolute", bottom: 0, left: 0, right: 80,
-    padding: 20, paddingBottom: 24, zIndex: 2,
-  },
-  cardCategory: {
-    fontSize: 11, fontWeight: "700", color: colors.gold,
-    letterSpacing: 1.5, marginBottom: 6,
-  },
-  cardName: { fontSize: 28, fontWeight: "800", color: "#fff", lineHeight: 33, marginBottom: 6 },
-  cardDesc: { fontSize: 13, color: "rgba(255,255,255,0.72)", lineHeight: 18, marginBottom: 8 },
-  cardLocation: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardLocationText: { fontSize: 12, color: "rgba(255,255,255,0.55)" },
-
-  cardActions: {
-    position: "absolute", right: 14, bottom: 16,
-    alignItems: "center", gap: 10, zIndex: 10,
-  },
-  actionCircle: {
-    width: 52, height: 52, borderRadius: 26,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#000", shadowOpacity: 0.35, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 6,
-  },
-  actionCircleGray: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)",
-  },
-  actionCircleGold: {
-    backgroundColor: colors.gold,
-    width: 52, height: 52, borderRadius: 26,
-  },
-  actionCircleHeart: {
-    backgroundColor: "#52886A", width: 56, height: 56, borderRadius: 28,
-  },
-  actionCircleX: {
-    backgroundColor: "#EF4444", width: 56, height: 56, borderRadius: 28,
-  },
-
-  emptyState: { alignItems: "center", paddingHorizontal: 40, gap: 16 },
-  emptyTitle: { fontSize: 22, fontWeight: "800", color: colors.foreground, textAlign: "center" },
-  emptySub: { fontSize: 15, color: colors.foregroundMuted, textAlign: "center", lineHeight: 22 },
+  allSeen: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 28 },
+  allSeenIcon: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  allSeenTitle: { fontFamily: "Montserrat_700Bold", fontSize: 21, textAlign: "center" },
+  allSeenText: { fontFamily: "Inter_400Regular", fontSize: 14.5, lineHeight: 21, textAlign: "center", marginBottom: 8 },
+  allSeenBtn: { height: 50, paddingHorizontal: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  allSeenBtnText: { fontFamily: "Inter_700Bold", fontSize: 15.5 },
+  allSeenLink: { fontFamily: "Inter_600SemiBold", fontSize: 14, marginTop: 6 },
 });
