@@ -78,6 +78,8 @@ const OPEN_NOW_KM = 25;
 const RAIL_MAX = 8;
 const EVENTS_MAX = 15;
 const NEWS_MAX = 10;
+/** En nyhet syns i flödet så här länge efter att den publicerats — sedan är den inte en nyhet längre */
+const NEWS_DAYS = 21;
 const FRIENDS_MAX = 8;
 
 /** Ett tal mellan 0 och 1 som bara beror på fröet och platsen (samma varje gång med samma frö) */
@@ -136,7 +138,11 @@ export function buildFeed(input: FeedInput): FeedItem[] {
     .map((offer) => ({ kind: "offer", key: `o${offer.id}`, offer, isNew: new Date(offer.created_at).getTime() >= newSince }));
 
   // ── Nyheterna i den ordning redaktionen satt dem ──
-  const news: FeedItem[] = input.news.slice(0, NEWS_MAX).map((n) => ({ kind: "news", key: `n${n.id}`, news: n }));
+  const newsSince = now.getTime() - NEWS_DAYS * 86_400_000;
+  const news: FeedItem[] = input.news
+    .filter((n) => new Date(n.published_at ?? n.created_at).getTime() >= newsSince)
+    .slice(0, NEWS_MAX)
+    .map((n) => ({ kind: "news", key: `n${n.id}`, news: n }));
 
   // ── Vänners besök: det senaste per vän ──
   const seenFriends = new Set<string>();

@@ -70,6 +70,9 @@ const FIRST_ROWS = 6;
 /** Orter som syns innan "Visa alla" */
 const FIRST_TOWNS = 8;
 
+/** Under så här många visar rutorna på Sök en beskrivning i stället för siffran */
+const FEW = 5;
+
 /** "1 öppet nu", "3 öppna nu" */
 const openNowText = (n: number) => `${n} ${n === 1 ? "öppet" : "öppna"} nu`;
 
@@ -285,15 +288,17 @@ export default function ExploreScreen() {
       eat: count("äta nu"), fika: count("fika"), sleep: count("sova"), late: count("öppet sent"),
       kids: count("familj"), dog: count("med hund"), nature: count("natur"),
     };
+    // Är det färre än 5 står en beskrivning i stället — en ensam etta ser tom ut
+    const many = (k: number, text: string, few: string) => (k >= FEW ? text : few);
     const subs: Record<string, string> = {
-      eat: n.eat ? openNowText(n.eat) : "Inget öppet just nu",
-      fika: `${n.fika} ställen`,
-      sleep: `${n.sleep} ${n.sleep === 1 ? "boende" : "boenden"}`,
-      late: n.late ? `${n.late} öppna efter 21` : "Inget i kväll",
-      kids: n.kids ? `${n.kids} barnvänliga` : "Tips på ställen",
-      dog: n.dog ? `${n.dog} hundvänliga` : "Tips på ställen",
-      nature: `${n.nature} platser`,
-      events: upcoming ? `${upcoming} kommande` : "Inga just nu",
+      eat: many(n.eat, openNowText(n.eat), n.eat ? "Mat nära dig" : "Inget öppet just nu"),
+      fika: many(n.fika, `${n.fika} ställen`, "Kaffe och bakverk"),
+      sleep: many(n.sleep, `${n.sleep} boenden`, "Hotell och B&B"),
+      late: many(n.late, `${n.late} öppna efter 21`, n.late ? "Öppet efter 21" : "Inget i kväll"),
+      kids: many(n.kids, `${n.kids} barnvänliga`, "Tips för familjen"),
+      dog: many(n.dog, `${n.dog} hundvänliga`, "Tips för dig med hund"),
+      nature: many(n.nature, `${n.nature} platser`, "Stränder och natur"),
+      events: many(upcoming, `${upcoming} kommande`, upcoming ? "Se vad som händer" : "Inga just nu"),
     };
     return subs;
     // eslint-disable-next-line react-hooks/exhaustive-deps

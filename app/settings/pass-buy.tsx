@@ -65,6 +65,8 @@ export default function PassPaywall() {
 
   // Hur många ställen som har rabatter just nu (avrundat nedåt, så det alltid stämmer)
   const placesWithOffers = useMemo(() => new Set(offers.map((o) => o.place_id)).size, [offers]);
+  // Vad man kan spara om man använder alla erbjudanden en gång (avrundat nedåt)
+  const totalSavings = useMemo(() => offers.reduce((sum, o) => sum + (o.savings_value ?? 0), 0), [offers]);
   // Året jämfört med tolv månader
   const month = products.find((p) => p.id === "month");
   const year = products.find((p) => p.id === "year");
@@ -158,7 +160,9 @@ export default function PassPaywall() {
           <View style={s.heading}>
             <Text style={s.title}>{t("pass.title")}</Text>
             <Text style={s.pitch}>
-              {placesWithOffers > 0 ? t("pass.paywall.pitch", { count: roundedCountText(placesWithOffers) }) : t("pass.paywall.pitchNone")}
+              {totalSavings > 0
+                ? t("pass.paywall.pitchSave", { amount: roundedCountText(Math.floor(totalSavings)) })
+                : placesWithOffers > 0 ? t("pass.paywall.pitch", { count: roundedCountText(placesWithOffers) }) : t("pass.paywall.pitchNone")}
             </Text>
           </View>
         </Rise>

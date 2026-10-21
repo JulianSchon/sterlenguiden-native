@@ -114,11 +114,12 @@ export const sv = {
     paywall: {
       close: "Stäng",
       pitch: "Rabatter hos {{count}} ställen på Österlen. Visa kortet i kassan – så enkelt är det.",
+      pitchSave: "Spara upp till {{amount}} kr på Österlen. Visa kortet i kassan – så enkelt är det.",
       pitchNone: "Rabatter hos lokala företag på Österlen. Visa kortet i kassan – så enkelt är det.",
       forMe: "Till mig",
       gift: "Ge bort",
       plans: { week: "Vecka", month: "Månad", year: "År" },
-      popular: "Populärast",
+      popular: "Vårt tips",
       perMonth: "per månad",
       once: "engångsköp",
       monthlyEquiv: "≈ {{price}} kr/mån",
@@ -504,7 +505,7 @@ export const sv = {
       pick: "Välj din födelsedag",
       age: "{{count}} år",
       tooYoung: "Du behöver vara minst {{age}} år för att använda Österlenappen.",
-      locked: "Kontrollera att den stämmer – födelsedagen går inte att ändra senare.",
+      locked: "Dubbelkolla gärna datumet – det sparas på ditt konto.",
     },
     home: {
       title: "Var bor du?",

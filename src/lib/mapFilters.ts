@@ -169,8 +169,8 @@ export function filterPlaces(
  */
 export const CLUSTER = { radius: 28, logoRadius: 46, minPoints: 2, maxZoom: 16 };
 
-/** Avstånd som det visas i appen: fågelvägen × 1,3 + 1 km ("3.4 km", eller heltal från 10 km) */
+/** Avstånd som det visas i appen: fågelvägen × 1,3 + 1 km ("3,4 km", eller heltal från 10 km) */
 export function distanceLabel(birdKm: number): string {
   const km = birdKm * 1.3 + 1;
-  return km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
+  return km < 10 ? `${km.toFixed(1).replace(".", ",")} km` : `${Math.round(km)} km`;
 }

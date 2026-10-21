@@ -111,11 +111,12 @@ export const de: typeof sv = {
     paywall: {
       close: "Schließen",
       pitch: "Rabatte an {{count}} Orten in Österlen. Karte an der Kasse zeigen – fertig.",
+      pitchSave: "Spare bis zu {{amount}} SEK in Österlen. Karte an der Kasse zeigen – fertig.",
       pitchNone: "Rabatte bei lokalen Unternehmen in Österlen. Karte an der Kasse zeigen – fertig.",
       forMe: "Für mich",
       gift: "Verschenken",
       plans: { week: "Woche", month: "Monat", year: "Jahr" },
-      popular: "Am beliebtesten",
+      popular: "Unser Tipp",
       perMonth: "pro Monat",
       once: "einmalig",
       monthlyEquiv: "≈ {{price}} SEK/Monat",
@@ -501,7 +502,7 @@ export const de: typeof sv = {
       pick: "Geburtstag wählen",
       age: "{{count}} Jahre",
       tooYoung: "Du musst mindestens {{age}} Jahre alt sein, um Österlenappen zu nutzen.",
-      locked: "Prüfe, ob er stimmt – der Geburtstag kann später nicht geändert werden.",
+      locked: "Schau gern noch einmal aufs Datum – es wird in deinem Konto gespeichert.",
     },
     home: {
       title: "Wo wohnst du?",

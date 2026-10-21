@@ -111,11 +111,12 @@ export const en: typeof sv = {
     paywall: {
       close: "Close",
       pitch: "Discounts at {{count}} places in Österlen. Show your card at the till – that's it.",
+      pitchSave: "Save up to {{amount}} SEK in Österlen. Show your card at the till – that's it.",
       pitchNone: "Discounts at local businesses in Österlen. Show your card at the till – that's it.",
       forMe: "For me",
       gift: "Give away",
       plans: { week: "Week", month: "Month", year: "Year" },
-      popular: "Most popular",
+      popular: "Our pick",
       perMonth: "per month",
       once: "one-time",
       monthlyEquiv: "≈ {{price}} SEK/mo",
@@ -501,7 +502,7 @@ export const en: typeof sv = {
       pick: "Choose your birthday",
       age: "{{count}} years old",
       tooYoung: "You need to be at least {{age}} to use Österlenappen.",
-      locked: "Make sure it's right – your birthday can't be changed later.",
+      locked: "Take a moment to double-check the date – it's saved to your account.",
     },
     home: {
       title: "Where do you live?",
