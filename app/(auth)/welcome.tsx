@@ -1,5 +1,5 @@
 /**
- * Startsidan för den som inte är inloggad. Ales stenar i solnedgången fyller hela skärmen och glider
+ * Startsidan för den som inte är inloggad. Ales stenar i gryningen fyller hela skärmen och glider
  * långsamt från stenarna bort mot solen och tillbaka, så hela bilden syns. Nertill, över en mörk
  * övertoning: loggan, vad appen är på en rad och sätten att komma in — Apple, Google eller e-post.
  * Har man redan ett konto loggar man in längst ner. Språket väljs med flaggan uppe till höger.
@@ -84,9 +84,13 @@ function Welcome() {
       />
 
       <View style={[s.topRow, { top: insets.top + 10 }]}>
-        <View style={s.place}>
-          <MapPin size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
-          <Text style={s.placeText}>Ales stenar, Kåseberga</Text>
+        {/* Fotografens namn måste stå nära bilden (Visit Skånes villkor) */}
+        <View style={s.credit}>
+          <View style={s.place}>
+            <MapPin size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
+            <Text style={s.placeText}>Ales stenar, Kåseberga</Text>
+          </View>
+          <Text style={s.byline}>© Frits Meyst / WideOyster.com</Text>
         </View>
         <TouchableOpacity
           style={s.flag}
@@ -158,7 +162,12 @@ const s = StyleSheet.create({
     position: "absolute", left: AUTH_GUTTER, right: 16, zIndex: 2,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
+  credit: { gap: 3 },
   place: { flexDirection: "row", alignItems: "center", gap: 6 },
+  byline: {
+    fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(255,255,255,0.75)", marginLeft: 19,
+    textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+  },
   placeText: {
     fontFamily: "Inter_600SemiBold", fontSize: 13, letterSpacing: 0.3, color: "rgba(255,255,255,0.92)",
     textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
