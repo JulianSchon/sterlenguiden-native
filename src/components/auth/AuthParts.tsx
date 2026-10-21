@@ -65,8 +65,9 @@ export function AuthButton({
 }
 
 /**
- * Den stora guldknappen i välkomsten: samma guld som medlemskortets baksida, versal text med luft
- * mellan bokstäverna, en pil, och ett ljus som då och då sveper över — som över kortet.
+ * Den stora guldknappen (välkomsten, köpsidan): helt rundad, samma guld som medlemskortets baksida,
+ * versal text med luft mellan bokstäverna, pilen i en mörk cirkel till höger, och ett ljus som då och
+ * då sveper över — som över kortet.
  */
 export function GoldButton({
   label, onPress, loading = false,
@@ -103,7 +104,10 @@ export function GoldButton({
       ) : (
         <>
           <Text style={styles.goldText} numberOfLines={1}>{label}</Text>
-          <ArrowRight size={20} color="#1A1408" strokeWidth={2.2} />
+          {/* Pilen i en mörk cirkel längst till höger */}
+          <View style={styles.goldArrow}>
+            <ArrowRight size={20} color="#F7EBD0" strokeWidth={2.4} />
+          </View>
         </>
       )}
     </PressableScale>
@@ -230,8 +234,12 @@ const styles = StyleSheet.create({
   },
   buttonText: { fontFamily: "Inter_600SemiBold", fontSize: 16.5 },
   gold: {
-    height: 60, borderRadius: 18, overflow: "hidden",
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 22,
+    height: 64, borderRadius: 32, overflow: "hidden",
+    flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 64,
+  },
+  goldArrow: {
+    position: "absolute", right: 8, top: 8, width: 48, height: 48, borderRadius: 24,
+    alignItems: "center", justifyContent: "center", backgroundColor: "#1A1408",
   },
   goldSweep: { position: "absolute", top: -10, bottom: -10, width: 120 },
   goldText: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.6, textTransform: "uppercase", color: "#1A1408" },

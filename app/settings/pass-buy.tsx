@@ -26,7 +26,7 @@ import { useOffers } from "@/hooks/useOffers";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
-import { MemberCard } from "@/components/MemberCard";
+import { CARD_H, CARD_W, MemberCard } from "@/components/MemberCard";
 import { GoldButton } from "@/components/auth/AuthParts";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
@@ -41,14 +41,16 @@ type Mode = "self" | "gift";
 const GUTTER = 20;
 const GAP = 10;
 const DEFAULT_PRODUCT = "month";
+/** Medlemskortets bredd delat med höjden */
+const CARD_RATIO = CARD_W / CARD_H;
 
 export default function PassPaywall() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const { colors, scheme } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const { scheme } = useTheme();
   const s = useThemedStyles(createStyles);
   const { isBusiness } = useIsBusiness();
   const { data: products = [], isLoading } = usePassProducts();
@@ -70,7 +72,7 @@ export default function PassPaywall() {
     ? Math.round((1 - year.priceSek / (month.priceSek * 12)) * 100)
     : 0;
 
-  const cardW = Math.min(width - 72, 330);
+  const cardW = Math.round(Math.min(width - 72, 330, height * (height < 720 ? 0.18 : 0.23) * CARD_RATIO));
 
   // Kortet byggs osynligt och tonar fram först när hela designen laddats (annars syntes en enfärgad
   // ruta en kort stund). Laddar den inte visas kortet ändå efter en stund.
@@ -127,10 +129,12 @@ export default function PassPaywall() {
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
       {/* Ett varmt guldskimmer överst, bakom kortet */}
       <LinearGradient colors={["rgba(197,160,89,0.22)", "rgba(197,160,89,0)"]} style={s.wash} pointerEvents="none" />
+      {/* Får allt plats står sidan still; bara på de minsta telefonerna går den att scrolla */}
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 56 }]}
+        style={{ flex: 1 }}
+        contentContainerStyle={[s.body, { paddingTop: insets.top + 52 }]}
+        bounces={false}
         showsVerticalScrollIndicator={false}
-        alwaysBounceVertical={false}
       >
         <Reanimated.View style={[s.cardWrap, { width: cardW }, cardStyle]}>
             <MemberCard
@@ -153,24 +157,9 @@ export default function PassPaywall() {
         <Rise index={1}>
           <View style={s.heading}>
             <Text style={s.title}>{t("pass.title")}</Text>
-            <Text style={s.pitch}>{t("pass.paywall.pitch")}</Text>
-          </View>
-        </Rise>
-
-        <Rise index={2}>
-          <View style={s.perks}>
-            {[
-              placesWithOffers > 0 ? t("pass.paywall.perkPlaces", { count: roundedCountText(placesWithOffers) }) : t("pass.paywall.perkPlacesNone"),
-              t("pass.paywall.perkShow"),
-              mode === "gift" ? t("pass.paywall.perkGift") : t("pass.paywall.perkCancel"),
-            ].map((text) => (
-              <View key={text} style={s.perk}>
-                <View style={s.perkCheck}>
-                  <Check size={13} color={colors.onGold} strokeWidth={3} />
-                </View>
-                <Text style={s.perkText}>{text}</Text>
-              </View>
-            ))}
+            <Text style={s.pitch}>
+              {placesWithOffers > 0 ? t("pass.paywall.pitch", { count: roundedCountText(placesWithOffers) }) : t("pass.paywall.pitchNone")}
+            </Text>
           </View>
         </Rise>
 
@@ -326,7 +315,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
   wash: { position: "absolute", top: 0, left: 0, right: 0, height: 440 },
   center: { alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
-  scroll: { paddingHorizontal: GUTTER, paddingBottom: 24, gap: 26 },
+  body: { flexGrow: 1, paddingHorizontal: GUTTER, paddingBottom: 12, gap: 18, justifyContent: "space-evenly" },
   close: {
     position: "absolute", right: 16, width: 40, height: 40, borderRadius: 20,
     alignItems: "center", justifyContent: "center", backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
@@ -347,11 +336,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   switchItemOn: { backgroundColor: c.card, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   switchText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.muted },
   switchTextOn: { color: c.text },
-
-  perks: { gap: 12, alignSelf: "center", width: "100%", maxWidth: 340 },
-  perk: { flexDirection: "row", alignItems: "center", gap: 12 },
-  perkCheck: { width: 22, height: 22, borderRadius: 11, backgroundColor: c.gold, alignItems: "center", justifyContent: "center" },
-  perkText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 15, lineHeight: 21, color: c.text },
 
   plans: { flexDirection: "row", gap: GAP, paddingTop: 16 },
   plan: {
