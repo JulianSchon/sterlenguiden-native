@@ -24,15 +24,12 @@ import Reanimated, {
   Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming, FadeInDown,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
-import {
-  Baby, BedDouble, CalendarDays, Clock, Coffee, Dog, MapPin, Moon, Search, Sparkles, Trees, UtensilsCrossed, X,
-  type LucideIcon,
-} from "lucide-react-native";
+import { CalendarDays, Clock, MapPin, Moon, Search, Sparkles, X, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
@@ -51,6 +48,7 @@ import { openEvent } from "@/lib/eventSheet";
 import { pushOnce } from "@/lib/navigateOnce";
 import { openDirections } from "@/lib/placeLinks";
 import { registerScrollCallback } from "@/lib/scrollRefs";
+import { TILES, TINT, type Tint } from "@/lib/searchShortcuts";
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { Skeleton } from "@/components/Skeleton";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
@@ -71,37 +69,6 @@ const FIRST_PLACES = 20;
 const FIRST_ROWS = 6;
 /** Orter som syns innan "Visa alla" */
 const FIRST_TOWNS = 8;
-
-type Tint = { dark: string; light: string; ring?: "night" };
-/**
- * Rutornas och svarskortets färger: kategorins (samma som kartans prickar) där det finns en,
- * annars en egen som inte krockar med kategorierna.
- */
-const TINT = {
-  eat: { dark: "#C23A5E", light: "#881337" },
-  fika: { dark: "#D4BE86", light: "#8A6A2E" },
-  sleep: { dark: "#3F7BEA", light: "#1E3A8A" },
-  kids: { dark: "#2499C2", light: "#0C4A6E" },
-  // Månen: gul mot en grå ring, som månen på natthimlen
-  late: { dark: "#F2D06B", light: "#A8830A" },
-  dog: { dark: "#C08A5B", light: "#7C4A21" },
-  nature: { dark: "#2BA36A", light: "#064E3B" },
-  events: { dark: "#A55BE0", light: "#581C87" },
-  open: { dark: "#4ADE80", light: "#15803D" },
-  gold: { dark: "#E8C674", light: "#8A6A2E" },
-} satisfies Record<string, Tint>;
-
-/** "Vad vill du göra?" — varje ruta är en färdig fråga till söket (ordningen håller lika färger isär) */
-const TILES: { key: string; label: string; query: string; Icon: LucideIcon; tint: Tint }[] = [
-  { key: "eat", label: "Äta nu", query: "äta nu", Icon: UtensilsCrossed, tint: TINT.eat },
-  { key: "fika", label: "Fika", query: "fika", Icon: Coffee, tint: TINT.fika },
-  { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble, tint: TINT.sleep },
-  { key: "kids", label: "Familj", query: "familj", Icon: Baby, tint: TINT.kids },
-  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: { ...TINT.late, ring: "night" } },
-  { key: "dog", label: "Med hund", query: "med hund", Icon: Dog, tint: TINT.dog },
-  { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees, tint: TINT.nature },
-  { key: "events", label: "Händer snart", query: "evenemang", Icon: CalendarDays, tint: TINT.events },
-];
 
 /** Färgen för något söket förstått (svarskortets ring och chipsens ikoner) */
 function intentTint(x: Intent, scheme: "dark" | "light"): string {
@@ -164,6 +131,12 @@ export default function ExploreScreen() {
     Haptics.selectionAsync().catch(() => {});
     changeQuery(q);
   }, [changeQuery]);
+
+  // En genväg på Hem ("Äta nu", "Fika" …) öppnar Sök med frågan redan ställd
+  const params = useLocalSearchParams<{ ask?: string; n?: string }>();
+  useEffect(() => {
+    if (params.ask) changeQuery(params.ask);
+  }, [params.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Öppet nu (och siffrorna i rutorna) räknas om varje gång man kommer tillbaka till sidan
   const [tick, setTick] = useState(0);

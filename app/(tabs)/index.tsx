@@ -1,1143 +1,377 @@
-﻿import {
-  View,
-  Text,
-  ScrollView,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Dimensions,
-  Modal,
-  Share,
-  Animated,
-} from "react-native";
-import { registerScroll } from "@/lib/scrollRefs";
-import { STORY_GRADIENT } from "@/theme/storyGradient";
+﻿/**
+ * Hem — appens första sida, som ett enda långt flöde.
+ *
+ * Överst: dagens datum, hälsningen och profilbilden (med streaken), en rad med vädret och hur många
+ * ställen som har öppet just nu, "Du verkar vara vid …" / en skatt i närheten när det stämmer,
+ * berättelserna, genvägarna in i Sök ("Äta nu", "Fika" …) och Upptäck (svepet).
+ *
+ * Sedan flödet "För dig" (lib/homeFeed): evenemang, nya erbjudanden (biljetterna rivs som på
+ * Förmåner), platser att inspireras av, nyheter, vänners besök och en skatt — blandat efter fasta
+ * regler. Det byggs en gång när datan kommit och står still medan man tittar; dra ner för att
+ * uppdatera (då blandas platserna om). "Visa mer" längst ner laddar in nästa del, tills man är ikapp.
+ *
+ * Laggfritt: flödet är en lista som bara ritar det som syns, korten ritas bara om när det egna kortet
+ * ändras (ett hjärta), och toppen sköter sin egen data.
+ */
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshControl, StyleSheet, Text, View, type FlatList } from "react-native";
+import Reanimated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import heroOsterlen from "../../assets/hero-osterlen.jpg";
 import { useRouter } from "expo-router";
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import {
-  MapPin,
-  Search,
-  ChevronRight,
-  Heart,
-  Sparkles,
-  Utensils,
-  BedDouble,
-} from "lucide-react-native";
-import { ShareIcon } from "@/components/ShareIcon";
-import Svg, {
-  Circle as SvgCircle,
-  Defs,
-  LinearGradient as SvgGradient,
-  LinearGradient as SvgLinearGradient,
-  Stop,
-  Rect,
-} from "react-native-svg";
-import { usePlaces, isPlaceOpen, getTierScore, type Place } from "@/hooks/usePlaces";
+import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
+import * as Location from "expo-location";
+import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
-import { useProfile } from "@/hooks/useProfile";
-import { useAvatarUrl } from "@/hooks/useAvatarUrl";
-import { AvatarRing } from "@/components/profile/AvatarRing";
-import { StreakPill } from "@/components/streak/StreakPill";
-import { initialsOf, toneOnTone } from "@/lib/color";
-import { useFavorites, useToggleFavorite, useIsFavorite } from "@/hooks/useFavorites";
-import { useBusinessStories } from "@/hooks/useBusinessStories";
-import { useStoryViews } from "@/hooks/useStoryViews";
-import { StoryViewer, type StoryGroupData, type StoryType } from "@/components/StoryViewer";
+import { useOffers } from "@/hooks/useOffers";
+import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
+import { useNews, type NewsItem } from "@/hooks/useNews";
+import { useFriendVisits } from "@/hooks/useFriendVisits";
+import { useCollected, useCollectibles, type Collectible } from "@/hooks/useCollectibles";
+import { saveEventFavorite, savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
+import { useVisits } from "@/hooks/useVisits";
+import { useTheme } from "@/theme/ThemeProvider";
+import { buildFeed, daySeed, type FeedItem } from "@/lib/homeFeed";
+import { openEvent } from "@/lib/eventSheet";
+import { pushOnce } from "@/lib/navigateOnce";
+import { setNavHidden } from "@/lib/navVisibility";
+import { registerScrollCallback } from "@/lib/scrollRefs";
+import { openSearch } from "@/lib/searchShortcuts";
+import { useAppSettled } from "@/lib/appSettled";
+import type { Offer } from "@/lib/offers";
+import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
+import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import { NearbyCheckInPrompt } from "@/components/checkin/NearbyCheckInPrompt";
 import { NearbyStickerPrompt } from "@/components/stickers/NearbyStickerPrompt";
-import { openEvent } from "@/lib/eventSheet";
-import { useNews, type NewsItem } from "@/hooks/useNews";
-import { colors } from "@/lib/colors";
-import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
-import * as Location from "expo-location";
-import { sv } from "date-fns/locale";
+import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
+import { HomeHeader } from "@/components/home/HomeHeader";
+import { StoryRow } from "@/components/home/StoryRow";
+import { DiscoverCard, ShortcutRow } from "@/components/home/HomeShortcuts";
+import {
+  FEED_GUTTER, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedPlaceCard, FeedSkeleton,
+  FeedTreasureCard, OpenNowRail, WeekendRail,
+} from "@/components/home/FeedCards";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+/** Så många kort syns först, och så många till för varje "Visa mer" */
+const FIRST_PAGE = 12;
+const MORE = 10;
+/** Det som inte är nödvändigt för flödet (nyheter, vänner …) väntas in högst så här länge */
+const OPTIONAL_WAIT_MS = 1500;
+const NO_PLACES: Place[] = [];
+const NO_ITEMS: FeedItem[] = [];
 
-function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-function formatDist(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)}m` : `${Math.round(km)}km`;
-}
+type Loc = { lat: number; lng: number };
 
-const HERO_HEIGHT = 208;
-const HERO_IMAGE = heroOsterlen;
-
-// Tidsberoende hälsning
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h >= 5  && h < 12) return "God morgon";
-  if (h >= 12 && h < 15) return "God dag";
-  if (h >= 15 && h < 18) return "God eftermiddag";
-  return "God kväll";
-}
-
-
-/** Profilbilden uppe till höger i hero-headern */
-const AVATAR = 58;
-
-// Ring colors för FeedPost-avatarer
-const RING_GOLD  = "#C9A84C";   // favorit
-const RING_GREEN = "#52886A";   // ny story
-const RING_SEEN  = "rgba(255,255,255,0.18)";
-
-function formatEventDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  if (isToday(date)) return "Idag";
-  if (isTomorrow(date)) return "Imorgon";
-  if (isThisWeek(date)) return format(date, "EEEE", { locale: sv });
-  return format(date, "d MMM", { locale: sv });
-}
-
-function formatDateBadge(dateStr: string, endDateStr?: string | null): { month: string; day: string } {
-  const d = new Date(dateStr);
-  const month = format(d, "MMM", { locale: sv }).toUpperCase();
-  if (endDateStr) {
-    const end = new Date(endDateStr);
-    const startDay = format(d, "d");
-    const endDay = format(end, "d");
-    if (startDay !== endDay) return { month, day: `${startDay}–${endDay}` };
-  }
-  return { month, day: format(d, "d") };
-}
-
-
-// ─── StoryCircle – metallisk SVG-ring ───────────────────────────────────────
-
-const SC_INNER    = 64;
-const SC_GAP      = 2;
-const SC_STROKE   = 3.2;   // gradient-ringens strokebredd
-const SEG_STROKE  = 3.5;   // animerings-bågens strokebredd – smal och elegant
-const SC_RADIUS   = SC_INNER / 2 + SC_GAP + SC_STROKE / 2;  // 35.6
-// SC_OUTER rymmer ringen + bågarna (SEG_STROKE/2 utanför radien)
-const SC_OUTER    = Math.ceil(2 * (SC_RADIUS + SEG_STROKE / 2) + 2);  // ≈ 78
-const SC_CENTER   = SC_OUTER / 2;
-
-// ─── Animering: crescendo-bågar (liten ring → längre båge → hela varvet) ────
-const N_SEGS   = 12;    // antal bågsekvenser
-const ANIM_MS  = 340;   // total tid – snabbt men inte ryckigt
-const SEG_GAP  = -1;    // negativ = varje segment täcker 1 px av föregående → inga skarvar
-const SC_CIRC  = 2 * Math.PI * SC_RADIUS;  // ≈ 224 px
-
-// Bågarna varierar i längd: kortast (4 px, ser ut som en ring/punkt) →
-// längst (~33 px, tydlig båge). Tillsammans täcker de exakt ett varv.
-const SEG_A    = 4;   // kortaste bågstrecket (px)
-const SEG_TOTAL = SC_CIRC - N_SEGS * SEG_GAP;
-const SEG_B    = (SEG_TOTAL - N_SEGS * SEG_A) / (N_SEGS * (N_SEGS - 1) / 2);
-
-type SegInfo = { dash: number; start: number; color: string };
-const SEGMENTS: SegInfo[] = (() => {
-  const out: SegInfo[] = [];
-  let cum = 0;
-  for (let i = 0; i < N_SEGS; i++) {
-    const dash = SEG_A + SEG_B * i;
-    const t    = i / (N_SEGS - 1);
-    // Gult → orange längs banan
-    out.push({ dash, start: cum, color: `rgb(255,${Math.round(243 - 121 * t)},${Math.round(71 * t)})` });
-    cum += dash + SEG_GAP;
-  }
-  return out;
-})();
-
-// OSEDD – gult kickar igång men orange dominerar och poppar (delad, se storyGradient.ts)
-const GRAD_ACTIVE = STORY_GRADIENT;
-
-// SEDD – diskret mörkgrå
-const GRAD_SEEN = {
-  stops: [
-    { offset: "0%",   color: "#484848" },
-    { offset: "100%", color: "#303030" },
-  ],
-  x1: "0", y1: "1", x2: "1", y2: "0",
-};
-
-function StoryCircle({
-  group,
-  isSeen,
-  onPress,
-  index,
-}: {
-  group: StoryGroupData;
-  isSeen: boolean;
-  onPress: () => void;
-  index: number;
-}) {
-  const imageUrl  = group.logoUrl ?? group.stories[0]?.image_url ?? null;
-  const label     = group.placeName.split(/[-–—,]/)[0].trim();
-  const gradConf  = isSeen ? GRAD_SEEN : GRAD_ACTIVE;
-  const gradId    = `sg-${group.placeId}`;
-
-  // -1 = vilande, 0..N_SEGS = antal synliga bågssegment
-  const [dots, setDots] = useState(-1);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
-
-  const handleTap = useCallback(() => {
-    if (dots >= 0) return;           // redan igång
-    setDots(0);
-    let n = 0;
-    timer.current = setInterval(() => {
-      n++;
-      if (n >= N_SEGS) {
-        clearInterval(timer.current!);
-        timer.current = null;
-        setDots(N_SEGS);
-        onPress(); // öppna storyn direkt utan fördröjning
-        setTimeout(() => setDots(-1), 400); // återställ state när storyn är öppen och ringen ej syns
-      } else {
-        setDots(n);
+/**
+ * Var man är. Frågar om platsbehörighet (Hem är första sidan, så det är här appen får den), tar
+ * först telefonens senast kända position (snabbt) och sedan en färsk. `settled` när det finns en
+ * position — eller när det står klart att det inte blir någon.
+ */
+function useHomeLocation(): { location: Loc | null; settled: boolean } {
+  const [location, setLocation] = useState<Loc | null>(null);
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const t = setTimeout(() => alive && setSettled(true), 2000);
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const last = await Location.getLastKnownPositionAsync();
+        if (alive && last) {
+          setLocation({ lat: last.coords.latitude, lng: last.coords.longitude });
+          setSettled(true);
+        }
+        const now = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (alive) setLocation({ lat: now.coords.latitude, lng: now.coords.longitude });
+      } catch {
+        // Ingen position — Hem klarar sig utan
+      } finally {
+        if (alive) setSettled(true);
       }
-    }, ANIM_MS / N_SEGS);
-  }, [dots, onPress]);
-
-  const isAnimating = dots >= 0;
-
-  return (
-    <TouchableOpacity style={s.storyCircleWrapper} activeOpacity={0.9} onPress={handleTap}>
-      <View style={{ width: SC_OUTER, height: SC_OUTER, alignItems: "center", justifyContent: "center" }}>
-
-        {/* SVG: gradient-ring normalt, prickar under TikTok-animering */}
-        <Svg width={SC_OUTER} height={SC_OUTER} style={StyleSheet.absoluteFill}>
-          {isAnimating ? (
-            // Crescendo-bågar: segment 0 = liten "ring", segment 11 = lång båge.
-            // Varje segment ritas som en strokeDasharray-båge längs SC_RADIUS-cirkeln.
-            // strokeDashoffset = SC_CIRC - seg.start → placerar bågen rätt medsols.
-            SEGMENTS.map((seg, i) => {
-              if (i >= dots) return null;
-              // Första och sista segmentet har rundade ändpunkter för ett fint avslut.
-              // Mellansegmenten använder butt + 1px överlapp – inga synliga skarvar.
-              const linecap = (i === 0 || i === N_SEGS - 1) ? "round" : "butt";
-              return (
-                <SvgCircle
-                  key={i}
-                  cx={SC_CENTER} cy={SC_CENTER} r={SC_RADIUS}
-                  stroke={seg.color}
-                  strokeWidth={SEG_STROKE}
-                  fill="none"
-                  strokeDasharray={`${seg.dash} ${SC_CIRC - seg.dash}`}
-                  strokeDashoffset={SC_CIRC - seg.start}
-                  strokeLinecap={linecap}
-                  transform={`rotate(-90, ${SC_CENTER}, ${SC_CENTER})`}
-                />
-              );
-            })
-          ) : (
-            // Normal gradient-ring
-            <>
-              <Defs>
-                <SvgGradient id={gradId}
-                  x1={gradConf.x1} y1={gradConf.y1}
-                  x2={gradConf.x2} y2={gradConf.y2}
-                >
-                  {gradConf.stops.map((stop) => (
-                    <Stop key={stop.offset} offset={stop.offset} stopColor={stop.color} stopOpacity="1" />
-                  ))}
-                </SvgGradient>
-              </Defs>
-              <SvgCircle
-                cx={SC_CENTER} cy={SC_CENTER} r={SC_RADIUS}
-                stroke={`url(#${gradId})`}
-                strokeWidth={SC_STROKE}
-                fill="none"
-              />
-            </>
-          )}
-        </Svg>
-
-        {/* Bild */}
-        <View style={{
-          width: SC_INNER, height: SC_INNER,
-          borderRadius: SC_INNER / 2,
-          overflow: "hidden",
-          backgroundColor: colors.surface,
-        }}>
-          {imageUrl && (
-            <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-          )}
-        </View>
-
-      </View>
-
-      <Text style={[s.storyName, isSeen && s.storyNameSeen]} numberOfLines={1}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
+    })();
+    return () => { alive = false; clearTimeout(t); };
+  }, []);
+  return { location, settled };
 }
-
-// ─── NearbyCard ──────────────────────────────────────────────────────────────
-
-function NearbyCard({ place, userLat, userLng }: { place: Place; userLat: number | null; userLng: number | null }) {
-  const router = useRouter();
-  const imageUrl = place.image_url?.split(",")[0].trim() ?? "";
-  const category = place.categories?.split(",")[0]?.trim() ?? "";
-  const distance =
-    userLat !== null && userLng !== null && place.lat && place.lng
-      ? getDistanceKm(userLat, userLng, place.lat, place.lng)
-      : null;
-
-  return (
-    <TouchableOpacity
-      style={s.nearbyCard}
-      activeOpacity={0.85}
-      onPress={() => router.push(`/place/${place.id}` as any)}
-    >
-      {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={s.nearbyImage} resizeMode="cover" />
-      ) : (
-        <View style={[s.nearbyImage, { backgroundColor: colors.surface }]} />
-      )}
-      <View style={s.nearbyOverlay} />
-      <View style={s.nearbyContent}>
-        {category ? (
-          <Text style={s.nearbyCategory} numberOfLines={1}>{category.toUpperCase()}</Text>
-        ) : null}
-        <Text style={s.nearbyName} numberOfLines={2}>{place.name}</Text>
-        {distance !== null && (
-          <Text style={s.nearbyDist}>{formatDist(distance)}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ─── UpcomingEventCard ────────────────────────────────────────────────────────
-
-function UpcomingEventCard({ event, onPress }: { event: Event; onPress: () => void }) {
-  const badge = event.date ? formatDateBadge(event.date, event.end_date) : null;
-  const imageUrl = event.image_url ?? "";
-
-  return (
-    <TouchableOpacity
-      style={s.upcomingCard}
-      activeOpacity={0.88}
-      onPress={onPress}
-    >
-      {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "#3D2B1A" }]} />
-      )}
-      <View style={s.upcomingGradient} />
-
-      {badge && (
-        <View style={s.upcomingBadge}>
-          <Text style={s.upcomingBadgeMonth}>{badge.month}</Text>
-          <Text style={s.upcomingBadgeDay}>{badge.day}</Text>
-        </View>
-      )}
-
-      <View style={s.upcomingContent}>
-        <Text style={s.upcomingTitle} numberOfLines={2}>{event.title}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ─── FeedPost ─────────────────────────────────────────────────────────────────
-
-function FeedPost({
-  place,
-  hasStory = false,
-  storyType,
-  onStoryClick,
-}: {
-  place: Place;
-  hasStory?: boolean;
-  storyType?: StoryType;
-  onStoryClick?: () => void;
-}) {
-  const router = useRouter();
-  const toggleFavorite = useToggleFavorite();
-  const isFav = useIsFavorite(place.id);
-
-  const imageUrls = (place.image_url ?? "")
-    .split(",")
-    .map((u) => u.trim())
-    .filter(Boolean);
-  const displayImage = imageUrls[0] ?? "";
-  const logoOrImage = place.logo_url ?? displayImage;
-
-  const ringColor =
-    hasStory && storyType === "favorite" ? RING_GOLD
-    : hasStory ? RING_GREEN
-    : "transparent";
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        title: place.name,
-        message: `Upplev ${place.name} på Österlen`,
-      });
-    } catch {}
-  };
-
-  return (
-    <View style={s.feedPost}>
-      {/* Header */}
-      <View style={s.feedHeader}>
-        <TouchableOpacity
-          style={[s.feedAvatar, { borderColor: ringColor }]}
-          onPress={() => (hasStory && onStoryClick ? onStoryClick() : router.push(`/place/${place.id}` as any))}
-          activeOpacity={0.8}
-        >
-          {logoOrImage ? (
-            <Image source={{ uri: logoOrImage }} style={s.feedAvatarImg} resizeMode="cover" />
-          ) : (
-            <View style={[s.feedAvatarImg, { backgroundColor: colors.surface }]} />
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{ flex: 1 }}
-          onPress={() => router.push(`/place/${place.id}` as any)}
-          activeOpacity={0.7}
-        >
-          <Text style={s.feedPlaceName} numberOfLines={1}>{place.name}</Text>
-          <View style={s.feedMeta}>
-            <MapPin size={10} color={colors.foregroundSubtle} />
-            <Text style={s.feedCategory}>
-              {place.categories?.split(",")[0]?.trim() ?? ""}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Image */}
-      <TouchableOpacity
-        style={s.feedImageContainer}
-        activeOpacity={0.92}
-        onPress={() => router.push(`/place/${place.id}` as any)}
-      >
-        {displayImage ? (
-          <Image source={{ uri: displayImage }} style={s.feedImage} resizeMode="cover" />
-        ) : (
-          <View style={[s.feedImage, { backgroundColor: colors.surface }]} />
-        )}
-
-      </TouchableOpacity>
-
-      {/* Actions */}
-      <View style={s.feedActions}>
-        <TouchableOpacity
-          style={s.feedActionBtn}
-          onPress={() => toggleFavorite.mutate({ placeId: place.id })}
-          activeOpacity={0.7}
-        >
-          <Heart
-            size={24}
-            color={isFav ? "#EF4444" : colors.foreground}
-            fill={isFav ? "#EF4444" : "transparent"}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity style={s.feedActionBtn} onPress={handleShare} activeOpacity={0.7}>
-          <ShareIcon size={24} color={colors.foreground} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Description */}
-      {(place.short_description || place.description) && (
-        <Text style={s.feedDesc} numberOfLines={3}>
-          {place.short_description || place.description}
-        </Text>
-      )}
-    </View>
-  );
-}
-
-// ─── NewsCard ─────────────────────────────────────────────────────────────────
-
-// Gradient-färger identiska med story-ringen
-const NEWS_GRAD = [
-  { offset: "0%",   color: "#FFF200" },
-  { offset: "35%",  color: "#FFB000" },
-  { offset: "75%",  color: "#FF5000" },
-  { offset: "100%", color: "#FF8000" },
-] as const;
-
-function NewsCard({ item }: { item: NewsItem }) {
-  const router = useRouter();
-  const publishedDate = item.published_at ?? item.created_at;
-  const dateStr = publishedDate
-    ? format(new Date(publishedDate), "d MMM HH:mm", { locale: sv })
-    : null;
-
-  return (
-    // Yttre wrapper: gradient-fill syns som 1.5 px border
-    <TouchableOpacity
-      style={s.newsCardOuter}
-      activeOpacity={0.85}
-      onPress={() => router.push(`/news/${item.id}` as any)}
-    >
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-        <Defs>
-          <SvgLinearGradient id="ng" x1="0" y1="1" x2="1" y2="0">
-            {NEWS_GRAD.map((s) => (
-              <Stop key={s.offset} offset={s.offset} stopColor={s.color} />
-            ))}
-          </SvgLinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#ng)" rx={16} ry={16} />
-      </Svg>
-      {/* Inre kort med appens bakgrundsfärg */}
-      <View style={s.newsCard}>
-      <View style={s.newsCardInner}>
-        {/* Vänster: text */}
-        <View style={{ flex: 1, gap: 4 }}>
-          <View style={s.newsMeta}>
-            <View style={s.newsBadgePill}>
-              <Text style={s.newsBadgeText}>Österlenappen</Text>
-            </View>
-            {dateStr && <Text style={s.newsDate}>{dateStr}</Text>}
-          </View>
-          <Text style={s.newsTitle} numberOfLines={2}>{item.title}</Text>
-          {item.ingress ? (
-            <Text style={s.newsIngress} numberOfLines={2}>{item.ingress}</Text>
-          ) : null}
-        </View>
-        {/* Höger: omslagsbild */}
-        {item.cover_image_url ? (
-          <Image source={{ uri: item.cover_image_url }} style={s.newsThumbnail} resizeMode="cover" />
-        ) : null}
-      </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ─── HomeScreen ───────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [storyGroupIndex, setStoryGroupIndex] = useState<number | null>(null);
-  const [userLat, setUserLat] = useState<number | null>(null);
-  const [userLng, setUserLng] = useState<number | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
-  useEffect(() => { registerScroll("home", scrollRef); }, []);
-
-
-  const { data: profile } = useProfile();
-  const avatarUrl = useAvatarUrl();
-  const { data: places = [], isLoading: placesLoading } = usePlaces();
-  const { data: events = [], isLoading: eventsLoading } = useEvents();
-  const { data: businessStories = [] } = useBusinessStories();
-  const { data: newsItems = [] } = useNews(5);
-  const { data: favorites = [] } = useFavorites();
-  const { data: storyViews = [] } = useStoryViews();
-
-  const firstName = profile?.display_name?.split(" ")[0] ?? null;
-  const viewedIds = useMemo(() => new Set(storyViews.map((v) => v.story_id)), [storyViews]);
-
-  // Story groups – använder place-data inbakad i storyn (JOIN), ej separat usePlaces
-  const storyGroups = useMemo((): StoryGroupData[] => {
-    const now = new Date().toISOString();
-    // Filtrera bort utgångna och stories utan place-data
-    const activeStories = businessStories.filter(
-      (bs) => bs.place && (!bs.expires_at || bs.expires_at >= now)
-    );
-
-    // Gruppera per place
-    const byPlace = new Map<number, typeof activeStories>();
-    for (const bs of activeStories) {
-      if (!byPlace.has(bs.place_id)) byPlace.set(bs.place_id, []);
-      byPlace.get(bs.place_id)!.push(bs);
-    }
-
-    const result: StoryGroupData[] = [];
-    for (const [placeId, stories] of byPlace) {
-      const placeData = stories[0]?.place;
-      if (!placeData) continue;
-
-      const isFav = favorites.some((f) => f.place_id === placeId);
-      stories.sort((a, b) => b.created_at.localeCompare(a.created_at));
-
-      result.push({
-        placeId,
-        placeName: placeData.name,
-        placeCategory: placeData.categories ?? null,
-        placeLocation: placeData.nearest_town ?? null,
-        logoUrl: placeData.logo_url ?? null,
-        storyType: isFav ? "favorite" : "regular",
-        stories,
-      });
-    }
-
-    // Favoriter först, sedan osedda, sedda sist
-    return result.sort((a, b) => {
-      const aIsSeen = a.stories.every((s) => viewedIds.has(s.id));
-      const bIsSeen = b.stories.every((s) => viewedIds.has(s.id));
-      if (aIsSeen !== bIsSeen) return aIsSeen ? 1 : -1;
-      if (a.storyType === "favorite" && b.storyType !== "favorite") return -1;
-      if (b.storyType === "favorite" && a.storyType !== "favorite") return 1;
-      return 0;
-    });
-  }, [businessStories, favorites, viewedIds]);
-
-  const handleStoryPress = useCallback((index: number) => {
-    setStoryGroupIndex(index);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setUserLat(loc.coords.latitude);
-      setUserLng(loc.coords.longitude);
-    })();
-  }, []);
-
-  // Top places (nearby section)
-  const nearbyPlaces = useMemo(
-    () => [...places].sort((a, b) => getTierScore(b.business_tier) - getTierScore(a.business_tier)).slice(0, 8),
-    [places]
-  );
-
-  // Feed places (exclude nearby)
-  const feedPlaces = useMemo(() => {
-    const nearbyIds = new Set(nearbyPlaces.map((p) => p.id));
-    return favorites.length > 0
-      ? places.filter((p) => !nearbyIds.has(p.id)).slice(0, 20)
-      : [];
-  }, [places, nearbyPlaces, favorites]);
-
-  // Upcoming event
-  const upcomingEvent = useMemo(() => {
-    const today = format(new Date(), "yyyy-MM-dd");
-    const todayEvent = events.find((e) => {
-      if (!e.date) return false;
-      if (e.end_date) return e.date <= today && e.end_date >= today;
-      return e.date === today;
-    });
-    if (todayEvent) return todayEvent;
-    return events
-      .filter((e) => e.date && e.date > today)
-      .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))[0] ?? null;
-  }, [events]);
-
+  const { colors } = useTheme();
+  const { location, settled } = useHomeLocation();
   return (
-    <View style={s.container}>
-      {/* Scrollable — hero och content scrollar tillsammans */}
-      <ScrollView
-        ref={scrollRef}
-        style={s.scrollView}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-      {/* Hero scrollar med innehållet */}
-      <View style={s.hero}>
-        <Image source={HERO_IMAGE} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        <View style={s.heroOverlay} />
-        {/* Hero header */}
-        <View style={[s.heroHeader, { paddingTop: insets.top + 12 }]}>
-          <View>
-            <Text style={s.heroWelcome}>VÄLKOMMEN TILL</Text>
-            <Text style={s.heroTitle}>Österlen</Text>
-            <Text style={s.heroName}>
-              {getGreeting()}{firstName ? `, ${firstName}` : ""}
-            </Text>
-          </View>
-          {/* Streaken + profilbilden — ett enda tryck som leder till Mitt Österlen */}
-          <TouchableOpacity
-            style={s.avatarGroup}
-            onPress={() => router.push("/mitt-osterlen" as any)}
-            activeOpacity={0.85}
-          >
-            <View style={s.streakOverlap}>
-              <StreakPill />
-            </View>
-            <View style={s.avatarBtn}>
-              <AvatarRing ring={profile?.avatar_ring} size={AVATAR}>
-                <View style={[s.avatarFallback, { backgroundColor: profile?.circle_color ?? "#2A2A2A" }]}>
-                  {avatarUrl ? (
-                    <Image
-                      source={{ uri: avatarUrl }}
-                      style={StyleSheet.absoluteFill}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Text style={[s.avatarInitials, { color: toneOnTone(profile?.circle_color ?? "#2A2A2A") }]}>
-                      {initialsOf(profile?.display_name ?? "") || "?"}
-                    </Text>
-                  )}
-                </View>
-              </AvatarRing>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-        {/* Content */}
-        <View style={s.contentCard}>
-          {/* ── Du verkar vara vid X (bara när exakt en plats är inom incheckningsradien) ── */}
-          <NearbyCheckInPrompt places={places} lat={userLat} lng={userLng} />
-          <NearbyStickerPrompt lat={userLat} lng={userLng} />
-
-          {/* ── Stories ── */}
-          {storyGroups.length > 0 && (
-            <View style={[s.section, { marginTop: 8, marginBottom: 40 }]}>
-              <Text style={s.storiesLabel}>JUST NU</Text>
-              <FlatList
-                data={storyGroups}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(g) => `${g.placeId}-${g.storyType}`}
-                contentContainerStyle={s.storiesContainer}
-                renderItem={({ item, index }) => {
-                  const isSeen = item.stories.every((s) => viewedIds.has(s.id));
-                  return (
-                    <StoryCircle
-                      key={`${item.placeId}-${item.storyType}`}
-                      group={item}
-                      isSeen={isSeen}
-                      index={index}
-                      onPress={() => handleStoryPress(index)}
-                    />
-                  );
-                }}
-              />
-            </View>
-          )}
-
-          {/* ── Category tiles ── */}
-          <View style={s.categoryRow}>
-            <TouchableOpacity
-              style={s.categoryTile}
-              activeOpacity={0.8}
-              onPress={() => router.push("/discover" as any)}
-            >
-              <View style={s.categoryIconGlow}>
-                <Heart size={26} color={colors.gold} />
-              </View>
-              <Text style={s.categoryLabel}>Upptäck</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.categoryTile}
-              activeOpacity={0.8}
-              onPress={() => router.push("/category/lunch" as any)}
-            >
-              <View style={s.categoryIconGlow}>
-                <Utensils size={26} color={colors.gold} />
-              </View>
-              <Text style={s.categoryLabel}>Äta</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={s.categoryTile}
-              activeOpacity={0.8}
-              onPress={() => router.push("/category/boende" as any)}
-            >
-              <View style={s.categoryIconGlow}>
-                <BedDouble size={26} color={colors.gold} />
-              </View>
-              <Text style={s.categoryLabel}>Sova</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Upcoming event ── */}
-          {upcomingEvent && (
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>Vad händer på Österlen?</Text>
-              <Text style={s.sectionSub}>Nästa stora evenemang nära dig</Text>
-              <UpcomingEventCard event={upcomingEvent} onPress={() => openEvent(upcomingEvent.id, { event: upcomingEvent })} />
-            </View>
-          )}
-
-          {/* ── Nearby horizontal scroll ── */}
-          <View style={s.section}>
-            <View style={s.sectionHeader}>
-              <View>
-                <Text style={s.sectionTitle2}>Relevant för dig</Text>
-                <Text style={s.sectionSub2}>Utvalda platser nära dig</Text>
-              </View>
-            </View>
-            {placesLoading ? (
-              <ActivityIndicator color={colors.gold} style={{ marginTop: 8 }} />
-            ) : (
-              <FlatList
-                data={nearbyPlaces}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => String(item.id)}
-                contentContainerStyle={s.nearbyList}
-                renderItem={({ item }) => <NearbyCard place={item} userLat={userLat} userLng={userLng} />}
-              />
-            )}
-          </View>
-
-          {/* ── Nyheter ── */}
-          {newsItems.length > 0 && (
-            <View style={s.section}>
-              <Text style={[s.sectionTitle2, { paddingHorizontal: 20, marginBottom: 16 }]}>Nyheter på Österlen</Text>
-              {newsItems.map((item) => (
-                <NewsCard key={item.id} item={item} />
-              ))}
-            </View>
-          )}
-
-          {/* ── Explore feed or empty CTA ── */}
-          <View style={[s.section, s.lastSection]}>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle2}>Utforska</Text>
-            </View>
-
-            {favorites.length === 0 ? (
-              // Empty CTA
-              <View style={s.emptyFeed}>
-                <Sparkles size={40} color={colors.gold} />
-                <Text style={s.emptyFeedTitle}>Gör appen personlig!</Text>
-                <Text style={s.emptyFeedSub}>
-                  Svajpa fram dina favoriter för att få ett flöde anpassat efter dig.
-                </Text>
-                <TouchableOpacity
-                  style={s.discoverBtn}
-                  onPress={() => router.push("/discover" as any)}
-                  activeOpacity={0.85}
-                >
-                  <Heart size={16} color="#1a1200" />
-                  <Text style={s.discoverBtnText}>Upptäck platser</Text>
-                </TouchableOpacity>
-              </View>
-            ) : placesLoading ? (
-              <ActivityIndicator color={colors.gold} style={{ marginTop: 20 }} />
-            ) : (
-              feedPlaces.map((place) => {
-                const storyData = storyGroups.find((g) => g.placeId === place.id);
-                const storyIdx  = storyData ? storyGroups.indexOf(storyData) : -1;
-
-                return (
-                  <FeedPost
-                    key={place.id}
-                    place={place}
-                    hasStory={storyIdx !== -1}
-                    storyType={storyData?.storyType}
-                    onStoryClick={storyIdx !== -1 ? () => handleStoryPress(storyIdx) : undefined}
-                  />
-                );
-              })
-            )}
-          </View>
-        </View>
-      </ScrollView>
-
-
-      {/* Story viewer */}
-      <Modal
-        visible={storyGroupIndex !== null}
-        animationType="none"
-        statusBarTranslucent
-        onRequestClose={() => setStoryGroupIndex(null)}
-      >
-        {storyGroupIndex !== null && (
-          <StoryViewer
-            groups={storyGroups}
-            initialGroupIndex={storyGroupIndex}
-            onClose={() => setStoryGroupIndex(null)}
-          />
-        )}
-      </Modal>
-
+    <View style={[s.screen, { backgroundColor: colors.bg }]}>
+      <HomeFeed location={location} locationSettled={settled} />
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+/** Allt ovanför flödet. Varje del sköter sin egen data */
+const HomeTop = memo(function HomeTop({ location }: { location: Loc | null }) {
+  const { colors } = useTheme();
+  const { data: places = NO_PLACES } = usePlaces();
+  return (
+    <View>
+      <HomeHeader location={location} />
+      <NearbyCheckInPrompt places={places} lat={location?.lat ?? null} lng={location?.lng ?? null} />
+      <NearbyStickerPrompt lat={location?.lat ?? null} lng={location?.lng ?? null} />
+      <StoryRow />
+      <ShortcutRow />
+      <DiscoverCard />
+      <View style={s.forYou}>
+        <Text style={[s.forYouTitle, { color: colors.text }]}>För dig</Text>
+        <Text style={[s.forYouSub, { color: colors.muted }]}>Det senaste på Österlen, och tips utifrån vad du gillar</Text>
+      </View>
+    </View>
+  );
+});
 
-const NEARBY_CARD_WIDTH = 160;
-const NEARBY_CARD_HEIGHT = 192;
-const UPCOMING_ASPECT = (SCREEN_WIDTH - 40) * (3 / 4);
+function HomeFeed({ location, locationSettled }: { location: Loc | null; locationSettled: boolean }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { colors } = useTheme();
+  const appSettled = useAppSettled();
+
+  // ── Datan ──
+  const places = usePlaces();
+  const events = useEvents();
+  const offers = useOffers();
+  const redemptions = useOfferRedemptions();
+  const news = useNews(10);
+  const friendVisits = useFriendVisits(20);
+  const collectibles = useCollectibles();
+  const collected = useCollected();
+  const favorites = useFavorites();
+  const visits = useVisits();
+
+  // Det nödvändiga (platser, evenemang, ens favoriter och besök, var man är) måste ha kommit; resten
+  // väntas in en kort stund
+  const coreReady = places.isFetched && events.isFetched && favorites.isFetched && visits.isFetched && locationSettled;
+  const optionalReady = offers.isFetched && redemptions.isFetched && news.isFetched && friendVisits.isFetched
+    && collectibles.isFetched && collected.isFetched;
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    if (!coreReady) return;
+    const t = setTimeout(() => setWaited(true), OPTIONAL_WAIT_MS);
+    return () => clearTimeout(t);
+  }, [coreReady]);
+  const ready = coreReady && (optionalReady || waited);
+
+  // ── Flödet: byggs en gång (och när man drar ner för att uppdatera), står still medan man tittar ──
+  const [feed, setFeed] = useState<FeedItem[] | null>(null);
+  const [version, setVersion] = useState(0);
+  const [seed, setSeed] = useState(() => daySeed());
+  const [shown, setShown] = useState(FIRST_PAGE);
+  const built = useRef(-1);
+  useEffect(() => {
+    if (!ready || built.current === version) return;
+    built.current = version;
+    const favs = favorites.data ?? [];
+    setFeed(buildFeed({
+      places: places.data ?? [],
+      events: events.data ?? [],
+      offers: offers.data ?? [],
+      redemptions: redemptions.data ?? [],
+      news: news.data ?? [],
+      friendVisits: friendVisits.data ?? [],
+      collectibles: collectibles.data ?? [],
+      collected: collected.data,
+      favoritePlaceIds: new Set(favs.flatMap((f) => (f.place_id != null ? [f.place_id] : []))),
+      savedEventIds: new Set(favs.flatMap((f) => (f.event_id != null ? [f.event_id] : []))),
+      visitedPlaceIds: new Set((visits.data ?? []).map((v) => v.place_id)),
+      location,
+      seed,
+    }));
+  }, [ready, version]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      places.refetch(), events.refetch(), offers.refetch(), redemptions.refetch(), news.refetch(), friendVisits.refetch(),
+      collectibles.refetch(), collected.refetch(), favorites.refetch(), visits.refetch(),
+      queryClient.invalidateQueries({ queryKey: ["business-stories"] }),
+    ].map((p) => p.catch(() => {})));
+    setSeed((x) => x + 1);
+    setShown(FIRST_PAGE);
+    setVersion((v) => v + 1);
+    setRefreshing(false);
+  }, [places, events, offers, redemptions, news, friendVisits, collectibles, collected, favorites, visits, queryClient]);
+
+  // ── Hjärtan (platser och evenemang): visas direkt, resten av appen uppdateras när man lämnar Hem ──
+  const favs = favorites.data;
+  const serverPlaces = useMemo(() => new Set((favs ?? []).flatMap((f) => (f.place_id != null ? [f.place_id] : []))), [favs]);
+  const serverEvents = useMemo(() => new Set((favs ?? []).flatMap((f) => (f.event_id != null ? [f.event_id] : []))), [favs]);
+  const [placeSaved, setPlaceSaved] = useState<Map<number, boolean>>(() => new Map());
+  const [eventSaved, setEventSaved] = useState<Map<number, boolean>>(() => new Map());
+  const isPlaceSaved = (id: number) => placeSaved.get(id) ?? serverPlaces.has(id);
+  const isEventSaved = (id: number) => eventSaved.get(id) ?? serverEvents.has(id);
+  const savedRef = useRef({ isPlaceSaved, isEventSaved });
+  savedRef.current = { isPlaceSaved, isEventSaved };
+  const dirty = useRef(false);
+  const togglePlace = useCallback((id: number) => {
+    const save = !savedRef.current.isPlaceSaved(id);
+    dirty.current = true;
+    setPlaceSaved((m) => new Map(m).set(id, save));
+    savePlaceFavorite(id, save).catch(() => setPlaceSaved((m) => new Map(m).set(id, !save)));
+  }, []);
+  const toggleEvent = useCallback((id: number) => {
+    const save = !savedRef.current.isEventSaved(id);
+    dirty.current = true;
+    setEventSaved((m) => new Map(m).set(id, save));
+    saveEventFavorite(id, save).catch(() => setEventSaved((m) => new Map(m).set(id, !save)));
+  }, []);
+  useFocusEffect(useCallback(() => () => {
+    if (!dirty.current) return;
+    dirty.current = false;
+    queryClient.invalidateQueries({ queryKey: ["favorites"] }).then(() => {
+      setPlaceSaved(new Map());
+      setEventSaved(new Map());
+    });
+  }, [queryClient]));
+  const { burst, show: showBurst } = useLikeBurst();
+
+  // ── Erbjudandena: biljetterna rivs som på Förmåner (panelen byggs i förväg när appen lugnat ner sig) ──
+  const scrollAt = useSharedValue(0);
+  const edgeAmt = useSharedValue(0);
+  const edgeProg = useSharedValue(0);
+  const edgeActive = useSharedValue(0);
+  const edge: TearEdge = useMemo(() => ({ amt: edgeAmt, prog: edgeProg, active: edgeActive }), [edgeAmt, edgeProg, edgeActive]);
+  const [openOffer, setOpenOffer] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
+  const onOpenOffer = useCallback((offer: Offer, origin: OriginRect | null) => {
+    // Navigeringen nere glider undan medan panelen är öppen
+    setNavHidden(true);
+    setOpenOffer({ offer, origin });
+  }, []);
+  const closeOffer = useCallback(() => {
+    setOpenOffer(null);
+    setNavHidden(false);
+  }, []);
+  useEffect(() => () => setNavHidden(false), []);
+  // Platsens namn i panelen öppnar platssidan (samma funktion hela tiden, så panelen inte ritas om i onödan)
+  const openOfferRef = useRef(openOffer);
+  openOfferRef.current = openOffer;
+  const openOfferPlace = useCallback(() => {
+    const o = openOfferRef.current;
+    if (o) pushOnce(router, `/place/${o.offer.place_id}`);
+  }, [router]);
+  const hasOffers = useMemo(() => (feed ?? NO_ITEMS).some((i) => i.kind === "offer"), [feed]);
+
+  // ── Att öppna saker ──
+  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}`), [router]);
+  const openEventCard = useCallback((e: Event) => {
+    openEvent(e.id, { event: e, saved: savedRef.current.isEventSaved(e.id), onToggleSave: toggleEvent });
+  }, [toggleEvent]);
+  const openNews = useCallback((n: NewsItem) => pushOnce(router, `/news/${n.id}`), [router]);
+  const openFriend = useCallback((userId: string) => router.push({ pathname: "/friend/[id]", params: { id: userId } }), [router]);
+  const openTreasure = useCallback((c: Collectible) => {
+    router.navigate({ pathname: "/(tabs)/map", params: { sticker: c.id } } as never);
+  }, [router]);
+  const showOpenNow = useCallback(() => openSearch(router, "öppet nu"), [router]);
+  const showCalendar = useCallback(() => router.navigate("/(tabs)/calendar" as never), [router]);
+  const openDiscover = useCallback(() => router.push("/discover" as never), [router]);
+
+  // Fliktrycket i navigeringen scrollar upp till toppen
+  const listRef = useRef<FlatList<FeedItem>>(null);
+  useEffect(() => {
+    registerScrollCallback("home", () => listRef.current?.scrollToOffset({ offset: 0, animated: true }));
+  }, []);
+  const onScroll = useAnimatedScrollHandler({ onScroll: () => { scrollAt.value = Date.now(); } });
+
+  const openOfferId = openOffer?.origin ? openOffer.offer.id : null;
+  const renderItem = useCallback(({ item }: { item: FeedItem }) => {
+    switch (item.kind) {
+      case "event":
+        return (
+          <FeedEventCard
+            pick={item.pick}
+            hero={item.hero}
+            saved={isEventSaved(item.pick.event.id)}
+            onOpen={openEventCard}
+            onToggleSave={toggleEvent}
+            onBurst={showBurst}
+          />
+        );
+      case "place":
+        return (
+          <FeedPlaceCard
+            place={item.place}
+            reason={item.reason}
+            km={item.km}
+            saved={isPlaceSaved(item.place.id)}
+            onOpen={openPlace}
+            onToggleSave={togglePlace}
+            onBurst={showBurst}
+          />
+        );
+      case "offer":
+        return (
+          <FeedOfferCard
+            offer={item.offer}
+            isNew={item.isNew}
+            torn={item.offer.id === openOfferId}
+            edge={edge}
+            scrollAt={scrollAt}
+            onOpen={onOpenOffer}
+          />
+        );
+      case "news":
+        return <FeedNewsCard news={item.news} onOpen={openNews} />;
+      case "friend":
+        return <FeedFriendCard visit={item.visit} place={item.place} onOpenPlace={openPlace} onOpenFriend={openFriend} />;
+      case "treasure":
+        return <FeedTreasureCard collectible={item.collectible} meters={item.meters} onOpen={openTreasure} />;
+      case "openNow":
+        return <OpenNowRail items={item.items} onOpen={openPlace} onShowAll={showOpenNow} />;
+      case "weekend":
+        return <WeekendRail events={item.events} onOpen={openEventCard} onShowAll={showCalendar} />;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeSaved, eventSaved, serverPlaces, serverEvents, openOfferId, edge, scrollAt]);
+
+  const header = useMemo(() => <HomeTop location={location} />, [location]);
+  const items = feed ? feed.slice(0, shown) : NO_ITEMS;
+  const footer = feed
+    ? <FeedFooter hasMore={shown < feed.length} onMore={() => setShown((n) => n + MORE)} onDiscover={openDiscover} />
+    : <FeedSkeleton />;
+
+  return (
+    <>
+      <Reanimated.FlatList
+        ref={listRef as never}
+        data={items}
+        keyExtractor={(item: FeedItem) => item.key}
+        renderItem={renderItem}
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: FLOATING_NAV_HEIGHT + insets.bottom + 40 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} colors={[colors.gold]} />}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={9}
+      />
+      {appSettled && hasOffers && (
+        <OfferDrawer
+          visible={openOffer != null}
+          placeId={openOffer?.offer.place_id ?? 0}
+          focusOffer={openOffer?.offer}
+          origin={openOffer?.origin}
+          edge={edge}
+          onOpenPlace={openOfferPlace}
+          onClose={closeOffer}
+        />
+      )}
+      <LikeBurst burst={burst} />
+    </>
+  );
+}
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-
-  // Hero
-  hero: {
-    height: HERO_HEIGHT,
-    overflow: "hidden",
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  heroHeader: {
-    position: "absolute",
-    left: 20, right: 20, top: 0,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    zIndex: 2,
-  },
-  heroWelcome: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 10,
-    color: "rgba(245,240,232,0.65)",
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  heroTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 32,
-    color: "#F5F0E8",
-  },
-  heroName: {
-    fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 17,
-    color: "rgba(245,240,232,0.82)",
-    marginTop: 4,
-  },
-  avatarGroup: { flexDirection: "row", alignItems: "flex-end" },
-  // Pillens högra kant ligger ovanpå profilbildens vänstra kant, nere vid bildens nederkant
-  streakOverlap: { marginRight: -14, marginBottom: -4, zIndex: 2 },
-  avatarBtn: {
-    position: "relative",
-    width: AVATAR, height: AVATAR,
-  },
-  // Ingen egen kant — en ring runt profilbilden finns bara om man valt en i Utseende (AvatarRing)
-  avatarFallback: {
-    width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2,
-    alignItems: "center", justifyContent: "center",
-    overflow: "hidden",
-  },
-  avatarInitials: { fontSize: 21, fontFamily: "Montserrat_700Bold", color: colors.foreground },
-
-  // Scroll
-  scrollView: { flex: 1, zIndex: 1 },
-
-  // Content card slides over hero
-  contentCard: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -24,
-    minHeight: 600,
-    paddingTop: 16,
-  },
-
-  // Sections
-  section: { marginBottom: 28 },
-  lastSection: { marginBottom: 0 },
-  sectionHeader: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end",
-    paddingHorizontal: 20, marginBottom: 14,
-  },
-  sectionTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: colors.foreground,
-    paddingHorizontal: 20,
-    marginBottom: 4,
-  },
-  sectionSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: colors.foregroundMuted,
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  sectionTitle2: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20,
-    color: colors.foreground,
-  },
-  sectionSub2: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: colors.foregroundMuted,
-    marginTop: 2,
-  },
-  seeAllButton: { flexDirection: "row", alignItems: "center", gap: 2 },
-  seeAllText: { fontSize: 13, color: colors.gold, fontWeight: "600" },
-
-  // Stories
-  storiesLabel: {
-    fontSize: 12, fontWeight: "600", color: colors.foregroundMuted,
-    letterSpacing: 1.6, paddingHorizontal: 20, marginBottom: 18, marginTop: 16,
-  },
-  storiesContainer: { paddingHorizontal: 16, gap: 14, paddingVertical: 4, paddingTop: 0 },
-  storyCircleWrapper: { alignItems: "center", width: 88, position: "relative" },
-  storyName: {
-    fontSize: 10, color: colors.foregroundMuted,
-    marginTop: 6, textAlign: "center", width: "100%",
-  },
-  storyNameSeen: { color: colors.foregroundSubtle },
-
-  // Category tiles
-  categoryRow: {
-    flexDirection: "row", gap: 10,
-    paddingHorizontal: 20, marginBottom: 40,
-  },
-  categoryTile: {
-    flex: 1, alignItems: "center", justifyContent: "center",
-    gap: 8, paddingVertical: 14,
-  },
-  categoryIconGlow: {
-    alignItems: "center", justifyContent: "center",
-    shadowColor: colors.gold, shadowOpacity: 0.8, shadowRadius: 10,
-    elevation: 6,
-  },
-  categoryLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
-
-  // Upcoming event
-  upcomingCard: {
-    marginHorizontal: 20,
-    height: UPCOMING_ASPECT,
-    borderRadius: 20, overflow: "hidden",
-    backgroundColor: colors.card,
-  },
-  upcomingBadge: {
-    position: "absolute", top: 12, right: 12,
-    backgroundColor: "rgba(26,26,26,0.9)",
-    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6,
-    alignItems: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
-  },
-  upcomingBadgeMonth: {
-    fontSize: 9, fontWeight: "800", color: colors.gold,
-    letterSpacing: 1.5, lineHeight: 12,
-  },
-  upcomingBadgeDay: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 24, color: "#F5F0E8",
-    lineHeight: 28, marginTop: 1,
-  },
-  upcomingContent: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    padding: 16, paddingBottom: 20,
-  },
-  upcomingTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 20, color: "#fff",
-    lineHeight: 26,
-  },
-
-  // Nearby
-  nearbyOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
-  upcomingGradient: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
-  nearbyList: { paddingHorizontal: 20, gap: 12 },
-  nearbyCard: {
-    width: NEARBY_CARD_WIDTH, height: NEARBY_CARD_HEIGHT,
-    borderRadius: 20, overflow: "hidden",
-    backgroundColor: colors.card,
-  },
-  nearbyImage: { ...StyleSheet.absoluteFillObject },
-  nearbyContent: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    padding: 10,
-  },
-  nearbyCategory: {
-    fontSize: 9, fontWeight: "700", color: colors.gold,
-    letterSpacing: 1.2, marginBottom: 3,
-  },
-  nearbyName: {
-    fontSize: 13, fontWeight: "700",
-    fontFamily: "PlayfairDisplay_700Bold",
-    color: "#fff", lineHeight: 17,
-  },
-  nearbyDist: {
-    fontSize: 11, fontWeight: "700", color: colors.gold,
-    marginTop: 4,
-  },
-
-  // Feed post
-  feedPost: {
-    marginLeft: 5, marginRight: 5, paddingBottom: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.06)",
-    marginBottom: 20,
-  },
-  feedHeader: {
-    flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12,
-  },
-  feedAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    borderWidth: 2, overflow: "hidden",
-  },
-  feedAvatarImg: {
-    width: "100%", height: "100%",
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-  },
-  feedPlaceName: { fontSize: 14, fontWeight: "700", color: colors.foreground },
-  feedMeta: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
-  feedCategory: { fontSize: 11, color: colors.foregroundSubtle },
-  feedImageContainer: {
-    aspectRatio: 4 / 5, borderRadius: 14, overflow: "hidden",
-    backgroundColor: colors.surface, marginBottom: 10,
-  },
-  feedImage: { width: "100%", height: "100%" },
-  feedActions: { flexDirection: "row", gap: 16, marginBottom: 8 },
-  feedActionBtn: { padding: 2 },
-  feedDesc: { fontSize: 13, color: colors.foregroundMuted, lineHeight: 19 },
-
-  // News
-  newsCardOuter: {
-    marginHorizontal: 20, marginBottom: 10,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  newsCard: {
-    backgroundColor: colors.card,
-    borderRadius: 15.2,       // outer är 16, margin 0.8 → inner ≈ 15.2
-    margin: 0.8,              // tunn gradient-border
-    overflow: "hidden",
-  },
-  newsCardInner: {
-    flexDirection: "row", gap: 12,
-    padding: 14,
-  },
-  newsMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
-  newsBadgePill: {
-    alignSelf: "flex-start",
-    borderRadius: 9999,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  newsBadgeText: {
-    fontSize: 9, fontWeight: "600", color: "rgba(255,255,255,0.75)",
-    letterSpacing: 0.5,
-  },
-  newsDate: { fontSize: 11, color: colors.foregroundMuted },
-  newsTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
-    fontSize: 15, color: colors.foreground, lineHeight: 20,
-  },
-  newsIngress: { fontSize: 12, color: colors.foregroundMuted, lineHeight: 17, marginTop: 2 },
-  newsThumbnail: {
-    width: 80, height: 80, borderRadius: 10, flexShrink: 0,
-  },
-
-  // Empty feed CTA
-  emptyFeed: {
-    alignItems: "center", paddingHorizontal: 20, paddingVertical: 32, gap: 12,
-  },
-  emptyFeedTitle: { fontSize: 19, fontWeight: "800", color: colors.foreground, textAlign: "center" },
-  emptyFeedSub: {
-    fontSize: 14, color: colors.foregroundMuted, textAlign: "center", lineHeight: 20, maxWidth: 280,
-  },
-  discoverBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: colors.gold,
-    paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24,
-    marginTop: 4,
-  },
-  discoverBtnText: { fontSize: 15, fontWeight: "700", color: "#1a1200" },
-
+  screen: { flex: 1 },
+  forYou: { paddingHorizontal: FEED_GUTTER, marginTop: 34, marginBottom: 18, gap: 4 },
+  forYouTitle: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.5 },
+  forYouSub: { fontFamily: "Inter_400Regular", fontSize: 14 },
 });
