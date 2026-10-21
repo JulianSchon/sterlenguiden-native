@@ -58,12 +58,12 @@ export default function RootLayout() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "INITIAL_SESSION") {
+        // Vart man skickas vid start avgör app/index.tsx, när navigeringen finns. Att navigera härifrån
+        // (innan något ritats) byter ut hela rotlayouten — den prenumererar då på nytt, får ett nytt
+        // INITIAL_SESSION och navigerar igen: en oändlig loop och vit skärm när man startar utloggad.
         setAuthReady(true);
-        if (!session) {
-          router.replace("/(auth)/welcome");
-        }
       } else if (event === "SIGNED_OUT") {
         // Utan detta visades förra kontots cachade data (favoriter, listor, profil...) tills
         // en manuell refetch hann hämta det nya kontots — queries är inte user-id-namngivna.
