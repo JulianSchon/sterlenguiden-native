@@ -38,7 +38,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { CATEGORIES, findCategory, withAlpha, type CategoryId } from "@/theme/categories";
 import { PRACTICAL, distanceLabel } from "@/lib/mapFilters";
 import {
-  PRACTICAL_LABELS, buildIndex, buildTowns, didYouMean, norm, openInfo, openLate, parseQuery, placeCategories, searchEvents,
+  PRACTICAL_LABELS, atLabel, atPhrase, buildIndex, buildTowns, didYouMean, norm, openInfo, openLate, parseQuery, placeCategories, searchEvents,
   searchPlaces, searchTowns, withoutIntent, type IndexedPlace, type Intent, type Parsed, type PlaceHit, type Town,
 } from "@/lib/search";
 import { distanceMeters } from "@/lib/checkin";
@@ -70,11 +70,14 @@ const FIRST_ROWS = 6;
 /** Orter som syns innan "Visa alla" */
 const FIRST_TOWNS = 8;
 
+/** "1 öppet nu", "3 öppna nu" */
+const openNowText = (n: number) => `${n} ${n === 1 ? "öppet" : "öppna"} nu`;
+
 /** Färgen för något söket förstått (svarskortets ring och chipsens ikoner) */
 function intentTint(x: Intent, scheme: "dark" | "light"): string {
   if (x.kind === "category") return CATEGORY_DOT[scheme][x.value];
   if (x.kind === "practical") return (x.value === "family" ? TINT.kids : x.value === "pets" ? TINT.dog : TINT.gold)[scheme];
-  if (x.kind === "open") return TINT.open[scheme];
+  if (x.kind === "open" || x.kind === "at") return TINT.open[scheme];
   if (x.kind === "late") return TINT.late[scheme];
   if (x.kind === "events" || x.kind === "when") return TINT.events[scheme];
   return TINT.gold[scheme];
@@ -282,7 +285,7 @@ export default function ExploreScreen() {
       kids: count("familj"), dog: count("med hund"), nature: count("natur"),
     };
     const subs: Record<string, string> = {
-      eat: n.eat ? `${n.eat} öppna nu` : "Inget öppet just nu",
+      eat: n.eat ? openNowText(n.eat) : "Inget öppet just nu",
       fika: `${n.fika} ställen`,
       sleep: `${n.sleep} ${n.sleep === 1 ? "boende" : "boenden"}`,
       late: n.late ? `${n.late} öppna efter 21` : "Inget i kväll",
@@ -716,7 +719,7 @@ function Results({
           <SectionHeader title="Orter" />
           {results.towns.slice(0, 4).map((t) => {
             const card = townCardByKey.get(t.key);
-            const detail = `${t.count} ${t.count === 1 ? "plats" : "platser"}${card?.open ? `  ·  ${card.open} öppna nu` : ""}`;
+            const detail = `${t.count} ${t.count === 1 ? "plats" : "platser"}${card?.open ? `  ·  ${openNowText(card.open)}` : ""}`;
             return <TownRow key={t.key} name={t.name} detail={detail} cats={card?.cats.slice(0, 7) ?? []} onPress={() => onTown(t.name)} />;
           })}
         </View>
@@ -769,6 +772,7 @@ function buildAnswer(
   const open = parsed.intents.some((x) => x.kind === "open");
   const late = parsed.intents.some((x) => x.kind === "late");
   const when = parsed.intents.find((x) => x.kind === "when");
+  const at = parsed.intents.find((x) => x.kind === "at");
   const eventsOnly = parsed.intents.every((x) => x.kind === "events" || x.kind === "when") && parsed.text.length === 0;
 
   // Det söket förstått, som chips (krysset tar bort den delen av frågan)
@@ -779,6 +783,7 @@ function buildAnswer(
     if (x.kind === "category") return { key, label: CATEGORIES.find((c) => c.id === x.value)?.label ?? x.value, Icon: catIcon(x.value), color, onRemove: remove };
     if (x.kind === "practical") return { key, label: PRACTICAL_LABELS[x.value], Icon: practicalIcon(x.value), color, onRemove: remove };
     if (x.kind === "open") return { key, label: "Öppet nu", Icon: Clock, color, onRemove: remove };
+    if (x.kind === "at") return { key, label: atLabel(x), Icon: Clock, color, onRemove: remove };
     if (x.kind === "late") return { key, label: "Öppet sent", Icon: Moon, color, onRemove: remove };
     if (x.kind === "town") return { key, label: x.value.name, Icon: MapPin, color, onRemove: remove };
     if (x.kind === "when") return { key, label: WHEN_LABEL[x.value].replace(/^./, (c) => c.toUpperCase()), Icon: CalendarDays, color, onRemove: remove };
@@ -787,7 +792,7 @@ function buildAnswer(
   // Ringens färg: det viktigaste söket förstått (kategorin först)
   const lead = parsed.intents.find((x) => x.kind === "category")
     ?? parsed.intents.find((x) => x.kind === "practical")
-    ?? parsed.intents.find((x) => x.kind === "late" || x.kind === "open")
+    ?? parsed.intents.find((x) => x.kind === "late" || x.kind === "open" || x.kind === "at")
     ?? parsed.intents[0];
   const tint = intentTint(lead, scheme);
 
@@ -805,7 +810,7 @@ function buildAnswer(
   }
 
   // Bara en ort: hur många platser, vad som har öppet, och vad som finns där (chips att trycka på)
-  if (town?.kind === "town" && cats.length === 0 && practical.length === 0 && !open && !late && parsed.text.length === 0) {
+  if (town?.kind === "town" && cats.length === 0 && practical.length === 0 && !open && !late && !at && parsed.text.length === 0) {
     const inTown = index.filter((p) => p.town === town.value.key);
     const openCount = inTown.filter((p) => openInfo(p.place)?.open).length;
     const perCat = new Map<CategoryId, number>();
@@ -828,7 +833,7 @@ function buildAnswer(
       Icon: MapPin,
       tint: TINT.gold[scheme],
       title: town.value.name,
-      subtitle: `${town.value.count} ${town.value.count === 1 ? "plats" : "platser"}${openCount ? `  ·  ${openCount} öppna nu` : ""}`,
+      subtitle: `${town.value.count} ${town.value.count === 1 ? "plats" : "platser"}${openCount ? `  ·  ${openNowText(openCount)}` : ""}`,
       chips: catChips,
       note: null,
     };
@@ -838,8 +843,10 @@ function buildAnswer(
   let base = cats.length > 0
     ? cats.map((c, i) => (i === 0 ? CAT_TITLE[c] : CAT_TITLE[c].toLowerCase())).join(` ${parsed.conj} `)
     : practical.length > 0 ? practical.map((p) => PRACTICAL_LABELS[p]).join(" · ")
-      : late ? "Öppet sent" : open ? "Öppet nu" : townList.length > 0 ? townNames : "Platser";
-  if (townList.length > 0 && (cats.length > 0 || practical.length > 0 || open || late)) base += ` i ${townNames}`;
+      : late ? "Öppet sent" : open ? "Öppet nu" : at ? "Öppet" : townList.length > 0 ? townNames : "Platser";
+  if (townList.length > 0 && (cats.length > 0 || practical.length > 0 || open || late || at)) base += ` i ${townNames}`;
+  // Dagen och tiden: "Äta på måndag kl 19:00", "Öppet i kväll"
+  if (at?.kind === "at") base += ` ${atPhrase(at)}`;
 
   const n = hits.length;
   const openNow = hits.filter((h) => h.open?.open).length;
@@ -850,7 +857,7 @@ function buildAnswer(
   const parts = cats.length > 0
     ? cats.map((c) => { const k = countOf(c); return `${k} ${CAT_NOUN[c][k === 1 ? 0 : 1]}`; })
     : [`${n} ${n === 1 ? "ställe" : "ställen"}`];
-  if (!open && openNow > 0 && openNow < n) parts.push(`${openNow} öppna nu`);
+  if (!open && !at && openNow > 0 && openNow < n) parts.push(openNowText(openNow));
   if (nearest != null) parts.push(`närmast ${distanceLabel(nearest)}`);
 
   // Det som släpptes (uppgifter platserna inte fyllt i än) och ord som inget hade sägs rakt ut
@@ -862,6 +869,8 @@ function buildAnswer(
     note = `Inga ställen har fyllt i ${relaxedPractical.join(" eller ")} än, så alla visas${fits ? " – de som verkar passa bäst först" : ""}.`;
   } else if (relaxed.some((x) => x.kind === "open")) {
     note = "Inget har öppet just nu, så alla visas – närmast först.";
+  } else if (at?.kind === "at" && relaxed.some((x) => x.kind === "at")) {
+    note = `Inget har öppet ${atPhrase(at)}, så alla visas.`;
   } else if (relaxed.some((x) => x.kind === "late")) {
     note = "Inget har öppet efter 21 i dag, så alla visas.";
   }
@@ -870,7 +879,7 @@ function buildAnswer(
 
   return {
     kind: "summary",
-    Icon: cats.length > 0 ? catIcon(cats[0]) : practical.length > 0 ? practicalIcon(practical[0]) : late ? Moon : open ? Clock : MapPin,
+    Icon: cats.length > 0 ? catIcon(cats[0]) : practical.length > 0 ? practicalIcon(practical[0]) : late ? Moon : open || at ? Clock : MapPin,
     tint,
     title: base,
     subtitle: n === 0 ? "Inga ställen än" : parts.join("  ·  "),
