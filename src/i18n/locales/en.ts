@@ -448,7 +448,6 @@ export const en: typeof sv = {
       resendIn: "Send a new code in {{seconds}} s",
       sent: "A new code is on its way.",
       wrong: "The code is wrong or has expired. Check it or ask for a new one.",
-      checking: "Checking the code …",
       spam: "No email? Check your spam folder.",
     },
     password: {
@@ -480,7 +479,7 @@ export const en: typeof sv = {
     },
     birthday: {
       title: "When's your birthday?",
-      subtitle: "Some offers have an age limit. Your birthday is never shown to others.",
+      subtitle: "Some offers may have an age limit. Your birthday is never shown to others.",
       pick: "Choose your birthday",
       age: "{{count}} years old",
       tooYoung: "You need to be at least {{age}} to use Österlenappen.",
@@ -488,7 +487,8 @@ export const en: typeof sv = {
     },
     home: {
       title: "Where do you live?",
-      subtitle: "Your town is shown on your profile and used for the leaderboard in your area.",
+      subtitle: "Your location is used to make your experience more personal.",
+      public: "Your town is shown on your profile and in the leaderboard for your area.",
       here: "In Österlen",
       hereSub: "I live here",
       away: "Somewhere else",
@@ -523,6 +523,7 @@ export const en: typeof sv = {
       title: "Welcome, {{name}}!",
       subtitle: "Your account is ready. Österlen awaits.",
       start: "Start exploring",
+      stats: { places: "places", offers: "offers", events: "events" },
       usernameTaken: "That username was just taken. Choose another one.",
       failed: "Couldn't save. Check your connection and try again.",
     },

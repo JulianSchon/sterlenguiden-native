@@ -4,12 +4,13 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, TextInput, TurboModuleRegistry, View } from "react-native";
-import { Check, House, Luggage, User } from "lucide-react-native";
+import { Check, Eye, House, Luggage, MapPin, User } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { AuthButton, AuthField, FieldNote } from "@/components/auth/AuthParts";
 import { StepLayout } from "./StepLayout";
 import { USERNAME_PATTERN, usernameTaken } from "@/lib/onboarding";
+import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
 import { MIN_AGE, ageOn, toIsoDate } from "@/lib/birthDate";
 import { formatDate } from "@/i18n/dates";
 import { currentLanguage } from "@/i18n";
@@ -233,17 +234,21 @@ function TypedDate({ value, onChange }: { value: string | null; onChange: (iso: 
 // ── Var man bor ──────────────────────────────────────────────────────────────
 
 export function HomeStep({
-  lives, city, towns, onChange, onSubmit,
+  lives, city, near, away, onChange, onSubmit,
 }: {
   lives: boolean | null;
   city: string;
-  /** Orterna på Österlen som finns i appen */
-  towns: string[];
+  /** Orten på Österlen som ligger närmast där man är just nu (om man delat sin plats) */
+  near: string | null;
+  /** Orten man är i just nu, om det inte är på Österlen */
+  away: string | null;
   onChange: (lives: boolean | null, city: string) => void;
   onSubmit: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  const towns = OSTERLEN_TOWNS.map((town) => town.name);
   const isListed = towns.some((town) => town.toLowerCase() === city.trim().toLowerCase());
   // "Annan ort" på Österlen: ett eget fält i stället för en ort i listan
   const [otherTown, setOtherTown] = useState(lives === true && city.length > 0 && !isListed);
@@ -253,7 +258,8 @@ export function HomeStep({
     if (next === lives) return;
     Haptics.selectionAsync().catch(() => {});
     setOtherTown(false);
-    onChange(next, "");
+    // Har man delat sin plats står orten där man är redan ifylld — det går att ändra
+    onChange(next, (next ? near : away) ?? "");
   };
 
   return (
@@ -276,6 +282,7 @@ export function HomeStep({
               <Chip
                 key={town}
                 label={town}
+                near={town === near}
                 selected={!otherTown && city.trim().toLowerCase() === town.toLowerCase()}
                 onPress={() => { setOtherTown(false); onChange(true, town); }}
               />
@@ -314,6 +321,13 @@ export function HomeStep({
           />
         </View>
       ) : null}
+
+      {lives !== null ? (
+        <View style={s.publicNote}>
+          <Eye size={14} color={colors.faint} strokeWidth={2} />
+          <Text style={s.publicText}>{t("onboarding.home.public")}</Text>
+        </View>
+      ) : null}
     </StepLayout>
   );
 }
@@ -344,7 +358,8 @@ function Choice({ icon: Icon, title, sub, selected, onPress }: {
   );
 }
 
-function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function Chip({ label, selected, near = false, onPress }: { label: string; selected: boolean; near?: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
     <Pressable
@@ -353,6 +368,7 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
       accessibilityRole="radio"
       accessibilityState={{ selected }}
     >
+      {near ? <MapPin size={14} color={selected ? colors.onGold : colors.goldText} strokeWidth={2.2} /> : null}
       <Text style={[s.chipText, selected && s.chipTextOn]}>{label}</Text>
     </Pressable>
   );
@@ -382,9 +398,12 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   townBlock: { gap: 14, marginTop: 14 },
+  publicNote: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 18 },
+  publicText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 13.5, color: c.faint },
   label: { fontFamily: "Inter_600SemiBold", fontSize: 13, letterSpacing: 1.2, textTransform: "uppercase", color: c.muted },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 16, height: 42, borderRadius: 21, justifyContent: "center",
     backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.borderStrong,
   },

@@ -3,12 +3,12 @@
  * man trycker (skicka koden, logga in, spara lösenordet) sköter flödet i app/(auth)/signup.tsx.
  */
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
+import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { Check, Lock, Mail } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { AuthButton, AuthField, FieldNote, TextButton } from "@/components/auth/AuthParts";
+import { AUTH_GUTTER, AuthButton, AuthField, FieldNote, TextButton } from "@/components/auth/AuthParts";
 import { StepLayout } from "./StepLayout";
+import { CodeBoxes, type CodePhase } from "./CodeBoxes";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -55,27 +55,17 @@ export function EmailStep({
 
 // ── Koden ────────────────────────────────────────────────────────────────────
 
-/** Den blinkande markören i rutan man skriver i härnäst */
-function Caret({ color }: { color: string }) {
-  const on = useSharedValue(1);
-  useEffect(() => {
-    on.value = withRepeat(withSequence(
-      withTiming(0, { duration: 420, easing: Easing.in(Easing.quad) }),
-      withTiming(1, { duration: 420, easing: Easing.out(Easing.quad) }),
-    ), -1);
-  }, [on]);
-  const style = useAnimatedStyle(() => ({ opacity: on.value }));
-  return <Reanimated.View style={[{ width: 2, height: 26, borderRadius: 1, backgroundColor: color }, style]} />;
-}
-
 export function CodeStep({
-  email, code, onChange, verifying, error, info, resendIn, onResend, onChangeEmail,
+  email, code, onChange, phase, onOkShown, error, info, resendIn, onResend, onChangeEmail,
 }: {
   email: string;
   code: string;
   /** Varje ändring; flödet loggar in när alla siffror är på plats */
   onChange: (v: string) => void;
-  verifying: boolean;
+  /** Skriver, kontrolleras, rätt eller fel (styr rutornas animation) */
+  phase: CodePhase;
+  /** Rutorna har gått ihop efter rätt kod */
+  onOkShown: () => void;
   error: string | null;
   /** "En ny kod är skickad" */
   info: string | null;
@@ -85,15 +75,15 @@ export function CodeStep({
   onChangeEmail: () => void;
 }) {
   const { t } = useTranslation();
-  const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  const { width } = useWindowDimensions();
   const input = useRef<TextInput>(null);
   const [focused, setFocused] = useState(true);
-  const digits = Array.from({ length: OTP_LENGTH }, (_, i) => code[i] ?? "");
   // Fel kod: rutorna töms och man kan skriva igen direkt
   useEffect(() => {
     if (error) input.current?.focus();
   }, [error]);
+  const quiet = phase === "checking" || phase === "ok";
 
   return (
     <StepLayout
@@ -103,27 +93,20 @@ export function CodeStep({
         <>
           <TextButton
             label={resendIn > 0 ? t("onboarding.code.resendIn", { seconds: resendIn }) : t("onboarding.code.resend")}
-            onPress={resendIn > 0 ? () => {} : onResend}
+            onPress={resendIn > 0 || quiet ? () => {} : onResend}
           />
-          <TextButton label={t("onboarding.code.change")} onPress={onChangeEmail} />
+          <TextButton label={t("onboarding.code.change")} onPress={quiet ? () => {} : onChangeEmail} />
         </>
       }
     >
-      <Pressable style={s.row} onPress={() => input.current?.focus()} accessibilityLabel={t("onboarding.code.title")}>
-        {digits.map((d, i) => {
-          const active = focused && !verifying && i === Math.min(code.length, OTP_LENGTH - 1) && !d;
-          return (
-            <View key={i} style={[s.box, d ? s.boxFilled : null, active ? s.boxActive : null, error ? s.boxError : null]}>
-              {d ? <Text style={s.digit}>{d}</Text> : active ? <Caret color={colors.gold} /> : null}
-            </View>
-          );
-        })}
+      <Pressable onPress={() => input.current?.focus()} accessibilityLabel={t("onboarding.code.title")}>
+        <CodeBoxes code={code} length={OTP_LENGTH} width={width - AUTH_GUTTER * 2} focused={focused} phase={phase} onOkShown={onOkShown} />
       </Pressable>
       {/* Det riktiga fältet är osynligt: det tar emot siffror, inklistring och koden som telefonen föreslår från mejlet */}
       <TextInput
         ref={input}
         value={code}
-        onChangeText={(v) => onChange(v.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+        onChangeText={(v) => onChange(v.replace(/D/g, "").slice(0, OTP_LENGTH))}
         keyboardType="number-pad"
         textContentType="oneTimeCode"
         autoComplete="one-time-code"
@@ -134,10 +117,9 @@ export function CodeStep({
         onBlur={() => setFocused(false)}
         style={s.hidden}
       />
-      {verifying ? <FieldNote text={t("onboarding.code.checking")} /> : null}
-      {!verifying && error ? <FieldNote tone="danger" text={error} /> : null}
-      {!verifying && !error && info ? <FieldNote tone="success" text={info} /> : null}
-      {!verifying && !error && !info ? <FieldNote text={t("onboarding.code.spam")} /> : null}
+      {!quiet && error ? <FieldNote tone="danger" text={error} /> : null}
+      {!quiet && !error && info ? <FieldNote tone="success" text={info} /> : null}
+      {!quiet && !error && !info ? <FieldNote text={t("onboarding.code.spam")} /> : null}
     </StepLayout>
   );
 }
@@ -208,15 +190,6 @@ export function PasswordStep({
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  row: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
-  box: {
-    flex: 1, maxWidth: 56, aspectRatio: 0.82, borderRadius: 14, borderWidth: 1.5,
-    borderColor: c.borderStrong, backgroundColor: c.raised, alignItems: "center", justifyContent: "center",
-  },
-  boxFilled: { borderColor: c.goldBorder },
-  boxActive: { borderColor: c.gold },
-  boxError: { borderColor: c.danger },
-  digit: { fontFamily: "Montserrat_700Bold", fontSize: 26, color: c.text },
   hidden: { position: "absolute", width: 1, height: 1, opacity: 0 },
 
   toggle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },

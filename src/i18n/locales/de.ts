@@ -448,7 +448,6 @@ export const de: typeof sv = {
       resendIn: "Neuen Code senden in {{seconds}} s",
       sent: "Ein neuer Code ist unterwegs.",
       wrong: "Der Code ist falsch oder abgelaufen. Prüfe ihn oder fordere einen neuen an.",
-      checking: "Code wird geprüft …",
       spam: "Keine E-Mail? Schau im Spam-Ordner nach.",
     },
     password: {
@@ -480,7 +479,7 @@ export const de: typeof sv = {
     },
     birthday: {
       title: "Wann hast du Geburtstag?",
-      subtitle: "Manche Angebote haben eine Altersgrenze. Dein Geburtstag wird nie anderen gezeigt.",
+      subtitle: "Manche Angebote können eine Altersgrenze haben. Dein Geburtstag wird nie anderen gezeigt.",
       pick: "Geburtstag wählen",
       age: "{{count}} Jahre",
       tooYoung: "Du musst mindestens {{age}} Jahre alt sein, um Österlenappen zu nutzen.",
@@ -488,7 +487,8 @@ export const de: typeof sv = {
     },
     home: {
       title: "Wo wohnst du?",
-      subtitle: "Dein Ort ist auf deinem Profil zu sehen und gilt für die Bestenliste in deiner Gegend.",
+      subtitle: "Dein Standort wird genutzt, um dein Erlebnis persönlicher zu machen.",
+      public: "Dein Ort ist auf deinem Profil und in der Bestenliste deiner Gegend zu sehen.",
       here: "In Österlen",
       hereSub: "Ich wohne hier",
       away: "Woanders",
@@ -523,6 +523,7 @@ export const de: typeof sv = {
       title: "Willkommen, {{name}}!",
       subtitle: "Dein Konto ist bereit. Österlen wartet.",
       start: "Los geht's",
+      stats: { places: "Orte", offers: "Angebote", events: "Veranstaltungen" },
       usernameTaken: "Der Benutzername wurde gerade vergeben. Wähle einen anderen.",
       failed: "Das Speichern hat nicht geklappt. Prüfe deine Verbindung und versuche es noch einmal.",
     },

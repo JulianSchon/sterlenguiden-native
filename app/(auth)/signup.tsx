@@ -5,8 +5,8 @@
  * - "email" (Fortsätt med e-post): e-post → koden från mejlet → lösenord → resten.
  * - "resume": inloggad men inte klar — efter Apple/Google, eller om appen stängdes mitt i: resten.
  * - "reset" (Glömt lösenordet): e-post → kod → nytt lösenord → in i appen.
- * Resten = namn → användarnamn → födelsedag → var man bor → vad man gillar → favoriter → platsen
- * (bara om telefonen inte redan svarat) → välkommen.
+ * Resten = namn → användarnamn → födelsedag → platsen (bara om telefonen inte redan svarat) → var man
+ * bor (orten där man är föreslås) → vad man gillar → favoriter → välkommen.
  *
  * Svaren sparas i telefonen efter varje steg och skrivs till servern först i välkomststeget
  * (lib/onboarding). Tillbaka går ett steg bakåt; från det första steget efter inloggningen
@@ -26,8 +26,11 @@ import type { AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/lib/queryClient";
 import { usePlaces } from "@/hooks/usePlaces";
+import { useOffers } from "@/hooks/useOffers";
+import { useEvents } from "@/hooks/useEvents";
 import { StepBar } from "@/components/auth/AuthParts";
 import { CodeStep, EmailStep, OTP_LENGTH, PasswordStep } from "@/components/onboarding/AccountSteps";
+import type { CodePhase } from "@/components/onboarding/CodeBoxes";
 import { BirthdayStep, HomeStep, NameStep, UsernameStep } from "@/components/onboarding/ProfileSteps";
 import { FavoritesStep, InterestsStep } from "@/components/onboarding/TasteSteps";
 import { LocationStep, WelcomeStep } from "@/components/onboarding/FinishSteps";
@@ -37,7 +40,8 @@ import {
   EMPTY_DRAFT, deferLocationAsk, enterApp, finishOnboarding, isOnboarded, loadDraft, saveDraft,
   suggestUsername, usernameBase, type OnboardingDraft,
 } from "@/lib/onboarding";
-import { splitTowns } from "@/lib/towns";
+import { nearestOsterlenTown } from "@/lib/osterlenTowns";
+import { dayKey, lastDay } from "@/lib/events";
 import type { CategoryId } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -46,13 +50,11 @@ type StepId =
   | "email" | "code" | "password"
   | "name" | "username" | "birthday" | "home" | "interests" | "favorites" | "location" | "welcome";
 
-const PROFILE: StepId[] = ["name", "username", "birthday", "home", "interests", "favorites", "location", "welcome"];
+const PROFILE: StepId[] = ["name", "username", "birthday", "location", "home", "interests", "favorites", "welcome"];
 /** Steg utan textfält: tangentbordet åker ner när man kommer dit */
 const NO_KEYBOARD = new Set<StepId>(["birthday", "home", "interests", "favorites", "location", "welcome"]);
 /** Så här länge måste man vänta mellan två koder (Supabase tillåter en i minuten) */
 const RESEND_MS = 60_000;
-/** Så många orter på Österlen visas att välja bland */
-const TOWNS = 14;
 /** Ett konto som skapades så här nyligen skapades av koden man just fick — det är nytt */
 const NEW_ACCOUNT_MS = 15 * 60_000;
 
@@ -87,6 +89,27 @@ export default function SignupScreen() {
   const [resendAt, setResendAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [codePhase, setCodePhase] = useState<CodePhase>("typing");
+  // Var man är just nu: orten på Österlen närmast, eller orten man är i om det är någon annanstans
+  const [nearTown, setNearTown] = useState<string | null>(null);
+  const [awayCity, setAwayCity] = useState<string | null>(null);
+  const suggestHome = useCallback(async () => {
+    try {
+      const pos = await Location.getLastKnownPositionAsync()
+        ?? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (!pos) return;
+      const town = nearestOsterlenTown(pos.coords.latitude, pos.coords.longitude);
+      if (town) {
+        setNearTown(town);
+        return;
+      }
+      const [place] = await Location.reverseGeocodeAsync(pos.coords);
+      const city = place?.city || place?.subregion || null;
+      if (city) setAwayCity(city);
+    } catch {
+      // Ingen position: man väljer orten själv
+    }
+  }, []);
 
   // ── Start: vem man är, vad man fyllt i förut och om platsfrågan behövs ──
   useEffect(() => {
@@ -118,7 +141,11 @@ export default function SignupScreen() {
       setReady(true);
     })();
     Location.getForegroundPermissionsAsync()
-      .then((p) => alive && setLocationNeeded(p.status !== "granted" && p.canAskAgain))
+      .then((p) => {
+        if (!alive) return;
+        setLocationNeeded(p.status !== "granted" && p.canAskAgain);
+        if (p.status === "granted") suggestHome();
+      })
       .catch(() => alive && setLocationNeeded(false));
     return () => { alive = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -159,11 +186,19 @@ export default function SignupScreen() {
     const urls = Object.values(photos).filter((u): u is string => !!u);
     if (urls.length > 0) ExpoImage.prefetch(urls).catch(() => {});
   }, [photos]);
-  const towns = useMemo(() => {
-    const count = new Map<string, number>();
-    for (const p of places) for (const town of splitTowns(p.nearest_town ?? "")) count.set(town, (count.get(town) ?? 0) + 1);
-    return [...count].sort((a, b) => b[1] - a[1]).slice(0, TOWNS).map(([town]) => town).sort((a, b) => a.localeCompare(b, "sv"));
-  }, [places]);
+  // Siffrorna under välkomsten (bara det som faktiskt finns i appen)
+  const offersQuery = useOffers();
+  const eventsQuery = useEvents();
+  const stats = useMemo(() => {
+    if (!userId) return [];
+    const today = dayKey(new Date());
+    const upcoming = (eventsQuery.data ?? []).filter((e) => (lastDay(e) ?? "") >= today).length;
+    return [
+      { label: t("onboarding.done.stats.places"), count: places.length },
+      { label: t("onboarding.done.stats.offers"), count: offersQuery.data?.length ?? 0 },
+      { label: t("onboarding.done.stats.events"), count: upcoming },
+    ];
+  }, [userId, places.length, offersQuery.data, eventsQuery.data, t]);
 
   // ── Att gå mellan stegen ──
   const lastGo = useRef(0);
@@ -195,7 +230,7 @@ export default function SignupScreen() {
   const back = useMemo<(() => void) | null>(() => {
     if (step === "welcome" || !ready) return null;
     if (step === "email") return () => router.back();
-    if (step === "code") return () => { setCode(""); go("email", false); };
+    if (step === "code") return () => { setCode(""); setCodePhase("typing"); go("email", false); };
     if (step === firstSignedIn || step === "password") return confirmCancel;
     const i = path.indexOf(step);
     const previous = path.slice(0, i).reverse().find((id) => id !== "password" || draft.needsPassword);
@@ -255,35 +290,47 @@ export default function SignupScreen() {
     setBusy(true);
     setError(null);
     setInfo(null);
+    setCodePhase("checking");
     const { data, error: e } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: "email" });
     if (e || !data.user) {
       setBusy(false);
+      setCodePhase("wrong");
       setError(t("onboarding.code.wrong"));
       setCode("");
+      setTimeout(() => setCodePhase((p) => (p === "wrong" ? "typing" : p)), 1000);
       return;
     }
     const id = data.user.id;
     setUserId(id);
-    // Platserna kunde inte hämtas innan man var inloggad
-    queryClient.invalidateQueries({ queryKey: ["places"] });
+    // Platserna, erbjudandena och evenemangen kunde inte hämtas innan man var inloggad
+    for (const key of ["places", "offers", "events"]) queryClient.invalidateQueries({ queryKey: [key] });
     // Fanns kontot redan (inte skapat av koden nyss) och är det klart: rakt in
     const createdNow = Date.now() - new Date(data.user.created_at).getTime() < NEW_ACCOUNT_MS;
     if (!reset && !createdNow && (await isOnboarded(id))) {
-      router.replace("/(tabs)");
-      return;
+      afterCode.current = () => router.replace("/(tabs)");
+    } else {
+      setDraft((d) => ({ ...d, needsPassword: true }));
+      afterCode.current = () => go("password");
     }
     setBusy(false);
-    setDraft((d) => ({ ...d, needsPassword: true }));
-    go("password");
+    // Rutorna glider ihop; sedan går flödet vidare (codeShown)
+    setCodePhase("ok");
   }, [email, reset, t, go]);
+  const afterCode = useRef<(() => void) | null>(null);
+  const codeShown = useCallback(() => {
+    const next = afterCode.current;
+    afterCode.current = null;
+    next?.();
+  }, []);
 
   const changeCode = useCallback((value: string) => {
     // Medan koden kontrolleras står rutorna still
-    if (busy) return;
+    if (busy || codePhase === "checking" || codePhase === "ok") return;
+    if (codePhase === "wrong") setCodePhase("typing");
     setCode(value);
     if (error) setError(null);
     if (value.length === OTP_LENGTH) verify(value);
-  }, [busy, error, verify]);
+  }, [busy, codePhase, error, verify]);
 
   // ── Lösenordet ──
   const savePassword = useCallback(async () => {
@@ -340,14 +387,15 @@ export default function SignupScreen() {
   // ── Platsen ──
   const allowLocation = useCallback(async () => {
     setBusy(true);
-    await Location.requestForegroundPermissionsAsync().catch(() => null);
+    const perm = await Location.requestForegroundPermissionsAsync().catch(() => null);
     setBusy(false);
-    go("welcome");
-  }, [go]);
+    if (perm?.status === "granted") suggestHome();
+    nextStep();
+  }, [nextStep, suggestHome]);
   const laterLocation = useCallback(() => {
     deferLocationAsk();
-    go("welcome");
-  }, [go]);
+    nextStep();
+  }, [nextStep]);
 
   // ── Klart: allt sparas när välkomsten visas ──
   const [saving, setSaving] = useState<"idle" | "saving" | "done" | "failed">("idle");
@@ -396,12 +444,13 @@ export default function SignupScreen() {
           email={email.trim()}
           code={code}
           onChange={changeCode}
-          verifying={busy}
+          phase={codePhase}
+          onOkShown={codeShown}
           error={error}
           info={info}
           resendIn={resendIn}
           onResend={() => sendCode(true)}
-          onChangeEmail={() => { setCode(""); go("email", false); }}
+          onChangeEmail={() => { setCode(""); setCodePhase("typing"); go("email", false); }}
         />
       );
       break;
@@ -425,7 +474,7 @@ export default function SignupScreen() {
       content = <BirthdayStep value={draft.birthDate} onChange={(birthDate) => set({ birthDate })} onSubmit={nextStep} />;
       break;
     case "home":
-      content = <HomeStep lives={draft.livesInOsterlen} city={draft.city} towns={towns} onChange={(livesInOsterlen, city) => set({ livesInOsterlen, city })} onSubmit={nextStep} />;
+      content = <HomeStep lives={draft.livesInOsterlen} city={draft.city} near={nearTown} away={awayCity} onChange={(livesInOsterlen, city) => set({ livesInOsterlen, city })} onSubmit={nextStep} />;
       break;
     case "interests":
       content = <InterestsStep selected={draft.interests} onToggle={toggleInterest} photos={photos} loading={placesLoading} onSubmit={nextStep} />;
@@ -447,17 +496,21 @@ export default function SignupScreen() {
       content = <LocationStep busy={busy} onAllow={allowLocation} onLater={laterLocation} />;
       break;
     case "welcome":
-      content = (
-        <WelcomeStep
-          firstName={draft.firstName}
-          displayName={`${draft.firstName.trim()} ${draft.lastName.trim()}`.trim()}
-          saving={startPressed && saving === "saving"}
-          failed={saving === "failed"}
-          onStart={start}
-        />
-      );
+      // Välkomsten ligger som ett eget lager (nedan), byggt i förväg
+      content = null;
       break;
   }
+
+  // Välkomsten byggs medan man är på steget innan (en stund efter att det visats), så den inte
+  // ritas medan något rör sig
+  const welcomeAt = path.indexOf("welcome");
+  const nearWelcome = step === "welcome" || (welcomeAt > 0 && step === path[welcomeAt - 1]);
+  const [welcomeMounted, setWelcomeMounted] = useState(false);
+  useEffect(() => {
+    if (!nearWelcome || welcomeMounted) return;
+    const timer = setTimeout(() => setWelcomeMounted(true), step === "welcome" ? 0 : 700);
+    return () => clearTimeout(timer);
+  }, [nearWelcome, welcomeMounted, step]);
 
   const motion = forward ? FORWARD : BACKWARD;
   return (
@@ -476,6 +529,18 @@ export default function SignupScreen() {
           </Reanimated.View>
         ) : null}
       </KeyboardAvoidingView>
+      {welcomeMounted ? (
+        <WelcomeStep
+          visible={step === "welcome"}
+          firstName={draft.firstName}
+          displayName={`${draft.firstName.trim()} ${draft.lastName.trim()}`.trim()}
+          saved={saving === "done" || saving === "failed"}
+          saving={startPressed && saving === "saving"}
+          failed={saving === "failed"}
+          stats={stats}
+          onStart={start}
+        />
+      ) : null}
       <LikeBurst burst={burst} />
     </View>
   );

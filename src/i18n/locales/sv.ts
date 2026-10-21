@@ -451,7 +451,6 @@ export const sv = {
       resendIn: "Skicka en ny kod om {{seconds}} s",
       sent: "En ny kod är på väg.",
       wrong: "Koden stämmer inte eller har gått ut. Kontrollera den eller be om en ny.",
-      checking: "Kontrollerar koden …",
       spam: "Syns inget mejl? Titta i skräpposten.",
     },
     password: {
@@ -483,7 +482,7 @@ export const sv = {
     },
     birthday: {
       title: "När fyller du år?",
-      subtitle: "Vissa erbjudanden har en åldersgräns. Födelsedagen visas aldrig för andra.",
+      subtitle: "Vissa erbjudanden kan ha en åldersgräns. Födelsedagen visas aldrig för andra.",
       pick: "Välj din födelsedag",
       age: "{{count}} år",
       tooYoung: "Du behöver vara minst {{age}} år för att använda Österlenappen.",
@@ -491,7 +490,8 @@ export const sv = {
     },
     home: {
       title: "Var bor du?",
-      subtitle: "Orten syns på din profil och används för topplistan i ditt område.",
+      subtitle: "Din plats används för att göra din upplevelse mer personlig.",
+      public: "Orten syns på din profil och i topplistan för ditt område.",
       here: "På Österlen",
       hereSub: "Jag bor här",
       away: "Någon annanstans",
@@ -526,6 +526,7 @@ export const sv = {
       title: "Välkommen, {{name}}!",
       subtitle: "Ditt konto är klart. Nu väntar Österlen.",
       start: "Börja utforska",
+      stats: { places: "platser", offers: "erbjudanden", events: "evenemang" },
       usernameTaken: "Användarnamnet hann bli upptaget. Välj ett annat.",
       failed: "Det gick inte att spara. Kontrollera nätet och försök igen.",
     },
