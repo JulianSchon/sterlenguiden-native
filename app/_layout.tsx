@@ -27,6 +27,7 @@ import { Montserrat_500Medium, Montserrat_600SemiBold, Montserrat_700Bold } from
 import { Caveat_600SemiBold, Caveat_700Bold } from "@expo-google-fonts/caveat";
 import { supabase } from "@/integrations/supabase/client";
 import { loadSavedLanguage } from "@/i18n";
+import { forgetGoogleAccount } from "@/lib/socialAuth";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 
 export default function RootLayout() {
@@ -61,13 +62,16 @@ export default function RootLayout() {
       if (event === "INITIAL_SESSION") {
         setAuthReady(true);
         if (!session) {
-          router.replace("/(auth)/login");
+          router.replace("/(auth)/welcome");
         }
       } else if (event === "SIGNED_OUT") {
         // Utan detta visades förra kontots cachade data (favoriter, listor, profil...) tills
         // en manuell refetch hann hämta det nya kontots — queries är inte user-id-namngivna.
         queryClient.clear();
-        router.replace("/(auth)/login");
+        forgetGoogleAccount();
+        // Allt som var öppet stängs först, så man inte kan svepa tillbaka in i appen utloggad
+        if (router.canDismiss()) router.dismissAll();
+        router.replace("/(auth)/welcome");
       }
     });
 
@@ -119,6 +123,7 @@ function AppStack() {
         <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
         <Stack.Screen name="settings/notifications" options={{ headerShown: false }} />
         <Stack.Screen name="settings/about" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/interests" options={{ headerShown: false }} />
         <Stack.Screen name="settings/suggest" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass" options={{ headerShown: false }} />
         <Stack.Screen name="settings/pass-buy" options={{ headerShown: false }} />

@@ -1,38 +1,24 @@
+/**
+ * Appens första sida skickar vidare direkt. Inte inloggad → startsidan. Inloggad → in i appen, eller
+ * tillbaka till onboardingen om kontot inte är klart (lib/onboarding). Inget snurrar medan det
+ * avgörs — sidan är bara bakgrundsfärgen en kort stund.
+ */
 import { useEffect } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
-import * as SecureStore from "expo-secure-store";
+import { enterApp } from "@/lib/onboarding";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export default function Index() {
   const { user, loading } = useAuth();
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (loading) return;
-
-    async function navigate() {
-      // Inloggad → direkt till appen
-      if (user) {
-        router.replace("/(tabs)");
-        return;
-      }
-
-      // Inte inloggad → kolla om intro redan setts
-      const seen = await SecureStore.getItemAsync("introSeen").catch(() => null);
-      if (seen) {
-        router.replace("/(auth)/login");
-      } else {
-        router.replace("/(auth)/onboarding");
-      }
-    }
-
-    navigate();
+    if (!user) router.replace("/(auth)/welcome");
+    else enterApp();
   }, [user, loading]);
 
-  // Laddningsspinner i appens mörka färg medan auth kollas
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0D0D0D" }}>
-      <ActivityIndicator size="large" color="#C5A059" />
-    </View>
-  );
+  return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 }

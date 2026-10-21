@@ -57,6 +57,8 @@ export interface FeedInput {
   favoritePlaceIds: Set<number>;
   savedEventIds: Set<number>;
   visitedPlaceIds: Set<number>;
+  /** Kategorierna man själv sagt att man gillar (profiles.interests) */
+  interests: string[];
   location: { lat: number; lng: number } | null;
   /** Blandningen av platserna: samma hela dagen, ny när man drar ner för att uppdatera */
   seed: number;
@@ -99,7 +101,7 @@ export function buildFeed(input: FeedInput): FeedItem[] {
   const placeById = new Map(places.map((p) => [p.id, p]));
   const kmTo = (p: { lat: number | null; lng: number | null }) =>
     location && p.lat != null && p.lng != null ? distanceMeters(location.lat, location.lng, p.lat, p.lng) / 1000 : null;
-  const liked = likedCategories(places, input.visitedPlaceIds, input.favoritePlaceIds);
+  const liked = likedCategories(places, input.visitedPlaceIds, input.favoritePlaceIds, input.interests);
 
   // ── Evenemangen, rankade för personen; ett som är i dag eller pågår blir det första kortet ──
   const picks = recommendEvents({

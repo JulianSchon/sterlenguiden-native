@@ -116,9 +116,9 @@ export default function CalendarScreen() {
     favoritePlaceIds,
     savedEventIds: serverSaved,
     visitedPlaceIds,
-    categoryCounts: likedCategories(places, visitedPlaceIds, favoritePlaceIds),
+    categoryCounts: likedCategories(places, visitedPlaceIds, favoritePlaceIds, profile?.interests ?? []),
     location,
-  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location]);
+  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location, profile?.interests]);
 
   // Eventets panel: får eventet direkt (ingen väntan) och sidans eget sparat-läge
   const eventsRef = useRef(events);

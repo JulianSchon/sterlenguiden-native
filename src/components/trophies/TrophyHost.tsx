@@ -54,8 +54,11 @@ export function TrophyHost() {
   const { user } = useAuth();
   const { trophies, allLoaded } = useTrophies();
   const held = useTrophyMomentsHeld();
+  // Under inloggningen och onboardingen firas ingenting: det man gör där (t.ex. favoriter man väljer)
+  // räknas som det man redan hade när man kommer in i appen
+  const inAuth = segments[0] === "(auth)";
   // Bara när allt verkligen är hämtat — annars ser klara troféer ut som nya, eller tvärtom
-  const ready = !!user && allLoaded;
+  const ready = !!user && allLoaded && !inAuth;
   useGrantNewTrophies(trophies, ready);
 
   const [queue, setQueue] = useState<Trophy[]>([]);
@@ -112,7 +115,7 @@ export function TrophyHost() {
   const ringSeen = useRef<{ userId: string | null; ids: Set<string>; silent: boolean }>({ userId: null, ids: new Set(), silent: true });
   const unlockedKey = rings.unlocked.map((r) => r.id).join(",");
   useEffect(() => {
-    if (!user || !rings.ready) return;
+    if (!user || !rings.ready || inAuth) return;
     if (ringSeen.current.userId !== user.id) {
       ringSeen.current = { userId: user.id, ids: new Set(), silent: true };
       setRingQueue([]);
@@ -123,7 +126,7 @@ export function TrophyHost() {
     fresh.forEach((r) => ringSeen.current.ids.add(r.id));
     if (!silent && fresh.length > 0) setRingQueue((q) => [...q, ...fresh]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unlockedKey, rings.ready, user]);
+  }, [unlockedKey, rings.ready, user, inAuth]);
 
   const ringCurrent = !current && !held ? ringQueue[0] ?? null : null;
   const [ringArmed, setRingArmed] = useState<string | null>(null);
@@ -143,7 +146,7 @@ export function TrophyHost() {
   const { data: myCards = [] } = useMyCards();
   // Öppnade presenter i den här körningen — räknas bort direkt, utan att vänta på servern
   const [opened, setOpened] = useState<string[]>([]);
-  const waitingCard = !current && !held && !ringCurrent
+  const waitingCard = !current && !held && !ringCurrent && !inAuth
     ? rewardCards.find((c) => myCards.some((m) => m.cardId === c.id && !m.seenAt) && !opened.includes(c.id)) ?? null
     : null;
   // Presenten som visas. Den ligger kvar tills den stängts, även när servern hunnit svara att den
@@ -182,7 +185,7 @@ export function TrophyHost() {
 
   // ─── Listinbjudningar och ny månad på topplistan ──────────────────────────
   // Sist i kön: bara när inget annat firande visas eller väntar, och appen lugnat ner sig
-  const idle = settled && !current && !held && !ringCurrent && !presenting && !waitingCard;
+  const idle = settled && !inAuth && !current && !held && !ringCurrent && !presenting && !waitingCard;
   const { data: invites = [] } = usePendingListInvites();
   const { data: profile } = useProfile();
   // Besvarade inbjudningar i den här körningen — räknas bort direkt, utan att vänta på servern

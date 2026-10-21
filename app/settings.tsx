@@ -7,7 +7,7 @@ import { Text, TouchableOpacity, Pressable, Alert, Image, StyleSheet } from "rea
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus } from "lucide-react-native";
+import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus, ThumbsUp } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/useProfile";
@@ -84,6 +84,7 @@ export default function SettingsHub() {
         <Rise index={1}>
         <SettingsGroup>
           <SettingsRow icon={User} label={t("settings.sections.account")} onPress={() => router.push("/settings/account" as any)} />
+          <SettingsRow icon={ThumbsUp} label={t("settings.sections.interests")} onPress={() => router.push("/settings/interests" as any)} />
           <SettingsRow icon={Crown} label={t("settings.sections.pass")} onPress={() => router.push("/settings/pass" as any)} />
           <SettingsRow icon={Palette} label={t("settings.sections.appearance")} onPress={() => router.push("/settings/appearance" as any)} />
           <SettingsRow icon={Bell} label={t("settings.sections.notifications")} onPress={() => router.push("/settings/notifications" as any)} />

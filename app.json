@@ -22,7 +22,8 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         }
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -51,7 +52,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Österlenappen behöver din plats för att visa kartan och föreslå din hemort vid registrering.",
+          "locationWhenInUsePermission": "Österlenappen använder din plats för att visa avstånd, vad som har öppet nära dig och kartan, och för att du ska kunna checka in där du är.",
           "locationAlwaysAndWhenInUsePermission": "Österlenappen använder din plats, även i bakgrunden, för att du automatiskt ska samla platsmärken (stickers) när du besöker platser på Österlen.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
@@ -73,7 +74,8 @@
         {
           "calendarPermission": "Österlenappen behöver tillgång till din kalender för att kunna lägga in evenemang du vill gå på."
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "scheme": "sterlenguiden",
     "experiments": {
@@ -83,6 +85,10 @@
       "router": {},
       "eas": {
         "projectId": "ad923df8-4cd9-47dd-8a86-e2ca3e6ede24"
+      },
+      "googleSignIn": {
+        "iosClientId": "",
+        "webClientId": ""
       }
     }
   }

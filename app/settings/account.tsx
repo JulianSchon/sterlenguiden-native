@@ -22,7 +22,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { usePhotoMenu } from "@/hooks/usePhotoMenu";
 import { useChangeAvatar, useRemoveAvatar, useUpdateProfile, useDeleteAccount } from "@/hooks/useAccount";
 import { formatDate } from "@/i18n/dates";
-import { toIsoDate, ageOn } from "@/lib/birthDate";
+import { MIN_AGE, toIsoDate, ageOn } from "@/lib/birthDate";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { IconSwitch } from "@/components/IconSwitch";
@@ -36,7 +36,6 @@ import type { ThemeColors } from "@/theme/colors";
 // ljus cirkel → mörka bokstäver; bokstäverna får automatiskt samma nyans som cirkeln).
 const CIRCLE_COLORS = ["#1F3A5F", "#C5A059", "#24493A", "#8FB8DE", "#5C2A35", "#D9A5A5"];
 const NAME_COOLDOWN_DAYS = 30;
-const MIN_AGE = 13;
 const CAMERA_RING = 42;
 const COLOR_RING = 34;
 

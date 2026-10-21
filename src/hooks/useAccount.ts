@@ -92,6 +92,7 @@ type ProfileChanges = {
   lives_in_osterlen?: boolean;
   card_color?: string;
   avatar_ring?: string;
+  interests?: string[];
 };
 
 /**

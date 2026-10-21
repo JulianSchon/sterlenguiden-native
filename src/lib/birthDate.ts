@@ -1,5 +1,8 @@
 /** Födelsedatum: kontroll av dag/månad/år och ålder. Datum hanteras som "ÅÅÅÅ-MM-DD" (UTC). */
 
+/** Yngsta åldern för ett konto (samma som GDPR:s gräns för samtycke i Sverige) */
+export const MIN_AGE = 13;
+
 /** Delar → "2005-03-09", eller null om det inte är ett riktigt datum. */
 export function toIsoDate(day: string, month: string, year: string): string | null {
   const d = Number(day), m = Number(month), y = Number(year);

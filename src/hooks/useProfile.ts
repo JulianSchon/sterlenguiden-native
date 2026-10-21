@@ -29,6 +29,10 @@ export interface Profile {
   show_in_leaderboard: boolean | null;
   /** Topplistor: visa profilbilden (bara när man också syns), av som standard (migration 024) */
   show_leaderboard_avatar: boolean;
+  /** Kategorierna man sagt att man gillar (onboardingen, Inställningar › Intressen — migration 043) */
+  interests?: string[] | null;
+  /** När man gick igenom onboardingen; null = inte klar än (migration 043) */
+  onboarded_at?: string | null;
   created_at: string;
   updated_at: string;
 }

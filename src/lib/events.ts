@@ -172,17 +172,26 @@ export function recommendEvents({
   return picks.sort((a, b) => b.score - a.score);
 }
 
-/** Hur mycket man gillar varje platskategori: ett besök räknas en gång, en favorit två */
+/**
+ * Hur mycket man gillar varje platskategori: ett besök räknas en gång, en favorit två, och en
+ * kategori man själv valt (onboardingen, Inställningar › Intressen) tre — så tipsen stämmer redan
+ * första dagen, och det man sedan faktiskt gör tar över mer och mer.
+ */
 export function likedCategories(
   places: Place[], visitedPlaceIds: Iterable<number>, favoritePlaceIds: Iterable<number>,
+  interests: Iterable<string> = [],
 ): Map<CategoryId, number> {
   const byId = new Map(places.map((p) => [p.id, p]));
   const counts = new Map<CategoryId, number>();
+  const bump = (cat: CategoryId, n: number) => counts.set(cat, (counts.get(cat) ?? 0) + n);
   const add = (id: number, n: number) => {
     const cat = findCategory(byId.get(id)?.category ?? null)?.id;
-    if (cat) counts.set(cat, (counts.get(cat) ?? 0) + n);
+    if (cat) bump(cat, n);
   };
   for (const id of visitedPlaceIds) add(id, 1);
   for (const id of favoritePlaceIds) add(id, 2);
+  for (const id of interests) {
+    if (CATEGORIES.some((c) => c.id === id)) bump(id as CategoryId, 3);
+  }
   return counts;
 }

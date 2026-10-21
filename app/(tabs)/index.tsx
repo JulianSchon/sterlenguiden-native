@@ -30,6 +30,7 @@ import { useFriendVisits } from "@/hooks/useFriendVisits";
 import { useCollected, useCollectibles, type Collectible } from "@/hooks/useCollectibles";
 import { saveEventFavorite, savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
+import { useProfile } from "@/hooks/useProfile";
 import { useTheme } from "@/theme/ThemeProvider";
 import { buildFeed, type FeedItem } from "@/lib/homeFeed";
 import { openEvent } from "@/lib/eventSheet";
@@ -38,6 +39,7 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { registerScrollCallback } from "@/lib/scrollRefs";
 import { openSearch } from "@/lib/searchShortcuts";
 import { useAppSettled } from "@/lib/appSettled";
+import { locationAskDeferred } from "@/lib/onboarding";
 import type { Offer } from "@/lib/offers";
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
@@ -69,8 +71,9 @@ const NO_ITEMS: FeedItem[] = [];
 type Loc = { lat: number; lng: number };
 
 /**
- * Var man är. Frågar om platsbehörighet (Hem är första sidan, så det är här appen får den), tar
- * först telefonens senast kända position (snabbt) och sedan en färsk. `settled` när det finns en
+ * Var man är. Frågar om platsbehörighet (Hem är första sidan, så det är här appen får den) — utom
+ * när man svarat "Inte nu" i onboardingen; då frågar kartan när man öppnar den. Tar först
+ * telefonens senast kända position (snabbt) och sedan en färsk. `settled` när det finns en
  * position — eller när det står klart att det inte blir någon.
  */
 function useHomeLocation(): { location: Loc | null; settled: boolean } {
@@ -81,8 +84,11 @@ function useHomeLocation(): { location: Loc | null; settled: boolean } {
     const t = setTimeout(() => alive && setSettled(true), 2000);
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
+        let perm = await Location.getForegroundPermissionsAsync();
+        if (perm.status !== "granted" && perm.canAskAgain && !(await locationAskDeferred())) {
+          perm = await Location.requestForegroundPermissionsAsync();
+        }
+        if (perm.status !== "granted") return;
         const last = await Location.getLastKnownPositionAsync();
         if (alive && last) {
           setLocation({ lat: last.coords.latitude, lng: last.coords.longitude });
@@ -156,10 +162,12 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const collected = useCollected();
   const favorites = useFavorites();
   const visits = useVisits();
+  const profile = useProfile();
 
-  // Det nödvändiga (platser, evenemang, ens favoriter och besök, var man är) måste ha kommit; resten
-  // väntas in en kort stund
-  const coreReady = places.isFetched && events.isFetched && favorites.isFetched && visits.isFetched && locationSettled;
+  // Det nödvändiga (platser, evenemang, ens favoriter, besök och intressen, var man är) måste ha
+  // kommit; resten väntas in en kort stund
+  const coreReady = places.isFetched && events.isFetched && favorites.isFetched && visits.isFetched
+    && profile.isFetched && locationSettled;
   const optionalReady = offers.isFetched && redemptions.isFetched && news.isFetched && friendVisits.isFetched
     && collectibles.isFetched && collected.isFetched;
   const [waited, setWaited] = useState(false);
@@ -195,13 +203,14 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
       favoritePlaceIds: new Set(favs.flatMap((f) => (f.place_id != null ? [f.place_id] : []))),
       savedEventIds: new Set(favs.flatMap((f) => (f.event_id != null ? [f.event_id] : []))),
       visitedPlaceIds: new Set((visits.data ?? []).map((v) => v.place_id)),
+      interests: profile.data?.interests ?? [],
       location,
       seed,
     }));
   }, [ready, version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hämta allt på nytt och bygg om flödet med en ny blandning
-  const queries = { places, events, offers, redemptions, news, friendVisits, collectibles, collected, favorites, visits };
+  const queries = { places, events, offers, redemptions, news, friendVisits, collectibles, collected, favorites, visits, profile };
   const queriesRef = useRef(queries);
   queriesRef.current = queries;
   const rebuild = useCallback(async () => {

@@ -1,440 +1,179 @@
-import { useState, useRef } from "react";
+/**
+ * Logga in: e-post och lösenord, eller Apple/Google. Glömt lösenordet ger en kod till mejlen och
+ * ett nytt lösenord (samma steg som när man skapar konto). Efter inloggningen går man in i appen —
+ * eller vidare i onboardingen om kontot inte är klart.
+ */
+import { useRef, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  StatusBar,
-  Image,
-  ScrollView,
+  KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import Svg, { Path } from "react-native-svg";
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ArrowLeft, Lock, Mail } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-
-// ── Google G-logga med rätt färger ────────────────────────────────────────
-function GoogleIcon({ size = 18 }: { size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        fill="#4285F4"
-      />
-      <Path
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        fill="#34A853"
-      />
-      <Path
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-        fill="#FBBC05"
-      />
-      <Path
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-        fill="#EA4335"
-      />
-    </Svg>
-  );
-}
-
-// ── Design tokens ──────────────────────────────────────────────────────────
-const GOLD         = "#C5A059";
-const BG           = "#0D0D0D";
-const WHITE        = "#FFFFFF";
-const FIELD_BORDER = "rgba(255,255,255,0.12)";
+import { AUTH_GUTTER, AuthButton, AuthField, FieldNote, StepTitle } from "@/components/auth/AuthParts";
+import { ProviderButtons, useSocialSignIn } from "@/components/auth/ProviderButtons";
+import { isEmail } from "@/components/onboarding/AccountSteps";
+import { pushOnce } from "@/lib/navigateOnce";
+import { enterApp } from "@/lib/onboarding";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
 export default function LoginScreen() {
-  const [email, setEmail]               = useState("");
-  const [password, setPassword]         = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState("");
-
-  const emailRef    = useRef<TextInput>(null);
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { colors, scheme } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const social = useSocialSignIn();
   const passwordRef = useRef<TextInput>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const clearError = () => setError("");
+  const canSubmit = isEmail(email) && password.length > 0;
 
-  // ── Logga in ──────────────────────────────────────────────────────────────
-  const handleLogin = async () => {
-    if (!email.trim() || !password) {
-      setError("Fyll i e-post och lösenord.");
+  const logIn = async () => {
+    if (busy) return;
+    if (!canSubmit) {
+      setError(t("auth.login.errors.missing"));
       return;
     }
-    setLoading(true);
-    setError("");
-    try {
-      const { error: e } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (e) throw e;
-      router.replace("/(tabs)");
-    } catch (e: any) {
-      const msg: string = e.message ?? "";
-      setError(
-        msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("credentials")
-          ? "Felaktigt lösenord eller e-post."
-          : msg
-      );
+    setBusy(true);
+    setError(null);
+    social.clearError();
+    const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (e) {
+      setBusy(false);
       setPassword("");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Glömt lösenord ────────────────────────────────────────────────────────
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setError("Fyll i din e-post ovan, sedan trycker du på Glömt lösenord?");
+      const msg = (e.message ?? "").toLowerCase();
+      if (e.code === "invalid_credentials" || msg.includes("invalid")) setError(t("auth.login.errors.wrong"));
+      else if (e.status === 429) setError(t("auth.login.errors.tooMany"));
+      else setError(t("auth.login.errors.failed"));
       return;
     }
-    try {
-      const { error: e } = await supabase.auth.resetPasswordForEmail(email.trim());
-      if (e) throw e;
-      setError("");
-    } catch (e: any) {
-      setError(e.message);
-    }
+    await enterApp();
   };
 
-  // ── Social (kommer snart) ─────────────────────────────────────────────────
-  const handleSocial = (provider: "Apple" | "Google") => {
-    setError(`${provider}-inloggning kommer snart.`);
+  const forgot = () => {
+    router.push({ pathname: "/(auth)/signup", params: { mode: "reset", email: email.trim() } });
   };
+
+  // Utan konto: tillbaka till startsidan, där man skapar ett
+  const create = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/(auth)/welcome");
+  };
+
+  const working = busy || !!social.busy;
 
   return (
-    <View style={s.bg}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={s.safe}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={s.kav}
+    <View style={s.root}>
+      {/* Startsidan under har ljus text över fotot; här följer den temat */}
+      <StatusBar style={scheme === "light" ? "dark" : "light"} />
+      <View style={[s.bar, { marginTop: insets.top }]}>
+        <TouchableOpacity onPress={create} style={s.back} accessibilityRole="button" accessibilityLabel={t("common.back")}>
+          <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView
+          contentContainerStyle={[s.body, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={s.scroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+          <StepTitle title={t("auth.login.title")} subtitle={t("auth.login.subtitle")} />
 
-            {/* ── Logo ── */}
-            <View style={s.logoWrap}>
-              <Image
-                source={require("../../assets/Osterlenappen-logo.png")}
-                style={s.logo}
-                resizeMode="contain"
-              />
-            </View>
-
-            {/* ── Fält ── */}
-            <View style={s.fields}>
-
-              {/* E-post */}
-              <TouchableOpacity style={s.field} activeOpacity={1} onPress={() => emailRef.current?.focus()}>
-                <TouchableOpacity onPress={() => emailRef.current?.focus()} hitSlop={8}>
-                  <Ionicons name="mail-outline" size={17} color="rgba(255,255,255,0.3)" style={s.fieldIcon} />
+          <View style={s.fields}>
+            <AuthField
+              icon={Mail}
+              value={email}
+              onChangeText={(v) => { setEmail(v); setError(null); }}
+              placeholder={t("auth.login.email")}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="username"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
+            <AuthField
+              ref={passwordRef}
+              icon={Lock}
+              value={password}
+              onChangeText={(v) => { setPassword(v); setError(null); }}
+              placeholder={t("auth.login.password")}
+              secureTextEntry={!visible}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="current-password"
+              textContentType="password"
+              returnKeyType="go"
+              onSubmitEditing={logIn}
+              invalid={!!error}
+              right={
+                <TouchableOpacity onPress={() => setVisible((v) => !v)} hitSlop={10} accessibilityRole="button">
+                  <Text style={s.toggle}>{visible ? t("onboarding.password.hide") : t("onboarding.password.show")}</Text>
                 </TouchableOpacity>
-                <TextInput
-                  ref={emailRef}
-                  style={s.fieldInput}
-                  placeholder="E-post"
-                  placeholderTextColor="rgba(255,255,255,0.28)"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  selectionColor={GOLD}
-                  value={email}
-                  onChangeText={v => { clearError(); setEmail(v); }}
-                />
-              </TouchableOpacity>
-
-              {/* Lösenord */}
-              <TouchableOpacity style={s.field} activeOpacity={1} onPress={() => passwordRef.current?.focus()}>
-                <TouchableOpacity onPress={() => passwordRef.current?.focus()} hitSlop={8}>
-                  <Ionicons name="lock-closed-outline" size={17} color="rgba(255,255,255,0.3)" style={s.fieldIcon} />
-                </TouchableOpacity>
-                <TextInput
-                  ref={passwordRef}
-                  style={s.fieldInput}
-                  placeholder="Lösenord"
-                  placeholderTextColor="rgba(255,255,255,0.28)"
-                  secureTextEntry={!showPassword}
-                  selectionColor={GOLD}
-                  value={password}
-                  onChangeText={v => { clearError(); setPassword(v); }}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(p => !p)} style={s.eyeBtn}>
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={19}
-                    color="rgba(255,255,255,0.35)"
-                  />
-                </TouchableOpacity>
-              </TouchableOpacity>
-
-              {/* Fel */}
-              {!!error && <Text style={s.errorText}>{error}</Text>}
-
-              {/* Glömt lösenord – centrerat under lösenordsfältet */}
-              <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.7} style={s.forgotRow}>
-                <Text style={s.forgotText}>Glömt lösenord?</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* ── Logga in ── */}
-            <TouchableOpacity
-              style={[s.loginBtn, loading && s.disabled]}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              <Text style={s.loginBtnText}>
-                {loading ? "Loggar in…" : "Logga in"}
-              </Text>
+              }
+            />
+            <TouchableOpacity onPress={forgot} style={s.forgot} hitSlop={8} accessibilityRole="button">
+              <Text style={s.forgotText}>{t("auth.login.forgot")}</Text>
             </TouchableOpacity>
+          </View>
 
-            {/* ── Eller-avdelare ── */}
-            <View style={s.divider}>
-              <View style={s.dividerLine} />
-              <Text style={s.dividerText}>eller</Text>
-              <View style={s.dividerLine} />
-            </View>
+          {error ? <FieldNote tone="danger" text={error} /> : null}
+          <AuthButton label={t("auth.login.submit")} onPress={logIn} loading={busy} disabled={social.busy !== null} />
 
-            {/* ── Social-knappar ── */}
-            <View style={s.socialBlock}>
+          <View style={s.divider}>
+            <View style={s.line} />
+            <Text style={s.or}>{t("auth.login.or")}</Text>
+            <View style={s.line} />
+          </View>
 
-              {/* Google – riktiga färger */}
-              <TouchableOpacity
-                style={s.socialBtnSubtle}
-                onPress={() => handleSocial("Google")}
-                activeOpacity={0.8}
-              >
-                <GoogleIcon size={18} />
-                <Text style={s.socialBtnSubtleText}>Fortsätt med Google</Text>
-              </TouchableOpacity>
+          <ProviderButtons busy={social.busy} onPress={(p) => { setError(null); social.signIn(p); }} />
+          {social.error ? <FieldNote tone="danger" text={social.error} /> : null}
 
-              {/* Apple – visas bara på iOS */}
-              {Platform.OS === "ios" && (
-                <TouchableOpacity
-                  style={s.socialBtnApple}
-                  onPress={() => handleSocial("Apple")}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="logo-apple" size={18} color="rgba(255,255,255,0.85)" />
-                  <Text style={s.socialBtnAppleText}>Fortsätt med Apple</Text>
-                </TouchableOpacity>
-              )}
+          <View style={{ flex: 1 }} />
 
-            </View>
-
-            {/* ── Skapa konto ── */}
-            <TouchableOpacity
-              onPress={() => router.push("/(auth)/signup" as any)}
-              activeOpacity={0.7}
-              style={s.signupRow}
-            >
-              <Text style={s.signupText}>
-                Har du inget konto?{" "}
-                <Text style={s.signupBold}>Skapa konto</Text>
-              </Text>
-            </TouchableOpacity>
-
-            {/* ── Företagsportal ── */}
-            <TouchableOpacity
-              onPress={() => router.push("/(auth)/business-login" as any)}
-              activeOpacity={0.7}
-              style={s.bizRow}
-            >
-              <Text style={s.bizText}>FÖRETAGSPORTAL</Text>
-            </TouchableOpacity>
-
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+          <TouchableOpacity onPress={create} activeOpacity={0.6} style={s.create} disabled={working}>
+            <Text style={s.createText}>
+              {t("auth.login.noAccount")} <Text style={s.createLink}>{t("auth.login.create")}</Text>
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => pushOnce(router, "/(auth)/business-login")} activeOpacity={0.6} style={s.business} disabled={working}>
+            <Text style={s.businessText}>{t("auth.login.business")}</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
-// ── Stilar ────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  bg:   { flex: 1, backgroundColor: BG },
-  safe: { flex: 1 },
-  kav:  { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 36,   // mer luft mot kanterna
-    paddingTop: 72,
-    paddingBottom: 48,
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
+  bar: { height: 64, paddingHorizontal: 16, justifyContent: "center" },
+  back: {
+    width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: c.borderStrong, backgroundColor: c.fill,
+    alignItems: "center", justifyContent: "center",
   },
-
-  /* Logo */
-  logoWrap: {
-    alignItems: "center",
-    marginBottom: 36,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-  },
-
-  /* Fält */
-  fields: {
-    marginBottom: 16,
-    gap: 10,
-  },
-  field: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "transparent",  // genomskinlig – bara kanten syns
-    borderWidth: 1,
-    borderColor: FIELD_BORDER,
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  fieldIcon: {
-    marginRight: 10,
-  },
-  fieldInput: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-    color: WHITE,
-  },
-  eyeBtn: {
-    padding: 4,
-  },
-
-  /* Fel */
-  errorText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: "#f87171",
-    textAlign: "center",
-    marginTop: -2,
-  },
-
-  /* Glömt lösenord – centrerat */
-  forgotRow: {
-    alignItems: "center",
-    marginTop: 2,
-  },
-  forgotText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.4)",
-    textDecorationLine: "underline",
-  },
-
-  /* Logga in */
-  loginBtn: {
-    backgroundColor: GOLD,
-    borderRadius: 999,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 36,   // mer space ner till "eller"
-    shadowColor: GOLD,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  disabled: { opacity: 0.45 },
-  loginBtnText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 15,
-    color: "#000",
-    letterSpacing: 0.3,
-  },
-
-  /* Eller-avdelare */
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 36,   // samma space som Logga in → eller
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-  dividerText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.3)",
-  },
-
-  /* Social */
-  socialBlock: {
-    gap: 10,
-    marginBottom: 20,
-  },
-
-  /* Google – samma stil som Apple */
-  socialBtnSubtle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    borderRadius: 999,
-    height: 50,
-  },
-  socialBtnSubtleText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
-  },
-
-  /* Apple – sticker ut */
-  socialBtnApple: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
-    borderRadius: 999,
-    height: 50,
-  },
-  socialBtnAppleText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
-  },
-
-  /* Skapa konto */
-  signupRow: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  signupText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.45)",
-  },
-  signupBold: {
-    fontFamily: "Inter_400Regular",
-    color: WHITE,
-  },
-
-  /* Företagsportal */
-  bizRow: {
-    alignItems: "center",
-  },
-  bizText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 10,
-    letterSpacing: 3,
-    color: "rgba(255,255,255,0.22)",
-  },
+  body: { flexGrow: 1, paddingHorizontal: AUTH_GUTTER, paddingTop: 12, gap: 16 },
+  fields: { gap: 12, marginTop: 14 },
+  toggle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
+  forgot: { alignSelf: "flex-end", paddingVertical: 4 },
+  forgotText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.goldText },
+  divider: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 6 },
+  line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.borderStrong },
+  or: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.faint },
+  create: { alignSelf: "center", paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
+  createText: { fontFamily: "Inter_500Medium", fontSize: 15, color: c.muted },
+  createLink: { fontFamily: "Inter_700Bold", color: c.goldText },
+  business: { alignSelf: "center", paddingVertical: 8, paddingHorizontal: 12 },
+  businessText: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 1.6, textTransform: "uppercase", color: c.faint },
 });

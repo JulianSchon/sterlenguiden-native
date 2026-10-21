@@ -816,6 +816,7 @@ export type Database = {
           birth_date: string | null
           lives_in_osterlen: boolean | null
           id: string
+          interests: string[] | null
           is_member: boolean | null
           member_auto_renew: boolean | null
           member_bonus_days: number | null
@@ -823,6 +824,7 @@ export type Database = {
           member_started_at: string | null
           member_until: string | null
           notifications_enabled: boolean | null
+          onboarded_at: string | null
           preferred_language: string | null
           profile_image_url: string | null
           avatar_ring: string | null
@@ -847,6 +849,7 @@ export type Database = {
           birth_date?: string | null
           lives_in_osterlen?: boolean | null
           id?: string
+          interests?: string[] | null
           is_member?: boolean | null
           member_auto_renew?: boolean | null
           member_bonus_days?: number | null
@@ -854,6 +857,7 @@ export type Database = {
           member_started_at?: string | null
           member_until?: string | null
           notifications_enabled?: boolean | null
+          onboarded_at?: string | null
           preferred_language?: string | null
           profile_image_url?: string | null
           avatar_ring?: string | null
@@ -878,6 +882,7 @@ export type Database = {
           birth_date?: string | null
           lives_in_osterlen?: boolean | null
           id?: string
+          interests?: string[] | null
           is_member?: boolean | null
           member_auto_renew?: boolean | null
           member_bonus_days?: number | null
@@ -885,6 +890,7 @@ export type Database = {
           member_started_at?: string | null
           member_until?: string | null
           notifications_enabled?: boolean | null
+          onboarded_at?: string | null
           preferred_language?: string | null
           profile_image_url?: string | null
           avatar_ring?: string | null
