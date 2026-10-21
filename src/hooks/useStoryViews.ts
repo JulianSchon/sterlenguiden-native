@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StoryView {
@@ -34,22 +34,19 @@ export function useStoryViews() {
   });
 }
 
-export function useMarkStoryViewed() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (storyId: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await (supabase as any)
-        .from("story_views")
-        .upsert(
-          { user_id: user.id, story_id: storyId, viewed_at: new Date().toISOString() },
-          { onConflict: "user_id,story_id" }
-        );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["story-views"] });
-    },
-  });
+/**
+ * Sparar att berättelsen setts. Uppdaterar inte listan i appen — visaren gör det när den stängs, så
+ * cirklarna på Hem inte byter plats medan man tittar.
+ */
+export async function markStoryViewed(storyId: string): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await (supabase as any).from("story_views").upsert(
+      { user_id: user.id, story_id: storyId, viewed_at: new Date().toISOString() },
+      { onConflict: "user_id,story_id" },
+    );
+  } catch {
+    // Inget att göra — den räknas som osedd nästa gång
+  }
 }

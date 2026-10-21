@@ -1,55 +1,45 @@
 /**
  * Berättelserna på Hem: en rad med företagens cirklar. Osedda har den gul-orange ringen
- * (STORY_GRADIENT), sedda en diskret grå; favoriter och osedda först. Ett tryck kör den korta
- * bågen runt cirkeln och öppnar berättelserna i helskärm (StoryViewer).
+ * (STORY_GRADIENT), sedda en diskret grå; favoriter och osedda först.
  *
- * Raden sköter sina egna lägen (vilken berättelse som är öppen), så den ritar inte om resten av Hem.
+ * Ett tryck: ringen blir streckad och snurrar medan berättelsens bild laddas (som i Instagram),
+ * sedan växer berättelsen ut ur cirkeln (StoryViewer). Man börjar på den första man inte sett.
+ * Snurren går på UI-tråden — den gamla bågen som ritades om tolv gånger hackade.
+ *
+ * Raden sköter sina egna lägen, så den ritar inte om resten av Hem. Medan visaren är öppen står
+ * ordningen still; vad man sett räknas in när den stängs.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Reanimated, {
+  Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
+} from "react-native-reanimated";
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgGradient, Stop } from "react-native-svg";
+import { useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Image as ExpoImage } from "expo-image";
+import * as Haptics from "expo-haptics";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
 import { useStoryViews } from "@/hooks/useStoryViews";
 import { useFavorites } from "@/hooks/useFavorites";
-import { StoryViewer, type StoryGroupData } from "@/components/StoryViewer";
+import { StoryViewer, type StoryGroupData, type StoryOrigin } from "@/components/stories/StoryViewer";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Skeleton } from "@/components/Skeleton";
+import { pushOnce } from "@/lib/navigateOnce";
 
 // ─── Cirkeln ─────────────────────────────────────────────────────────────────
 
 const SC_INNER = 64;
 const SC_GAP = 2;
-const SC_STROKE = 3.2;   // gradient-ringens strokebredd
-const SEG_STROKE = 3.5;  // animerings-bågens strokebredd – smal och elegant
+const SC_STROKE = 3.2;
 const SC_RADIUS = SC_INNER / 2 + SC_GAP + SC_STROKE / 2;
-// SC_OUTER rymmer ringen + bågarna (SEG_STROKE/2 utanför radien)
-const SC_OUTER = Math.ceil(2 * (SC_RADIUS + SEG_STROKE / 2) + 2);
+const SC_OUTER = Math.ceil(2 * (SC_RADIUS + SC_STROKE) + 2);
 const SC_CENTER = SC_OUTER / 2;
-
-// ─── Animering: crescendo-bågar (liten ring → längre båge → hela varvet) ────
-const N_SEGS = 12;
-const ANIM_MS = 340;
-const SEG_GAP = -1; // negativ = varje segment täcker 1 px av föregående → inga skarvar
 const SC_CIRC = 2 * Math.PI * SC_RADIUS;
-// Bågarna varierar i längd: kortast (4 px, ser ut som en punkt) → längst. Tillsammans ett varv
-const SEG_A = 4;
-const SEG_TOTAL = SC_CIRC - N_SEGS * SEG_GAP;
-const SEG_B = (SEG_TOTAL - N_SEGS * SEG_A) / (N_SEGS * (N_SEGS - 1) / 2);
-
-type SegInfo = { dash: number; start: number; color: string };
-const SEGMENTS: SegInfo[] = (() => {
-  const out: SegInfo[] = [];
-  let cum = 0;
-  for (let i = 0; i < N_SEGS; i++) {
-    const dash = SEG_A + SEG_B * i;
-    const t = i / (N_SEGS - 1);
-    // Gult → orange längs banan
-    out.push({ dash, start: cum, color: `rgb(255,${Math.round(243 - 121 * t)},${Math.round(71 * t)})` });
-    cum += dash + SEG_GAP;
-  }
-  return out;
-})();
+/** Snurren: minst så här länge (så den syns), högst så här länge (sen öppnas den ändå) */
+const LOAD_MIN_MS = 260;
+const LOAD_MAX_MS = 1500;
 
 /** Sedd: diskret grå, ljusare i ljust läge */
 const seenGradient = (dark: boolean) => ({
@@ -59,70 +49,74 @@ const seenGradient = (dark: boolean) => ({
   x1: "0", y1: "1", x2: "1", y2: "0",
 });
 
-const StoryCircle = memo(function StoryCircle({ group, isSeen, onPress }: {
-  group: StoryGroupData; isSeen: boolean; onPress: () => void;
+const StoryCircle = memo(function StoryCircle({ group, isSeen, onOpen }: {
+  group: StoryGroupData;
+  isSeen: boolean;
+  /** Bilden är laddad: öppna, från cirkelns plats på skärmen */
+  onOpen: (group: StoryGroupData, origin: StoryOrigin | null) => void;
 }) {
   const { colors, scheme } = useTheme();
   const imageUrl = group.logoUrl ?? group.stories[0]?.image_url ?? null;
   const label = group.placeName.split(/[-–—,]/)[0].trim();
   const grad = isSeen ? seenGradient(scheme === "dark") : STORY_GRADIENT;
   const gradId = `sg-${group.placeId}`;
+  const imageRef = useRef<View>(null);
 
-  // -1 = vilande, 0..N_SEGS = antal synliga bågsegment
-  const [dots, setDots] = useState(-1);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
+  // Laddar: ringen blir streckad och snurrar
+  const [loading, setLoading] = useState(false);
+  const spin = useSharedValue(0);
+  useEffect(() => {
+    if (!loading) return;
+    spin.value = 0;
+    spin.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.linear }), -1, false);
+    return () => cancelAnimation(spin);
+  }, [loading, spin]);
+  const spinStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
 
-  const handleTap = useCallback(() => {
-    if (dots >= 0) return;
-    setDots(0);
-    let n = 0;
-    timer.current = setInterval(() => {
-      n++;
-      if (n >= N_SEGS) {
-        clearInterval(timer.current!);
-        timer.current = null;
-        setDots(N_SEGS);
-        onPress();
-        setTimeout(() => setDots(-1), 400); // återställ när berättelsen är öppen och ringen inte syns
-      } else {
-        setDots(n);
-      }
-    }, ANIM_MS / N_SEGS);
-  }, [dots, onPress]);
+  const tap = useCallback(() => {
+    if (loading) return;
+    Haptics.selectionAsync().catch(() => {});
+    setLoading(true);
+    const first = group.stories[0]?.image_url;
+    const started = Date.now();
+    const loaded = first ? ExpoImage.prefetch(first).catch(() => false) : Promise.resolve(true);
+    const timeout = new Promise((r) => setTimeout(r, LOAD_MAX_MS));
+    Promise.race([loaded, timeout]).then(() => {
+      const wait = Math.max(0, LOAD_MIN_MS - (Date.now() - started));
+      setTimeout(() => {
+        const done = (origin: StoryOrigin | null) => {
+          onOpen(group, origin);
+          setTimeout(() => setLoading(false), 450);
+        };
+        if (!imageRef.current) return done(null);
+        imageRef.current.measureInWindow((x, y, w) => done({ x, y, size: w }));
+      }, wait);
+    });
+  }, [loading, group, onOpen]);
 
   return (
-    <TouchableOpacity style={s.circleWrap} activeOpacity={0.9} onPress={handleTap}>
+    <TouchableOpacity style={s.circleWrap} activeOpacity={0.9} onPress={tap}>
       <View style={{ width: SC_OUTER, height: SC_OUTER, alignItems: "center", justifyContent: "center" }}>
-        <Svg width={SC_OUTER} height={SC_OUTER} style={StyleSheet.absoluteFill}>
-          {dots >= 0 ? (
-            SEGMENTS.map((seg, i) => (i >= dots ? null : (
-              <SvgCircle
-                key={i}
-                cx={SC_CENTER} cy={SC_CENTER} r={SC_RADIUS}
-                stroke={seg.color}
-                strokeWidth={SEG_STROKE}
-                fill="none"
-                strokeDasharray={`${seg.dash} ${SC_CIRC - seg.dash}`}
-                strokeDashoffset={SC_CIRC - seg.start}
-                // Första och sista segmentet har rundade ändar, mellansegmenten raka med 1 px överlapp
-                strokeLinecap={i === 0 || i === N_SEGS - 1 ? "round" : "butt"}
-                transform={`rotate(-90, ${SC_CENTER}, ${SC_CENTER})`}
-              />
-            )))
-          ) : (
-            <>
-              <Defs>
-                <SvgGradient id={gradId} x1={grad.x1} y1={grad.y1} x2={grad.x2} y2={grad.y2}>
-                  {grad.stops.map((stop) => <Stop key={stop.offset} offset={stop.offset} stopColor={stop.color} stopOpacity="1" />)}
-                </SvgGradient>
-              </Defs>
-              <SvgCircle cx={SC_CENTER} cy={SC_CENTER} r={SC_RADIUS} stroke={`url(#${gradId})`} strokeWidth={SC_STROKE} fill="none" />
-            </>
-          )}
-        </Svg>
-        <View style={[s.image, { backgroundColor: colors.fill }]}>
-          {imageUrl && <Image source={{ uri: imageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />}
+        <Reanimated.View style={[StyleSheet.absoluteFill, loading && spinStyle]}>
+          <Svg width={SC_OUTER} height={SC_OUTER}>
+            <Defs>
+              <SvgGradient id={gradId} x1={grad.x1} y1={grad.y1} x2={grad.x2} y2={grad.y2}>
+                {grad.stops.map((stop) => <Stop key={stop.offset} offset={stop.offset} stopColor={stop.color} stopOpacity="1" />)}
+              </SvgGradient>
+            </Defs>
+            <SvgCircle
+              cx={SC_CENTER} cy={SC_CENTER} r={SC_RADIUS}
+              stroke={`url(#${gradId})`}
+              strokeWidth={SC_STROKE}
+              fill="none"
+              strokeLinecap={loading ? "round" : "butt"}
+              // Streckad medan den laddar: 14 streck runt hela varvet
+              strokeDasharray={loading ? `${(SC_CIRC / 14) * 0.55} ${(SC_CIRC / 14) * 0.45}` : undefined}
+            />
+          </Svg>
+        </Reanimated.View>
+        <View ref={imageRef} collapsable={false} style={[s.image, { backgroundColor: colors.fill }]}>
+          {imageUrl && <ExpoImage source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />}
         </View>
       </View>
       <Text style={[s.name, { color: isSeen ? colors.faint : colors.muted }]} numberOfLines={1}>{label}</Text>
@@ -132,12 +126,17 @@ const StoryCircle = memo(function StoryCircle({ group, isSeen, onPress }: {
 
 // ─── Raden ───────────────────────────────────────────────────────────────────
 
+interface Opened { groups: StoryGroupData[]; group: number; story: number; origin: StoryOrigin | null }
+
 export const StoryRow = memo(function StoryRow() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: businessStories = [], isLoading } = useBusinessStories();
   const { data: storyViews = [] } = useStoryViews();
   const { data: favorites = [] } = useFavorites();
-  const [open, setOpen] = useState<number | null>(null);
   const viewedIds = useMemo(() => new Set(storyViews.map((v) => v.story_id)), [storyViews]);
+  const [opened, setOpened] = useState<Opened | null>(null);
+  const [presented, setPresented] = useState(false);
 
   // En grupp per plats (platsens data kommer med berättelsen), favoriter och osedda först
   const groups = useMemo((): StoryGroupData[] => {
@@ -151,7 +150,8 @@ export const StoryRow = memo(function StoryRow() {
     const out: StoryGroupData[] = [];
     for (const [placeId, stories] of byPlace) {
       const place = stories[0]!.place!;
-      stories.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      // Äldst först inom gruppen, som i Instagram — man ser dem i den ordning de lades ut
+      stories.sort((a, b) => a.created_at.localeCompare(b.created_at));
       out.push({
         placeId,
         placeName: place.name,
@@ -171,13 +171,36 @@ export const StoryRow = memo(function StoryRow() {
     });
   }, [businessStories, favorites, viewedIds]);
 
+  // Öppna: grupperna fryses som de ser ut nu, och man börjar på den första man inte sett
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+  const viewedRef = useRef(viewedIds);
+  viewedRef.current = viewedIds;
+  const onOpen = useCallback((group: StoryGroupData, origin: StoryOrigin | null) => {
+    const snapshot = groupsRef.current;
+    const g = Math.max(0, snapshot.findIndex((x) => x.placeId === group.placeId));
+    const unseen = snapshot[g].stories.findIndex((st) => !viewedRef.current.has(st.id));
+    setPresented(false);
+    setOpened({ groups: snapshot, group: g, story: unseen < 0 ? 0 : unseen, origin });
+  }, []);
+  const onClosed = useCallback(() => {
+    setOpened(null);
+    setPresented(false);
+    // Nu får cirklarna byta plats efter vad man sett
+    queryClient.invalidateQueries({ queryKey: ["story-views"] });
+  }, [queryClient]);
+  const onOpenPlace = useCallback((placeId: number) => {
+    onClosed();
+    pushOnce(router, `/place/${placeId}`);
+  }, [onClosed, router]);
+
   // Medan berättelserna hämtas: grå cirklar på deras plats (så inget hoppar när de kommer)
   if (isLoading) {
     return (
       <View style={[s.row, s.list, { flexDirection: "row" }]} pointerEvents="none">
         {[0, 1, 2, 3, 4].map((i) => (
           <View key={i} style={s.circleWrap}>
-            <Skeleton width={SC_OUTER - 6} height={SC_OUTER - 6} radius={(SC_OUTER - 6) / 2} style={{ margin: 3 }} />
+            <Skeleton width={SC_INNER + 10} height={SC_INNER + 10} radius={(SC_INNER + 10) / 2} style={{ margin: (SC_OUTER - SC_INNER - 10) / 2 }} />
             <Skeleton width={48} height={9} radius={4.5} style={{ marginTop: 8 }} />
           </View>
         ))}
@@ -191,18 +214,31 @@ export const StoryRow = memo(function StoryRow() {
         data={groups}
         horizontal
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(g) => `${g.placeId}-${g.storyType}`}
+        keyExtractor={(g) => String(g.placeId)}
         contentContainerStyle={s.list}
-        renderItem={({ item, index }) => (
-          <StoryCircle
-            group={item}
-            isSeen={item.stories.every((st) => viewedIds.has(st.id))}
-            onPress={() => setOpen(index)}
-          />
+        renderItem={({ item }) => (
+          <StoryCircle group={item} isSeen={item.stories.every((st) => viewedIds.has(st.id))} onOpen={onOpen} />
         )}
       />
-      <Modal visible={open !== null} animationType="none" statusBarTranslucent onRequestClose={() => setOpen(null)}>
-        {open !== null && <StoryViewer groups={groups} initialGroupIndex={open} onClose={() => setOpen(null)} />}
+      <Modal
+        visible={opened !== null}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onShow={() => setPresented(true)}
+        onRequestClose={onClosed}
+      >
+        {opened && (
+          <StoryViewer
+            groups={opened.groups}
+            startGroup={opened.group}
+            startStory={opened.story}
+            origin={opened.origin}
+            presented={presented}
+            onOpenPlace={onOpenPlace}
+            onClosed={onClosed}
+          />
+        )}
       </Modal>
     </View>
   );

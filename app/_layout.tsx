@@ -113,7 +113,6 @@ function AppStack() {
         <Stack.Screen name="place/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="discover" options={{ headerShown: false }} />
         <Stack.Screen name="news/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="StoryViewer" options={{ headerShown: false }} />
         {/* Profile sub-pages */}
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="settings/account" options={{ headerShown: false }} />
