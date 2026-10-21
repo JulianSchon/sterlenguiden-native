@@ -7,6 +7,8 @@
  * - Svep åt sidan = nästa/förra företag, med kuben: sidorna vrids som sidor på en tärning.
  * - Dra nedåt = stäng. Berättelsen krymper medan man drar och Hem syns bakom (i temats färg).
  * - Strecken överst fylls på i takt, och tiden startar först när bilden laddats.
+ * - Bara bilden som företaget lagt ut (med texten de själva lagt på den), hela bilden, och strecken
+ *   och vem och när överst — inget annat ovanpå, precis som i Instagram.
  *
  * Allt som rör sig räknas på UI-tråden (Reanimated + gesture handler). Appens egen kod ritar bara
  * om när man byter berättelse. Sett-markeringarna sparas direkt men listan på Hem uppdateras först
@@ -22,10 +24,9 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-g
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
-import { ArrowUpRight, Crown, X } from "lucide-react-native";
+import { X } from "lucide-react-native";
 import type { BusinessStory } from "@/hooks/useBusinessStories";
 import { markStoryViewed } from "@/hooks/useStoryViews";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -69,7 +70,8 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   /** Modalen syns: öppningen kan börja */
   presented: boolean;
   onOpenPlace: (placeId: number) => void;
-  onClosed: () => void;
+  /** Stängd: berättelserna man sett, och när de är sparade */
+  onClosed: (viewed: string[], saved: Promise<unknown>) => void;
 }) {
   const { width: W, height: H } = useWindowDimensions();
   const { colors } = useTheme();
@@ -97,14 +99,20 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
     if (presented) open.value = withTiming(1, OPEN);
   }, [presented, open]);
 
+  // Det man sett, och sparandet av det
+  const marked = useRef(new Set<string>());
+  const saving = useRef<Promise<unknown>[]>([]);
+  const finish = useCallback(() => {
+    onClosed([...marked.current], Promise.allSettled(saving.current));
+  }, [onClosed]);
   const close = useCallback(() => {
     if (closing.current) return;
     closing.current = true;
     cancelAnimation(progress);
     open.value = withTiming(0, CLOSE, (done) => {
-      if (done) runOnJS(onClosed)();
+      if (done) runOnJS(finish)();
     });
-  }, [open, progress, onClosed]);
+  }, [open, progress, finish]);
 
   // ── Att gå framåt och bakåt ──
   const setStory = useCallback((g: number, s: number) => {
@@ -148,11 +156,10 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   }, [running, next, progress]);
 
   // Sett när bilden väl syns
-  const marked = useRef(new Set<string>());
   useEffect(() => {
     if (!current || !isLoaded || marked.current.has(current.id)) return;
     marked.current.add(current.id);
-    markStoryViewed(current.id);
+    saving.current.push(markStoryViewed(current.id));
   }, [current, isLoaded]);
 
   // Nästa bild (och nästa grupps första) laddas i förväg
@@ -253,7 +260,7 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
               width={W}
               onLoaded={onLoaded}
               onClose={close}
-              onOpenPlace={onOpenPlace}
+              onOpenPlace={(placeId) => { finish(); onOpenPlace(placeId); }}
             />
           ))}
         </Reanimated.View>
@@ -301,20 +308,18 @@ const StoryPage = memo(function StoryPage({
 
   return (
     <Reanimated.View style={[StyleSheet.absoluteFill, s.page, cube]}>
+      {/* Hela bilden syns: är den inte i telefonens format ligger den mot en suddig kopia av sig själv */}
+      <ExpoImage source={{ uri: story.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} cachePolicy="memory-disk" />
+      <View style={[StyleSheet.absoluteFill, s.dim]} />
       <ExpoImage
         source={{ uri: story.image_url }}
         style={StyleSheet.absoluteFill}
-        contentFit="cover"
+        contentFit="contain"
         cachePolicy="memory-disk"
         transition={120}
         onLoad={() => onLoaded(story.id)}
       />
       <LinearGradient colors={["rgba(0,0,0,0.45)", "rgba(0,0,0,0)"]} style={[s.topShade, { height: insets.top + 110 }]} pointerEvents="none" />
-      <LinearGradient
-        colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.65)"]}
-        style={[s.bottomShade, { height: 260 + insets.bottom }]}
-        pointerEvents="none"
-      />
 
       <Reanimated.View style={[StyleSheet.absoluteFill, chrome]} pointerEvents="box-none">
         {/* Strecken: ett per berättelse, det aktuella fylls på i takt med tiden */}
@@ -334,21 +339,6 @@ const StoryPage = memo(function StoryPage({
           </TouchableOpacity>
           <TouchableOpacity onPress={onClose} hitSlop={14} accessibilityLabel="Stäng">
             <X size={26} color="#FFFFFF" strokeWidth={2.2} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={[s.foot, { bottom: insets.bottom + 22 }]} pointerEvents="box-none">
-          {!!story.deal_text && (
-            <View style={s.deal}>
-              <Crown size={14} color="#E8C674" strokeWidth={2.2} />
-              <Text style={s.dealText} numberOfLines={1}>{story.deal_text}</Text>
-            </View>
-          )}
-          {!!story.caption && <Text style={s.caption} numberOfLines={4}>{story.caption}</Text>}
-          <TouchableOpacity style={s.visit} activeOpacity={0.85} onPress={() => onOpenPlace(group.placeId)}>
-            <BlurView intensity={30} tint="dark" style={[StyleSheet.absoluteFill, s.visitGlass]} />
-            <Text style={s.visitText} numberOfLines={1}>Till {name}</Text>
-            <ArrowUpRight size={18} color="#FFFFFF" strokeWidth={2.2} />
           </TouchableOpacity>
         </View>
       </Reanimated.View>
@@ -372,7 +362,6 @@ const s = StyleSheet.create({
   frame: { overflow: "hidden", backgroundColor: "#000000" },
   page: { backgroundColor: "#111113", backfaceVisibility: "hidden", overflow: "hidden" },
   topShade: { position: "absolute", top: 0, left: 0, right: 0 },
-  bottomShade: { position: "absolute", bottom: 0, left: 0, right: 0 },
 
   bars: { position: "absolute", left: 10, right: 10, flexDirection: "row", gap: 4 },
   bar: { flex: 1, height: 2.5, borderRadius: 2, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.35)" },
@@ -386,21 +375,5 @@ const s = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.5)", textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
   },
   time: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: "rgba(255,255,255,0.75)" },
-
-  foot: { position: "absolute", left: 16, right: 16, gap: 12 },
-  deal: {
-    alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  dealText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#E8C674" },
-  caption: {
-    fontFamily: "Inter_500Medium", fontSize: 16, lineHeight: 23, color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.45)", textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 },
-  },
-  visit: {
-    alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 8,
-    height: 46, paddingHorizontal: 20, borderRadius: 23, overflow: "hidden", marginTop: 4,
-  },
-  visitGlass: { backgroundColor: "rgba(0,0,0,0.35)" },
-  visitText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#FFFFFF", maxWidth: 240 },
+  dim: { backgroundColor: "rgba(0,0,0,0.35)" },
 });

@@ -42,10 +42,11 @@ export async function markStoryViewed(storyId: string): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await (supabase as any).from("story_views").upsert(
-      { user_id: user.id, story_id: storyId, viewed_at: new Date().toISOString() },
-      { onConflict: "user_id,story_id" },
-    );
+    const row = { user_id: user.id, story_id: storyId, viewed_at: new Date().toISOString() };
+    const { error } = await (supabase as any).from("story_views").upsert(row, { onConflict: "user_id,story_id" });
+    // Saknar tabellen regeln om en rad per person och berättelse (migration 041) nekas upsert —
+    // då sparas en vanlig rad i stället (en dubblett gör inget, den räknas ändå som sedd)
+    if (error) await (supabase as any).from("story_views").insert(row);
   } catch {
     // Inget att göra — den räknas som osedd nästa gång
   }

@@ -6,8 +6,11 @@
  * sedan växer berättelsen ut ur cirkeln (StoryViewer). Man börjar på den första man inte sett.
  * Snurren går på UI-tråden — den gamla bågen som ritades om tolv gånger hackade.
  *
- * Raden sköter sina egna lägen, så den ritar inte om resten av Hem. Medan visaren är öppen står
- * ordningen still; vad man sett räknas in när den stängs.
+ * En berättelse syns i 24 timmar och försvinner sen (om företaget inte satt en egen tid). Sedda
+ * hamnar sist med grå ring — det räknas in direkt när visaren stängs (medan den är öppen står
+ * ordningen still, annars bytte cirklarna plats under fingrarna).
+ *
+ * Raden sköter sina egna lägen, så den ritar inte om resten av Hem.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -37,6 +40,8 @@ const SC_RADIUS = SC_INNER / 2 + SC_GAP + SC_STROKE / 2;
 const SC_OUTER = Math.ceil(2 * (SC_RADIUS + SC_STROKE) + 2);
 const SC_CENTER = SC_OUTER / 2;
 const SC_CIRC = 2 * Math.PI * SC_RADIUS;
+/** Så länge en berättelse syns */
+const STORY_LIFE_MS = 24 * 60 * 60 * 1000;
 /** Snurren: minst så här länge (så den syns), högst så här länge (sen öppnas den ändå) */
 const LOAD_MIN_MS = 260;
 const LOAD_MAX_MS = 1500;
@@ -140,10 +145,12 @@ export const StoryRow = memo(function StoryRow() {
 
   // En grupp per plats (platsens data kommer med berättelsen), favoriter och osedda först
   const groups = useMemo((): StoryGroupData[] => {
-    const now = new Date().toISOString();
+    const now = Date.now();
     const byPlace = new Map<number, typeof businessStories>();
     for (const bs of businessStories) {
-      if (!bs.place || (bs.expires_at && bs.expires_at < now)) continue;
+      // Syns till företagets egen sluttid, annars i 24 timmar
+      const ends = bs.expires_at ? new Date(bs.expires_at).getTime() : new Date(bs.created_at).getTime() + STORY_LIFE_MS;
+      if (!bs.place || ends <= now) continue;
       const list = byPlace.get(bs.place_id);
       if (list) list.push(bs); else byPlace.set(bs.place_id, [bs]);
     }
@@ -183,16 +190,22 @@ export const StoryRow = memo(function StoryRow() {
     setPresented(false);
     setOpened({ groups: snapshot, group: g, story: unseen < 0 ? 0 : unseen, origin });
   }, []);
-  const onClosed = useCallback(() => {
+  const onClosed = useCallback((viewed: string[], saved: Promise<unknown>) => {
     setOpened(null);
     setPresented(false);
-    // Nu får cirklarna byta plats efter vad man sett
-    queryClient.invalidateQueries({ queryKey: ["story-views"] });
+    if (viewed.length === 0) return;
+    // Nu får cirklarna byta plats: direkt i appen, och från servern när sparandet är klart
+    const at = new Date().toISOString();
+    queryClient.setQueryData<{ story_id: string; viewed_at?: string | null }[]>(["story-views"], (old = []) => [
+      ...old.filter((v) => !viewed.includes(v.story_id)),
+      ...viewed.map((id) => ({ story_id: id, viewed_at: at })),
+    ]);
+    saved.then(() => queryClient.invalidateQueries({ queryKey: ["story-views"] }));
   }, [queryClient]);
+  const closeNow = useCallback(() => onClosed([], Promise.resolve()), [onClosed]);
   const onOpenPlace = useCallback((placeId: number) => {
-    onClosed();
     pushOnce(router, `/place/${placeId}`);
-  }, [onClosed, router]);
+  }, [router]);
 
   // Medan berättelserna hämtas: grå cirklar på deras plats (så inget hoppar när de kommer)
   if (isLoading) {
@@ -226,7 +239,7 @@ export const StoryRow = memo(function StoryRow() {
         animationType="none"
         statusBarTranslucent
         onShow={() => setPresented(true)}
-        onRequestClose={onClosed}
+        onRequestClose={closeNow}
       >
         {opened && (
           <StoryViewer
