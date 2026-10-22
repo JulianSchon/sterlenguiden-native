@@ -26,7 +26,7 @@ const NO_IDS: number[] = [];
 
 /** Hem har "Öppet nu" först (på Sök ligger det som en egen del) */
 const HOME_SHORTCUTS: Shortcut[] = [
-  { key: "open", get label() { return i18n.t("shortcuts.open"); }, query: "öppet nu", Icon: Clock, tint: TINT.open },
+  { key: "open", get label() { return i18n.t("shortcuts.open"); }, get query() { return i18n.t("search.queries.open"); }, Icon: Clock, tint: TINT.open },
   ...TILES,
 ];
 

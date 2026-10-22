@@ -12,9 +12,14 @@
  *
  * Hittas inget med allt man bad om släpps det som saknar uppgifter (t.ex. barnvänligt, som många
  * platser inte angett än) — och svaret säger det. Det blir aldrig tomt i onödan.
+ *
+ * Orden förstås på svenska, engelska och tyska ("eat now", "Kaffee in Kivik", "tonight"), oavsett
+ * vilket språk appen står på. Det söket själv skriver (rubriker, meningen när ett chip tas bort)
+ * skrivs på appens språk.
  */
 import { addDays, format, getDay, startOfDay } from "date-fns";
 import i18n from "i18next";
+import { dateLocale } from "@/i18n/dates";
 import type { Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
 import { lastDay } from "@/lib/events";
@@ -46,59 +51,79 @@ type Meaning =
   | { kind: "when"; value: When }
   | { kind: "filler" };
 
+// Orden på svenska, engelska och tyska (i sökform: gemener, utan prickar och accenter)
 const CATEGORY_WORDS: Record<CategoryId, string[]> = {
-  "mat-dryck": ["mat", "ata", "ater", "hungrig", "hungriga", "lunch", "middag", "frukost", "brunch", "restaurang", "restauranger", "krog", "krogar", "kroog", "kvallsmat", "dinner"],
-  "cafe-bageri": ["fika", "fikar", "fikat", "kaffe", "cafe", "kafe", "kafeer", "cafeer", "bageri", "bagerier", "konditori", "bulle", "bullar", "kanelbulle", "kanelbullar"],
-  "hotell-bb": ["sova", "sover", "boende", "boenden", "hotell", "bnb", "overnatta", "overnattning", "overnatting", "vandrarhem", "stuga", "stugor"],
-  "natur-upplevelser": ["natur", "naturen", "vandra", "vandring", "promenad", "promenera", "strand", "strander", "bada", "skog", "skogen"],
-  "aktiviteter": ["aktivitet", "aktiviteter", "gora", "upplevelse", "upplevelser"],
-  "sevardheter": ["sevardhet", "sevardheter", "museum", "museer", "kyrka", "kyrkor", "slott", "fornminne", "fornminnen"],
-  "butiker": ["handla", "shoppa", "shopping", "butik", "butiker", "affar", "affarer", "gardsbutik", "gardsbutiker"],
-  "hantverk-service": ["design", "hantverk", "keramik", "atelje", "ateljeer", "galleri", "gallerier", "glasblaseri"],
+  "mat-dryck": ["mat", "ata", "ater", "hungrig", "hungriga", "lunch", "middag", "frukost", "brunch", "restaurang", "restauranger", "krog", "krogar", "kroog", "kvallsmat",
+    "food", "eat", "eating", "hungry", "restaurant", "restaurants", "dinner", "breakfast",
+    "essen", "hunger", "restaurants", "mittagessen", "abendessen", "fruhstuck", "speisen"],
+  "cafe-bageri": ["fika", "fikar", "fikat", "kaffe", "cafe", "kafe", "kafeer", "cafeer", "bageri", "bagerier", "konditori", "bulle", "bullar", "kanelbulle", "kanelbullar",
+    "coffee", "cafes", "bakery", "bakeries", "kaffee", "backerei", "konditorei"],
+  "hotell-bb": ["sova", "sover", "boende", "boenden", "hotell", "bnb", "overnatta", "overnattning", "overnatting", "vandrarhem", "stuga", "stugor",
+    "sleep", "stay", "hotel", "hotels", "accommodation", "hostel", "cabin", "cottage",
+    "schlafen", "ubernachten", "ubernachtung", "unterkunft", "pension", "ferienhaus"],
+  "natur-upplevelser": ["natur", "naturen", "vandra", "vandring", "promenad", "promenera", "strand", "strander", "bada", "skog", "skogen",
+    "nature", "hike", "hiking", "walk", "walking", "beach", "beaches", "swim", "swimming", "forest",
+    "wandern", "wanderung", "spaziergang", "baden", "wald"],
+  "aktiviteter": ["aktivitet", "aktiviteter", "gora", "upplevelse", "upplevelser",
+    "activity", "activities", "experience", "experiences", "aktivitat", "aktivitaten", "erlebnis", "erlebnisse"],
+  "sevardheter": ["sevardhet", "sevardheter", "museum", "museer", "kyrka", "kyrkor", "slott", "fornminne", "fornminnen",
+    "sights", "sightseeing", "museums", "church", "churches", "castle", "castles",
+    "sehenswurdigkeit", "sehenswurdigkeiten", "museen", "kirche", "kirchen", "schloss", "burg"],
+  "butiker": ["handla", "shoppa", "shopping", "butik", "butiker", "affar", "affarer", "gardsbutik", "gardsbutiker",
+    "shop", "shops", "store", "stores", "einkaufen", "laden", "geschaft", "geschafte", "hofladen"],
+  "hantverk-service": ["design", "hantverk", "keramik", "atelje", "ateljeer", "galleri", "gallerier", "glasblaseri",
+    "craft", "crafts", "ceramics", "pottery", "gallery", "galleries", "handwerk", "galerie", "topferei"],
 };
 
 const PRACTICAL_WORDS: Record<PracticalKey, string[]> = {
-  family: ["barn", "barnen", "barnvanligt", "barnvanlig", "barnvanliga", "familj", "familjen", "familjevanligt", "ungar", "ungarna", "kids"],
-  pets: ["hund", "hunden", "hundar", "hundvanligt", "hundvanlig", "husdjur", "valp"],
-  outdoor: ["uteservering", "utomhus", "terrass"],
-  accessible: ["rullstol", "tillganglig", "tillgangligt", "tillganglighet", "handikapp", "rullator"],
-  vegetarian: ["vegetariskt", "vegetarisk", "vego", "vegan", "veganskt", "vegansk"],
-  parking: ["parkering", "parkera"],
-  wifi: ["wifi"],
-  ev: ["laddstolpe", "elbil", "elbilsladdning"],
+  family: ["barn", "barnen", "barnvanligt", "barnvanlig", "barnvanliga", "familj", "familjen", "familjevanligt", "ungar", "ungarna",
+    "kids", "children", "child", "family", "kinder", "kindern", "familie", "familienfreundlich"],
+  pets: ["hund", "hunden", "hundar", "hundvanligt", "hundvanlig", "husdjur", "valp", "dog", "dogs", "pet", "pets", "hunde", "haustier"],
+  outdoor: ["uteservering", "utomhus", "terrass", "outdoor", "outdoors", "terrace", "patio", "terrasse", "draussen", "draußen"],
+  accessible: ["rullstol", "tillganglig", "tillgangligt", "tillganglighet", "handikapp", "rullator",
+    "wheelchair", "accessible", "accessibility", "rollstuhl", "barrierefrei"],
+  vegetarian: ["vegetariskt", "vegetarisk", "vego", "vegan", "veganskt", "vegansk", "vegetarian", "veggie", "vegetarisch"],
+  parking: ["parkering", "parkera", "parking", "parkplatz", "parken"],
+  wifi: ["wifi", "wlan"],
+  ev: ["laddstolpe", "elbil", "elbilsladdning", "charger", "charging", "ev", "ladestation", "elektroauto"],
 };
 
-/** Det praktiska som platsens egenskaper (samma nycklar som kartans filter) */
-export const PRACTICAL_LABELS: Record<PracticalKey, string> = {
-  family: "Barnvänligt", pets: "Hundvänligt", outdoor: "Uteservering", accessible: "Tillgänglighet",
-  vegetarian: "Vegetariskt", parking: "Parkering", wifi: "Wifi", ev: "Laddstolpe",
-};
+/** Det praktiska som platsens egenskaper (samma nycklar som kartans filter), på appens språk */
+export const practicalLabel = (key: PracticalKey): string => i18n.t(`search.practical.${key}`);
 
 const SINGLE: Record<string, Meaning> = {};
 for (const [id, list] of Object.entries(CATEGORY_WORDS)) list.forEach((w) => { SINGLE[w] = { kind: "category", value: id as CategoryId }; });
 for (const [id, list] of Object.entries(PRACTICAL_WORDS)) list.forEach((w) => { SINGLE[w] = { kind: "practical", value: id as PracticalKey }; });
-["oppet", "oppen", "oppna", "nu"].forEach((w) => { SINGLE[w] = { kind: "open" }; });
-["sent", "senare"].forEach((w) => { SINGLE[w] = { kind: "late" }; });
-["nara", "narheten", "narmast", "narmaste"].forEach((w) => { SINGLE[w] = { kind: "near" }; });
-["evenemang", "event", "events", "hander", "handelse", "handelser", "pagang"].forEach((w) => { SINGLE[w] = { kind: "events" }; });
-SINGLE.idag = { kind: "when", value: "today" };
-SINGLE.ikvall = { kind: "when", value: "today" };
-SINGLE.imorgon = { kind: "when", value: "tomorrow" };
-SINGLE.helg = { kind: "when", value: "weekend" };
-SINGLE.helgen = { kind: "when", value: "weekend" };
+["oppet", "oppen", "oppna", "nu", "open", "now", "geoffnet", "offen", "jetzt"].forEach((w) => { SINGLE[w] = { kind: "open" }; });
+["sent", "senare", "late", "spat"].forEach((w) => { SINGLE[w] = { kind: "late" }; });
+["nara", "narheten", "narmast", "narmaste", "near", "nearby", "close", "closest", "nearest", "nahe"].forEach((w) => { SINGLE[w] = { kind: "near" }; });
+["evenemang", "event", "events", "hander", "handelse", "handelser", "pagang", "happening", "veranstaltung", "veranstaltungen"].forEach((w) => { SINGLE[w] = { kind: "events" }; });
+["idag", "ikvall", "today", "tonight", "heute"].forEach((w) => { SINGLE[w] = { kind: "when", value: "today" }; });
+["imorgon", "tomorrow", "morgen"].forEach((w) => { SINGLE[w] = { kind: "when", value: "tomorrow" }; });
+["helg", "helgen", "weekend", "wochenende"].forEach((w) => { SINGLE[w] = { kind: "when", value: "weekend" }; });
 [
   "jag", "du", "vi", "ni", "de", "dem", "man", "mig", "dig", "oss", "er", "min", "mitt", "mina", "var", "vart", "vara",
   "ar", "har", "hade", "och", "o", "en", "ett", "tva", "tre", "fyra", "fem", "med", "utan", "vad", "vilken", "vilka",
   "vilket", "kan", "kunna", "ska", "skall", "vill", "att", "som", "det", "den", "i", "pa", "till", "for", "av", "fran",
   "om", "nagon", "nagot", "nagonstans", "nanstans", "nan", "nat", "bra", "lite", "mycket", "hos", "sa", "da", "nar",
   "hur", "finns", "tips", "tipsa", "nagra", "fa", "bli", "inatt", "natt", "gar", "ga", "kommer",
-  "efter", "under", "mellan", "mest", "basta", "bast", "gott", "god", "goda", "the", "where", "eat",
+  "efter", "under", "mellan", "mest", "basta", "bast", "gott", "god", "goda",
   "eller", "samt", "plus", "bade", "antingen", "ocksa", "aven", "kanske", "garna", "helst", "typ", "vid", "kring",
   "runt", "omkring", "dar", "hit", "dit", "stalle", "stallen", "platser", "hitta", "hittar", "leta", "letar",
   "soka", "soker", "rekommendera", "rekommenderar", "forslag", "nagonting", "ngt", "sugen", "sugna", "suget", "gillar", "alskar",
+  // Engelska
+  "the", "a", "an", "and", "or", "with", "without", "to", "in", "on", "of", "is", "are", "we", "you", "me", "my", "our",
+  "some", "any", "good", "best", "nice", "place", "places", "where", "what", "find", "want", "looking", "something",
+  "can", "get", "go", "this", "that", "here", "there", "around", "lets", "let", "us", "please", "recommend",
+  "things", "do", "cream", "somewhere", "at",
+  // Tyska
+  "ich", "wir", "der", "die", "das", "dem", "den", "ein", "eine", "einen", "einem", "und", "oder", "mit", "ohne", "fur",
+  "zu", "im", "am", "an", "auf", "von", "ist", "sind", "gut", "gute", "guten", "beste", "besten", "ort", "orte", "wo",
+  "was", "finden", "suche", "suchen", "mochte", "mochten", "etwas", "mir", "mich", "uns", "kann", "gibt", "es", "hier",
+  "uhr", "bitte", "irgendwo", "um",
 ].forEach((w) => { SINGLE[w] ??= { kind: "filler" }; });
 
-/** Två ord som hör ihop ("öppet sent", "nära mig", "i morgon") */
+/** Två ord som hör ihop ("öppet sent", "nära mig", "i morgon", "open late", "in der Nähe") */
 const PAIRS: Record<string, Meaning> = {
   "oppet sent": { kind: "late" },
   "nara mig": { kind: "near" },
@@ -107,6 +132,13 @@ const PAIRS: Record<string, Meaning> = {
   "i morgon": { kind: "when", value: "tomorrow" },
   "i helgen": { kind: "when", value: "weekend" },
   "pa gang": { kind: "events" },
+  "open late": { kind: "late" },
+  "late night": { kind: "late" },
+  "near me": { kind: "near" },
+  "close by": { kind: "near" },
+  "spat geoffnet": { kind: "late" },
+  "der nahe": { kind: "near" },
+  "heute abend": { kind: "when", value: "today" },
 };
 
 // ── Smaker och rätter ────────────────────────────────────────────────────────
@@ -118,48 +150,59 @@ const PAIRS: Record<string, Meaning> = {
  * ord ("fisk*" = fisk, fisken, fiskrökeri); utan * måste hela ordet stämma ("ost" ≠ "Österlen").
  * category = vilken kategori smaken hör till (läggs till om man inte sagt någon).
  */
-interface Taste { label: string; triggers: string[]; terms: string[]; category?: CategoryId }
+interface Taste { readonly label: string; triggers: string[]; terms: string[]; category?: CategoryId }
 
+/** Smakens namn på appens språk (search.tastes.*) */
+const tasteLabel = (key: string) => i18n.t(`search.tastes.${key}` as "search.tastes.fish");
+
+// Orden man skriver (triggers) går på alla tre språken; det platserna nämner (terms) står på svenska,
+// för det är så platsernas beskrivningar är skrivna
 export const TASTES: Record<string, Taste> = {
   fish: {
-    label: "Fisk & skaldjur", category: "mat-dryck",
+    get label() { return tasteLabel("fish"); }, category: "mat-dryck",
     triggers: ["fisk", "fisken", "fiskar", "fiskratt", "fiskratter", "fiskrestaurang", "skaldjur", "seafood", "fish",
       "torsk", "torsken", "lax", "laxen", "sill", "sillen", "stromming", "sjotunga", "kolja", "sej", "gos", "abborre",
       "rodspotta", "makrill", "al", "rakor", "rakmacka", "raksmorgas", "kraftor", "hummer", "musslor", "ostron", "krabba",
-      "fiskrokeri", "rokeri", "rokt", "rokta"],
+      "fiskrokeri", "rokeri", "rokt", "rokta",
+      "shrimp", "prawns", "salmon", "cod", "herring", "lobster", "mussels", "oysters", "crab", "smoked",
+      "fisch", "meeresfruchte", "garnelen", "lachs", "kabeljau", "hering", "muscheln", "austern", "krabben", "geraucherter"],
     terms: ["fisk*", "skaldjur*", "torsk*", "lax", "laxen", "sill*", "stromming*", "sjotunga", "kolja", "rodspotta", "makrill*",
       "rakor", "raksmorgas*", "rakmacka*", "kraft*", "hummer*", "mussl*", "ostron*", "krabb*", "rokeri*", "rokt", "rokta", "seafood"],
   },
   homestyle: {
-    label: "Husmanskost", category: "mat-dryck",
+    get label() { return tasteLabel("homestyle"); }, category: "mat-dryck",
     triggers: ["husmanskost", "husman", "husmans", "kottbullar", "pyttipanna", "pytt", "dagens", "dagenslunch", "schnitzel",
-      "stekt", "flask", "kalops", "svensk", "svenskt", "traditionell", "traditionellt", "hemlagat", "hemlagad"],
+      "stekt", "flask", "kalops", "svensk", "svenskt", "traditionell", "traditionellt", "hemlagat", "hemlagad",
+      "swedish", "traditional", "homestyle", "homemade", "cooking", "meatballs", "hausmannskost", "schwedisch"],
     terms: ["husman*", "dagens", "kottbull*", "pytt*", "schnitzel*", "kalops", "flask*", "traditionell*", "klassisk*",
       "hemlagad*", "hemlagat", "vardshus*", "gastgiveri*", "kro", "krog*", "svensk", "svenska", "skansk*"],
   },
-  pizza: { label: "Pizza", category: "mat-dryck", triggers: ["pizza", "pizzor", "pizzeria", "pizzan"], terms: ["pizz*"] },
-  burger: { label: "Hamburgare", category: "mat-dryck", triggers: ["burgare", "hamburgare", "burger", "burgers", "burgaren"], terms: ["burg*", "hamburg*"] },
+  pizza: { get label() { return tasteLabel("pizza"); }, category: "mat-dryck", triggers: ["pizza", "pizzor", "pizzeria", "pizzan", "pizzas"], terms: ["pizz*"] },
+  burger: { get label() { return tasteLabel("burger"); }, category: "mat-dryck", triggers: ["burgare", "hamburgare", "burger", "burgers", "burgaren", "hamburger"], terms: ["burg*", "hamburg*"] },
   asian: {
-    label: "Asiatiskt", category: "mat-dryck",
-    triggers: ["sushi", "asiatiskt", "asiatisk", "thai", "thaimat", "wok", "ramen", "kinesiskt", "indiskt", "curry"],
+    get label() { return tasteLabel("asian"); }, category: "mat-dryck",
+    triggers: ["sushi", "asiatiskt", "asiatisk", "thai", "thaimat", "wok", "ramen", "kinesiskt", "indiskt", "curry",
+      "asian", "chinese", "indian", "asiatisch", "chinesisch", "indisch"],
     terms: ["sushi*", "asiat*", "thai*", "wok*", "ramen", "kines*", "indisk*", "curry*"],
   },
   meat: {
-    label: "Kött & grill", category: "mat-dryck",
-    triggers: ["kott", "biff", "entrecote", "grill", "grillat", "bbq", "steak", "oxfile", "lamm", "vilt"],
+    get label() { return tasteLabel("meat"); }, category: "mat-dryck",
+    triggers: ["kott", "biff", "entrecote", "grill", "grillat", "bbq", "steak", "oxfile", "lamm", "vilt",
+      "meat", "beef", "lamb", "grilled", "fleisch", "rind"],
     terms: ["kott*", "biff*", "entrecote*", "grill*", "bbq", "oxfile*", "lamm*", "vilt*", "steak*"],
   },
   sweets: {
-    label: "Bakverk", category: "cafe-bageri",
-    triggers: ["bakverk", "bakelse", "bakelser", "tarta", "tartor", "semla", "semlor", "kaka", "kakor", "surdeg", "brod"],
+    get label() { return tasteLabel("sweets"); }, category: "cafe-bageri",
+    triggers: ["bakverk", "bakelse", "bakelser", "tarta", "tartor", "semla", "semlor", "kaka", "kakor", "surdeg", "brod",
+      "cake", "cakes", "pastry", "pastries", "bread", "sourdough", "cinnamon", "kuchen", "torte", "torten", "geback", "brot", "sauerteig"],
     terms: ["bakverk*", "bakelse*", "tart*", "seml*", "kak*", "surdeg*", "brod*", "bageri*", "konditori*"],
   },
-  icecream: { label: "Glass", triggers: ["glass", "glassen", "glassbar", "softglass", "gelato"], terms: ["glass*", "gelato*"] },
-  wine: { label: "Vin", triggers: ["vin", "vinet", "vinprovning", "vingard", "vingardar", "vinbar"], terms: ["vin", "vinet", "viner", "vingard*", "vinprov*", "vinbar*", "vinodl*"] },
-  beer: { label: "Öl", triggers: ["ol", "olen", "bryggeri", "olprovning", "mikrobryggeri"], terms: ["ol", "olen", "bryggeri*", "olprov*", "mikrobryggeri*"] },
-  cheese: { label: "Ost", triggers: ["ost", "ostar", "osten", "gardsost", "mejeri"], terms: ["ost", "ostar", "osten", "osteri*", "mejeri*", "gardsost*"] },
-  apples: { label: "Äpplen & must", triggers: ["apple", "applen", "musteri", "must", "cider", "appelmust"], terms: ["apple*", "musteri*", "must", "cider*", "appelmust*", "apelmust*"] },
-  chocolate: { label: "Choklad", triggers: ["choklad", "praliner", "pralin"], terms: ["choklad*", "pralin*"] },
+  icecream: { get label() { return tasteLabel("icecream"); }, triggers: ["glass", "glassen", "glassbar", "softglass", "gelato", "ice", "icecream", "eis", "speiseeis", "eisdiele"], terms: ["glass*", "gelato*"] },
+  wine: { get label() { return tasteLabel("wine"); }, triggers: ["vin", "vinet", "vinprovning", "vingard", "vingardar", "vinbar", "wine", "winery", "vineyard", "wein", "weingut", "weinprobe"], terms: ["vin", "vinet", "viner", "vingard*", "vinprov*", "vinbar*", "vinodl*"] },
+  beer: { get label() { return tasteLabel("beer"); }, triggers: ["ol", "olen", "bryggeri", "olprovning", "mikrobryggeri", "beer", "brewery", "bier", "brauerei"], terms: ["ol", "olen", "bryggeri*", "olprov*", "mikrobryggeri*"] },
+  cheese: { get label() { return tasteLabel("cheese"); }, triggers: ["ost", "ostar", "osten", "gardsost", "mejeri", "cheese", "dairy", "kase", "kaserei", "molkerei"], terms: ["ost", "ostar", "osten", "osteri*", "mejeri*", "gardsost*"] },
+  apples: { get label() { return tasteLabel("apples"); }, triggers: ["apple", "applen", "musteri", "must", "cider", "appelmust", "apples", "apfel", "apfelsaft"], terms: ["apple*", "musteri*", "must", "cider*", "appelmust*", "apelmust*"] },
+  chocolate: { get label() { return tasteLabel("chocolate"); }, triggers: ["choklad", "praliner", "pralin", "chocolate", "pralines", "schokolade", "pralinen"], terms: ["choklad*", "pralin*"] },
 };
 const TASTE_OF: Record<string, string> = {};
 for (const [key, taste] of Object.entries(TASTES)) taste.triggers.forEach((w) => { TASTE_OF[w] ??= key; });
@@ -264,13 +307,15 @@ export type Intent =
 /**
  * En dag och/eller tid man frågar efter ("på måndag", "kl 19", "i kväll"): platserna ska ha öppet då.
  * weekday = veckodag (0 = söndag), rel = i dag (0) eller i morgon (1); minutes = klockslaget i
- * minuter, part = det ord tiden kom från ("kväll") när inget klockslag skrevs.
+ * minuter, part = den del av dagen tiden kom från ("kväll") när inget klockslag skrevs.
  */
+export type DayPart = "evening" | "morning" | "forenoon" | "afternoon" | "breakfast" | "brunch" | "lunch" | "dinner";
+
 export interface At {
   weekday: number | null;
   rel: 0 | 1 | null;
   minutes: number | null;
-  part: string | null;
+  part: DayPart | null;
 }
 
 export interface Parsed {
@@ -283,8 +328,8 @@ export interface Parsed {
   textOriginal: string[];
   /** "Nära mig" — sorteras alltid på avstånd ändå, men ordet ska inte sökas som text */
   near: boolean;
-  /** "göra eller sova" / "äta och sova" — rubriken använder samma ord */
-  conj: "och" | "eller";
+  /** "göra eller sova" / "äta och sova" — rubriken använder samma sorts ord, på appens språk */
+  conj: "and" | "or";
 }
 
 /** Hur olika två ord är (antal tecken som måste ändras), avbryter när det blir fler än max */
@@ -313,17 +358,34 @@ const WEEKDAYS: Record<string, number> = {};
 ["sondag", "mandag", "tisdag", "onsdag", "torsdag", "fredag", "lordag"].forEach((d, i) => {
   [d, `${d}en`, `${d}ar`, `${d}s`].forEach((w) => { WEEKDAYS[w] = i; });
 });
-/** Delar av dagen och vilket klockslag de betyder. kind: category = ordet betyder också en kategori (lunch → äta) */
-const DAY_PARTS: Record<string, { minutes: number; word: string; alsoCategory?: boolean }> = {
-  kvall: { minutes: 19 * 60, word: "kväll" }, kvallen: { minutes: 19 * 60, word: "kväll" },
-  morgon: { minutes: 9 * 60, word: "morgon" }, morgonen: { minutes: 9 * 60, word: "morgon" },
-  formiddag: { minutes: 10 * 60, word: "förmiddag" }, formiddagen: { minutes: 10 * 60, word: "förmiddag" },
-  eftermiddag: { minutes: 15 * 60, word: "eftermiddag" }, eftermiddagen: { minutes: 15 * 60, word: "eftermiddag" },
-  frukost: { minutes: 8 * 60 + 30, word: "frukost", alsoCategory: true },
-  brunch: { minutes: 11 * 60, word: "brunch", alsoCategory: true },
-  lunch: { minutes: 12 * 60, word: "lunch", alsoCategory: true },
-  middag: { minutes: 18 * 60 + 30, word: "middag", alsoCategory: true },
+["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].forEach((d, i) => {
+  [d, `${d}s`].forEach((w) => { WEEKDAYS[w] = i; });
+});
+["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"].forEach((d, i) => {
+  [d, `${d}s`].forEach((w) => { WEEKDAYS[w] = i; });
+});
+WEEKDAYS.sonnabend = 6;
+/** Delar av dagen och vilket klockslag de betyder. alsoCategory = ordet betyder också en kategori (lunch → äta) */
+const DAY_PARTS: Record<string, { minutes: number; part: DayPart; alsoCategory?: boolean }> = {
+  kvall: { minutes: 19 * 60, part: "evening" }, kvallen: { minutes: 19 * 60, part: "evening" },
+  evening: { minutes: 19 * 60, part: "evening" }, abend: { minutes: 19 * 60, part: "evening" }, abends: { minutes: 19 * 60, part: "evening" },
+  morgon: { minutes: 9 * 60, part: "morning" }, morgonen: { minutes: 9 * 60, part: "morning" }, morning: { minutes: 9 * 60, part: "morning" },
+  formiddag: { minutes: 10 * 60, part: "forenoon" }, formiddagen: { minutes: 10 * 60, part: "forenoon" },
+  forenoon: { minutes: 10 * 60, part: "forenoon" }, vormittag: { minutes: 10 * 60, part: "forenoon" },
+  eftermiddag: { minutes: 15 * 60, part: "afternoon" }, eftermiddagen: { minutes: 15 * 60, part: "afternoon" },
+  afternoon: { minutes: 15 * 60, part: "afternoon" }, nachmittag: { minutes: 15 * 60, part: "afternoon" },
+  frukost: { minutes: 8 * 60 + 30, part: "breakfast", alsoCategory: true },
+  breakfast: { minutes: 8 * 60 + 30, part: "breakfast", alsoCategory: true },
+  fruhstuck: { minutes: 8 * 60 + 30, part: "breakfast", alsoCategory: true },
+  brunch: { minutes: 11 * 60, part: "brunch", alsoCategory: true },
+  lunch: { minutes: 12 * 60, part: "lunch", alsoCategory: true },
+  mittagessen: { minutes: 12 * 60, part: "lunch", alsoCategory: true },
+  middag: { minutes: 18 * 60 + 30, part: "dinner", alsoCategory: true },
+  dinner: { minutes: 18 * 60 + 30, part: "dinner", alsoCategory: true },
+  abendessen: { minutes: 18 * 60 + 30, part: "dinner", alsoCategory: true },
 };
+/** Ord före ett klockslag: "kl 19", "at 19", "um 19" */
+const CLOCK_WORDS = new Set(["kl", "klockan", "at", "um"]);
 const isHour = (t: string) => /^\d{1,2}$/.test(t) && Number(t) <= 24;
 
 /**
@@ -333,7 +395,7 @@ const isHour = (t: string) => /^\d{1,2}$/.test(t) && Number(t) <= 24;
 function parseAt(tokens: string[], gaps: string[], used: Set<number>): ({ kind: "at"; tokens: number[] } & At) | null {
   let weekday: number | null = null;
   let minutes: number | null = null;
-  let part: { minutes: number; word: string } | null = null;
+  let part: { minutes: number; part: DayPart } | null = null;
   const idx: number[] = [];
   const take = (...i: number[]) => { i.forEach((k) => { used.add(k); idx.push(k); }); };
   for (let i = 0; i < tokens.length; i++) {
@@ -342,17 +404,19 @@ function parseAt(tokens: string[], gaps: string[], used: Set<number>): ({ kind: 
     if (t in WEEKDAYS) { weekday = WEEKDAYS[t]; take(i); continue; }
     const dp = DAY_PARTS[t];
     if (dp) {
-      part = { minutes: dp.minutes, word: dp.word };
+      part = { minutes: dp.minutes, part: dp.part };
       if (dp.alsoCategory) idx.push(i);
       else take(i);
       continue;
     }
-    if ((t === "kl" || t === "klockan") && isHour(tokens[i + 1] ?? "")) {
-      const mm = /^\d{2}$/.test(tokens[i + 2] ?? "") && /^\s*[:.]\s*$/.test(gaps[i + 1] ?? "") ? Number(tokens[i + 2]) : 0;
+    if (CLOCK_WORDS.has(t) && isHour(tokens[i + 1] ?? "")) {
+      // "kl 19:00": minuterna hör till klockslaget även när de är 00
+      const hasMinutes = /^\d{2}$/.test(tokens[i + 2] ?? "") && /^\s*[:.]\s*$/.test(gaps[i + 1] ?? "");
+      const mm = hasMinutes ? Number(tokens[i + 2]) : 0;
       minutes = Number(tokens[i + 1]) * 60 + Math.min(mm, 59);
       take(i, i + 1);
-      if (mm) take(i + 2);
-      i += mm ? 2 : 1;
+      if (hasMinutes) take(i + 2);
+      i += hasMinutes ? 2 : 1;
       continue;
     }
     if (isHour(t) && /^\d{2}$/.test(tokens[i + 1] ?? "") && /^\s*[:.]\s*$/.test(gaps[i] ?? "") && Number(tokens[i + 1]) < 60) {
@@ -368,7 +432,7 @@ function parseAt(tokens: string[], gaps: string[], used: Set<number>): ({ kind: 
     }
   }
   if (weekday === null && minutes === null && !part) return null;
-  return { kind: "at", tokens: idx, weekday, rel: null, minutes: minutes ?? part?.minutes ?? null, part: minutes === null ? part?.word ?? null : null };
+  return { kind: "at", tokens: idx, weekday, rel: null, minutes: minutes ?? part?.minutes ?? null, part: minutes === null ? part?.part ?? null : null };
 }
 
 export function parseQuery(query: string, towns: Town[]): Parsed {
@@ -445,15 +509,16 @@ export function parseQuery(query: string, towns: Town[]): Parsed {
 
   // "i kväll" = i dag kl 19. Finns en dag eller tid gäller den i stället för "nu", och "i dag" /
   // "i morgon" blir dagen den gäller
-  const evening = tokens.includes("ikvall") || tokens.some((t, i) => t === "i" && tokens[i + 1] === "kvall");
+  const evening = tokens.includes("ikvall") || tokens.includes("tonight")
+    || tokens.some((t, i) => (t === "i" && tokens[i + 1] === "kvall") || (t === "heute" && tokens[i + 1] === "abend"));
   let atIntent = at;
-  if (evening && !atIntent) atIntent = { kind: "at", tokens: [], weekday: null, rel: 0, minutes: 19 * 60, part: "kväll" };
+  if (evening && !atIntent) atIntent = { kind: "at", tokens: [], weekday: null, rel: 0, minutes: 19 * 60, part: "evening" };
   if (atIntent) {
     const whenIntent = intents.find((x) => x.kind === "when");
     if (whenIntent?.kind === "when" && whenIntent.value !== "weekend" && atIntent.weekday === null) {
       atIntent.rel = whenIntent.value === "today" ? 0 : 1;
       atIntent.tokens = [...whenIntent.tokens, ...atIntent.tokens];
-      if (evening && atIntent.minutes === null) { atIntent.minutes = 19 * 60; atIntent.part = "kväll"; }
+      if (evening && atIntent.minutes === null) { atIntent.minutes = 19 * 60; atIntent.part = "evening"; }
     }
     for (let k = intents.length - 1; k >= 0; k--) {
       const x = intents[k];
@@ -480,37 +545,43 @@ export function parseQuery(query: string, towns: Town[]): Parsed {
     text: textIdx.map((i) => tokens[i]),
     textOriginal: textIdx.map((i) => originals[i]),
     near,
-    conj: tokens.includes("eller") ? "eller" : "och",
+    conj: tokens.some((t) => t === "eller" || t === "or" || t === "oder") ? "or" : "and",
   };
 }
 
-const CAT_WORD: Record<CategoryId, string> = {
-  "mat-dryck": "äta", "cafe-bageri": "fika", "hotell-bb": "sova", "natur-upplevelser": "natur",
-  "aktiviteter": "aktiviteter", "sevardheter": "sevärdheter", "butiker": "handla", "hantverk-service": "design",
-};
-const PRACTICAL_WORD: Record<PracticalKey, string> = {
-  family: "barn", pets: "hund", outdoor: "uteservering", accessible: "tillgängligt", vegetarian: "vegetariskt",
-  parking: "parkering", wifi: "wifi", ev: "laddstolpe",
-};
-const WHEN_WORDS: Record<When, string> = { today: "i dag", tomorrow: "i morgon", weekend: "i helgen" };
-const WEEKDAY_WORDS = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"];
+/** Ett ord för det söket förstått, på appens språk — och ett ord som söket själv förstår igen */
+const catWord = (id: CategoryId) => i18n.t(`search.words.cat.${id}`);
+const practicalWord = (key: PracticalKey) => i18n.t(`search.words.practical.${key}`);
+export const whenWord = (when: When) => i18n.t(`search.words.when.${when}`);
+const conjWord = (conj: Parsed["conj"]) => i18n.t(conj === "or" ? "search.words.or" : "search.words.and");
 
 /** "19:00", "18:30" */
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+/** Veckodagens namn på appens språk ("måndag", "Monday", "Montag") */
+function weekdayName(day: number): string {
+  // 2026-10-04 är en söndag
+  return format(addDays(new Date(2026, 9, 4), day), "EEEE", { locale: dateLocale() });
+}
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Dagen och tiden som en del av en mening: "på måndag kl 19:00", "i kväll", "i morgon kl 12:00" */
 export function atPhrase(at: At): string {
-  const day = at.weekday !== null ? `på ${WEEKDAY_WORDS[at.weekday]}` : at.rel === 1 ? "i morgon" : at.rel === 0 ? "i dag" : "";
-  if (at.part === "kväll" && at.rel === 0 && at.weekday === null) return "i kväll";
-  const time = at.part ? at.part : at.minutes !== null ? `kl ${hhmm(at.minutes)}` : "";
-  if (at.part && day) return `${day} ${at.part}`;
+  const day = at.weekday !== null ? i18n.t("search.at.onDay", { day: weekdayName(at.weekday) })
+    : at.rel === 1 ? i18n.t("search.at.tomorrow") : at.rel === 0 ? i18n.t("search.at.today") : "";
+  if (at.part === "evening" && at.rel === 0 && at.weekday === null) return i18n.t("search.at.tonight");
+  const part = at.part ? i18n.t(`search.at.parts.${at.part}`) : "";
+  if (part && day) return `${day} ${part}`;
+  const time = part || (at.minutes !== null ? i18n.t("search.at.atTime", { time: hhmm(at.minutes) }) : "");
   return [day, time].filter(Boolean).join(" ");
 }
 
 /** Samma sak som en etikett: "Måndag 19:00", "I kväll", "Måndag kväll" */
 export function atLabel(at: At): string {
-  const phrase = atPhrase(at).replace(/^på /, "").replace(/kl /, "");
-  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+  if (at.part === "evening" && at.rel === 0 && at.weekday === null) return cap(i18n.t("search.at.tonight"));
+  const day = at.weekday !== null ? weekdayName(at.weekday)
+    : at.rel === 1 ? i18n.t("search.at.tomorrow") : at.rel === 0 ? i18n.t("search.at.today") : "";
+  const time = at.part ? i18n.t(`search.at.parts.${at.part}`) : at.minutes !== null ? hhmm(at.minutes) : "";
+  return cap([day, time].filter(Boolean).join(" "));
 }
 
 /** Dagen (och klockslaget) man frågar efter, räknat från nu: nästa sådan veckodag, i dag eller i morgon */
@@ -528,25 +599,27 @@ function atDate(at: At, now = new Date()): Date {
  */
 export function withoutIntent(parsed: Parsed, drop: Intent): string {
   const keep = parsed.intents.filter((x) => x !== drop);
-  const cats = keep.flatMap((x) => (x.kind === "category" ? [CAT_WORD[x.value]] : []));
-  const withWords = keep.flatMap((x) => (x.kind === "practical" && (x.value === "family" || x.value === "pets") ? [PRACTICAL_WORD[x.value]] : []));
-  const otherPractical = keep.flatMap((x) => (x.kind === "practical" && x.value !== "family" && x.value !== "pets" ? [PRACTICAL_WORD[x.value]] : []));
+  const conj = conjWord(parsed.conj);
+  const cats = keep.flatMap((x) => (x.kind === "category" ? [catWord(x.value)] : []));
+  const withWords = keep.flatMap((x) => (x.kind === "practical" && (x.value === "family" || x.value === "pets") ? [practicalWord(x.value)] : []));
+  const otherPractical = keep.flatMap((x) => (x.kind === "practical" && x.value !== "family" && x.value !== "pets" ? [practicalWord(x.value)] : []));
   const out: string[] = [];
-  if (cats.length > 0) out.push(cats.join(` ${parsed.conj} `));
+  if (cats.length > 0) out.push(cats.join(` ${conj} `));
   if (parsed.textOriginal.length > 0) out.push(parsed.textOriginal.join(" "));
-  if (keep.some((x) => x.kind === "open")) out.push(cats.length > 0 ? "nu" : "öppet nu");
-  if (keep.some((x) => x.kind === "late")) out.push(cats.length > 0 ? "sent" : "öppet sent");
-  if (withWords.length > 0) out.push(`med ${withWords.join(" och ")}`);
+  if (keep.some((x) => x.kind === "open")) out.push(i18n.t(cats.length > 0 ? "search.words.now" : "search.words.openNow"));
+  if (keep.some((x) => x.kind === "late")) out.push(i18n.t(cats.length > 0 ? "search.words.late" : "search.words.openLate"));
+  if (withWords.length > 0) out.push(i18n.t("search.words.with", { list: withWords.join(` ${conjWord("and")} `) }));
   out.push(...otherPractical);
-  if (keep.some((x) => x.kind === "events")) out.push("evenemang");
+  if (keep.some((x) => x.kind === "events")) out.push(i18n.t("search.words.events"));
   const when = keep.find((x) => x.kind === "when");
-  if (when?.kind === "when") out.push(WHEN_WORDS[when.value]);
+  if (when?.kind === "when") out.push(whenWord(when.value));
   const at = keep.find((x) => x.kind === "at");
   if (at?.kind === "at") out.push(atPhrase(at));
   keep.forEach((x) => { if (x.kind === "taste") out.push(TASTES[x.value].label.toLowerCase()); });
   const townNames = keep.flatMap((x) => (x.kind === "town" ? [x.value.name] : []));
   // Bara orten kvar: bara namnet ("Kivik"), annars "äta i Kivik"
-  if (townNames.length > 0) out.push(`${out.length > 0 ? "i " : ""}${townNames.join(` ${parsed.conj} `)}`);
+  const towns = townNames.join(` ${conj} `);
+  if (townNames.length > 0) out.push(out.length > 0 ? i18n.t("search.words.inTown", { town: towns }) : towns);
   return out.join(" ");
 }
 
@@ -640,19 +713,20 @@ export function searchPlaces(
     if (atIntent.minutes !== null) {
       // Dagen står med, så det inte går att missa vilken dag svaret gäller ("Öppet till 21 på måndag")
       const info = openInfo(place, target);
-      const day = atIntent.weekday !== null ? `på ${WEEKDAY_WORDS[atIntent.weekday]}` : atIntent.rel === 1 ? "i morgon" : "";
+      const day = atIntent.weekday !== null ? i18n.t("search.at.onDay", { day: weekdayName(atIntent.weekday) })
+        : atIntent.rel === 1 ? i18n.t("search.at.tomorrow") : "";
       if (!info || info.open) return info && day ? { ...info, label: `${info.label} ${day}` } : info;
       // Stängt just då, men kanske öppet andra tider samma dag: säg tiden ("Stängt på måndag 22:00")
       const wholeDay = parseDay(hoursOf(place)?.[DAY_NAMES[target.getDay()]]) === "closed";
-      const time = wholeDay ? "" : day ? hhmm(atIntent.minutes) : `kl ${hhmm(atIntent.minutes)}`;
-      const when = [day, time].filter(Boolean).join(" ") || "i dag";
-      return { open: false, label: `Stängt ${when}`.trim() };
+      const time = wholeDay ? "" : day ? hhmm(atIntent.minutes) : i18n.t("search.at.atTime", { time: hhmm(atIntent.minutes) });
+      const when = [day, time].filter(Boolean).join(" ") || i18n.t("search.at.today");
+      return { open: false, label: i18n.t("search.closedWhen", { when }) };
     }
     // Bara en dag: dagens öppettider ("Måndag 11–22")
     const day = parseDay(hoursOf(place)?.[DAY_NAMES[target.getDay()]]);
-    if (day === "closed") return { open: false, label: `Stängt ${WEEKDAY_WORDS[target.getDay()]}` };
+    if (day === "closed") return { open: false, label: i18n.t("search.closedWhen", { when: weekdayName(target.getDay()) }) };
     if (!Array.isArray(day)) return null;
-    return { open: true, label: `${DAY_NAMES[target.getDay()]} ${day.map((r) => `${clock(r.from)}–${clock(r.to)}`).join(", ")}` };
+    return { open: true, label: `${cap(weekdayName(target.getDay()))} ${day.map((r) => `${clock(r.from)}–${clock(r.to)}`).join(", ")}` };
   };
 
   // Orden bakom kategorin och orten: en plats som HETER så räknas också (sök "örum" hittar

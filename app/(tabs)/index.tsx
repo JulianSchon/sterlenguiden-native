@@ -329,7 +329,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const openTreasure = useCallback((c: Collectible) => {
     router.navigate({ pathname: "/(tabs)/map", params: { sticker: c.id } });
   }, [router]);
-  const showOpenNow = useCallback(() => openSearch(router, "öppet nu"), [router]);
+  const showOpenNow = useCallback(() => openSearch(router, i18n.t("search.queries.open")), [router, i18n]);
   const showCalendar = useCallback(() => router.navigate("/(tabs)/calendar"), [router]);
   const openDiscover = useCallback(() => router.push("/discover"), [router]);
 

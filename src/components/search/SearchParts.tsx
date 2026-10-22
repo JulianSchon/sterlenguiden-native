@@ -8,6 +8,7 @@
  */
 import { memo } from "react";
 import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type TextStyle } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import {
@@ -210,7 +211,7 @@ export function HistoryRow({ kind, title, detail, image, event, onPress, onRemov
           <Text style={[s.meta, { color: colors.muted }]} numberOfLines={1}>{detail}</Text>
         </View>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onRemove} hitSlop={12} accessibilityLabel={`Ta bort ${title} ur historiken`}>
+      <TouchableOpacity onPress={onRemove} hitSlop={12} accessibilityLabel={i18n.t("search.history.remove", { title })}>
         <X size={18} color={colors.faint} strokeWidth={2} />
       </TouchableOpacity>
     </View>
@@ -230,10 +231,11 @@ export function PlaceAnswer({ hit, saved, onOpen, onMap, onNavigate, onToggleSav
   onBurst: BurstFn;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const image = firstImageUrl(hit.place.image_url);
   return (
     <View>
-      <Text style={[s.answerLabel, { color: colors.goldText }]}>BÄSTA TRÄFF</Text>
+      <Text style={[s.answerLabel, { color: colors.goldText }]}>{t("search.answer.best")}</Text>
       <Pressable onPress={onOpen} style={[s.heroImage, { backgroundColor: colors.fill }]}>
         {image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />}
       </Pressable>
@@ -246,8 +248,8 @@ export function PlaceAnswer({ hit, saved, onOpen, onMap, onNavigate, onToggleSav
         <HeartButton isFav={saved} onToggle={onToggleSave} onBurst={onBurst} />
       </View>
       <View style={s.heroActions}>
-        <ActionButton Icon={MapIcon} label="Visa på kartan" onPress={onMap} />
-        <ActionButton Icon={Navigation} label="Vägbeskrivning" onPress={onNavigate} />
+        <ActionButton Icon={MapIcon} label={t("search.answer.showMap")} onPress={onMap} />
+        <ActionButton Icon={Navigation} label={t("search.answer.directions")} onPress={onNavigate} />
       </View>
     </View>
   );
@@ -321,7 +323,7 @@ export function ChipView({ chip }: { chip: Chip }) {
         style={style}
         activeOpacity={0.75}
         onPress={chip.onRemove ?? chip.onPress}
-        accessibilityLabel={chip.onRemove ? `Ta bort ${chip.label}` : chip.label}
+        accessibilityLabel={chip.onRemove ? i18n.t("search.removeChip", { label: chip.label }) : chip.label}
       >
         {body}
       </TouchableOpacity>
