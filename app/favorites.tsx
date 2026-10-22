@@ -235,7 +235,6 @@ export default function FavoritesScreen() {
         user_id: user.id,
         place_id: item.kind === "place" ? item.id : null,
         event_id: item.kind === "event" ? item.id : null,
-        service_point_id: null,
       });
     }
     // Resten av appen synkas när man lämnar sidan, se överst

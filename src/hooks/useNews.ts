@@ -3,14 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type NewsItem = {
   id: string;
-  slug: string;
   title: string;
   ingress: string | null;
   body: string | null;
   cover_image_url: string | null;
   gallery_urls: string[] | null;
-  source: string | null;
-  category: string | null;
   priority: number;
   is_pinned: boolean;
   is_published: boolean;

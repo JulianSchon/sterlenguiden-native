@@ -250,7 +250,6 @@ export type Database = {
           event_id: number | null
           id: string
           place_id: number | null
-          service_point_id: string | null
           user_id: string
         }
         Insert: {
@@ -258,7 +257,6 @@ export type Database = {
           event_id?: number | null
           id?: string
           place_id?: number | null
-          service_point_id?: string | null
           user_id: string
         }
         Update: {
@@ -266,7 +264,6 @@ export type Database = {
           event_id?: number | null
           id?: string
           place_id?: number | null
-          service_point_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -282,13 +279,6 @@ export type Database = {
             columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "favorites_service_point_id_fkey"
-            columns: ["service_point_id"]
-            isOneToOne: false
-            referencedRelation: "service_points"
             referencedColumns: ["id"]
           },
         ]
@@ -495,10 +485,8 @@ export type Database = {
       news: {
         Row: {
           body: string | null
-          category: string | null
           cover_image_url: string | null
           created_at: string
-          created_by: string | null
           gallery_urls: string[] | null
           id: string
           ingress: string | null
@@ -509,17 +497,13 @@ export type Database = {
           place_id: number | null
           priority: number
           published_at: string | null
-          slug: string
-          source: string | null
           title: string
           updated_at: string
         }
         Insert: {
           body?: string | null
-          category?: string | null
           cover_image_url?: string | null
           created_at?: string
-          created_by?: string | null
           gallery_urls?: string[] | null
           id?: string
           ingress?: string | null
@@ -530,17 +514,13 @@ export type Database = {
           place_id?: number | null
           priority?: number
           published_at?: string | null
-          slug: string
-          source?: string | null
           title: string
           updated_at?: string
         }
         Update: {
           body?: string | null
-          category?: string | null
           cover_image_url?: string | null
           created_at?: string
-          created_by?: string | null
           gallery_urls?: string[] | null
           id?: string
           ingress?: string | null
@@ -551,8 +531,6 @@ export type Database = {
           place_id?: number | null
           priority?: number
           published_at?: string | null
-          slug?: string
-          source?: string | null
           title?: string
           updated_at?: string
         }

@@ -175,7 +175,7 @@ export async function finishOnboarding(userId: string, draft: OnboardingDraft): 
       const have = new Set((existing ?? []).map((f) => f.place_id));
       const add = draft.favorites.filter((id) => !have.has(id));
       if (add.length > 0) {
-        await supabase.from("favorites").insert(add.map((place_id) => ({ user_id: userId, place_id, event_id: null, service_point_id: null })));
+        await supabase.from("favorites").insert(add.map((place_id) => ({ user_id: userId, place_id, event_id: null })));
       }
     } catch {
       // Favoriterna går att spara igen från platserna

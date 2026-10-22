@@ -6,7 +6,6 @@ interface Favorite {
   user_id: string;
   place_id: number | null;
   event_id: number | null;
-  service_point_id: string | null;
   created_at: string;
 }
 
@@ -21,7 +20,7 @@ export function useFavorites() {
 
       const { data, error } = await supabase
         .from("favorites")
-        .select("id, user_id, place_id, event_id, service_point_id, created_at")
+        .select("id, user_id, place_id, event_id, created_at")
         .eq("user_id", user.id);
 
       if (error) throw error;
@@ -40,7 +39,7 @@ export async function savePlaceFavorite(placeId: number, save: boolean) {
   if (!user) throw new Error("Not authenticated");
   if (save) {
     const { error } = await supabase.from("favorites").insert({
-      user_id: user.id, place_id: placeId, event_id: null, service_point_id: null,
+      user_id: user.id, place_id: placeId, event_id: null,
     });
     if (error) throw error;
   } else {
@@ -59,7 +58,7 @@ export async function saveEventFavorite(eventId: number, save: boolean) {
   if (!user) throw new Error("Not authenticated");
   if (save) {
     const { error } = await supabase.from("favorites").insert({
-      user_id: user.id, event_id: eventId, place_id: null, service_point_id: null,
+      user_id: user.id, event_id: eventId, place_id: null,
     });
     if (error) throw error;
   } else {
