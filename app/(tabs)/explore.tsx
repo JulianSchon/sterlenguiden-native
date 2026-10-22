@@ -129,7 +129,8 @@ export default function ExploreScreen() {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  // Öppnar man något från söket står söket kvar när man kommer tillbaka (som i Spotify) — tills Avbryt
+  // Har man en gång gått in i söket står det kvar tills Avbryt: när tangentbordet åker ner (man
+  // scrollar i historiken) eller man kommer tillbaka från en plats (som i Spotify)
   const [stay, setStay] = useState(false);
   const searching = focused || query.length > 0 || stay;
   const changeQuery = useCallback((q: string) => {
@@ -262,12 +263,12 @@ export default function ExploreScreen() {
   // ── Att öppna något (via söket hamnar det överst i historiken) ───────────
   const openPlace = useCallback((place: Place, fromSearch: boolean) => {
     Keyboard.dismiss();
-    if (fromSearch) { addHistory({ kind: "place", id: place.id }); setStay(true); }
+    if (fromSearch) addHistory({ kind: "place", id: place.id });
     pushOnce(router, `/place/${place.id}`);
   }, [addHistory, router]);
   const openEventItem = useCallback((event: Event, fromSearch: boolean) => {
     Keyboard.dismiss();
-    if (fromSearch) { addHistory({ kind: "event", id: event.id }); setStay(true); }
+    if (fromSearch) addHistory({ kind: "event", id: event.id });
     openEvent(event.id, { event });
   }, [addHistory]);
   const chooseTown = useCallback((name: string) => {
@@ -404,7 +405,7 @@ export default function ExploreScreen() {
               ref={inputRef}
               value={query}
               onChangeText={changeQuery}
-              onFocus={() => setFocused(true)}
+              onFocus={() => { setFocused(true); setStay(true); }}
               onBlur={() => setFocused(false)}
               onSubmitEditing={() => addHistory({ kind: "term", text: query.trim() })}
               placeholder="Sök platser, evenemang, orter"
