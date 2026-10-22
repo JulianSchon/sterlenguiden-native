@@ -16,7 +16,7 @@ import type { Event } from "@/hooks/useEvents";
 import {
   BusinessError, EMPTY_OVERVIEW, businessError, rpc,
   type AdminRequest, type BusinessOffer, type BusinessOverview, type BusinessPlace, type BusinessStats,
-  type BusinessStory, type ClaimInfo, type MemberRole, type PlacePatch, type StoryLink, type Team,
+  type BusinessStory, type ClaimInfo, type MemberRole, type Permission, type PlacePatch, type StoryLink, type Team,
 } from "@/lib/business";
 
 const missingFunction = (e: unknown) =>
@@ -197,8 +197,10 @@ export function useTeamActions(placeId: number) {
       queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
     });
     return {
-      invite: (email: string, role: MemberRole) =>
-        after(rpc<ClaimResult & { emailed?: boolean }>("business_invite", { p_place_id: placeId, p_email: email, p_role: role })),
+      invite: (email: string, role: MemberRole, permissions: Permission[] | null) =>
+        after(rpc<ClaimResult & { emailed?: boolean }>("business_invite", { p_place_id: placeId, p_email: email, p_role: role, p_permissions: permissions })),
+      setPermissions: (userId: string, permissions: Permission[]) =>
+        after(rpc<ClaimResult>("business_set_member_permissions", { p_place_id: placeId, p_user_id: userId, p_permissions: permissions })),
       cancelInvite: (id: string) => after(rpc<void>("business_cancel_invite", { p_id: id })),
       answerJoin: (id: string, accept: boolean) => after(rpc<ClaimResult>("business_answer_join", { p_id: id, p_accept: accept })),
       setRole: (userId: string, role: MemberRole) =>

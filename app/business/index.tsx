@@ -11,7 +11,7 @@
  * företag kommer man till "För företag" (business/start).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,6 +21,13 @@ import {
   ArrowUpRight, BarChart3, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, DoorClosed, Eye,
   FileText, Images, LayoutGrid, LifeBuoy, ListChecks, Phone, Repeat, Settings2, Ticket, Undo2, Users,
 } from "lucide-react-native";
+import { Lock } from "lucide-react-native";
+
+/** Vilken behörighet varje sida kräver (personal kan ha fått bara en del, se Personal) */
+const PAGE_PERMISSION: Record<string, Permission> = {
+  hours: "info", about: "info", photos: "info", contact: "info", categories: "info", amenities: "info",
+  story: "stories", stories: "stories", offer: "offers", offers: "offers", event: "events", events: "events",
+};
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { GradientCard } from "@/components/GradientCard";
@@ -35,7 +42,7 @@ import {
   useBusinessOffers, useBusinessPlace, useBusinessStats, usePlaceEvents, usePlaceStories, usePortalPlace, useUpdatePlace,
 } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
-import { businessError, type BusinessPlace, type MyPlace } from "@/lib/business";
+import { businessError, canDo, type BusinessPlace, type MyPlace, type Permission } from "@/lib/business";
 import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { hasAnyHours, setToday, todayOnly } from "@/lib/hoursEditor";
 import { effectiveHours, hoursStatus } from "@/lib/openingHours";
@@ -77,10 +84,17 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
   const [todayOpen, setTodayOpen] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
 
-  const go = useCallback((page: string, extra = "") => pushOnce(router, `/business/${page}?place=${placeId}${extra}`), [router, placeId]);
+  const locked = useCallback((page: string) => !!PAGE_PERMISSION[page] && !canDo(mine, PAGE_PERMISSION[page]), [mine]);
+  const askOwner = useCallback(() => Alert.alert("Låst för dig", `Det här har du inte fått tillgång till. Fråga en ägare för ${mine.name} – de kan ändra det under Personal.`), [mine.name]);
+  const go = useCallback((page: string, extra = "") => {
+    if (locked(page)) { askOwner(); return; }
+    pushOnce(router, `/business/${page}?place=${placeId}${extra}`);
+  }, [router, placeId, locked, askOwner]);
+  const lockIcon = (page: string) => (locked(page) ? <Lock size={16} color={colors.faint} strokeWidth={2} /> : undefined);
 
   const saveToday = async (change: TodayChange) => {
     if (!place) return;
+    if (locked("hours")) { askOwner(); return; }
     setTodayOpen(false);
     const before = place.hours_exceptions ?? [];
     try {
@@ -119,13 +133,13 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
 
         <Rise index={1}>
           {place ? (
-            <TodayCard place={place} onCloseToday={() => saveToday({ closed: true, label: null })} onChange={() => setTodayOpen(true)} onUndo={() => saveToday(null)} onHours={() => go("hours")} />
+            <TodayCard place={place} onCloseToday={() => saveToday({ closed: true, label: null })} onChange={() => (locked("hours") ? askOwner() : setTodayOpen(true))} onUndo={() => saveToday(null)} onHours={() => go("hours")} />
           ) : (
             <Skeleton height={132} radius={22} />
           )}
         </Rise>
 
-        {place && (
+        {place && !locked("hours") && (
           <Tasks
             placeId={placeId}
             place={place}
@@ -138,9 +152,9 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
           <View>
             <Text style={s.label}>Skapa</Text>
             <View style={s.createRow}>
-              <CreateTile Icon={Camera} title="Story" sub="Visa dagen" onPress={() => go("story")} />
-              <CreateTile Icon={Ticket} title="Erbjudande" sub="I Österlenpasset" onPress={() => go("offer")} />
-              <CreateTile Icon={CalendarPlus} title="Evenemang" sub="Bjud in gäster" onPress={() => go("event")} />
+              <CreateTile Icon={Camera} title="Story" locked={locked("story")} sub="Visa dagen" onPress={() => go("story")} />
+              <CreateTile Icon={Ticket} title="Erbjudande" locked={locked("offer")} sub="I Österlenpasset" onPress={() => go("offer")} />
+              <CreateTile Icon={CalendarPlus} title="Evenemang" locked={locked("event")} sub="Bjud in gäster" onPress={() => go("event")} />
             </View>
           </View>
         </Rise>
@@ -159,6 +173,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
                   icon={Camera}
                   label={activeStories.length === 1 ? "1 story ute nu" : `${activeStories.length} stories ute nu`}
                   subtitle={`${activeStories.reduce((n, st) => n + st.views, 0)} har sett ${activeStories.length === 1 ? "den" : "dem"}`}
+                  right={lockIcon("stories")}
                   onPress={() => go("stories")}
                 />
               )}
@@ -167,6 +182,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
                   icon={Ticket}
                   label={activeOffers.length === 1 ? "1 erbjudande igång" : `${activeOffers.length} erbjudanden igång`}
                   subtitle={`Använt ${activeOffers.reduce((n, o) => n + o.recent, 0)} gånger senaste 30 dagarna`}
+                  right={lockIcon("offers")}
                   onPress={() => go("offers")}
                 />
               )}
@@ -175,6 +191,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
                   icon={CalendarDays}
                   label={`Nästa: ${upcoming[0].title}`}
                   subtitle={upcoming.length === 1 ? "1 kommande evenemang" : `${upcoming.length} kommande evenemang`}
+                  right={lockIcon("events")}
                   onPress={() => go("events")}
                 />
               )}
@@ -184,20 +201,20 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
 
         <Rise index={5}>
           <SettingsGroup label="Er sida">
-            <SettingsRow icon={Clock} label="Öppettider" value={place ? (hasAnyHours(place.opening_hours) ? undefined : "Saknas") : undefined} onPress={() => go("hours")} />
-            <SettingsRow icon={FileText} label="Om er" value={place && !place.short_description ? "Saknas" : undefined} onPress={() => go("about")} />
-            <SettingsRow icon={Images} label="Bilder och logga" value={place ? `${placeImages(place.image_url).length} bilder` : undefined} onPress={() => go("photos")} />
-            <SettingsRow icon={Phone} label="Kontakt och länkar" onPress={() => go("contact")} />
-            <SettingsRow icon={LayoutGrid} label="Kategori och meny" onPress={() => go("categories")} />
-            <SettingsRow icon={ListChecks} label="Det här finns hos er" subtitle="Parkering, wifi, hundvänligt …" onPress={() => go("amenities")} />
+            <SettingsRow icon={Clock} label="Öppettider" value={place ? (hasAnyHours(place.opening_hours) ? undefined : "Saknas") : undefined} right={lockIcon("hours")} onPress={() => go("hours")} />
+            <SettingsRow icon={FileText} label="Om er" value={place && !place.short_description ? "Saknas" : undefined} right={lockIcon("about")} onPress={() => go("about")} />
+            <SettingsRow icon={Images} label="Bilder och logga" value={place ? `${placeImages(place.image_url).length} bilder` : undefined} right={lockIcon("photos")} onPress={() => go("photos")} />
+            <SettingsRow icon={Phone} label="Kontakt och länkar" right={lockIcon("contact")} onPress={() => go("contact")} />
+            <SettingsRow icon={LayoutGrid} label="Kategori och meny" right={lockIcon("categories")} onPress={() => go("categories")} />
+            <SettingsRow icon={ListChecks} label="Det här finns hos er" subtitle="Parkering, wifi, hundvänligt …" right={lockIcon("amenities")} onPress={() => go("amenities")} />
           </SettingsGroup>
         </Rise>
 
         <Rise index={6}>
           <SettingsGroup label="Mer">
-            <SettingsRow icon={Ticket} label="Erbjudanden" value={activeOffers.length ? `${activeOffers.length} igång` : undefined} onPress={() => go("offers")} />
-            <SettingsRow icon={CalendarDays} label="Evenemang" value={upcoming.length ? `${upcoming.length} kommande` : undefined} onPress={() => go("events")} />
-            <SettingsRow icon={Camera} label="Stories" onPress={() => go("stories")} />
+            <SettingsRow icon={Ticket} label="Erbjudanden" value={activeOffers.length ? `${activeOffers.length} igång` : undefined} right={lockIcon("offers")} onPress={() => go("offers")} />
+            <SettingsRow icon={CalendarDays} label="Evenemang" value={upcoming.length ? `${upcoming.length} kommande` : undefined} right={lockIcon("events")} onPress={() => go("events")} />
+            <SettingsRow icon={Camera} label="Stories" right={lockIcon("stories")} onPress={() => go("stories")} />
             <SettingsRow icon={BarChart3} label="Statistik" onPress={() => go("stats")} />
             <SettingsRow
               icon={Users}
@@ -418,14 +435,14 @@ function Tasks({ placeId, place, hasOffer, onOpen }: {
 
 // ── Skapa ───────────────────────────────────────────────────────────────────
 
-function CreateTile({ Icon, title, sub, onPress }: { Icon: typeof Camera; title: string; sub: string; onPress: () => void }) {
+function CreateTile({ Icon, title, sub, onPress, locked = false }: { Icon: typeof Camera; title: string; sub: string; onPress: () => void; locked?: boolean }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
     <View style={{ flex: 1 }}>
-      <PressableScale scale={0.95} style={s.tile} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+      <PressableScale scale={0.95} style={[s.tile, locked && { opacity: 0.55 }]} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
         <View style={s.tileIcon}>
-          <Icon size={24} color={colors.goldText} strokeWidth={1.9} />
+          {locked ? <Lock size={22} color={colors.muted} strokeWidth={1.9} /> : <Icon size={24} color={colors.goldText} strokeWidth={1.9} />}
         </View>
         <Text style={s.tileTitle} numberOfLines={1}>{title}</Text>
         <Text style={s.tileSub} numberOfLines={1}>{sub}</Text>

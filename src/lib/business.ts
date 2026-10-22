@@ -15,6 +15,25 @@ import { findCategory, type CategoryId } from "@/theme/categories";
 
 export type MemberRole = "owner" | "staff";
 
+/** Vad någon i personalen får göra (migration 050). Ägare får alltid allt. */
+export type Permission = "stories" | "events" | "offers" | "info";
+
+export const PERMISSIONS: { id: Permission; label: string; help: string }[] = [
+  { id: "stories", label: "Lägga upp stories", help: "Visa hur det ser ut hos er just nu" },
+  { id: "events", label: "Skapa evenemang", help: "Lägga in, ändra och ta bort evenemang" },
+  { id: "offers", label: "Skapa erbjudanden", help: "Påverkar kassan – ge bara till den du litar på" },
+  { id: "info", label: "Ändra er sida", help: "Öppettider, Stängt i dag, texter, bilder och kontakt" },
+];
+
+/** Ny personal får allt utom erbjudanden (samma som databasen) */
+export const DEFAULT_PERMISSIONS: Permission[] = ["stories", "events", "info"];
+
+/** Får jag göra det här på platsen? (null = allt, som för ägare och personal från förr) */
+export function canDo(place: { role: MemberRole; permissions?: string[] | null } | null | undefined, perm: Permission): boolean {
+  if (!place) return false;
+  return place.role === "owner" || !place.permissions || place.permissions.includes(perm);
+}
+
 export interface MyPlace {
   id: number;
   name: string;
@@ -27,6 +46,8 @@ export interface MyPlace {
   joined_at: string;
   /** Väntande förfrågningar om att gå med */
   requests: number;
+  /** Vad jag får göra (null = allt) */
+  permissions?: Permission[] | null;
 }
 
 export interface MyInvite {
@@ -101,6 +122,8 @@ export interface TeamMember {
   role: MemberRole;
   since: string;
   me: boolean;
+  /** Vad personen får göra (null = allt) */
+  permissions?: Permission[] | null;
 }
 
 export interface Team {
@@ -229,6 +252,7 @@ export function businessError(e: unknown): string {
   if (/network|fetch|timeout/i.test(message)) return "Vi får ingen kontakt just nu. Kolla nätet och försök igen.";
   if (message.includes("not_member")) return "Du sköter inte den här platsen längre.";
   if (message.includes("not_owner")) return "Det här kan bara en ägare göra.";
+  if (message.includes("no_permission")) return "Det här har du inte tillgång till. Fråga en ägare för företaget.";
   if (message.includes("not_signed_in")) return "Du behöver vara inloggad.";
   if (message.includes("locked")) return "Någon har redan använt erbjudandet, så det kan inte skrivas om. Avsluta det och skapa ett nytt i stället.";
   if (message.includes("too_many:offers")) return "Ni kan ha högst 10 erbjudanden igång samtidigt.";

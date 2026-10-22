@@ -5,6 +5,9 @@
  * Man bjuder in med e-post: personen loggar in i Österlenappen med den adressen, och då väntar
  * inbjudan under Inställningar. Ägare kan bjuda in, byta roll och ta bort; personal kan ändra allt
  * på sidan men inte vilka som har tillgång.
+ *
+ * Ägaren väljer vad var och en i personalen får göra: stories, evenemang, erbjudanden och att ändra
+ * sidan. Ny personal får allt utom erbjudanden (de påverkar kassan). Databasen kontrollerar det.
  */
 import { useRef, useState } from "react";
 import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -19,7 +22,8 @@ import { Skeleton } from "@/components/Skeleton";
 import { Sheet, PrimaryButton } from "@/components/Sheet";
 import { Note, PortalField, PortalSegmented, PortalToast, SectionHeader, type PortalToastHandle } from "@/components/business/PortalParts";
 import { useTeam, useTeamActions, usePortalPlace } from "@/hooks/useBusiness";
-import { businessError, isEmail, type MemberRole, type TeamMember } from "@/lib/business";
+import { DEFAULT_PERMISSIONS, PERMISSIONS, businessError, isEmail, type MemberRole, type Permission, type TeamMember } from "@/lib/business";
+import { IconSwitch } from "@/components/IconSwitch";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -44,6 +48,10 @@ export default function BusinessTeam() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("staff");
+  const [perms, setPerms] = useState<Permission[]>(DEFAULT_PERMISSIONS);
+  // Personen vars behörigheter ägaren ändrar just nu
+  const [editing, setEditing] = useState<TeamMember | null>(null);
+  const [editPerms, setEditPerms] = useState<Permission[]>([]);
   const [busy, setBusy] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const owner = mine?.role === "owner";
@@ -52,13 +60,14 @@ export default function BusinessTeam() {
     setBusy(true);
     setInviteError(null);
     try {
-      const r = await actions.invite(email.trim(), role);
+      const r = await actions.invite(email.trim(), role, role === "staff" ? perms : null);
       if (!r.ok) {
         setInviteError(r.reason === "already_member" ? "Den personen är redan med." : r.reason === "invalid_email" ? "E-postadressen ser inte rätt ut." : r.reason === "too_many" ? "Ni har många inbjudningar som väntar. Ta bort några först." : "Det gick inte.");
         return;
       }
       setInviteOpen(false);
       setEmail("");
+      setPerms(DEFAULT_PERMISSIONS);
       setTimeout(() => toast.current?.show(r.emailed ? "Inbjudan skickad" : "Inbjudan sparad – be personen logga in med den adressen"), 300);
     } catch (e) {
       setInviteError(businessError(e));
@@ -88,6 +97,9 @@ export default function BusinessTeam() {
         ]),
       });
     } else if (owner) {
+      if (m.role === "staff") {
+        items.push({ label: "Vad får hen göra?", onPress: () => { setEditPerms(m.permissions ?? PERMISSIONS.map((p) => p.id)); setEditing(m); } });
+      }
       items.push(m.role === "owner"
         ? { label: "Gör till personal", onPress: () => result(actions.setRole(m.user_id, "staff"), "Nu personal") }
         : { label: "Gör till ägare", onPress: () => result(actions.setRole(m.user_id, "owner"), "Nu ägare") });
@@ -153,7 +165,9 @@ export default function BusinessTeam() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.memberName}>{m.name ?? "Utan namn"}{m.me ? " (du)" : ""}</Text>
-                        {m.username && <Text style={s.memberSub}>@{m.username}</Text>}
+                        {m.role === "staff" ? (
+                          <Text style={s.memberSub} numberOfLines={1}>{permissionSummary(m.permissions)}</Text>
+                        ) : m.username ? <Text style={s.memberSub}>@{m.username}</Text> : null}
                       </View>
                       <Text style={[s.role, m.role === "owner" && { color: colors.goldText, backgroundColor: colors.goldSoft }]}>
                         {m.role === "owner" ? "Ägare" : "Personal"}
@@ -198,7 +212,7 @@ export default function BusinessTeam() {
             )}
 
             <Rise index={4}>
-              <Note icon={Users} text="Ägare kan bjuda in och ta bort personal. Personal kan ändra allt på sidan – öppettider, erbjudanden, evenemang och stories." />
+              <Note icon={Users} text="Ägare kan allt och väljer vad var och en i personalen får göra – tryck på en person för att ändra. Ny personal får allt utom erbjudanden." />
             </Rise>
 
             {team.changes.length > 0 && (
@@ -235,11 +249,58 @@ export default function BusinessTeam() {
             help="Personen loggar in i Österlenappen med den här adressen – då väntar inbjudan där."
           />
           <PortalSegmented options={[{ id: "staff", label: "Personal" }, { id: "owner", label: "Ägare" }]} value={role} onChange={setRole} />
+          {role === "staff" ? (
+            <PermissionToggles value={perms} onChange={setPerms} />
+          ) : (
+            <Text style={s.ownerNote}>En ägare kan göra allt, även bjuda in och ta bort personal.</Text>
+          )}
         </View>
         <PrimaryButton label="Skicka inbjudan" onPress={sendInvite} loading={busy} disabled={!isEmail(email)} />
       </Sheet>
+      <Sheet visible={!!editing} onClose={() => setEditing(null)} title={editing ? `Vad får ${editing.name ?? "hen"} göra?` : ""}>
+        <PermissionToggles value={editPerms} onChange={setEditPerms} />
+        <PrimaryButton
+          label="Spara"
+          onPress={() => {
+            const who = editing;
+            setEditing(null);
+            if (who) result(actions.setPermissions(who.user_id, editPerms), "Sparat");
+          }}
+        />
+      </Sheet>
       <PortalToast ref={toast} />
     </>
+  );
+}
+
+/** "Stories, evenemang och sidan" — vad någon i personalen får göra */
+function permissionSummary(perms: Permission[] | null | undefined): string {
+  if (!perms) return "Får göra allt";
+  if (perms.length === 0) return "Får bara titta";
+  const names: Record<Permission, string> = { stories: "stories", events: "evenemang", offers: "erbjudanden", info: "ändra sidan" };
+  const list = PERMISSIONS.filter((p) => perms.includes(p.id)).map((p) => names[p.id]);
+  const text = list.length === 1 ? list[0] : `${list.slice(0, -1).join(", ")} och ${list[list.length - 1]}`;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** Ett reglage per sak personen får göra */
+function PermissionToggles({ value, onChange }: { value: Permission[]; onChange: (v: Permission[]) => void }) {
+  const s = useThemedStyles(createStyles);
+  return (
+    <View style={s.perms}>
+      {PERMISSIONS.map((p) => {
+        const on = value.includes(p.id);
+        return (
+          <View key={p.id} style={s.permRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.permLabel}>{p.label}</Text>
+              <Text style={s.permHelp}>{p.help}</Text>
+            </View>
+            <IconSwitch value={on} onChange={(v) => onChange(v ? [...value, p.id] : value.filter((x) => x !== p.id))} />
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -267,6 +328,11 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   inviteText: { fontFamily: "Inter_700Bold", fontSize: 15, color: c.goldText },
   change: { paddingHorizontal: 16, paddingVertical: 12, gap: 2 },
+  ownerNote: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: c.muted },
+  perms: { gap: 14, marginBottom: 6 },
+  permRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  permLabel: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
+  permHelp: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 17, color: c.muted, marginTop: 2 },
   changeText: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.text },
   changeName: { fontFamily: "Inter_600SemiBold" },
   changeAt: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted },
