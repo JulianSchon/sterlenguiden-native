@@ -10,6 +10,7 @@ import Reanimated, { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight } from "
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { StepBar } from "@/components/auth/AuthParts";
+import { KeyboardTiming } from "@/components/onboarding/StepLayout";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const FORWARD = { entering: FadeInRight.duration(300), exiting: FadeOutLeft.duration(220) };
@@ -69,7 +70,7 @@ export function WizardFrame({ stepKey, progress, forward, onBack, hideBar = fals
       </View>
       <View style={{ flex: 1 }}>
         <Reanimated.View key={stepKey} style={{ flex: 1 }} entering={motion.entering} exiting={motion.exiting}>
-          {children}
+          <KeyboardTiming.Provider value="events">{children}</KeyboardTiming.Provider>
         </Reanimated.View>
       </View>
     </View>

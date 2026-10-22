@@ -59,6 +59,8 @@ export interface FeedInput {
   visitedPlaceIds: Set<number>;
   /** Kategorierna man själv sagt att man gillar (profiles.interests) */
   interests: string[];
+  /** Platser man själv sköter (Mitt företag): deras evenemang är "Ert evenemang" */
+  ownPlaceIds?: Set<number>;
   location: { lat: number; lng: number } | null;
   /** Blandningen av platserna: samma hela dagen, ny när man drar ner för att uppdatera */
   seed: number;
@@ -112,6 +114,7 @@ export function buildFeed(input: FeedInput): FeedItem[] {
     visitedPlaceIds: input.visitedPlaceIds,
     categoryCounts: liked,
     location,
+    ownPlaceIds: input.ownPlaceIds,
     now,
   });
   const heroPick = picks.find((p) => p.reason.kind === "today" || p.reason.kind === "ongoing")

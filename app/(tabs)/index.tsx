@@ -50,6 +50,7 @@ import { Rise } from "@/components/Rise";
 import { HomeHeader } from "@/components/home/HomeHeader";
 import { StoryRow } from "@/components/home/StoryRow";
 import { StickyGreeting } from "@/components/home/StickyGreeting";
+import { useMyPlaceIds } from "@/hooks/useBusiness";
 import {
   FEED_GUTTER, FeedDiscover, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedPlaceCard,
   FeedShortcuts, FeedSkeleton, FeedTreasureCard, OpenNowRail, WeekendRail,
@@ -182,6 +183,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   // efter en halvtimme — däremellan står det still medan man tittar. Platserna blandas nytt varje gång ──
   const [feed, setFeed] = useState<FeedItem[] | null>(null);
   const [version, setVersion] = useState(0);
+  const ownPlaceIds = useMyPlaceIds();
   const [seed, setSeed] = useState(newSeed);
   const [shown, setShown] = useState(FIRST_PAGE);
   const built = useRef(-1);
@@ -204,6 +206,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
       savedEventIds: new Set(favs.flatMap((f) => (f.event_id != null ? [f.event_id] : []))),
       visitedPlaceIds: new Set((visits.data ?? []).map((v) => v.place_id)),
       interests: profile.data?.interests ?? [],
+      ownPlaceIds,
       location,
       seed,
     }));
