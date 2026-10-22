@@ -95,8 +95,6 @@ export function daySeed(now = new Date()): number {
   return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
 }
 
-const TIER: Record<string, number> = { premium: 2, partner: 1 };
-
 export function buildFeed(input: FeedInput): FeedItem[] {
   const now = input.now ?? new Date();
   const { places, location } = input;
@@ -188,7 +186,7 @@ export function buildFeed(input: FeedInput): FeedItem[] {
       const likes = cat ? liked.get(cat) ?? 0 : 0;
       const km = kmTo(p);
       const score = Math.min(likes, 3) * 3 + (km != null && km < 15 ? 6 - km * 0.4 : 0)
-        + (TIER[p.business_tier ?? ""] ?? 0) + noise(input.seed, p.id) * 5;
+        + noise(input.seed, p.id) * 5;
       return { p, cat, likes, km, score };
     })
     .sort((a, b) => b.score - a.score);

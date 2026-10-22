@@ -118,6 +118,129 @@ export function hoursStatus(hours: Hours, now = new Date()): HoursStatus | null 
   return { state: "closed", label: "Stängt" };
 }
 
+// ── Undantag: stängt idag, semester, helgdagar, sommartider ──────────────────
+
+/**
+ * En tillfällig ändring som företaget lagt in (places.hours_exceptions). Från och med `from` till
+ * och med `to` gäller i stället: stängt (`closed`), samma tider varje dag (`hours`), eller en egen
+ * vecka (`week`, dagar som saknas är stängda). `yearly` = samma datum varje år (sommartider,
+ * säsongsstängt). Datumen är "2026-07-01".
+ */
+export interface HoursException {
+  id: string;
+  from: string;
+  to: string;
+  label?: string | null;
+  closed?: boolean;
+  hours?: string | null;
+  week?: Record<string, string> | null;
+  yearly?: boolean;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+/** "2026-07-01" för datumet, i telefonens tid */
+export const isoDay = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+function covers(ex: HoursException, day: string): boolean {
+  if (!ex.yearly) return ex.from <= day && day <= ex.to;
+  // Varje år: bara månad och dag räknas (och perioden kan gå över nyår, t.ex. nov–mars)
+  const md = day.slice(5);
+  const from = ex.from.slice(5);
+  const to = ex.to.slice(5);
+  return from <= to ? from <= md && md <= to : md >= from || md <= to;
+}
+
+/** Hur många dagar undantaget gäller (det kortaste vinner när flera gäller samma dag) */
+function span(ex: HoursException): number {
+  return (new Date(ex.to).getTime() - new Date(ex.from).getTime()) / 86_400_000;
+}
+
+/** Undantaget som gäller datumet, eller null. Ett enstaka datum går före en hel period. */
+export function exceptionFor(list: HoursException[] | null | undefined, date: Date): HoursException | null {
+  if (!list?.length) return null;
+  const day = isoDay(date);
+  let best: HoursException | null = null;
+  for (const ex of list) {
+    if (covers(ex, day) && (!best || span(ex) <= span(best))) best = ex;
+  }
+  return best;
+}
+
+/** Dagens text med undantaget (som i databasen: "10-17", "Stängt" …) */
+function exceptionText(ex: HoursException, date: Date): string {
+  if (ex.closed) return "Stängt";
+  if (ex.hours) return ex.hours;
+  return ex.week?.[DAY_NAMES[date.getDay()]]?.trim() || "Stängt";
+}
+
+/**
+ * Öppettiderna med undantagen inräknade, för dagarna runt i dag: i går till om fem dagar har var
+ * sin veckodag, så "öppet nu", "stänger 17", "öppnar i morgon" och veckans rader stämmer. Allt som
+ * läser öppettider (karta, sök, platssidan) får de här tiderna.
+ */
+export function effectiveHours(hours: Hours, exceptions: HoursException[] | null | undefined, now = new Date()): Hours {
+  if (!exceptions?.length) return hours;
+  const out: Record<string, string> = { ...(hours ?? {}) };
+  let changed = false;
+  for (let i = -1; i <= 5; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const ex = exceptionFor(exceptions, date);
+    if (ex) {
+      out[DAY_NAMES[date.getDay()]] = exceptionText(ex, date);
+      changed = true;
+    }
+  }
+  return changed ? out : hours;
+}
+
+/** Undantagen från i dag och `days` dagar framåt (för "Stängt 1–14 juli · Semester" på platssidan) */
+export function upcomingExceptions(list: HoursException[] | null | undefined, days = 21, now = new Date()): HoursException[] {
+  if (!list?.length) return [];
+  const today = isoDay(now);
+  const until = isoDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + days));
+  return list
+    .filter((ex) => {
+      if (!ex.yearly) return ex.to >= today && ex.from <= until;
+      // Återkommande: gäller den någon av dagarna?
+      for (let i = 0; i <= days; i++) {
+        if (covers(ex, isoDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)))) return true;
+      }
+      return false;
+    })
+    .sort((a, b) => a.from.localeCompare(b.from));
+}
+
+const MONTHS = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
+const dayOfIso = (iso: string) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
+
+/** "i dag", "i morgon", "24 juni", "1–14 juli", "28 juni–3 juli" */
+export function exceptionDates(ex: HoursException, now = new Date()): string {
+  const from = dayOfIso(ex.from);
+  const to = dayOfIso(ex.to);
+  if (ex.from === ex.to && !ex.yearly) {
+    const diff = Math.round((from.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86_400_000);
+    if (diff === 0) return "i dag";
+    if (diff === 1) return "i morgon";
+    return `${from.getDate()} ${MONTHS[from.getMonth()]}`;
+  }
+  return from.getMonth() === to.getMonth()
+    ? `${from.getDate()}–${to.getDate()} ${MONTHS[to.getMonth()]}`
+    : `${from.getDate()} ${MONTHS[from.getMonth()]}–${to.getDate()} ${MONTHS[to.getMonth()]}`;
+}
+
+/** Raden för platssidan: "Stängt i dag · Sjukdom", "Öppet 10–15 i morgon", "Sommartider 15 juni–15 augusti" */
+export function exceptionLine(ex: HoursException, now = new Date()): string {
+  const when = exceptionDates(ex, now);
+  const label = ex.label?.trim();
+  if (ex.closed) return `Stängt ${when}${label ? ` · ${label}` : ""}`;
+  if (ex.hours) {
+    const d = parseDay(ex.hours);
+    const text = Array.isArray(d) ? d.map((r) => `${clock(r.from)}–${clock(r.to)}`).join(", ") : ex.hours;
+    return `Öppet ${text} ${when}${label ? ` · ${label}` : ""}`;
+  }
+  return `${label || "Andra tider"} ${when}`;
+}
+
 export interface WeekRow {
   /** Dagens nummer som Date.getDay() */
   day: number;

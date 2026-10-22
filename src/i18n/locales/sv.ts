@@ -142,10 +142,6 @@ export const sv = {
       subtitle: "Bara i testversionen. Ditt konto ändras inte.",
     },
     periods: { week: "1 vecka", month: "1 månad", quarter: "3 månader", summer: "Sommarpass", year: "12 månader" },
-    visitorsOnly: {
-      title: "För besökare",
-      body: "Österlenpasset är till för besökare och kan inte köpas med ett företagskonto.",
-    },
     status: {
       active: "Aktiv",
       none: "Inget aktivt pass",
@@ -383,7 +379,7 @@ export const sv = {
       valid: "Giltigt: {{date}}",
       forever: "Tillsvidare",
       activeSecs: "{{secs}}s aktivt",
-      business: "Ej tillgängligt för företagskonton",
+      business: "Det här är ert eget erbjudande",
       expired: "Erbjudandet har gått ut",
       getPass: "Skaffa Österlenpasset",
       addPhoto: "Lägg till kortfoto för att använda",
@@ -443,7 +439,7 @@ export const sv = {
       or: "eller",
       noAccount: "Inget konto än?",
       create: "Skapa ett",
-      business: "Företagsportal",
+      business: "Har du ett företag?",
       errors: {
         missing: "Fyll i e-post och lösenord.",
         wrong: "Fel e-post eller lösenord.",

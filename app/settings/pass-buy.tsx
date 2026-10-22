@@ -20,7 +20,6 @@ import { Check, X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { useIsBusiness } from "@/hooks/useUserRole";
 import { usePassProducts, type PassProduct } from "@/hooks/usePassProducts";
 import { useOffers } from "@/hooks/useOffers";
 import { useProfile } from "@/hooks/useProfile";
@@ -52,7 +51,6 @@ export default function PassPaywall() {
   const { width, height } = useWindowDimensions();
   const { scheme } = useTheme();
   const s = useThemedStyles(createStyles);
-  const { isBusiness } = useIsBusiness();
   const { data: products = [], isLoading } = usePassProducts();
   const { data: offers = [] } = useOffers();
   const { data: profile } = useProfile();
@@ -115,16 +113,6 @@ export default function PassPaywall() {
     : mode === "gift" ? t("pass.paywall.giftNote")
       : selected.autoRenew ? `${t(selected.id === "year" ? "pass.paywall.renewsYear" : "pass.paywall.renewsMonth")} ${t("pass.paywall.priceNote")}`
         : t("pass.paywall.onceNote");
-
-  if (isBusiness) {
-    return (
-      <View style={[s.root, s.center, { paddingTop: insets.top }]}>
-        <CloseButton onPress={() => router.back()} top={insets.top + 8} />
-        <Text style={s.title}>{t("pass.visitorsOnly.title")}</Text>
-        <Text style={[s.pitch, { marginTop: 10 }]}>{t("pass.visitorsOnly.body")}</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={s.root}>
@@ -318,7 +306,6 @@ function PlanBox({
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
   wash: { position: "absolute", top: 0, left: 0, right: 0, height: 440 },
-  center: { alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   body: { flexGrow: 1, paddingHorizontal: GUTTER, paddingBottom: 12, gap: 18, justifyContent: "space-evenly" },
   close: {
     position: "absolute", right: 16, width: 40, height: 40, borderRadius: 20,

@@ -204,7 +204,7 @@ export const StoryRow = memo(function StoryRow() {
   }, [queryClient]);
   const closeNow = useCallback(() => onClosed([], Promise.resolve()), [onClosed]);
   const onOpenPlace = useCallback((placeId: number) => {
-    pushOnce(router, `/place/${placeId}`);
+    pushOnce(router, `/place/${placeId}?from=story`);
   }, [router]);
 
   // Medan berättelserna hämtas: grå cirklar på deras plats (så inget hoppar när de kommer)

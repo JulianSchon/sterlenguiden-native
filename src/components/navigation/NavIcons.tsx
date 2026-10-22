@@ -172,34 +172,3 @@ export function NavProfile({ active }: IconProps) {
     </Svg>
   );
 }
-
-// ─── NavBusiness ──────────────────────────────────────────────────────────────
-// Shoppingväska/butik. Aktiv: fylld (guld) + vit detalj.
-export function NavBusiness({ active }: IconProps) {
-  const { GOLD, INACTIVE, CUT } = useNavColors();
-  return (
-    <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
-      {active ? (
-        <>
-          <Rect x={4} y={12} width={18} height={12} rx={2.5} fill={GOLD} />
-          <Path
-            d="M9,12 L9,9 Q9,4 13,4 Q17,4 17,9 L17,12"
-            stroke={GOLD} strokeWidth={2} fill="none"
-            strokeLinecap="round" strokeLinejoin="round"
-          />
-          {/* Vit spänne-detalj */}
-          <Rect x={10} y={18} width={6} height={2} rx={1} fill={WHITE} />
-        </>
-      ) : (
-        <>
-          <Rect x={4} y={12} width={18} height={12} rx={2.5} stroke={INACTIVE} strokeWidth={1.8} fill="none" />
-          <Path
-            d="M9,12 L9,9 Q9,4 13,4 Q17,4 17,9 L17,12"
-            stroke={INACTIVE} strokeWidth={1.8} fill="none"
-            strokeLinecap="round" strokeLinejoin="round"
-          />
-        </>
-      )}
-    </Svg>
-  );
-}

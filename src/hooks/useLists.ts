@@ -8,7 +8,8 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { firstImageUrl } from "@/hooks/usePlaces";
+import { firstImageUrl, selectPlaces } from "@/hooks/usePlaces";
+import { effectiveHours, type HoursException } from "@/lib/openingHours";
 import { preparePhoto } from "@/lib/photos";
 import { pickSquarePhoto, type PhotoSource } from "@/hooks/useAccount";
 
@@ -44,6 +45,17 @@ export interface ListPlace {
     categories: string | null;
     opening_hours: Record<string, string> | null;
   };
+}
+
+/** En plats i en väns lista som den kommer från databasen (undantagen finns efter migration 046) */
+interface FriendListPlaceRow {
+  id: number;
+  name: string;
+  image_url: string | null;
+  nearest_town: string | null;
+  categories: string | null;
+  opening_hours: Record<string, string> | null;
+  hours_exceptions?: HoursException[] | null;
 }
 
 export interface ListMember {
@@ -304,13 +316,13 @@ export function useFriendListDetail(listId: string | undefined, ownerId: string 
       const addedByIds = [...new Set((rows ?? []).map((r) => r.added_by))];
       const [{ data: placeRows }, { data: profiles }] = await Promise.all([
         placeIds.length > 0
-          ? supabase.from("places").select("id, name, image_url, nearest_town, categories, opening_hours").in("id", placeIds)
+          ? selectPlaces((extra) => supabase.from("places").select("id, name, image_url, nearest_town, categories, opening_hours" + extra).in("id", placeIds))
           : Promise.resolve({ data: [] as never[] }),
         addedByIds.length > 0
           ? supabase.rpc("rpc_list_profiles_public", { target_user_ids: addedByIds })
           : Promise.resolve({ data: [] as never[] }),
       ]);
-      const placeById = new Map((placeRows ?? []).map((p) => [p.id, p]));
+      const placeById = new Map(((placeRows ?? []) as unknown as FriendListPlaceRow[]).map((p) => [p.id, p]));
       const byId = new Map((profiles ?? []).map((p) => [p.user_id, p]));
 
       const places: ListPlace[] = (rows ?? [])
@@ -330,7 +342,7 @@ export function useFriendListDetail(listId: string | undefined, ownerId: string 
               avatarRing: who?.avatar_ring ?? null,
               avatarPath: who?.avatar_path ?? null,
             },
-            place: { ...p, image_url: firstImageUrl(p.image_url), opening_hours: p.opening_hours as Record<string, string> | null },
+            place: { ...p, image_url: firstImageUrl(p.image_url), opening_hours: effectiveHours(p.opening_hours, p.hours_exceptions) ?? null },
           };
         });
 

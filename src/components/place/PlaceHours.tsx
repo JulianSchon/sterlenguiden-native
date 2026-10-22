@@ -1,15 +1,18 @@
 /**
  * Öppettiderna på platssidan. Överst läget just nu i klartext och färg ("Öppet · stänger 17" i
  * grönt, "Stänger snart · 17" i orange, "Stängt · öppnar tis 10" i rött), under det dagens tider.
- * Ett tryck fäller ut hela veckan (måndag först) med dagen markerad; ett till fäller ihop.
+ * Ett tryck fäller ut hela veckan (måndag först) med dagen markerad; ett till fäller ihop. Under det
+ * de tillfälliga ändringar företaget lagt in för de närmaste veckorna ("Stängt 1–14 juli · Semester").
  */
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { ChevronDown, Clock } from "lucide-react-native";
+import { CalendarClock, ChevronDown, Clock } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useOpenColors } from "@/components/search/SearchParts";
-import { hoursStatus, weekRows, type HoursState, type Hours } from "@/lib/openingHours";
+import {
+  exceptionLine, hoursStatus, upcomingExceptions, weekRows, type HoursException, type HoursState, type Hours,
+} from "@/lib/openingHours";
 
 const ROW_H = 34;
 const EASE = { duration: 260, easing: Easing.out(Easing.cubic) };
@@ -21,10 +24,12 @@ export function useHoursColors(): Record<HoursState, string> {
   return { open: c.open, closed: c.closed, closingSoon: dark ? "#FBBF24" : "#B45309" };
 }
 
-export function PlaceHours({ hours, showStatus }: {
+export function PlaceHours({ hours, showStatus, exceptions }: {
   hours: Hours;
   /** Av för hotell: "stängt" en kväll betyder inte att man inte kan bo där */
   showStatus: boolean;
+  /** Företagets tillfälliga ändringar (stängt idag, semester …) */
+  exceptions?: HoursException[] | null;
 }) {
   const { colors } = useTheme();
   const tint = useHoursColors();
@@ -32,6 +37,7 @@ export function PlaceHours({ hours, showStatus }: {
   const rows = weekRows(hours);
   const status = showStatus ? hoursStatus(hours) : null;
   const today = rows.find((r) => r.today);
+  const notices = upcomingExceptions(exceptions).slice(0, 3);
   const progress = useSharedValue(0);
   useEffect(() => {
     progress.value = withTiming(open ? 1 : 0, EASE);
@@ -90,6 +96,17 @@ export function PlaceHours({ hours, showStatus }: {
           ))}
         </Reanimated.View>
       </Reanimated.View>
+
+      {notices.length > 0 && (
+        <View style={[s.notices, { borderTopColor: colors.border }]}>
+          {notices.map((ex) => (
+            <View key={ex.id} style={s.notice}>
+              <CalendarClock size={15} color={colors.goldText} strokeWidth={2} />
+              <Text style={[s.noticeText, { color: colors.text }]} numberOfLines={2}>{exceptionLine(ex)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -109,4 +126,7 @@ const s = StyleSheet.create({
   bold: { fontFamily: "Inter_700Bold" },
   todayTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
   todayTagText: { fontFamily: "Inter_700Bold", fontSize: 9.5, letterSpacing: 0.8 },
+  notices: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 6, paddingTop: 10, paddingBottom: 6, gap: 8 },
+  notice: { flexDirection: "row", alignItems: "center", gap: 9 },
+  noticeText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13.5, lineHeight: 18 },
 });

@@ -25,6 +25,7 @@ import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
 import { findCategory } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { openDirections, openWebsite, withProtocol } from "@/lib/placeLinks";
+import { trackDirections, trackPlaceLink } from "@/lib/placeTracking";
 import { ShareIcon } from "@/components/ShareIcon";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 import { GUTTER } from "./PlaceSections";
@@ -143,11 +144,11 @@ function primaryAction(place: Place): { label: string; Icon: LucideIcon; onPress
     return {
       label: cat === "mat-dryck" ? "Boka bord" : cat === "hotell-bb" ? "Boka rum" : "Boka",
       Icon: CalendarCheck,
-      onPress: () => openWebsite(url),
+      onPress: () => { trackPlaceLink(place.id, "book"); openWebsite(url); },
     };
   }
   if (place.lat != null && place.lng != null) {
-    return { label: "Hitta hit", Icon: Navigation, onPress: () => openDirections(place.lat, place.lng) };
+    return { label: "Hitta hit", Icon: Navigation, onPress: () => { trackDirections(place.id); openDirections(place.lat, place.lng); } };
   }
   return null;
 }

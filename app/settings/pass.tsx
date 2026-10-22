@@ -14,7 +14,6 @@ import { ArrowDown, ArrowUp, Camera, Copy, EyeOff, Gift, Settings2, Tag, Ticket,
 import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
-import { useIsBusiness } from "@/hooks/useUserRole";
 import { useAvailableOffers } from "@/hooks/useAvailableOffers";
 import { usePassProducts } from "@/hooks/usePassProducts";
 import { usePassPurchases, usePassGifts, useRedeemedGifts } from "@/hooks/usePassHistory";
@@ -25,7 +24,6 @@ import { usePhotoMenu } from "@/hooks/usePhotoMenu";
 import { formatDate } from "@/i18n/dates";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
-import { GradientCard } from "@/components/GradientCard";
 import { MemberCard, CARD_W } from "@/components/MemberCard";
 import { ActivityRow, AmountColumn, CardLine } from "@/components/pass/ActivityRow";
 import { PrimaryButton } from "@/components/Sheet";
@@ -69,7 +67,6 @@ export default function PassHub() {
   const { data: profile } = useProfile();
   const membership = useMembership();
   const previewNonMember = usePreviewNonMember();
-  const { isBusiness } = useIsBusiness();
   const { available: offers } = useAvailableOffers();
   const { data: products = [] } = usePassProducts();
   const { data: purchases = [] } = usePassPurchases();
@@ -79,19 +76,6 @@ export default function PassHub() {
   const cardPhotoUrl = useCardPhotoUrl();
   const changeCardPhoto = useChangeCardPhoto();
   const openPhotoMenu = usePhotoMenu(changeCardPhoto.mutateAsync, t("pass.card.title"));
-
-  if (isBusiness) {
-    return (
-      <SettingsScreen title={t("pass.title")}>
-        <GradientCard>
-          <View style={s.cardBody}>
-            <Text style={s.cardTitle}>{t("pass.visitorsOnly.title")}</Text>
-            <Text style={s.hint}>{t("pass.visitorsOnly.body")}</Text>
-          </View>
-        </GradientCard>
-      </SettingsScreen>
-    );
-  }
 
   // "Förnyas om 12 dagar" (eller "Går ut om …" om passet inte förnyas) med datumet under
   const daysLeft = membership.until ? Math.max(0, differenceInCalendarDays(membership.until, new Date())) : null;
@@ -293,8 +277,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, color: c.muted,
     paddingLeft: 6, marginBottom: 8, textTransform: "uppercase",
   },
-  cardBody: { padding: 20, gap: 8 },
-  cardTitle: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, color: c.text },
   hint: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19, color: c.muted },
 
   hero: { gap: 18, padding: 18, borderRadius: 28, borderWidth: 1, borderColor: c.borderStrong },

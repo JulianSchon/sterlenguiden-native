@@ -26,7 +26,6 @@ import Svg, {
   Rect as SvgRect,
 } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import { useIsBusiness } from "@/hooks/useUserRole";
 import { scrollToTop } from "@/lib/scrollRefs";
 import { useNavHidden } from "@/lib/navVisibility";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -36,7 +35,6 @@ import {
   NavMap,
   NavCalendar,
   NavProfile,
-  NavBusiness,
 } from "./NavIcons";
 
 // ─── Konstanter ───────────────────────────────────────────────────────────────
@@ -62,7 +60,6 @@ function resolveActiveTab(pathname: string): string {
   if (pathname.includes("/explore") || pathname.includes("/search")) return "search";
   if (pathname.includes("/map"))      return "map";
   if (pathname.includes("/calendar")) return "calendar";
-  if (pathname.includes("/business")) return "business";
   if (pathname.includes("/profile"))  return "profile";
   return "";
 }
@@ -134,7 +131,6 @@ export default function FloatingNav() {
   const router    = useRouter();
   const pathname  = usePathname();
   const insets    = useSafeAreaInsets();
-  const { isBusiness }  = useIsBusiness();
   const { count: unseen } = useUnseenAchievements();
 
   // Gömd: glider ner och tonar bort (snabbt ut, lite mjukare tillbaka)
@@ -200,21 +196,13 @@ export default function FloatingNav() {
       onPress: () => go("/(tabs)/calendar", "calendar"),
       icon: <NavCalendar active={active === "calendar"} />,
     },
-    isBusiness
-      ? {
-          id: "business",
-          label: "Företag",
-          onPress: () => go("/(tabs)/profile", "profile"),
-          icon: <NavBusiness active={active === "business"} />,
-          showBadge: false,
-        }
-      : {
-          id: "profile",
-          label: "Profil",
-          onPress: () => go("/(tabs)/profile", "profile"),
-          icon: <NavProfile active={active === "profile"} />,
-          showBadge: unseen > 0,
-        },
+    {
+      id: "profile",
+      label: "Profil",
+      onPress: () => go("/(tabs)/profile", "profile"),
+      icon: <NavProfile active={active === "profile"} />,
+      showBadge: unseen > 0,
+    },
   ];
 
   const buttons = tabs.map((tab) => (

@@ -29,7 +29,7 @@ import Svg, {
 } from "react-native-svg";
 import * as Location from "expo-location";
 import {
-  usePlaces, isPlaceOpen, getTierScore, type Place,
+  usePlaces, isPlaceOpen, type Place,
 } from "@/hooks/usePlaces";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
 
@@ -349,8 +349,7 @@ export default function CategoryScreen() {
           userLoc && p.lat && p.lng
             ? haversineKm(userLoc.lat, userLoc.lng, p.lat, p.lng)
             : null,
-      }))
-      .sort((a, b) => getTierScore(b.business_tier) - getTierScore(a.business_tier));
+      }));
   }, [cfg, allPlaces, userLoc]);
 
   // Öppet just nu

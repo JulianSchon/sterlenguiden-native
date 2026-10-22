@@ -139,10 +139,6 @@ export const en: typeof sv = {
       subtitle: "Only in the test version. Your account is not changed.",
     },
     periods: { week: "1 week", month: "1 month", quarter: "3 months", summer: "Summer pass", year: "12 months" },
-    visitorsOnly: {
-      title: "For visitors",
-      body: "The Österlen Pass is for visitors and can't be bought with a business account.",
-    },
     status: {
       active: "Active",
       none: "No active pass",
@@ -380,7 +376,7 @@ export const en: typeof sv = {
       valid: "Valid: {{date}}",
       forever: "Until further notice",
       activeSecs: "Active for {{secs}}s",
-      business: "Not available for business accounts",
+      business: "This is your own offer",
       expired: "This offer has expired",
       getPass: "Get the Österlen Pass",
       addPhoto: "Add a card photo to use it",
@@ -440,7 +436,7 @@ export const en: typeof sv = {
       or: "or",
       noAccount: "No account yet?",
       create: "Create one",
-      business: "Business portal",
+      business: "Run a business?",
       errors: {
         missing: "Enter your email and password.",
         wrong: "Wrong email or password.",

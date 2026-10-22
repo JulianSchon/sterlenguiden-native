@@ -187,13 +187,12 @@ export interface IndexedPlace {
   town: string;
   text: string;
   amenities: Record<string, boolean>;
-  tier: number;
+  /** Det företaget själv sagt att de serverar (fish, pizza …, se TASTES) */
+  tastes: Set<string>;
   /** Alla ord i namn, kategori och beskrivning (för smakerna) */
   allWords: Set<string>;
   allWordList: string[];
 }
-
-const TIER: Record<string, number> = { premium: 2, partner: 1 };
 
 /** En plats kategorier (alla, inte bara den första: "Mat & Dryck, Café & Bageri" är båda) */
 export function placeCategories(category: string | null): Set<CategoryId> {
@@ -218,7 +217,7 @@ export function buildIndex(places: Place[]): IndexedPlace[] {
       town: norm(place.nearest_town ?? ""),
       text: norm(`${place.short_description ?? ""} ${place.description ?? ""}`).slice(0, 1200),
       amenities: parseAmenities((place as Place & { amenities?: unknown }).amenities),
-      tier: TIER[place.business_tier ?? ""] ?? 0,
+      tastes: new Set(place.tastes ?? []),
       ...(() => {
         const list = [...new Set(words(`${name} ${norm(`${place.category ?? ""} ${sub}`)} ${norm(`${place.short_description ?? ""} ${place.description ?? ""}`)}`))];
         return { allWords: new Set(list), allWordList: list };
@@ -689,7 +688,8 @@ export function searchPlaces(
         } else if (r.kind === "at") {
           if (!statusAt(p.place)?.open) { ok = false; break; }
         } else if (r.kind === "taste") {
-          const n = tasteMatches(p.allWords, p.allWordList, r.value);
+          // Har företaget själv valt smaken räknas det som en säker träff
+          const n = p.tastes.has(r.value) ? 3 : tasteMatches(p.allWords, p.allWordList, r.value);
           if (n === 0) { ok = false; break; }
           bonus += n * 10;
         }
@@ -712,7 +712,7 @@ export function searchPlaces(
       if (score < 0) continue;
       const phrase = active.join(" ");
       if (phrase && p.name.startsWith(phrase)) score += p.name === phrase ? 80 : 40;
-      score += bonus + p.tier * 2;
+      score += bonus;
       const km = loc && p.place.lat != null && p.place.lng != null
         ? distanceMeters(loc.lat, loc.lng, p.place.lat, p.place.lng) / 1000
         : null;

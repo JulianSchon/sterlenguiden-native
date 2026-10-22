@@ -8,8 +8,12 @@
  * ("Öppet · stänger 17"), knapparna (Ring, Hemsida, Karta …), "Jag är här!" när man står på
  * platsen, Om platsen, Österlenpasset-biljetterna (rivs som på Förmåner), vänner som varit här,
  * Praktiskt, Öppettider, Evenemang här, Hitta hit, Skatt i närheten, Kontakt, I närheten och
- * "Stämmer något inte?". Längst ner, alltid synlig: hjärtat och huvudknappen — Boka om platsen tar
- * bokningar, annars Hitta hit.
+ * "Stämmer något inte?". Allra längst ner, diskret, "Är det här ditt företag?" (eller, för den som
+ * sköter platsen, vägen till Mitt företag). Längst ner, alltid synlig: hjärtat och huvudknappen —
+ * Boka om platsen tar bokningar, annars Hitta hit.
+ *
+ * Företagets statistik räknas här: att sidan öppnades (och varifrån), klick på telefon, hemsida,
+ * boka, Instagram, Facebook och e-post, och vägbeskrivningar (lib/placeTracking).
  *
  * Laggfritt: sidan själv ritas nästan aldrig om. Det som ändras ofta sköter sitt eget läge och ritar
  * bara om sig självt:
@@ -35,7 +39,7 @@ import * as Haptics from "expo-haptics";
 import { Bus, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone } from "lucide-react-native";
 import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
 import { supabase } from "@/integrations/supabase/client";
-import { usePlaces, type Place } from "@/hooks/usePlaces";
+import { normalizePlace, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useEvents, type Event } from "@/hooks/useEvents";
@@ -52,6 +56,8 @@ import { offerEligibility, type Offer, type RedemptionRow } from "@/lib/offers";
 import { hoursStatus, weekRows } from "@/lib/openingHours";
 import { openInfo, placeCategories } from "@/lib/search";
 import { pushOnce } from "@/lib/navigateOnce";
+import { placeSource, trackDirections, trackPlaceLink, trackPlaceView } from "@/lib/placeTracking";
+import { useMyPlaceIds } from "@/hooks/useBusiness";
 import {
   callPhone, copyText, openDirections, openExternal, openWebsite, sendEmail, siteName, withProtocol,
 } from "@/lib/placeLinks";
@@ -106,7 +112,7 @@ function usePlaceDetail(id: number) {
     queryFn: async () => {
       const { data, error } = await supabase.from("places").select("*").eq("id", id).single();
       if (error) throw error;
-      return { ...data, category: data.categories } as Place;
+      return normalizePlace(data);
     },
   });
 }
@@ -125,6 +131,8 @@ export default function PlaceScreen() {
 
 function PlacePage({ place, places }: { place: Place; places: Place[] }) {
   const navigation = useNavigation();
+  // from=story: öppnad från en berättelse. offer: ett erbjudande att öppna direkt (berättelsens klistermärke)
+  const params = useLocalSearchParams<{ from?: string; offer?: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { colors } = useTheme();
@@ -174,6 +182,24 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
   const [openOffer, setOpenOffer] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
   const onOpenOffer = useCallback((offer: Offer, origin: OriginRect | null) => setOpenOffer({ offer, origin }), []);
   const closeOffer = useCallback(() => setOpenOffer(null), []);
+
+  // Företagets statistik: en visning, och varifrån man kom
+  useEffect(() => {
+    trackPlaceView(place.id, params.from === "story" ? "story" : placeSource(navigation.getState() as never));
+    // Räknas en gång per gång sidan öppnas
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [place.id]);
+
+  // Erbjudandet från en berättelses klistermärke öppnas när sidan glidit fram
+  const autoOffer = useRef(params.offer ?? null);
+  useEffect(() => {
+    if (!later || !autoOffer.current) return;
+    const offer = offers.find((o) => o.id === autoOffer.current);
+    if (offer) {
+      autoOffer.current = null;
+      setOpenOffer({ offer, origin: null });
+    }
+  }, [later, offers]);
 
   const images = useMemo(() => imagesOf(place.image_url), [place.image_url]);
   const HeroIcon = findCategory(place.category)?.icon ?? MapPin;
@@ -329,23 +355,23 @@ const PlaceContent = memo(function PlaceContent({
 
   const actions = useMemo((): PlaceAction[] => {
     const out: PlaceAction[] = [];
-    if (place.phone) out.push({ key: "call", label: "Ring", Icon: Phone, onPress: () => callPhone(place.phone!) });
-    if (website) out.push({ key: "web", label: "Hemsida", Icon: Globe, onPress: () => openWebsite(website) });
+    if (place.phone) out.push({ key: "call", label: "Ring", Icon: Phone, onPress: () => { trackPlaceLink(place.id, "phone"); callPhone(place.phone!); } });
+    if (website) out.push({ key: "web", label: "Hemsida", Icon: Globe, onPress: () => { trackPlaceLink(place.id, "website"); openWebsite(website); } });
     if (hasCoords) out.push({ key: "map", label: "Karta", Icon: MapIcon, onPress: showOnMap });
-    if (place.instagram_url) out.push({ key: "ig", label: "Instagram", Icon: InstagramIcon, onPress: () => openExternal(place.instagram_url!) });
-    if (place.facebook_url) out.push({ key: "fb", label: "Facebook", Icon: FacebookIcon, onPress: () => openExternal(place.facebook_url!) });
-    if (place.email) out.push({ key: "mail", label: "E-post", Icon: Mail, onPress: () => sendEmail(place.email!) });
+    if (place.instagram_url) out.push({ key: "ig", label: "Instagram", Icon: InstagramIcon, onPress: () => { trackPlaceLink(place.id, "instagram"); openExternal(place.instagram_url!); } });
+    if (place.facebook_url) out.push({ key: "fb", label: "Facebook", Icon: FacebookIcon, onPress: () => { trackPlaceLink(place.id, "facebook"); openExternal(place.facebook_url!); } });
+    if (place.email) out.push({ key: "mail", label: "E-post", Icon: Mail, onPress: () => { trackPlaceLink(place.id, "email"); sendEmail(place.email!); } });
     return out;
   }, [place, website, hasCoords, showOnMap]);
 
   // Telefon, e-post och hemsidans namn skrivs ut; Instagram och Facebook bara som namn
   const contact = useMemo((): ContactRow[] => {
     const out: ContactRow[] = [];
-    if (place.phone) out.push({ key: "phone", Icon: Phone, label: "Telefon", value: place.phone, onPress: () => callPhone(place.phone!), onLongPress: () => copy(place.phone!) });
-    if (place.email) out.push({ key: "mail", Icon: Mail, label: "E-post", value: place.email, onPress: () => sendEmail(place.email!), onLongPress: () => copy(place.email!) });
-    if (website) out.push({ key: "web", Icon: Globe, label: "Hemsida", value: siteName(website), onPress: () => openWebsite(website), onLongPress: () => copy(withProtocol(website)) });
-    if (place.instagram_url) out.push({ key: "ig", Icon: InstagramIcon, label: "Instagram", onPress: () => openExternal(place.instagram_url!) });
-    if (place.facebook_url) out.push({ key: "fb", Icon: FacebookIcon, label: "Facebook", onPress: () => openExternal(place.facebook_url!) });
+    if (place.phone) out.push({ key: "phone", Icon: Phone, label: "Telefon", value: place.phone, onPress: () => { trackPlaceLink(place.id, "phone"); callPhone(place.phone!); }, onLongPress: () => copy(place.phone!) });
+    if (place.email) out.push({ key: "mail", Icon: Mail, label: "E-post", value: place.email, onPress: () => { trackPlaceLink(place.id, "email"); sendEmail(place.email!); }, onLongPress: () => copy(place.email!) });
+    if (website) out.push({ key: "web", Icon: Globe, label: "Hemsida", value: siteName(website), onPress: () => { trackPlaceLink(place.id, "website"); openWebsite(website); }, onLongPress: () => copy(withProtocol(website)) });
+    if (place.instagram_url) out.push({ key: "ig", Icon: InstagramIcon, label: "Instagram", onPress: () => { trackPlaceLink(place.id, "instagram"); openExternal(place.instagram_url!); } });
+    if (place.facebook_url) out.push({ key: "fb", Icon: FacebookIcon, label: "Facebook", onPress: () => { trackPlaceLink(place.id, "facebook"); openExternal(place.facebook_url!); } });
     return out;
   }, [place, website, copy]);
 
@@ -433,7 +459,7 @@ const PlaceContent = memo(function PlaceContent({
 
       {hasHours && (
         <Section title="Öppettider">
-          <PlaceHours hours={hours} showStatus={!isHotel} />
+          <PlaceHours hours={hours} showStatus={!isHotel} exceptions={place.hours_exceptions} />
         </Section>
       )}
 
@@ -478,6 +504,7 @@ const PlaceContent = memo(function PlaceContent({
           Senast uppdaterad {format(parseISO(place.info_updated_at), "d MMMM yyyy", { locale: sv })}
         </Text>
       )}
+      <OwnerLink place={place} />
     </View>
   );
 });
@@ -544,7 +571,7 @@ function LocationSection({ place, myKm, mount, heroH, scrollY, onShowOnMap }: {
           <TouchableOpacity
             style={[s.locButton, { borderTopColor: colors.border }]}
             activeOpacity={0.7}
-            onPress={() => openDirections(place.lat, place.lng)}
+            onPress={() => { trackDirections(place.id); openDirections(place.lat, place.lng); }}
           >
             <Navigation size={17} color={colors.goldText} strokeWidth={2.2} />
             <Text style={[s.locButtonText, { color: colors.goldText }]}>Vägbeskrivning</Text>
@@ -552,6 +579,29 @@ function LocationSection({ place, myKm, mount, heroH, scrollY, onShowOnMap }: {
         </View>
       </Section>
     </View>
+  );
+}
+
+/**
+ * Allra längst ner. Den som sköter platsen kommer härifrån till Mitt företag. Alla andra ser en
+ * diskret rad "Är det här ditt företag?" — tills någon tagit hand om platsen (då döljs den).
+ */
+function OwnerLink({ place }: { place: Place }) {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const mine = useMyPlaceIds().has(place.id);
+  if (!mine && place.claim_link_hidden) return null;
+  return (
+    <TouchableOpacity
+      style={s.owner}
+      activeOpacity={0.6}
+      hitSlop={8}
+      onPress={() => pushOnce(router, mine ? `/business?place=${place.id}` : `/business/claim?place=${place.id}`)}
+    >
+      <Text style={[s.ownerText, { color: mine ? colors.goldText : colors.faint }]}>
+        {mine ? "Du sköter den här sidan · Mitt företag" : "Är det här ditt företag?"}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -651,6 +701,8 @@ const s = StyleSheet.create({
   },
   reportText: { fontFamily: "Inter_500Medium", fontSize: 14 },
   updated: { fontFamily: "Inter_400Regular", fontSize: 12, textAlign: "center", marginTop: 2 },
+  owner: { alignSelf: "center", marginTop: 18, paddingVertical: 6, paddingHorizontal: 14 },
+  ownerText: { fontFamily: "Inter_500Medium", fontSize: 12.5 },
 
   skeletonBar: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 12 },
 

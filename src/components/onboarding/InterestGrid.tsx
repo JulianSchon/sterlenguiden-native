@@ -9,7 +9,7 @@ import { Image as ExpoImage } from "expo-image";
 import { Check } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { CATEGORIES, findCategory, withAlpha, type CategoryId } from "@/theme/categories";
-import { firstImageUrl, getTierScore, type Place } from "@/hooks/usePlaces";
+import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { Skeleton } from "@/components/Skeleton";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -17,8 +17,8 @@ import type { ThemeColors } from "@/theme/colors";
 const GAP = 12;
 
 /**
- * Ett foto per kategori: från den plats som bäst visar upp kategorin (företagen med högst nivå
- * först, sedan de med en beskrivning). Samma plats varje gång, så rutorna inte byter bild.
+ * Ett foto per kategori: från en plats som visar upp kategorin väl (de med en beskrivning först).
+ * Samma plats varje gång, så rutorna inte byter bild.
  */
 export function categoryPhotos(places: Place[]): Partial<Record<CategoryId, string>> {
   const best = new Map<CategoryId, { score: number; url: string }>();
@@ -26,7 +26,7 @@ export function categoryPhotos(places: Place[]): Partial<Record<CategoryId, stri
     const id = findCategory(place.category)?.id;
     const url = firstImageUrl(place.image_url);
     if (!id || !url) continue;
-    const score = getTierScore(place.business_tier) + (place.description ? 10 : 0) - place.id / 1e7;
+    const score = (place.description ? 10 : 0) - place.id / 1e7;
     const current = best.get(id);
     if (!current || score > current.score) best.set(id, { score, url });
   }

@@ -230,7 +230,7 @@ export default function AccountSettings() {
                 ref={usernameInput}
                 style={s.nameInput}
                 value={username}
-                onChangeText={(v) => setUsername(v.replace(/s/g, ""))}
+                onChangeText={(v) => setUsername(v.replace(/\s/g, ""))}
                 onFocus={() => setUsernameFocused(true)}
                 onBlur={() => setUsernameFocused(false)}
                 selectTextOnFocus

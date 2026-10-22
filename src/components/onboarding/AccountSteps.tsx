@@ -112,7 +112,7 @@ export function CodeStep({
       <TextInput
         ref={input}
         value={code}
-        onChangeText={(v) => onChange(v.replace(/D/g, "").slice(0, OTP_LENGTH))}
+        onChangeText={(v) => onChange(v.replace(/\D/g, "").slice(0, OTP_LENGTH))}
         keyboardType="number-pad"
         textContentType="oneTimeCode"
         autoComplete="one-time-code"

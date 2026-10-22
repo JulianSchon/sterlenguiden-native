@@ -50,7 +50,7 @@ import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronLeft, ChevronRight, MapPin, Plus, Search, X } from "lucide-react-native";
-import { usePlaces, firstImageUrl, getTierScore, type Place } from "@/hooks/usePlaces";
+import { usePlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
 import { useAddPlaceToList, useRemovePlaceFromListByPlace } from "@/hooks/useLists";
@@ -81,9 +81,8 @@ type Card = { place: Place; note?: string };
 const splitCategories = (c: string | null | undefined) =>
   (c ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 const imageOf = (p: Place) => firstImageUrl(p.image_url) || p.logo_url || null;
-const tier = (p: Place) => getTierScore(p.business_tier);
 const firstCat = (p: Place) => splitCategories(p.categories)[0];
-const byTierThenName = (a: Place, b: Place) => tier(b) - tier(a) || a.name.localeCompare(b.name, "sv");
+const byName = (a: Place, b: Place) => a.name.localeCompare(b.name, "sv");
 
 /** Deterministisk slump (mulberry32) — samma ordning hela tiden arket är öppet, ny nästa gång. */
 function seededRandom(seed: number) {
@@ -288,7 +287,7 @@ export function AddPlaceSheet({
     const topCats = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c]) => c);
     const recommended: Card[] = (topCats.length === 0 ? [] : available
       .filter((p) => splitCategories(p.categories).some((c) => topCats.includes(c.toLowerCase())))
-      .sort((a, b) => tier(b) - tier(a) || jitter.get(a.id)! - jitter.get(b.id)!)
+      .sort((a, b) => jitter.get(a.id)! - jitter.get(b.id)!)
       .slice(0, 12)).map((place) => ({ place, note: firstCat(place) }));
 
     const nearby: Card[] = here
@@ -312,14 +311,14 @@ export function AddPlaceSheet({
     return { recommended, nearby, favorites: favoriteCards, emptyText };
   }, [places, snapshot, here, favorites, visits, t]);
 
-  // ── Varje kategoris träfflista, A–Ö/tier-sorterad — billigt (ren filter+sort), beräknas för
+  // ── Varje kategoris träfflista, A–Ö — billigt (ren filter+sort), beräknas för
   // alla kategorier på en gång så sidbyte inte kräver ny filtrering ──
   const categoryMatches = useMemo(() => {
     const map = new Map<CategoryId, Place[]>();
     if (!places) return map;
     const available = places.filter((p) => !snapshot.existing.has(p.id));
     for (const cat of CATEGORIES) {
-      map.set(cat.id, available.filter((p) => findCategory(p.categories)?.id === cat.id).sort(byTierThenName));
+      map.set(cat.id, available.filter((p) => findCategory(p.categories)?.id === cat.id).sort(byName));
     }
     return map;
   }, [places, snapshot]);
@@ -334,7 +333,7 @@ export function AddPlaceSheet({
       .sort((a, b) => {
         const as = a.name.toLowerCase().startsWith(q) ? 1 : 0;
         const bs = b.name.toLowerCase().startsWith(q) ? 1 : 0;
-        return as !== bs ? bs - as : byTierThenName(a, b);
+        return as !== bs ? bs - as : byName(a, b);
       });
   }, [places, snapshot, searching, deferredQuery]);
 

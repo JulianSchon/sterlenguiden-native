@@ -139,10 +139,6 @@ export const de: typeof sv = {
       subtitle: "Nur in der Testversion. Dein Konto wird nicht geändert.",
     },
     periods: { week: "1 Woche", month: "1 Monat", quarter: "3 Monate", summer: "Sommerpass", year: "12 Monate" },
-    visitorsOnly: {
-      title: "Für Besucher",
-      body: "Der Österlen-Pass ist für Besucher gedacht und kann nicht mit einem Firmenkonto gekauft werden.",
-    },
     status: {
       active: "Aktiv",
       none: "Kein aktiver Pass",
@@ -380,7 +376,7 @@ export const de: typeof sv = {
       valid: "Gültig: {{date}}",
       forever: "Bis auf Weiteres",
       activeSecs: "{{secs}}s aktiv",
-      business: "Für Firmenkonten nicht verfügbar",
+      business: "Das ist dein eigenes Angebot",
       expired: "Dieses Angebot ist abgelaufen",
       getPass: "Österlen-Pass holen",
       addPhoto: "Kartenfoto hinzufügen, um es zu nutzen",
@@ -440,7 +436,7 @@ export const de: typeof sv = {
       or: "oder",
       noAccount: "Noch kein Konto?",
       create: "Konto erstellen",
-      business: "Unternehmensportal",
+      business: "Hast du ein Unternehmen?",
       errors: {
         missing: "Gib deine E-Mail und dein Passwort ein.",
         wrong: "E-Mail oder Passwort ist falsch.",

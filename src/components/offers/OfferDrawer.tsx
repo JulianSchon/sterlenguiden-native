@@ -45,7 +45,7 @@ import { useMembership } from "@/hooks/useMembership";
 import { useProfile } from "@/hooks/useProfile";
 import { useChangeCardPhoto } from "@/hooks/useCardPhoto";
 import { usePhotoMenu } from "@/hooks/usePhotoMenu";
-import { useIsBusiness } from "@/hooks/useUserRole";
+import { useMyPlaceIds } from "@/hooks/useBusiness";
 import { offerEligibility, offerSavingsLabel, splitSavings, ACTIVE_SECS, type Offer } from "@/lib/offers";
 import { formatDate } from "@/i18n/dates";
 import { findCategory, ticketColors, withAlpha } from "@/theme/categories";
@@ -120,7 +120,8 @@ export const OfferDrawer = memo(function OfferDrawer({
   const needsPhoto = isMember && !profile?.profile_image_url;
   const changeCardPhoto = useChangeCardPhoto();
   const openPhotoMenu = usePhotoMenu(changeCardPhoto.mutateAsync, t("pass.card.title"));
-  const { isBusiness } = useIsBusiness();
+  // Platserna man själv sköter: deras erbjudanden kan man inte använda
+  const myPlaceIds = useMyPlaceIds();
   const activate = useActivateOffer();
   // Biljettens bild läses in när fingret nuddar biljetten; pappersbitarna klipps ur den (utan den yr vita bitar)
   const scrapImage = useImage(useArmedTicketImage());
@@ -390,7 +391,7 @@ export const OfferDrawer = memo(function OfferDrawer({
               showIndex={offers.length > 1}
               redemptions={redemptions}
               isMember={isMember}
-              isBusiness={isBusiness}
+              ownPlace={myPlaceIds.has(offer.place_id)}
               needsPhoto={needsPhoto}
               onActivate={() => setPending(offer)}
               onGetPass={handleGetPass}
@@ -543,7 +544,7 @@ function OfferCard({
   showIndex,
   redemptions,
   isMember,
-  isBusiness,
+  ownPlace,
   needsPhoto,
   onActivate,
   onGetPass,
@@ -554,7 +555,8 @@ function OfferCard({
   showIndex: boolean;
   redemptions: { offer_id: string; activated_at: string }[];
   isMember: boolean;
-  isBusiness: boolean;
+  /** Erbjudandet är från ett företag man själv sköter */
+  ownPlace: boolean;
   /** Medlem utan kortfoto: fotot måste läggas till först */
   needsPhoto: boolean;
   onActivate: () => void;
@@ -576,8 +578,8 @@ function OfferCard({
       ? t("offers.drawer.valid", { date: formatDate(offer.expires_at, "d MMM yyyy") })
       : t("offers.drawer.forever");
 
-  // Företagskonton kan aldrig lösa in — de skulle kunna aktivera sina egna
-  const blocked = isBusiness
+  // Ingen kan lösa in sitt eget företags erbjudanden (databasen stoppar det också)
+  const blocked = ownPlace
     ? t("offers.drawer.business")
     : isExpired
       ? t("offers.drawer.expired")
