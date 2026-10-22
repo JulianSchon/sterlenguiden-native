@@ -206,7 +206,8 @@ export class BusinessError extends Error {
 
 /** Anropar en av portalens databasfunktioner (de finns inte i de genererade typerna) */
 export async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
-  const call = supabase.rpc as unknown as (fn: string, args?: object) => PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
+  // bind: utan den tappar rpc sin koppling till klienten ("Cannot read property rest of undefined")
+  const call = supabase.rpc.bind(supabase) as unknown as (fn: string, args?: object) => PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
   const { data, error } = await call(fn, args);
   if (error) throw new BusinessError(error.message, error.code);
   return data as T;
