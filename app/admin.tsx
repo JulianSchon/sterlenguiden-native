@@ -59,7 +59,12 @@ export default function AdminScreen() {
                 <GradientCard>
                   {decided.map((r, i) => (
                     <View key={r.id} style={[s.done, i > 0 && s.border]}>
-                      <Text style={s.doneName} numberOfLines={1}>{r.place?.name ?? r.new_place?.name ?? "Plats"}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.doneName} numberOfLines={1}>{r.place?.name ?? r.new_place?.name ?? "Plats"}</Text>
+                        <Text style={s.doneWho} numberOfLines={1}>
+                          {[r.user.name ?? "Utan namn", r.user.email, r.decided_at ? format(new Date(r.decided_at), "d MMM", { locale: sv }) : null].filter(Boolean).join(" · ")}
+                        </Text>
+                      </View>
                       <Text style={[s.doneStatus, { color: r.status === "approved" ? colors.success : colors.muted }]}>
                         {r.status === "approved" ? "Godkänd" : r.status === "rejected" ? "Nekad" : "Återtagen"}
                       </Text>
@@ -191,6 +196,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   btnText: { fontFamily: "Inter_700Bold", fontSize: 14.5, color: c.text },
   done: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
   border: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
-  doneName: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text },
+  doneName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text },
+  doneWho: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 2 },
   doneStatus: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
 });
