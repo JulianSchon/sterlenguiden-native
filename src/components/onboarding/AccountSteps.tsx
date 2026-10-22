@@ -132,7 +132,8 @@ export function CodeStep({
 
 // ── Lösenord ─────────────────────────────────────────────────────────────────
 
-function passwordChecks(pw: string) {
+/** Lösenordets regler, samma när kontot skapas och när lösenordet byts (Inställningar › Konto) */
+export function passwordChecks(pw: string) {
   return { length: pw.length >= 8, upper: /[A-ZÅÄÖ]/.test(pw), digit: /\d/.test(pw) };
 }
 

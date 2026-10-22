@@ -27,6 +27,7 @@ import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { IconSwitch } from "@/components/IconSwitch";
 import { QuietButton } from "@/components/QuietButton";
+import { passwordChecks } from "@/components/onboarding/AccountSteps";
 import { Avatar } from "@/components/profile/Avatar";
 import { ringOverflow } from "@/components/profile/AvatarRing";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -130,7 +131,8 @@ export default function AccountSettings() {
 
   async function changePassword() {
     if (newPw !== confPw) return Alert.alert(t("common.error"), t("account.password.mismatch"));
-    if (newPw.length < 8) return Alert.alert(t("common.error"), t("account.password.tooShort"));
+    const rules = passwordChecks(newPw);
+    if (!rules.length || !rules.upper || !rules.digit) return Alert.alert(t("common.error"), t("account.password.weak"));
     setPwBusy(true);
     const { error } = await supabase.auth.updateUser({ password: newPw });
     setPwBusy(false);

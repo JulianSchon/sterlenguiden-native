@@ -95,7 +95,7 @@ export const de: typeof sv = {
       confirm: "Passwort bestätigen",
       update: "Passwort aktualisieren",
       mismatch: "Die Passwörter stimmen nicht überein",
-      tooShort: "Mindestens 8 Zeichen",
+      weak: "Das Passwort braucht mindestens 8 Zeichen, einen Großbuchstaben und eine Ziffer.",
       updated: "Passwort aktualisiert",
     },
     delete: {

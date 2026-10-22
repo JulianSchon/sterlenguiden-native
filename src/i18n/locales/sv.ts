@@ -98,7 +98,7 @@ export const sv = {
       confirm: "Bekräfta lösenord",
       update: "Uppdatera lösenord",
       mismatch: "Lösenorden matchar inte",
-      tooShort: "Minst 8 tecken",
+      weak: "Lösenordet behöver minst 8 tecken, en stor bokstav och en siffra.",
       updated: "Lösenordet är uppdaterat",
     },
     delete: {

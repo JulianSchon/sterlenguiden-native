@@ -95,7 +95,7 @@ export const en: typeof sv = {
       confirm: "Confirm password",
       update: "Update password",
       mismatch: "The passwords do not match",
-      tooShort: "At least 8 characters",
+      weak: "The password needs at least 8 characters, a capital letter and a number.",
       updated: "Password updated",
     },
     delete: {
