@@ -4,6 +4,7 @@
  * Tryck öppnar kartan med stickerns kort. Samma skattnål som på kartan.
  */
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import { useCollectibles, useCollected } from "@/hooks/useCollectibles";
@@ -17,6 +18,7 @@ export function NearbyStickerPrompt({ lat, lng }: { lat: number | null; lng: num
   const router = useRouter();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  const { t } = useTranslation();
   const { data: collectibles = [] } = useCollectibles();
   const { data: collected } = useCollected();
 
@@ -38,9 +40,9 @@ export function NearbyStickerPrompt({ lat, lng }: { lat: number | null; lng: num
     >
       <TreasurePin height={40} found={false} />
       <View style={{ flex: 1 }}>
-        <Text style={s.small}>Det finns en skatt {formatDistance(nearest.distance)} bort</Text>
+        <Text style={s.small}>{t("home.nearby.treasureAway", { distance: formatDistance(nearest.distance) })}</Text>
         <Text style={s.name} numberOfLines={1}>{nearest.c.name}</Text>
-        <Text style={s.sub}>Tryck för att se på kartan</Text>
+        <Text style={s.sub}>{t("home.nearby.tapToMap")}</Text>
       </View>
       <ChevronRight size={20} color={colors.purple} strokeWidth={2} />
     </TouchableOpacity>

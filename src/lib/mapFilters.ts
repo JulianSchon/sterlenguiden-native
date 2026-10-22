@@ -9,6 +9,7 @@
  * eller skatter. De andra filtren ligger kvar och gäller igen när man lämnar serviceläget.
  */
 import type { LucideIcon } from "lucide-react-native";
+import { decimal } from "@/i18n/numbers";
 import {
   Accessibility, Baby, BedDouble, CalendarCheck, CheckCircle2, Clock, Coffee, Dog, Heart, Landmark, Layers,
   Leaf, Palette, ParkingSquare, ShoppingBag, Sun, Trees, UtensilsCrossed, Wifi, Zap,
@@ -172,5 +173,5 @@ export const CLUSTER = { radius: 28, logoRadius: 46, minPoints: 2, maxZoom: 16 }
 /** Avstånd som det visas i appen: fågelvägen × 1,3 + 1 km ("3,4 km", eller heltal från 10 km) */
 export function distanceLabel(birdKm: number): string {
   const km = birdKm * 1.3 + 1;
-  return km < 10 ? `${km.toFixed(1).replace(".", ",")} km` : `${Math.round(km)} km`;
+  return km < 10 ? `${decimal(km)} km` : `${Math.round(km)} km`;
 }

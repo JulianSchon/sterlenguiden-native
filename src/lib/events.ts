@@ -8,7 +8,8 @@
  * som att appen vet vem man är.
  */
 import { addDays, differenceInCalendarDays, eachDayOfInterval, format, getDay, parseISO } from "date-fns";
-import { sv } from "date-fns/locale";
+import i18n from "i18next";
+import { dateLocale } from "@/i18n/dates";
 import type { Event } from "@/hooks/useEvents";
 import type { Place } from "@/hooks/usePlaces";
 import { findCategory, CATEGORIES, type CategoryId } from "@/theme/categories";
@@ -28,7 +29,7 @@ export const lastDay = (e: Pick<Event, "date" | "end_date">) =>
   e.end_date && e.date && e.end_date > e.date ? e.end_date : e.date;
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const short = (d: Date, pattern: string) => format(d, pattern, { locale: sv }).replace(/\./g, "");
+const short = (d: Date, pattern: string) => format(d, pattern, { locale: dateLocale() }).replace(/\./g, "");
 
 /** "Fre 30 okt · 15:00", eller "14–16 maj" för ett event som pågår flera dagar */
 export function eventWhen(e: Pick<Event, "date" | "end_date" | "time">): string {
@@ -87,14 +88,14 @@ export interface EventPick {
   score: number;
 }
 
-const SAVED_REASON: Reason = { kind: "saved", text: "Du har sparat det" };
+const savedReason = (): Reason => ({ kind: "saved", text: i18n.t("events.reasons.saved") });
 
 /**
  * Skälet som visas just nu, efter hjärtat: sparar man eventet står det "Du har sparat det", tar man
  * bort det byts texten direkt till nästa bästa skäl (inte först när sidan laddas om).
  */
 export function liveReason(pick: EventPick, saved: boolean): Reason {
-  if (saved) return pick.reason.kind === "saved" ? pick.reason : SAVED_REASON;
+  if (saved) return pick.reason.kind === "saved" ? pick.reason : savedReason();
   return pick.reason.kind === "saved" ? pick.alt : pick.reason;
 }
 
@@ -130,13 +131,13 @@ export function recommendEvents({
     const place = event.place_id != null ? placeById.get(event.place_id) : undefined;
     const reasons: { kind: ReasonKind; text: string; weight: number }[] = [];
 
-    if (savedEventIds.has(event.id)) reasons.push({ ...SAVED_REASON, weight: 60 });
+    if (savedEventIds.has(event.id)) reasons.push({ ...savedReason(), weight: 60 });
     if (place && ownPlaceIds?.has(place.id)) {
-      reasons.push({ kind: "own", text: "Ert evenemang", weight: 70 });
+      reasons.push({ kind: "own", text: i18n.t("events.reasons.own"), weight: 70 });
     } else if (place && favoritePlaceIds.has(place.id)) {
-      reasons.push({ kind: "favoritePlace", text: "Hos en av dina favoritplatser", weight: 50 });
+      reasons.push({ kind: "favoritePlace", text: i18n.t("events.reasons.favoritePlace"), weight: 50 });
     } else if (place && visitedPlaceIds.has(place.id)) {
-      reasons.push({ kind: "visitedPlace", text: `Du har varit på ${place.name}`, weight: 30 });
+      reasons.push({ kind: "visitedPlace", text: i18n.t("events.reasons.visitedPlace", { place: place.name }), weight: 30 });
     }
 
     // Kategorin: eventets egen, annars platsens
@@ -147,23 +148,23 @@ export function recommendEvents({
       .sort((a, b) => b.count - a.count)[0];
     if (best && best.count > 0) {
       const label = CATEGORIES.find((c) => c.id === best.id)?.label ?? "";
-      reasons.push({ kind: "category", text: `Eftersom du gillar ${label}`, weight: 12 + 13 * Math.min(1, best.count / 3) });
+      reasons.push({ kind: "category", text: i18n.t("events.reasons.category", { category: label }), weight: 12 + 13 * Math.min(1, best.count / 3) });
     } else if (best && hasHistory) {
-      reasons.push({ kind: "discover", text: "Något nytt för dig", weight: 6 });
+      reasons.push({ kind: "discover", text: i18n.t("events.reasons.discover"), weight: 6 });
     }
 
     if (location && place?.lat != null && place?.lng != null) {
       const km = distanceMeters(location.lat, location.lng, place.lat, place.lng) / 1000;
-      if (km < 15) reasons.push({ kind: "nearby", text: km < 1 ? "Precis i närheten" : `${Math.round(km)} km från dig`, weight: 20 - km });
+      if (km < 15) reasons.push({ kind: "nearby", text: km < 1 ? i18n.t("events.reasons.nearby") : i18n.t("events.reasons.km", { km: Math.round(km) }), weight: 20 - km });
     }
 
     const daysAway = Math.max(0, differenceInCalendarDays(parseISO(event.date), now));
-    if (event.date < today) reasons.push({ kind: "ongoing", text: "Pågår nu", weight: 28 });
-    else if (daysAway === 0) reasons.push({ kind: "today", text: "I dag", weight: 28 });
-    else if (daysAway === 1) reasons.push({ kind: "tomorrow", text: "I morgon", weight: 18 });
-    else if (weekend.has(event.date)) reasons.push({ kind: "weekend", text: "I helgen", weight: 14 });
-    else if (daysAway <= 7) reasons.push({ kind: "soon", text: `Om ${daysAway} dagar`, weight: 8 });
-    else reasons.push({ kind: "later", text: "Snart på Österlen", weight: 0 });
+    if (event.date < today) reasons.push({ kind: "ongoing", text: i18n.t("events.reasons.ongoing"), weight: 28 });
+    else if (daysAway === 0) reasons.push({ kind: "today", text: i18n.t("events.reasons.today"), weight: 28 });
+    else if (daysAway === 1) reasons.push({ kind: "tomorrow", text: i18n.t("events.reasons.tomorrow"), weight: 18 });
+    else if (weekend.has(event.date)) reasons.push({ kind: "weekend", text: i18n.t("events.reasons.weekend"), weight: 14 });
+    else if (daysAway <= 7) reasons.push({ kind: "soon", text: i18n.t(daysAway === 1 ? "events.reasons.soonOne" : "events.reasons.soonOther", { count: daysAway }), weight: 8 });
+    else reasons.push({ kind: "later", text: i18n.t("events.reasons.later"), weight: 0 });
 
     const score = reasons.reduce((sum, r) => sum + r.weight, 0) + (event.is_featured ? 6 : 0) - daysAway * 0.4;
     const strongest = (list: typeof reasons) =>

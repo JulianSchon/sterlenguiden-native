@@ -7,10 +7,12 @@
  * platsen är öppen natten till lördag). En text som inte är tider ("Enligt överenskommelse") visas
  * som den är, och då påstår appen inget om öppet eller stängt.
  */
+import i18n from "i18next";
+import { addDays } from "date-fns";
+import { formatDate } from "@/i18n/dates";
 
 /** Veckodagarna som de heter i databasen, söndag först (som Date.getDay()) */
 export const DAY_NAMES = ["Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag"];
-const DAY_SHORT = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
 const DAY = 24 * 60;
 
 /** En öppen tid i minuter från dagens början. `to` är alltid större än `from` (över midnatt: mer än 24 h) */
@@ -102,20 +104,21 @@ export function hoursStatus(hours: Hours, now = new Date()): HoursStatus | null 
   const today = todayHours(hours, now);
   if (!today) return null;
   if (today.open) {
-    if (today.allDay) return { state: "open", label: "Öppet dygnet runt" };
+    if (today.allDay) return { state: "open", label: i18n.t("hours.allDay") };
     const left = today.closes! - minutesOf(now);
+    const time = String(clock(today.closes!));
     return left <= SOON_MIN
-      ? { state: "closingSoon", label: `Stänger snart · ${clock(today.closes!)}` }
-      : { state: "open", label: `Öppet · stänger ${clock(today.closes!)}` };
+      ? { state: "closingSoon", label: i18n.t("hours.closingSoon", { time }) }
+      : { state: "open", label: i18n.t("hours.openCloses", { time }) };
   }
-  if (today.opens != null) return { state: "closed", label: `Stängt · öppnar ${clock(today.opens)}` };
+  if (today.opens != null) return { state: "closed", label: i18n.t("hours.closedOpens", { time: String(clock(today.opens)) }) };
   for (let i = 1; i <= 7; i++) {
     const first = ranges(dayOf(hours, now.getDay() + i))[0];
     if (!first) continue;
-    const when = i === 1 ? "i morgon" : DAY_SHORT[(now.getDay() + i) % 7];
-    return { state: "closed", label: `Stängt · öppnar ${when} ${clock(first.from)}` };
+    const day = i === 1 ? i18n.t("time.tomorrow") : formatDate(addDays(now, i), "EEE").replace(".", "");
+    return { state: "closed", label: i18n.t("hours.closedOpensDay", { day, time: String(clock(first.from)) }) };
   }
-  return { state: "closed", label: "Stängt" };
+  return { state: "closed", label: i18n.t("hours.closed") };
 }
 
 // ── Undantag: stängt idag, semester, helgdagar, sommartider ──────────────────

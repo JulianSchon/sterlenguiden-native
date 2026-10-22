@@ -10,6 +10,8 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View 
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Clock } from "lucide-react-native";
 import { firstImageUrl, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
@@ -24,13 +26,14 @@ const NO_IDS: number[] = [];
 
 /** Hem har "Öppet nu" först (på Sök ligger det som en egen del) */
 const HOME_SHORTCUTS: Shortcut[] = [
-  { key: "open", label: "Öppet nu", query: "öppet nu", Icon: Clock, tint: TINT.open },
+  { key: "open", get label() { return i18n.t("shortcuts.open"); }, query: "öppet nu", Icon: Clock, tint: TINT.open },
   ...TILES,
 ];
 
 /** Raden går ut till skärmens kanter (kortet runt den har sidomarginal) */
 export const ShortcutRow = memo(function ShortcutRow({ gutter }: { gutter: number }) {
   const router = useRouter();
+  useTranslation(); // ritas om när språket byts
   return (
     <ScrollView
       horizontal
@@ -76,6 +79,7 @@ const FAN = [{ rot: -11, x: -26, y: 8 }, { rot: 9, x: 26, y: 6 }, { rot: 0, x: 0
 
 export const DiscoverCard = memo(function DiscoverCard() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const { data: places = NO_PLACES } = usePlaces();
   const { data: favorites = [] } = useFavorites();
@@ -100,17 +104,17 @@ export const DiscoverCard = memo(function DiscoverCard() {
       onPressIn={() => { press.value = withSpring(0.97, { damping: 36, stiffness: 320 }); }}
       onPressOut={() => { press.value = withSpring(1, { damping: 32, stiffness: 260 }); }}
       accessibilityRole="button"
-      accessibilityLabel="Upptäck platser"
+      accessibilityLabel={t("home.discover.a11y")}
     >
       <Reanimated.View style={[s.discover, { backgroundColor: colors.card, borderColor: colors.border }, pressStyle]}>
         <View style={s.discoverText}>
-          <Text style={[s.eyebrow, { color: colors.goldText }]}>UPPTÄCK</Text>
-          <Text style={[s.discoverTitle, { color: colors.text }]}>Svep fram din nästa plats</Text>
+          <Text style={[s.eyebrow, { color: colors.goldText }]}>{t("home.discover.eyebrow")}</Text>
+          <Text style={[s.discoverTitle, { color: colors.text }]}>{t("home.discover.title")}</Text>
           <Text style={[s.discoverSub, { color: colors.muted }]}>
-            {places.length === 0 ? " " : left > 0 ? `${left} ${left === 1 ? "plats" : "platser"} kvar att upptäcka` : "Du har svept igenom alla platser"}
+            {places.length === 0 ? " " : left > 0 ? t(left === 1 ? "home.discover.leftOne" : "home.discover.leftOther", { count: left }) : t("home.discover.allDone")}
           </Text>
           <View style={s.discoverCta}>
-            <Text style={[s.discoverCtaText, { color: colors.goldText }]}>Börja svepa</Text>
+            <Text style={[s.discoverCtaText, { color: colors.goldText }]}>{t("home.discover.start")}</Text>
             <ArrowRight size={15} color={colors.goldText} strokeWidth={2.4} />
           </View>
         </View>

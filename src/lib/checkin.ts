@@ -7,6 +7,7 @@
  * kluster — QR byggs i ett senare steg).
  */
 import type { Visit } from "@/hooks/useVisits";
+import { decimal } from "@/i18n/numbers";
 import type { Place } from "@/hooks/usePlaces";
 
 /** Inom så här långt kan man checka in (knappen är aktiv). */
@@ -45,7 +46,7 @@ export function placesNear(places: Place[], lat: number, lng: number, radius: nu
 /** "320 m" under en kilometer, annars "1,2 km". */
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters / 10) * 10} m`;
-  return `${(meters / 1000).toFixed(1).replace(".", ",")} km`;
+  return `${decimal(meters / 1000)} km`;
 }
 
 /**

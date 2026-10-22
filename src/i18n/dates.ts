@@ -5,6 +5,9 @@ import { currentLanguage } from "./index";
 
 const LOCALES = { sv, en: enGB, de };
 
+/** date-fns-språket som gäller just nu (för egna format) */
+export const dateLocale = () => LOCALES[currentLanguage()];
+
 /** formatDate(new Date(), "d MMMM yyyy") → "24 september 2026" / "24 September 2026" / "24. September 2026" */
 export function formatDate(date: Date | string | number, pattern: string): string {
   return format(new Date(date), pattern, { locale: LOCALES[currentLanguage()] });

@@ -7,6 +7,7 @@
  * och då visas ingenting. Inte heller om du redan checkat in där nyss.
  */
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { MapPin, ChevronRight } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
@@ -21,6 +22,7 @@ export function NearbyCheckInPrompt({
   const router = useRouter();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  const { t } = useTranslation();
   const { data: visits = [] } = useVisits();
 
   if (lat == null || lng == null) return null;
@@ -40,9 +42,9 @@ export function NearbyCheckInPrompt({
         <MapPin size={22} color={colors.goldText} strokeWidth={2} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.small}>Du verkar vara vid</Text>
+        <Text style={s.small}>{t("home.nearby.checkInAt")}</Text>
         <Text style={s.name} numberOfLines={1}>{place.name}</Text>
-        <Text style={s.sub}>Tryck för att checka in</Text>
+        <Text style={s.sub}>{t("home.nearby.tapToCheckIn")}</Text>
       </View>
       <ChevronRight size={20} color={colors.goldText} strokeWidth={2} />
     </TouchableOpacity>

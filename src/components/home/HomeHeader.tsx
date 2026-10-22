@@ -9,6 +9,8 @@
 import { memo, useMemo } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
@@ -28,19 +30,19 @@ const OSTERLEN_KM = 60;
 
 const NO_PLACES: Place[] = [];
 
-/** Tidsberoende hälsning */
-export function greeting(now = new Date()): string {
+/** Tidsberoende hälsning, med förnamnet om det finns ("God morgon, Viktor") */
+export function greeting(firstName: string | null, now = new Date()): string {
   const h = now.getHours();
-  if (h >= 5 && h < 12) return "God morgon";
-  if (h >= 12 && h < 15) return "God dag";
-  if (h >= 15 && h < 18) return "God eftermiddag";
-  return "God kväll";
+  const part = h >= 5 && h < 12 ? "morning" : h >= 12 && h < 15 ? "day" : h >= 15 && h < 18 ? "afternoon" : "evening";
+  const word = i18n.t(`home.greeting.${part}`);
+  return firstName ? i18n.t("home.greetingName", { greeting: word, name: firstName }) : word;
 }
 
 export const HomeHeader = memo(function HomeHeader({ location }: { location: { lat: number; lng: number } | null }) {
   const router = useRouter();
   const { colors } = useTheme();
   const { data: profile } = useProfile();
+  useTranslation(); // ritas om när språket byts
   const firstName = profile?.display_name?.trim().split(/\s+/)[0] ?? null;
   const today = formatDate(new Date(), "EEEE d MMMM").toUpperCase();
 
@@ -51,7 +53,7 @@ export const HomeHeader = memo(function HomeHeader({ location }: { location: { l
         <View style={{ flex: 1 }}>
           <Text style={[s.date, { color: colors.muted }]}>{today}</Text>
           <Text style={[s.greeting, { color: colors.text }]} numberOfLines={2}>
-            {greeting()}{firstName ? `, ${firstName}` : ""}
+            {greeting(firstName)}
           </Text>
         </View>
         {/* Streaken och profilbilden — ett enda tryck som leder till Mitt Österlen */}
@@ -125,9 +127,10 @@ function weatherColor(w: Weather, dark: boolean, muted: string): string {
 function WeatherText({ weather, town, dark, muted, text }: {
   weather: Weather; town: string; dark: boolean; muted: string; text: string;
 }) {
+  const { t } = useTranslation();
   const Icon = weatherIcon(weather);
-  const label = weather.label.toLowerCase();
-  const rest = weather.wind >= 10 ? `, ${label} och blåsigt i ${town}` : ` och ${label} i ${town}`;
+  const sky = t(`weather.${weather.sky}`);
+  const rest = t(weather.wind >= 10 ? "home.weatherRestWindy" : "home.weatherRest", { sky, town });
   return (
     <>
       <Icon size={16} color={weatherColor(weather, dark, muted)} strokeWidth={2.2} />

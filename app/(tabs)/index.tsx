@@ -7,8 +7,10 @@
  *
  * Sedan flödet "För dig" (lib/homeFeed): evenemang, nya erbjudanden (biljetterna rivs som på
  * Förmåner), platser att inspireras av, nyheter, vänners besök och en skatt — blandat efter fasta
- * regler. Verktygen ligger i flödet: Upptäck (svepet) och genvägarna in i Sök ("Öppet nu", "Äta nu" …). Det byggs en gång när datan kommit och står still medan man tittar; dra ner för att
- * uppdatera (då blandas platserna om). "Visa mer" längst ner laddar in nästa del, tills man är ikapp.
+ * regler. Verktygen ligger i flödet: Upptäck (svepet) och genvägarna in i Sök ("Öppet nu", "Äta nu" …).
+ * Det byggs en gång när datan kommit och står still medan man tittar; dra ner för att uppdatera (då
+ * blandas platserna om). "Visa mer" längst ner laddar in nästa del, tills man är ikapp. Byts språket
+ * byggs det om. Går inget att hämta (inget nät) säger sidan det och låter en försöka igen.
  *
  * Laggfritt: flödet är en lista som bara ritar det som syns, korten ritas bara om när det egna kortet
  * ändras (ett hjärta), och toppen sköter sin egen data.
@@ -21,6 +23,7 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Location from "expo-location";
+import { useTranslation } from "react-i18next";
 import { usePlaces, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { useOffers } from "@/hooks/useOffers";
@@ -52,7 +55,7 @@ import { StoryRow } from "@/components/home/StoryRow";
 import { StickyGreeting } from "@/components/home/StickyGreeting";
 import { useMyPlaceIds } from "@/hooks/useBusiness";
 import {
-  FEED_GUTTER, FeedDiscover, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedPlaceCard,
+  FEED_GUTTER, FeedDiscover, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedOffline, FeedPlaceCard,
   FeedShortcuts, FeedSkeleton, FeedTreasureCard, OpenNowRail, WeekendRail,
 } from "@/components/home/FeedCards";
 
@@ -121,6 +124,7 @@ export default function HomeScreen() {
 /** Allt ovanför flödet, med luft emellan. Varje del sköter sin egen data */
 const HomeTop = memo(function HomeTop({ location }: { location: Loc | null }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { data: places = NO_PLACES } = usePlaces();
   return (
     <View>
@@ -133,7 +137,7 @@ const HomeTop = memo(function HomeTop({ location }: { location: Loc | null }) {
         <StoryRow />
       </Rise>
       <Rise index={2}>
-        <Text style={[s.forYou, { color: colors.text }]}>För dig</Text>
+        <Text style={[s.forYou, { color: colors.text }]}>{t("home.forYou")}</Text>
       </Rise>
     </View>
   );
@@ -186,6 +190,14 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const ownPlaceIds = useMyPlaceIds();
   const [seed, setSeed] = useState(newSeed);
   const [shown, setShown] = useState(FIRST_PAGE);
+  // Byts språket byggs flödet om, så korten säger sina skäl på det nya språket
+  const { i18n } = useTranslation();
+  const builtLanguage = useRef(i18n.language);
+  useEffect(() => {
+    if (builtLanguage.current === i18n.language) return;
+    builtLanguage.current = i18n.language;
+    setVersion((v) => v + 1);
+  }, [i18n.language]);
   const built = useRef(-1);
   const builtAt = useRef(0);
   useEffect(() => {
@@ -398,10 +410,14 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   }
 
   const header = useMemo(() => <HomeTop location={location} />, [location]);
-  const items = feed ? feed.slice(0, shown) : NO_ITEMS;
-  const footer = feed
-    ? <FeedFooter hasMore={shown < feed.length} onMore={() => setShown((n) => n + MORE)} onDiscover={openDiscover} />
-    : <FeedSkeleton />;
+  // Platserna gick inte att hämta och inget finns sparat: inget nät (eller servern svarar inte)
+  const offline = places.isError && !places.data?.length;
+  const items = feed && !offline ? feed.slice(0, shown) : NO_ITEMS;
+  const footer = offline
+    ? <FeedOffline onRetry={onRefresh} />
+    : feed
+      ? <FeedFooter hasMore={shown < feed.length} onMore={() => setShown((n) => n + MORE)} onDiscover={openDiscover} />
+      : <FeedSkeleton />;
 
   return (
     <>

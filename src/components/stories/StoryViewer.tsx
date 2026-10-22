@@ -18,6 +18,7 @@
  * när visaren stängs — annars bytte cirklarna plats under ens fingrar.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import i18n from "i18next";
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming,
@@ -57,10 +58,10 @@ const SPRING = { stiffness: 380, damping: 36 };
 /** "nu", "12 min", "3 h", "i går" */
 function ago(iso: string): string {
   const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (min < 1) return "nu";
-  if (min < 60) return `${min} min`;
+  if (min < 1) return i18n.t("stories.ago.now");
+  if (min < 60) return i18n.t("stories.ago.minutes", { count: min });
   const h = Math.round(min / 60);
-  return h < 24 ? `${h} h` : "i går";
+  return h < 24 ? i18n.t("stories.ago.hours", { count: h }) : i18n.t("stories.ago.yesterday");
 }
 
 /** Var en berättelse i 9:16 hamnar på skärmen (den visas hel, mitt på) */

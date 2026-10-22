@@ -6,6 +6,7 @@
  *   skatten på kartan (där den ändå syns), så inget avslöjas som inte redan går att se.
  */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react-native";
 import { Sheet } from "@/components/Sheet";
 import { Avatar } from "@/components/profile/Avatar";
@@ -104,6 +105,7 @@ export function TreasureHint({ meters, found, name, onPress }: {
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const far = meters >= 50;
   return (
     <TouchableOpacity
@@ -114,12 +116,12 @@ export function TreasureHint({ meters, found, name, onPress }: {
       <TreasurePin height={38} found={found} />
       <View style={{ flex: 1 }}>
         <Text style={[s.friendsTitle, { color: colors.text }]} numberOfLines={2}>
-          {found ? `Du har hittat ${name}` : far ? `En skatt gömmer sig ${formatDistance(meters)} härifrån` : "En skatt gömmer sig här"}
+          {found ? t("treasureHint.found", { name }) : far ? t("treasureHint.far", { distance: formatDistance(meters) }) : t("treasureHint.here")}
         </Text>
         <Text style={[s.friendsDetail, { color: colors.muted }]} numberOfLines={1}>
           {found
-            ? far ? `${formatDistance(meters)} härifrån  ·  Visa på kartan` : "Visa på kartan"
-            : "Hitta den på kartan och lås upp den"}
+            ? far ? t("treasureHint.farShowMap", { distance: formatDistance(meters) }) : t("treasureHint.showMap")
+            : t("treasureHint.findIt")}
         </Text>
       </View>
       <ChevronRight size={20} color={colors.purple} strokeWidth={2.2} />

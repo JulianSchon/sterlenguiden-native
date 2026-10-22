@@ -3,6 +3,7 @@
  * och samma genvägar på Hem: ett tryck på Hem öppnar Sök med svaret redan klart (openSearch).
  */
 import type { useRouter } from "expo-router";
+import i18n from "i18next";
 import {
   Baby, BedDouble, CalendarDays, Coffee, Dog, Moon, Trees, UtensilsCrossed, type LucideIcon,
 } from "lucide-react-native";
@@ -27,18 +28,18 @@ export const TINT = {
   gold: { dark: "#E8C674", light: "#8A6A2E" },
 } satisfies Record<string, Tint>;
 
-export interface Shortcut { key: string; label: string; query: string; Icon: LucideIcon; tint: Tint }
+export interface Shortcut { key: string; readonly label: string; query: string; Icon: LucideIcon; tint: Tint }
 
 /** "Vad vill du göra?" — varje ruta är en färdig fråga till söket (ordningen håller lika färger isär) */
 export const TILES: Shortcut[] = [
-  { key: "eat", label: "Äta nu", query: "äta nu", Icon: UtensilsCrossed, tint: TINT.eat },
-  { key: "fika", label: "Fika", query: "fika", Icon: Coffee, tint: TINT.fika },
-  { key: "sleep", label: "Sova i natt", query: "sova", Icon: BedDouble, tint: TINT.sleep },
-  { key: "kids", label: "Familj", query: "familj", Icon: Baby, tint: TINT.kids },
-  { key: "late", label: "Öppet sent", query: "öppet sent", Icon: Moon, tint: { ...TINT.late, ring: "night" } },
-  { key: "dog", label: "Med hund", query: "med hund", Icon: Dog, tint: TINT.dog },
-  { key: "nature", label: "Ut i naturen", query: "natur", Icon: Trees, tint: TINT.nature },
-  { key: "events", label: "Händer snart", query: "evenemang", Icon: CalendarDays, tint: TINT.events },
+  { key: "eat", get label() { return i18n.t("shortcuts.eat"); }, query: "äta nu", Icon: UtensilsCrossed, tint: TINT.eat },
+  { key: "fika", get label() { return i18n.t("shortcuts.fika"); }, query: "fika", Icon: Coffee, tint: TINT.fika },
+  { key: "sleep", get label() { return i18n.t("shortcuts.sleep"); }, query: "sova", Icon: BedDouble, tint: TINT.sleep },
+  { key: "kids", get label() { return i18n.t("shortcuts.kids"); }, query: "familj", Icon: Baby, tint: TINT.kids },
+  { key: "late", get label() { return i18n.t("shortcuts.late"); }, query: "öppet sent", Icon: Moon, tint: { ...TINT.late, ring: "night" } },
+  { key: "dog", get label() { return i18n.t("shortcuts.dog"); }, query: "med hund", Icon: Dog, tint: TINT.dog },
+  { key: "nature", get label() { return i18n.t("shortcuts.nature"); }, query: "natur", Icon: Trees, tint: TINT.nature },
+  { key: "events", get label() { return i18n.t("shortcuts.events"); }, query: "evenemang", Icon: CalendarDays, tint: TINT.events },
 ];
 
 /**

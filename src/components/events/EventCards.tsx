@@ -72,7 +72,7 @@ export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved,
             {[eventWhen(event), where(event)].filter(Boolean).join("  ·  ")}
           </Text>
         </View>
-        <HeartButton isFav={saved} onToggle={() => onToggleSave(event.id)} onBurst={onBurst} label="sparade" />
+        <HeartButton isFav={saved} onToggle={() => onToggleSave(event.id)} onBurst={onBurst} list="saved" />
       </View>
     </TouchableOpacity>
   );
@@ -98,7 +98,7 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
           </View>
         )}
       </View>
-      <HeartButton isFav={saved} onToggle={() => onToggleSave(event.id)} onBurst={onBurst} size={24} label="sparade" />
+      <HeartButton isFav={saved} onToggle={() => onToggleSave(event.id)} onBurst={onBurst} size={24} list="saved" />
     </TouchableOpacity>
   );
 });

@@ -13,30 +13,34 @@ import {
 
 export type WeatherKind = "clear" | "partly" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "thunder";
 
+/** Hur himlen ser ut, som nyckel i texterna (weather.*) */
+export type Sky =
+  | "clear" | "mostlyClear" | "partly" | "cloudy" | "fog" | "drizzle" | "rain" | "heavyRain" | "showers"
+  | "snow" | "snowShowers" | "thunder";
+
 export interface Weather {
   /** Grader, avrundat */
   temp: number;
   kind: WeatherKind;
-  /** "Klart", "Halvklart", "Regn" … */
-  label: string;
+  sky: Sky;
   isDay: boolean;
   /** Meter per sekund */
   wind: number;
 }
 
 /** WMO-koden (Open-Meteo) som ett ord och en sort */
-function describe(code: number): { kind: WeatherKind; label: string } {
-  if (code === 0) return { kind: "clear", label: "Klart" };
-  if (code === 1) return { kind: "partly", label: "Mestadels klart" };
-  if (code === 2) return { kind: "partly", label: "Halvklart" };
-  if (code === 3) return { kind: "cloudy", label: "Mulet" };
-  if (code === 45 || code === 48) return { kind: "fog", label: "Dimma" };
-  if (code >= 51 && code <= 57) return { kind: "drizzle", label: "Duggregn" };
-  if (code === 65 || code === 82) return { kind: "rain", label: "Kraftigt regn" };
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 81)) return { kind: "rain", label: code >= 80 ? "Regnskurar" : "Regn" };
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { kind: "snow", label: code >= 85 ? "Snöbyar" : "Snö" };
-  if (code >= 95) return { kind: "thunder", label: "Åska" };
-  return { kind: "cloudy", label: "Mulet" };
+function describe(code: number): { kind: WeatherKind; sky: Sky } {
+  if (code === 0) return { kind: "clear", sky: "clear" };
+  if (code === 1) return { kind: "partly", sky: "mostlyClear" };
+  if (code === 2) return { kind: "partly", sky: "partly" };
+  if (code === 3) return { kind: "cloudy", sky: "cloudy" };
+  if (code === 45 || code === 48) return { kind: "fog", sky: "fog" };
+  if (code >= 51 && code <= 57) return { kind: "drizzle", sky: "drizzle" };
+  if (code === 65 || code === 82) return { kind: "rain", sky: "heavyRain" };
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 81)) return { kind: "rain", sky: code >= 80 ? "showers" : "rain" };
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { kind: "snow", sky: code >= 85 ? "snowShowers" : "snow" };
+  if (code >= 95) return { kind: "thunder", sky: "thunder" };
+  return { kind: "cloudy", sky: "cloudy" };
 }
 
 export function weatherIcon(w: Weather): LucideIcon {

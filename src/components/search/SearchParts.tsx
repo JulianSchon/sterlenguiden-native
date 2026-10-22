@@ -7,6 +7,7 @@
  * prick i samma färg som på kartans nålar.
  */
 import { memo } from "react";
+import i18n from "i18next";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View, type StyleProp, type TextStyle } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import {
@@ -90,7 +91,7 @@ function Thumb({ uri, size, radius = 12, children }: { uri: string | null; size:
 export function CategoryLine({ place, extra }: { place: Place; extra?: string | null }) {
   const { colors, scheme } = useTheme();
   const cat = findCategory(place.category);
-  const parts = [cat?.label ?? "Plats", place.nearest_town, extra].filter(Boolean);
+  const parts = [cat?.label ?? i18n.t("categories.place"), place.nearest_town, extra].filter(Boolean);
   return (
     <View style={s.catLine}>
       <View style={[s.dot, { backgroundColor: cat ? CATEGORY_DOT[scheme][cat.id] : colors.faint }]} />

@@ -7,6 +7,7 @@
  * som flyttas till hjärtat man trycker på — inte en per kort, det gjorde långa listor tröga.
  */
 import { useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import Reanimated, {
   Easing, interpolate, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming,
@@ -46,14 +47,16 @@ export function useLikeBurst(): { burst: Burst; show: BurstFn } {
 }
 
 export function HeartButton({
-  isFav, onToggle, onBurst, size = 28, label = "favoriter", outline = RED,
+  isFav, onToggle, onBurst, size = 28, list = "favorites", outline = RED,
 }: {
   isFav: boolean; onToggle: () => void; onBurst: BurstFn; size?: number;
   /** Konturens färg när hjärtat inte är ifyllt (vit ovanpå en bild) */
   outline?: string;
-  /** Vad man sparar till, för skärmläsaren ("Spara i favoriter") */
-  label?: string;
+  /** Vad man sparar till, för skärmläsaren: platser blir favoriter, evenemang sparade */
+  list?: "favorites" | "saved";
 }) {
+  const { t } = useTranslation();
+  const listLabel = t(list === "saved" ? "heart.saved" : "heart.favorites");
   const scale = useSharedValue(1);
   // Den röda fyllningen som eget lager: tänds direkt när man gillar (popen döljer bytet), men tonas
   // ut mjukt när man avmarkerar — att den försvann tvärt gjorde avmarkeringen hård
@@ -89,7 +92,7 @@ export function HeartButton({
       activeOpacity={0.8}
       hitSlop={10}
       onPress={press}
-      accessibilityLabel={isFav ? `Ta bort från ${label}` : `Spara i ${label}`}
+      accessibilityLabel={t(isFav ? "heart.remove" : "heart.add", { list: listLabel })}
     >
       <View ref={box} collapsable={false}>
         <Reanimated.View style={heartStyle}>

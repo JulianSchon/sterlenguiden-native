@@ -14,6 +14,7 @@
  * platser inte angett än) — och svaret säger det. Det blir aldrig tomt i onödan.
  */
 import { addDays, format, getDay, startOfDay } from "date-fns";
+import i18n from "i18next";
 import type { Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
 import { lastDay } from "@/lib/events";
@@ -559,10 +560,10 @@ const hoursOf = (place: Place) => place.opening_hours as Hours;
 export function openInfo(place: Place, now = new Date()): OpenInfo | null {
   const h = todayHours(hoursOf(place), now);
   if (!h) return null;
-  if (h.open) return { open: true, label: h.allDay ? "Öppet dygnet runt" : `Öppet till ${clock(h.closes!)}` };
-  if (h.opens != null) return { open: false, label: `Öppnar ${clock(h.opens)}` };
+  if (h.open) return { open: true, label: h.allDay ? i18n.t("hours.allDay") : i18n.t("hours.openUntil", { time: String(clock(h.closes!)) }) };
+  if (h.opens != null) return { open: false, label: i18n.t("hours.opensAt", { time: String(clock(h.opens)) }) };
   const closedAllDay = parseDay(hoursOf(place)?.[DAY_NAMES[now.getDay()]]) === "closed";
-  return { open: false, label: closedAllDay ? "Stängt i dag" : "Stängt" };
+  return { open: false, label: i18n.t(closedAllDay ? "hours.closedToday" : "hours.closed") };
 }
 
 /** Har öppet efter 21 den dagen (i dag om inget annat sägs) */

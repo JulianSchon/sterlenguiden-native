@@ -412,7 +412,7 @@ export function EventSheetHost() {
           </View>
           <View style={s.roundBtn}>
             {/* Nytt hjärta för varje event, så det inte tonar från förra eventets läge */}
-            <HeartButton key={shown?.request.key ?? 0} isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={22} label="sparade" />
+            <HeartButton key={shown?.request.key ?? 0} isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={22} list="saved" />
           </View>
           <Pressable onPress={pressX} hitSlop={6} accessibilityLabel="Stäng">
             <Reanimated.View style={[s.roundBtn, xBtnStyle]}>

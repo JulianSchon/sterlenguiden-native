@@ -11,6 +11,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
 import { useTheme } from "@/theme/ThemeProvider";
 import { greeting, HomeAvatar } from "./HomeHeader";
@@ -26,6 +27,7 @@ export function StickyGreeting({ scrollY, showAfter }: {
   /** Var den stora hälsningen har scrollats bort */
   showAfter: number;
 }) {
+  useTranslation(); // ritas om när språket byts
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -58,7 +60,7 @@ export function StickyGreeting({ scrollY, showAfter }: {
       style={[s.bar, { height, paddingTop: insets.top, backgroundColor: colors.bg, borderBottomColor: colors.border }, style]}
     >
       <Text style={[s.text, { color: colors.text }]} numberOfLines={1}>
-        {greeting()}{firstName ? `, ${firstName}` : ""}
+        {greeting(firstName)}
       </Text>
       <TouchableOpacity onPress={() => router.push("/mitt-osterlen")} activeOpacity={0.85} hitSlop={8}>
         <HomeAvatar size={AVATAR} />

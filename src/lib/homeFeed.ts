@@ -19,6 +19,7 @@
  * Flödet byggs en gång när datan kommit, och sen visas en sida i taget ("Visa mer" längst ner).
  */
 import { addDays, getDay } from "date-fns";
+import i18n from "i18next";
 import type { Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
 import type { NewsItem } from "@/hooks/useNews";
@@ -196,12 +197,12 @@ export function buildFeed(input: FeedInput): FeedItem[] {
   const placeItems: FeedItem[] = inspiration.map(({ p, cat, likes, km }) => {
     const open = openInfo(p, now);
     const reason = likes > 0 && cat
-      ? `Eftersom du gillar ${catLabel(cat)}`
+      ? i18n.t("home.reasons.likes", { category: catLabel(cat) })
       : km != null && km < 15
-        ? `${distanceLabel(km)} från dig`
+        ? i18n.t("home.reasons.away", { distance: distanceLabel(km) })
         : open?.open
           ? open.label
-          : p.nearest_town ? `I ${p.nearest_town}` : "Tips för dig";
+          : p.nearest_town ? i18n.t("home.reasons.inTown", { town: p.nearest_town }) : i18n.t("home.reasons.tip");
     return { kind: "place", key: `p${p.id}`, place: p, reason, km };
   });
 

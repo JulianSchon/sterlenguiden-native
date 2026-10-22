@@ -11,7 +11,9 @@ import { memo, useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from "react-native-reanimated";
 import { Image as ExpoImage } from "expo-image";
-import { CalendarDays, Check, ChevronRight, Crown, Heart, Newspaper, Users, type LucideIcon } from "lucide-react-native";
+import { Trans, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { CalendarDays, Check, ChevronRight, CloudOff, Crown, Heart, Newspaper, Users, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
 import type { NewsItem } from "@/hooks/useNews";
@@ -88,13 +90,14 @@ export const FeedEventCard = memo(function FeedEventCard({ pick, hero, saved, on
   onBurst: BurstFn;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const liveColor = useLiveColor();
   const e = pick.event;
   const today = dayKey(new Date());
   // Skälet följer hjärtat direkt ("Du har sparat det" ↔ nästa bästa skäl)
   const reason = liveReason(pick, saved);
   const live = hero || reason.kind === "today" || reason.kind === "ongoing";
-  const liveText = e.date && e.date < today ? "Pågår nu" : "I dag";
+  const liveText = t(e.date && e.date < today ? "home.live.ongoing" : "home.live.today");
   const personal = reason.kind === "saved" || reason.kind === "favoritePlace";
   const where = e.location ?? e.place?.name ?? null;
   return (
@@ -111,7 +114,7 @@ export const FeedEventCard = memo(function FeedEventCard({ pick, hero, saved, on
           <Text style={[hero ? s.titleHero : s.title, { color: colors.text }]} numberOfLines={2}>{e.title}</Text>
           <Text style={[s.meta, { color: colors.muted }]} numberOfLines={1}>{[eventWhen(e), where].filter(Boolean).join("  ·  ")}</Text>
         </Pressable>
-        <HeartButton isFav={saved} onToggle={() => onToggleSave(e.id)} onBurst={onBurst} label="sparade" />
+        <HeartButton isFav={saved} onToggle={() => onToggleSave(e.id)} onBurst={onBurst} list="saved" />
       </View>
     </View>
   );
@@ -129,6 +132,7 @@ export const FeedPlaceCard = memo(function FeedPlaceCard({ place, reason, km, sa
   onBurst: BurstFn;
 }) {
   const { colors, scheme } = useTheme();
+  useTranslation(); // ritas om när språket byts (öppettiderna, kategorin)
   const openColors = useOpenColors();
   const image = firstImageUrl(place.image_url);
   const open = openInfo(place);
@@ -155,10 +159,11 @@ export const FeedPlaceCard = memo(function FeedPlaceCard({ place, reason, km, sa
 
 export const FeedNewsCard = memo(function FeedNewsCard({ news, onOpen }: { news: NewsItem; onOpen: (news: NewsItem) => void }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const published = news.published_at ?? news.created_at;
   return (
     <View style={s.card}>
-      <Eyebrow Icon={Newspaper} text={`Nyhet${published ? `  ·  ${formatDate(published, "d MMM")}` : ""}`} color={colors.goldText} />
+      <Eyebrow Icon={Newspaper} text={`${t("home.news")}${published ? `  ·  ${formatDate(published, "d MMM")}` : ""}`} color={colors.goldText} />
       <Pressable onPress={() => onOpen(news)} style={{ gap: 12 }}>
         {news.cover_image_url && (
           <View style={[s.image, { aspectRatio: 16 / 9, backgroundColor: colors.fill }]}>
@@ -177,12 +182,12 @@ export const FeedNewsCard = memo(function FeedNewsCard({ news, onOpen }: { news:
 // ── Vänner ───────────────────────────────────────────────────────────────────
 
 /** "i dag", "i går", "för 3 dagar sedan", "12 okt" */
-function ago(iso: string): string {
+function ago(iso: string, t: TFunction): string {
   const d = new Date(iso);
   const days = Math.round((new Date(dayKey(new Date())).getTime() - new Date(dayKey(d)).getTime()) / 86_400_000);
-  if (days <= 0) return "i dag";
-  if (days === 1) return "i går";
-  if (days < 7) return `för ${days} dagar sedan`;
+  if (days <= 0) return t("time.today");
+  if (days === 1) return t("time.yesterday");
+  if (days < 7) return t("time.daysAgoOther", { count: days });
   return formatDate(d, "d MMM");
 }
 
@@ -193,11 +198,12 @@ export const FeedFriendCard = memo(function FeedFriendCard({ visit, place, onOpe
   onOpenFriend: (userId: string) => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const first = visit.name.trim().split(/\s+/)[0] || visit.name;
   const image = firstImageUrl(place.image_url);
   return (
     <View style={s.card}>
-      <Eyebrow Icon={Users} text="Vänner" color={colors.goldText} />
+      <Eyebrow Icon={Users} text={t("home.friends")} color={colors.goldText} />
       <Pressable
         onPress={() => onOpenPlace(place)}
         style={[s.friend, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -207,10 +213,10 @@ export const FeedFriendCard = memo(function FeedFriendCard({ visit, place, onOpe
         </TouchableOpacity>
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={[s.friendText, { color: colors.text }]} numberOfLines={2}>
-            <Text style={s.bold}>{first}</Text> var på <Text style={s.bold}>{place.name}</Text>
+            <Trans i18nKey="home.friendWasAt" values={{ name: first, place: place.name }} components={{ b: <Text style={s.bold} /> }} />
           </Text>
           <Text style={[s.meta, { color: colors.muted }]} numberOfLines={1}>
-            {[ago(visit.visitedAt), place.nearest_town].filter(Boolean).join("  ·  ")}
+            {[ago(visit.visitedAt, t), place.nearest_town].filter(Boolean).join("  ·  ")}
           </Text>
         </View>
         <View style={[s.friendThumb, { backgroundColor: colors.fill }]}>
@@ -232,9 +238,10 @@ export const FeedOfferCard = memo(function FeedOfferCard({ offer, isNew, torn, e
   onOpen: (offer: Offer, origin: OriginRect | null) => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={s.card}>
-      <Eyebrow Icon={Crown} text={isNew ? "Nytt erbjudande med Österlenpasset" : "Med Österlenpasset"} color={colors.goldText} />
+      <Eyebrow Icon={Crown} text={t(isNew ? "home.offerNew" : "home.offer")} color={colors.goldText} />
       <OfferTicket offer={offer} used={false} torn={torn} edge={edge} scrollAt={scrollAt} onOpen={onOpen} />
     </View>
   );
@@ -246,9 +253,10 @@ export const FeedTreasureCard = memo(function FeedTreasureCard({ collectible, me
   collectible: Collectible; meters: number; onOpen: (collectible: Collectible) => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={s.card}>
-      <Eyebrow dot={colors.purple} text="Skatt i närheten" color={colors.purple} />
+      <Eyebrow dot={colors.purple} text={t("home.treasureNear")} color={colors.purple} />
       <TreasureHint meters={meters} found={false} name={collectible.name} onPress={() => onOpen(collectible)} />
     </View>
   );
@@ -268,9 +276,10 @@ export const FeedDiscover = memo(function FeedDiscover() {
 /** Genvägarna in i Sök */
 export const FeedShortcuts = memo(function FeedShortcuts() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={s.card}>
-      <Text style={[s.railTitle, { color: colors.text, marginBottom: 12 }]}>Vad vill du göra?</Text>
+      <Text style={[s.railTitle, { color: colors.text, marginBottom: 12 }]}>{t("home.whatToDo")}</Text>
       <ShortcutRow gutter={FEED_GUTTER} />
     </View>
   );
@@ -294,9 +303,10 @@ function RailHead({ title, action, onAction }: { title: string; action: string; 
 export const OpenNowRail = memo(function OpenNowRail({ items, onOpen, onShowAll }: {
   items: NearbyPlace[]; onOpen: (place: Place) => void; onShowAll: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={s.card}>
-      <RailHead title="Öppet nu nära dig" action="Visa alla" onAction={onShowAll} />
+      <RailHead title={t("home.openNowNear")} action={t("home.showAll")} onAction={onShowAll} />
       <NearbyRail items={items} onPress={onOpen} />
     </View>
   );
@@ -306,9 +316,10 @@ export const WeekendRail = memo(function WeekendRail({ events, onOpen, onShowAll
   events: Event[]; onOpen: (event: Event) => void; onShowAll: () => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={s.card}>
-      <RailHead title="I helgen" action="Kalender" onAction={onShowAll} />
+      <RailHead title={t("home.weekend")} action={t("home.calendar")} onAction={onShowAll} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail} style={{ marginHorizontal: -FEED_GUTTER }}>
         {events.map((e) => (
           <TouchableOpacity key={e.id} style={s.mini} activeOpacity={0.85} onPress={() => onOpen(e)}>
@@ -342,13 +353,32 @@ export function FeedSkeleton() {
   );
 }
 
+/** Inget kunde hämtas (oftast inget nät): säg det, och låt en försöka igen */
+export function FeedOffline({ onRetry }: { onRetry: () => void }) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  return (
+    <View style={[s.footer, s.end]}>
+      <View style={[s.endIcon, { backgroundColor: colors.fill }]}>
+        <CloudOff size={22} color={colors.muted} strokeWidth={2.2} />
+      </View>
+      <Text style={[s.endTitle, { color: colors.text, textAlign: "center" }]}>{t("home.offline.title")}</Text>
+      <Text style={[s.endSub, { color: colors.muted, textAlign: "center" }]}>{t("home.offline.sub")}</Text>
+      <TouchableOpacity style={[s.moreBtn, { backgroundColor: colors.card, borderColor: colors.borderStrong, alignSelf: "stretch" }]} activeOpacity={0.75} onPress={onRetry}>
+        <Text style={[s.moreText, { color: colors.text }]}>{t("home.offline.retry")}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export function FeedFooter({ hasMore, onMore, onDiscover }: { hasMore: boolean; onMore: () => void; onDiscover: () => void }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   if (hasMore) {
     return (
       <View style={s.footer}>
         <TouchableOpacity style={[s.moreBtn, { backgroundColor: colors.card, borderColor: colors.borderStrong }]} activeOpacity={0.75} onPress={onMore}>
-          <Text style={[s.moreText, { color: colors.text }]}>Visa mer</Text>
+          <Text style={[s.moreText, { color: colors.text }]}>{t("home.showMore")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -358,10 +388,10 @@ export function FeedFooter({ hasMore, onMore, onDiscover }: { hasMore: boolean; 
       <View style={[s.endIcon, { backgroundColor: colors.goldSoft }]}>
         <Check size={22} color={colors.goldText} strokeWidth={2.4} />
       </View>
-      <Text style={[s.endTitle, { color: colors.text }]}>Du är ikapp</Text>
-      <Text style={[s.endSub, { color: colors.muted }]}>Svep fram fler platser i Upptäck.</Text>
+      <Text style={[s.endTitle, { color: colors.text }]}>{t("home.caughtUp")}</Text>
+      <Text style={[s.endSub, { color: colors.muted }]}>{t("home.caughtUpSub")}</Text>
       <TouchableOpacity style={[s.moreBtn, { backgroundColor: colors.card, borderColor: colors.borderStrong, alignSelf: "stretch" }]} activeOpacity={0.75} onPress={onDiscover}>
-        <Text style={[s.moreText, { color: colors.text }]}>Till Upptäck</Text>
+        <Text style={[s.moreText, { color: colors.text }]}>{t("home.toDiscover")}</Text>
       </TouchableOpacity>
     </View>
   );
