@@ -184,7 +184,7 @@ export default function MemoriesBookScreen() {
                   circleLeft={cx - MAX_SIZE / 2}
                   onRight={i % 2 === 1}
                   screenWidth={width}
-                  onPress={() => router.push(`/memories/${m.id}` as any)}
+                  onPress={() => router.push(`/memories/${m.id}`)}
                 />
               );
             })}
@@ -199,7 +199,7 @@ export default function MemoriesBookScreen() {
         <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
           <ArrowLeft size={22} color={FG} strokeWidth={2} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit" as any)}>
+        <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit")}>
           <Plus size={22} color={FG} strokeWidth={2} />
         </TouchableOpacity>
       </View>

@@ -103,7 +103,7 @@ export default function PassPaywall() {
     if (!selected) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     if (mode === "gift") {
-      router.push({ pathname: "/settings/pass-gift", params: { period: selected.id } } as never);
+      router.push({ pathname: "/settings/pass-gift", params: { period: selected.id } });
       return;
     }
     Alert.alert(t("pass.title"), t("pass.buy.soon"), [{ text: t("common.ok") }]);
@@ -185,7 +185,7 @@ export default function PassPaywall() {
         <View style={s.links}>
           {legal.terms ? <FooterLink label={t("pass.paywall.terms")} onPress={() => Linking.openURL(legal.terms!)} /> : null}
           {legal.privacy ? <FooterLink label={t("pass.paywall.privacy")} onPress={() => Linking.openURL(legal.privacy!)} /> : null}
-          <FooterLink label={t("pass.paywall.haveCode")} onPress={() => router.push("/settings/redeem" as never)} />
+          <FooterLink label={t("pass.paywall.haveCode")} onPress={() => router.push("/settings/redeem")} />
           <FooterLink label={t("pass.paywall.notNow")} onPress={() => router.back()} />
         </View>
       </View>

@@ -55,7 +55,7 @@ export default function ManagePass() {
       ) : (
         <View style={{ gap: 12 }}>
           <Text style={s.hint}>{t("pass.manage.noRenew")}</Text>
-          <PrimaryButton label={t("pass.status.extend")} onPress={() => router.push("/settings/pass-buy" as any)} />
+          <PrimaryButton label={t("pass.status.extend")} onPress={() => router.push("/settings/pass-buy")} />
         </View>
       )}
     </SettingsScreen>

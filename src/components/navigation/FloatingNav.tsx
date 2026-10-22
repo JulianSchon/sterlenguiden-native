@@ -186,7 +186,7 @@ export default function FloatingNav() {
       label: "Karta",
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-        router.push("/(tabs)/map" as any);
+        router.push("/(tabs)/map");
       },
       icon: <NavMap active={active === "map"} />,
     },

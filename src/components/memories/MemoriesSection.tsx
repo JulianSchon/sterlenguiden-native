@@ -86,11 +86,11 @@ export function MemoriesSection() {
         <Text style={s.title}>Dina minnen</Text>
         <View style={s.actions}>
           {memories.length > 0 && (
-            <TouchableOpacity onPress={() => router.push("/memories" as any)} hitSlop={8}>
+            <TouchableOpacity onPress={() => router.push("/memories")} hitSlop={8}>
               <Text style={s.action}>Alla</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => router.push("/memories/edit" as any)} hitSlop={8}>
+          <TouchableOpacity onPress={() => router.push("/memories/edit")} hitSlop={8}>
             <Text style={s.action}>+ Skapa minne</Text>
           </TouchableOpacity>
         </View>
@@ -121,7 +121,7 @@ export function MemoriesSection() {
               cover={urls[m.photoPaths[0]]}
               tilt={TILTS[i % TILTS.length]}
               tapeTilt={TAPE_TILTS[i % TAPE_TILTS.length]}
-              onOpen={() => router.push(`/memories/${m.id}` as any)}
+              onOpen={() => router.push(`/memories/${m.id}`)}
             />
           ))}
         </ScrollView>

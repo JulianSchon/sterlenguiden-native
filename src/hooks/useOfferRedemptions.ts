@@ -16,7 +16,7 @@ export function useOfferRedemptions() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("offer_redemptions")
         .select("offer_id, activated_at")
         .eq("user_id", user.id);
@@ -39,7 +39,7 @@ export function useActivateOffer() {
       if (!user) throw new Error("Inte inloggad");
 
       // Ingen tid skickas med: databasen skriver now()
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("offer_redemptions")
         .insert({ user_id: user.id, offer_id: offer.id })
         .select("activated_at")

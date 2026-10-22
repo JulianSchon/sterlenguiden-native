@@ -84,7 +84,7 @@ export default function EditMemoryScreen() {
       } else {
         const newId = await create.mutateAsync({ input, photos: added });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        router.replace(`/memories/${newId}` as any);
+        router.replace(`/memories/${newId}`);
       }
     } catch {
       Alert.alert("Det gick inte att spara", "Kontrollera anslutningen och försök igen.");

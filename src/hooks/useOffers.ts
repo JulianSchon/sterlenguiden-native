@@ -12,7 +12,7 @@ export function useOffers(placeId?: number) {
   return useQuery<Offer[]>({
     queryKey: ["offers", placeId ?? "all"],
     queryFn: async () => {
-      let query = (supabase as any)
+      let query = supabase
         .from("offers")
         .select("*, place:places(name, logo_url, categories, nearest_town)")
         .eq("is_active", true)
@@ -39,7 +39,7 @@ export function useRedeemedOffers() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("offer_redemptions")
         .select("offer:offers(*, place:places(name, logo_url, categories, nearest_town))")
         .eq("user_id", user.id);

@@ -101,7 +101,7 @@ export default function ClaimScreen() {
   } else if (info.role) {
     content = (
       <StepLayout title="Du sköter redan den här sidan" subtitle={`Allt för ${info.place.name} finns under Mitt företag.`}
-        footer={<AuthButton label="Öppna Mitt företag" onPress={() => router.replace(`/business?place=${placeId}` as never)} />}>
+        footer={<AuthButton label="Öppna Mitt företag" onPress={() => router.replace(`/business?place=${placeId}`)} />}>
         <PlaceCard info={info} />
       </StepLayout>
     );
@@ -139,7 +139,7 @@ export default function ClaimScreen() {
         step={step}
         go={go}
         onFinished={finished}
-        onOpen={() => router.replace(`/business/welcome?place=${placeId}` as never)}
+        onOpen={() => router.replace(`/business/welcome?place=${placeId}`)}
         onClose={() => router.back()}
       />
     );

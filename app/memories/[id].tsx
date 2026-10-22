@@ -110,7 +110,7 @@ export default function MemoryDetailScreen() {
         <View style={s.header}>
           <TouchableOpacity
             style={s.backBtn}
-            onPress={() => (viaMap ? router.dismissTo("/mitt-osterlen" as any) : router.back())}
+            onPress={() => (viaMap ? router.dismissTo("/mitt-osterlen") : router.back())}
           >
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
@@ -219,7 +219,7 @@ export default function MemoryDetailScreen() {
               <Text style={s.sectionLabel}>PLATSER</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.placesRow}>
                 {memoryPlaces.map((p) => (
-                  <MemoryPlaceCard key={p.id} place={p} onPress={() => router.push(`/place/${p.id}?from=profile` as any)} />
+                  <MemoryPlaceCard key={p.id} place={p} onPress={() => router.push(`/place/${p.id}?from=profile`)} />
                 ))}
               </ScrollView>
             </View>
@@ -230,15 +230,15 @@ export default function MemoryDetailScreen() {
           <View style={s.actions}>
             <Text style={s.sectionLabel}>MER</Text>
             <View style={{ gap: 8 }}>
-              <ActionRow icon={<Plus size={18} color={FG} strokeWidth={2} />} label="Skapa nytt minne" onPress={() => router.push("/memories/edit" as any)} />
+              <ActionRow icon={<Plus size={18} color={FG} strokeWidth={2} />} label="Skapa nytt minne" onPress={() => router.push("/memories/edit")} />
               {memoryPlaces.length > 0 && (
                 <ActionRow
                   icon={<MapPin size={18} color={FG} strokeWidth={2} />}
                   label="Visa plats på kartan"
-                  onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } } as any)}
+                  onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } })}
                 />
               )}
-              <ActionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label="Redigera minne" onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } } as any)} />
+              <ActionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label="Redigera minne" onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } })} />
               <ActionRow icon={<Trash2 size={18} color="#E57373" strokeWidth={2} />} label="Radera minne" danger onPress={confirmDelete} />
             </View>
           </View>

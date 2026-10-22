@@ -45,7 +45,7 @@ export function useRewardCards() {
     queryKey: ["reward-cards"],
     staleTime: 10 * 60 * 1000,
     queryFn: async (): Promise<RewardCard[]> => {
-      const { data, error } = await (supabase as any).from("reward_cards").select("*").order("created_at");
+      const { data, error } = await supabase.from("reward_cards").select("*").order("created_at");
       if (error) throw error;
       return ((data ?? []) as RewardCardRow[]).map((c) => ({
         id: c.id,
@@ -68,7 +68,7 @@ export function useMyCards() {
     queryFn: async (): Promise<OwnedCard[]> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("user_cards")
         .select("card_id, awarded_at, seen_at")
         .eq("user_id", user.id)
@@ -85,7 +85,7 @@ export function useMyCards() {
  * mitt i presenten och ritade om (TrophyHost håller själv reda på öppnade presenter till dess).
  */
 export function markCardSeen(cardId: string) {
-  (supabase as any).rpc("mark_card_seen", { p_card_id: cardId }).then(noop, noop);
+  supabase.rpc("mark_card_seen", { p_card_id: cardId }).then(noop, noop);
 }
 
 const noop = () => {};

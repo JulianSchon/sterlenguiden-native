@@ -60,7 +60,7 @@ export default function SettingsHub() {
             try {
               await answerInvite(invite.id, true);
               await queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
-              router.push(`/business/welcome?place=${invite.place_id}` as any);
+              router.push(`/business/welcome?place=${invite.place_id}`);
             } catch {
               Alert.alert(t("common.error"), "Det gick inte att gå med just nu. Försök igen.");
             }
@@ -108,7 +108,7 @@ export default function SettingsHub() {
         {/* Blocken tonas in ett i taget: sidan veckas ut uppifrån och ner */}
         <Rise index={0}>
           {/* En profilring sticker ut utanför bilden: lika mycket luft runt den, så den inte hamnar under rubriken */}
-          <TouchableOpacity style={[s.profile, { paddingVertical: 2 + ringOverflow(profile?.avatar_ring, 76) }]} activeOpacity={0.8} onPress={() => router.push("/settings/account" as any)}>
+          <TouchableOpacity style={[s.profile, { paddingVertical: 2 + ringOverflow(profile?.avatar_ring, 76) }]} activeOpacity={0.8} onPress={() => router.push("/settings/account")}>
             <Avatar size={76} uri={photo} name={displayName} color={profile?.circle_color ?? "#2A2A2A"} ring={profile?.avatar_ring} />
             <Text style={s.name} numberOfLines={1}>{displayName}</Text>
           </TouchableOpacity>
@@ -116,12 +116,12 @@ export default function SettingsHub() {
 
         <Rise index={1}>
         <SettingsGroup>
-          <SettingsRow icon={User} label={t("settings.sections.account")} onPress={() => router.push("/settings/account" as any)} />
-          <SettingsRow icon={ThumbsUp} label={t("settings.sections.interests")} onPress={() => router.push("/settings/interests" as any)} />
-          <SettingsRow icon={Crown} label={t("settings.sections.pass")} onPress={() => router.push("/settings/pass" as any)} />
-          <SettingsRow icon={Palette} label={t("settings.sections.appearance")} onPress={() => router.push("/settings/appearance" as any)} />
-          <SettingsRow icon={Bell} label={t("settings.sections.notifications")} onPress={() => router.push("/settings/notifications" as any)} />
-          <SettingsRow icon={Info} label={t("settings.sections.about")} onPress={() => router.push("/settings/about" as any)} />
+          <SettingsRow icon={User} label={t("settings.sections.account")} onPress={() => router.push("/settings/account")} />
+          <SettingsRow icon={ThumbsUp} label={t("settings.sections.interests")} onPress={() => router.push("/settings/interests")} />
+          <SettingsRow icon={Crown} label={t("settings.sections.pass")} onPress={() => router.push("/settings/pass")} />
+          <SettingsRow icon={Palette} label={t("settings.sections.appearance")} onPress={() => router.push("/settings/appearance")} />
+          <SettingsRow icon={Bell} label={t("settings.sections.notifications")} onPress={() => router.push("/settings/notifications")} />
+          <SettingsRow icon={Info} label={t("settings.sections.about")} onPress={() => router.push("/settings/about")} />
         </SettingsGroup>
         </Rise>
 
@@ -136,7 +136,7 @@ export default function SettingsHub() {
                   subtitle={myPlaces.map((p) => p.name).join(", ")}
                   value={joinRequests > 0 ? `${joinRequests} vill gå med` : undefined}
                   tint={colors.goldText}
-                  onPress={() => router.push(`/business?place=${myPlaces[0].id}` as any)}
+                  onPress={() => router.push(`/business?place=${myPlaces[0].id}`)}
                 />
               )}
               {invites.map((invite) => (
@@ -154,7 +154,7 @@ export default function SettingsHub() {
                   icon={ShieldCheck}
                   label="Admin"
                   value={business.admin > 0 ? `${business.admin} väntar` : undefined}
-                  onPress={() => router.push("/admin" as any)}
+                  onPress={() => router.push("/admin")}
                 />
               )}
             </SettingsGroup>
@@ -170,7 +170,7 @@ export default function SettingsHub() {
               subtitle={t("settings.suggest.subtitle")}
               strong
               tint={colors.warm}
-              onPress={() => router.push("/settings/suggest" as any)}
+              onPress={() => router.push("/settings/suggest")}
             />
             {myPlaces.length === 0 && (
               <SettingsRow
@@ -180,7 +180,7 @@ export default function SettingsHub() {
                 subtitle="Ta hand om er sida i appen – gratis"
                 strong
                 tint={colors.warm}
-                onPress={() => router.push("/business/start" as any)}
+                onPress={() => router.push("/business/start")}
               />
             )}
           </SettingsGroup>

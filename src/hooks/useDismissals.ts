@@ -48,7 +48,7 @@ export function useDiscoveryLikes() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [] as number[];
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("discovery_likes")
         .select("place_id")
         .eq("user_id", user.id);
@@ -66,7 +66,7 @@ export function useLikePlace() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("discovery_likes")
         .insert({ user_id: user.id, place_id: placeId });
 

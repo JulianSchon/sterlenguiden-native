@@ -327,7 +327,7 @@ function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }
             key={l.id}
             style={{ width: 140 }}
             activeOpacity={0.8}
-            onPress={() => router.push(`/lists/${l.id}?view=friend&owner=${friendId}` as any)}
+            onPress={() => router.push(`/lists/${l.id}?view=friend&owner=${friendId}`)}
           >
             <ListCover coverImageUrl={l.coverImageUrl} images={imageOf(l.placeIds)} size={140} />
             <Text style={s.listName} numberOfLines={1}>{l.name}</Text>

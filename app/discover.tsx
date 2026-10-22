@@ -126,7 +126,7 @@ export default function DiscoverScreen() {
           {!queue || width === 0 ? (
             <Skeleton radius={26} style={StyleSheet.absoluteFill} />
           ) : !current ? (
-            <AllSeen onFavorites={() => router.replace("/favorites" as never)} onBack={() => router.back()} />
+            <AllSeen onFavorites={() => router.replace("/favorites")} onBack={() => router.back()} />
           ) : (
             visible.map(({ p, i }) => (
               <SwipeCard

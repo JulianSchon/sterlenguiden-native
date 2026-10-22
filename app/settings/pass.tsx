@@ -135,7 +135,7 @@ export default function PassHub() {
             circleColor={profile?.circle_color}
             avatarRing={profile?.avatar_ring}
             profileImageUrl={cardPhotoUrl}
-            onBuyPress={() => router.push("/settings/pass-buy" as any)}
+            onBuyPress={() => router.push("/settings/pass-buy")}
             startOnBack
             lockedBack
           />
@@ -163,17 +163,17 @@ export default function PassHub() {
 
       {!membership.isMember && (
         <View style={{ gap: 8 }}>
-          <PrimaryButton label={t("pass.status.get")} onPress={() => router.push("/settings/pass-buy" as any)} />
+          <PrimaryButton label={t("pass.status.get")} onPress={() => router.push("/settings/pass-buy")} />
           {cheapest !== null && <Text style={s.from}>{t("pass.status.from", { price: cheapest })}</Text>}
         </View>
       )}
 
       <View style={s.actions}>
-        <QuickAction icon={Tag} label={t("pass.actions.offers")} badge={offers.length} onPress={() => router.push("/offers" as any)} />
-        <QuickAction icon={Ticket} label={t("pass.actions.redeem")} onPress={() => router.push("/settings/redeem" as any)} />
-        <QuickAction icon={Gift} label={t("pass.actions.give")} onPress={() => router.push({ pathname: "/settings/pass-buy", params: { mode: "gift" } } as any)} />
+        <QuickAction icon={Tag} label={t("pass.actions.offers")} badge={offers.length} onPress={() => router.push("/offers")} />
+        <QuickAction icon={Ticket} label={t("pass.actions.redeem")} onPress={() => router.push("/settings/redeem")} />
+        <QuickAction icon={Gift} label={t("pass.actions.give")} onPress={() => router.push({ pathname: "/settings/pass-buy", params: { mode: "gift" } })} />
         {membership.isMember && (
-          <QuickAction icon={Settings2} label={t("pass.actions.manage")} onPress={() => router.push("/settings/pass-manage" as any)} />
+          <QuickAction icon={Settings2} label={t("pass.actions.manage")} onPress={() => router.push("/settings/pass-manage")} />
         )}
       </View>
 

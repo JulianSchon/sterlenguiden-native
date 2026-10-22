@@ -28,8 +28,7 @@ export function useFriendVisits(limit = 20) {
     queryFn: async (): Promise<FriendVisit[]> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      // Funktionen finns inte i de genererade typerna än
-      const { data, error } = await (supabase as any).rpc("rpc_friends_recent_visits", { p_limit: limit });
+      const { data, error } = await supabase.rpc("rpc_friends_recent_visits", { p_limit: limit });
       if (error) return [];
       return ((data ?? []) as Row[]).map((r) => ({
         userId: r.user_id,

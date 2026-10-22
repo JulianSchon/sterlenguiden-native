@@ -20,8 +20,7 @@ export interface NotificationPrefs {
 const DEFAULT_PREFS: NotificationPrefs = { events: true, offers: true, news: true, pass: true, scope: "all", towns: [] };
 
 const KEY = ["notification-prefs"];
-// Tabellen finns inte i de genererade typerna än
-const table = () => (supabase as any).from("notification_preferences");
+const table = () => supabase.from("notification_preferences");
 
 async function requireUserId(): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -36,7 +35,7 @@ export function useNotificationPrefs() {
       const userId = await requireUserId();
       const { data, error } = await table().select("events, offers, news, pass, scope, towns").eq("user_id", userId).maybeSingle();
       if (error) throw error;
-      return { ...DEFAULT_PREFS, ...(data ?? {}) };
+      return { ...DEFAULT_PREFS, ...data, scope: data?.scope === "towns" ? "towns" : "all" };
     },
   });
 }

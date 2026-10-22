@@ -23,8 +23,7 @@ export function useSuggestPlace() {
     mutationFn: async (suggestion: PlaceSuggestion) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("not_authenticated");
-      // Tabellen finns inte i de genererade typerna än
-      const { error } = await (supabase as any).from("place_suggestions").insert({
+      const { error } = await supabase.from("place_suggestions").insert({
         user_id: user.id,
         name: suggestion.name.trim(),
         category: suggestion.category,

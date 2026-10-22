@@ -70,7 +70,7 @@ export default function MittOsterlenScreen() {
       ignite.value = withTiming(1, { duration: IGNITE_MS, easing: Easing.linear });
     };
     const fallback = setTimeout(start, IGNITE_FALLBACK_MS);
-    const unsubscribe = navigation.addListener("transitionEnd" as any, start);
+    const unsubscribe = navigation.addListener("transitionEnd" as never, start);
     return () => { clearTimeout(fallback); unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

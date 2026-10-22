@@ -19,7 +19,7 @@ export function ListsSection() {
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
 
-  const openList = (id: string) => router.push(`/lists/${id}` as any);
+  const openList = (id: string) => router.push(`/lists/${id}`);
 
   return (
     <View style={s.section}>

@@ -6,6 +6,7 @@
  * sköter platsen och att värdena är rimliga, så det här är bara appens sida av det.
  */
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { preparePhoto } from "@/lib/photos";
 import type { HoursException } from "@/lib/openingHours";
 import type { Offer } from "@/lib/offers";
@@ -229,8 +230,8 @@ export class BusinessError extends Error {
   }
 }
 
-/** Anropar en av portalens databasfunktioner (de finns inte i de genererade typerna) */
-export async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
+/** Anropar en av portalens databasfunktioner; ett fel blir ett BusinessError med koden kvar */
+export async function rpc<T>(fn: keyof Database["public"]["Functions"], args?: Record<string, unknown>): Promise<T> {
   // bind: utan den tappar rpc sin koppling till klienten ("Cannot read property rest of undefined")
   const call = supabase.rpc.bind(supabase) as unknown as (fn: string, args?: object) => PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
   const { data, error } = await call(fn, args);

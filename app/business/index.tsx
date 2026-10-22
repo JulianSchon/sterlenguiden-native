@@ -61,7 +61,7 @@ export default function BusinessHome() {
   useEffect(() => {
     if (loading || error) return;
     if (!mine) router.replace(places.length > 0 ? `/business?place=${places[0].id}` as never : "/business/start" as never);
-    else if (!mine.terms_accepted_at) router.replace(`/business/welcome?place=${mine.id}` as never);
+    else if (!mine.terms_accepted_at) router.replace(`/business/welcome?place=${mine.id}`);
   }, [loading, error, mine, places, router]);
 
   // Inget nät (eller ett fel): säg det, i stället för att skicka iväg en företagare till "För företag"
@@ -256,7 +256,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
               key={p.id}
               style={[s.switchRow, p.id === placeId && { borderColor: colors.goldBorder }]}
               activeOpacity={0.75}
-              onPress={() => { setSwitchOpen(false); router.replace(`/business?place=${p.id}` as never); }}
+              onPress={() => { setSwitchOpen(false); router.replace(`/business?place=${p.id}`); }}
             >
               <PlaceThumb mine={p} size={44} />
               <View style={{ flex: 1 }}>

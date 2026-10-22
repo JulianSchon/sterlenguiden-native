@@ -87,7 +87,7 @@ export default function OffersScreen() {
   const openTicket = useCallback((offer: Offer, origin: OriginRect | null) => setOpen({ offer, origin }), []);
   const closeDrawer = useCallback(() => setOpen(null), []);
   const openPlace = useCallback(() => {
-    if (open) router.push(`/place/${open.offer.place_id}?from=offers` as never);
+    if (open) router.push(`/place/${open.offer.place_id}?from=offers`);
   }, [open, router]);
   // Panelen byggs i förväg (osynlig) strax efter att sidan öppnats, så rivningen alltid syns —
   // men inte medan sidan själv glider fram

@@ -109,9 +109,9 @@ export function CheckInSection({ place }: { place: Place }) {
   // Belöningen tonar själv ut. En sida som ska öppnas läggs bakom den medan den fortfarande täcker
   // skärmen, så man aldrig skymtar platssidan på vägen
   const handleCelebrationNavigate = (exit: CelebrationExit) => {
-    if (exit === "offers") router.push("/offers" as any);
-    else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } } as any);
-    else router.push(`/place/${exit.placeId}?from=checkin` as any);
+    if (exit === "offers") router.push("/offers");
+    else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } });
+    else router.push(`/place/${exit.placeId}?from=checkin`);
   };
 
   const handleRecheck = async () => {

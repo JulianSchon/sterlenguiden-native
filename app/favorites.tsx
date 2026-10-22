@@ -315,7 +315,7 @@ export default function FavoritesScreen() {
           <Text style={[s.muted, { textAlign: "center", lineHeight: 21 }]}>
             Tryck på hjärtat på en plats eller ett event för att spara det här.
           </Text>
-          <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore" as any)}>
+          <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore")}>
             <Text style={s.emptyBtnText}>Utforska platser</Text>
           </TouchableOpacity>
         </View>

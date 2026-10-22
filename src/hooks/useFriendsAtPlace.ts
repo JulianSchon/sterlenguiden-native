@@ -31,8 +31,7 @@ export function useFriendsAtPlace(placeId: number | null) {
     queryFn: async (): Promise<FriendAtPlace[]> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      // Funktionen finns inte i de genererade typerna än
-      const { data, error } = await (supabase as any).rpc("rpc_friends_at_place", { p_place_id: placeId });
+      const { data, error } = await supabase.rpc("rpc_friends_at_place", { p_place_id: placeId! });
       if (error) return [];
       return ((data ?? []) as Row[]).map((r) => ({
         userId: r.user_id,

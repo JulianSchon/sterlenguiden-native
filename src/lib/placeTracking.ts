@@ -27,9 +27,8 @@ export function sourceFromParam(from: string | undefined): PlaceSource | null {
 }
 
 function send(placeId: number, kind: "profile_view" | "link_click" | "navigation_click", link: PlaceLink | null, source: PlaceSource | null) {
-  // Funktionen finns inte i de genererade typerna än
-  (supabase.rpc.bind(supabase) as unknown as (fn: string, args: object) => PromiseLike<unknown>)("track_place_event", {
-    p_place_id: placeId, p_kind: kind, p_link: link, p_source: source,
+  supabase.rpc("track_place_event", {
+    p_place_id: placeId, p_kind: kind, p_link: link ?? undefined, p_source: source ?? undefined,
   }).then(() => {}, () => {});
 }
 

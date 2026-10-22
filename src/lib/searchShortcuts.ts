@@ -46,5 +46,5 @@ export const TILES: Shortcut[] = [
  * `n` gör att samma fråga två gånger i rad ändå ställs igen.
  */
 export function openSearch(router: ReturnType<typeof useRouter>, query: string) {
-  router.navigate({ pathname: "/(tabs)/explore", params: { ask: query, n: String(Date.now()) } } as never);
+  router.navigate({ pathname: "/(tabs)/explore", params: { ask: query, n: String(Date.now()) } });
 }

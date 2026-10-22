@@ -43,7 +43,7 @@ export default function BusinessWelcome() {
     try {
       await acceptTerms(placeId);
       await queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
-      router.replace(`/business?place=${placeId}` as never);
+      router.replace(`/business?place=${placeId}`);
     } catch (e) {
       setError(businessError(e));
       setBusy(false);

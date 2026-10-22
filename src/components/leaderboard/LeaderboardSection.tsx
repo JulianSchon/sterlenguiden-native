@@ -36,7 +36,7 @@ export function LeaderboardSection() {
   const meInTop = !!me && top.some((e) => e.userId === me.userId);
   const participating = profile?.show_in_leaderboard === true;
   const month = format(new Date(), "LLLL", { locale: sv });
-  const open = () => router.push("/leaderboards" as any);
+  const open = () => router.push("/leaderboards");
 
   return (
     <View style={s.section}>

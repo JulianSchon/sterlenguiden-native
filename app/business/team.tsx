@@ -90,7 +90,7 @@ export default function BusinessTeam() {
           {
             text: "Lämna", style: "destructive",
             onPress: () => actions.remove(m.user_id).then((r) => {
-              if (r.ok) router.dismissTo("/settings" as never);
+              if (r.ok) router.dismissTo("/settings");
               else toast.current?.show(r.reason === "last_owner" ? "Gör någon annan till ägare först" : "Det gick inte");
             }).catch((e) => toast.current?.show(businessError(e))),
           },

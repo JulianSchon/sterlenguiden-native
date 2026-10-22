@@ -36,7 +36,7 @@ export function useStoryViews() {
       if (!user) return [];
       const seen = await readLocal(user.id);
       const cutoff = Date.now() - SEEN_WINDOW_MS;
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("story_views")
         .select("story_id, viewed_at")
         .eq("user_id", user.id);
@@ -66,9 +66,9 @@ export async function markStoryViewed(storyId: string): Promise<void> {
     seen[storyId] = at;
     await AsyncStorage.setItem(localKey(user.id), JSON.stringify(seen)).catch(() => {});
     const row = { user_id: user.id, story_id: storyId, viewed_at: at };
-    const { error } = await (supabase as any).from("story_views").upsert(row, { onConflict: "user_id,story_id" });
+    const { error } = await supabase.from("story_views").upsert(row, { onConflict: "user_id,story_id" });
     // Nekas upsert (saknad regel i databasen) sparas en vanlig rad i stället — telefonen minns ändå
-    if (error) await (supabase as any).from("story_views").insert(row);
+    if (error) await supabase.from("story_views").insert(row);
   } catch {
     // Telefonen minns i alla fall (om det hann sparas där)
   }

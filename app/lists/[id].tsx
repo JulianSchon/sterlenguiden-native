@@ -161,7 +161,7 @@ export default function ListDetailScreen() {
     try {
       const newId = await copyFriendList.mutateAsync(list);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      router.replace(`/lists/${newId}` as any);
+      router.replace(`/lists/${newId}`);
     } catch {
       Alert.alert("Något gick fel", "Det gick inte att spara en kopia av listan. Försök igen.");
     }
@@ -170,7 +170,7 @@ export default function ListDetailScreen() {
   async function handleDuplicate() {
     if (!list) return;
     const newId = await duplicateList.mutateAsync(list);
-    router.replace(`/lists/${newId}` as any);
+    router.replace(`/lists/${newId}`);
   }
 
   function handleDeleteOrLeave() {
@@ -316,7 +316,7 @@ export default function ListDetailScreen() {
                 hasOffer={offerPlaceIds.has(item.place.id)}
                 isActive={isActive}
                 viewOnly={viewOnly}
-                onPress={() => router.push(`/place/${item.place.id}?from=lists` as any)}
+                onPress={() => router.push(`/place/${item.place.id}?from=lists`)}
                 onDrag={drag}
                 onRemove={() =>
                   confirm("Ta bort plats", `Ta bort ${item.place.name} från listan? Det gäller alla medlemmar.`, "Ta bort", () =>

@@ -302,7 +302,7 @@ export default function ProfileScreen() {
     <View style={[s.screen, { paddingTop: Math.max(insets.top, 44), paddingBottom: floatingNavSolidHeight(insets.bottom) }]}>
       <View style={s.titleRow}>
         <Text style={s.pageTitle}>{t("profile.title")}</Text>
-        <TouchableOpacity style={s.gearBtn} onPress={() => router.push("/settings" as any)}>
+        <TouchableOpacity style={s.gearBtn} onPress={() => router.push("/settings")}>
           <Settings size={20} color={colors.muted} strokeWidth={1.75} />
         </TouchableOpacity>
       </View>
@@ -325,7 +325,7 @@ export default function ProfileScreen() {
           avatarRing={profile?.avatar_ring}
           ringComponent={SnapRing}
           profileImageUrl={cardPhotoUrl}
-          onBuyPress={() => router.push("/settings/pass-buy" as any)}
+          onBuyPress={() => router.push("/settings/pass-buy")}
         />
         </CardReveal>
 
@@ -337,13 +337,13 @@ export default function ProfileScreen() {
             badge={activeOffers.length}
             title={t("profile.offers.title")}
             subtitle={offerSubtitle}
-            onPress={() => router.push("/offers" as any)}
+            onPress={() => router.push("/offers")}
           />
           <PrimaryTile
             logo
             title={t("profile.myOsterlen.title")}
             subtitle={t("profile.myOsterlen.tile")}
-            onPress={() => router.push("/mitt-osterlen" as any)}
+            onPress={() => router.push("/mitt-osterlen")}
           />
         </View>
 
@@ -354,21 +354,21 @@ export default function ProfileScreen() {
             title={t("profile.favorites.title")}
             subtitle={favSubtitle}
             thumbs={<Thumbs uris={favImages} />}
-            onPress={() => router.push("/favorites" as any)}
+            onPress={() => router.push("/favorites")}
           />
           <ProfileRow
             icon={ClipboardList}
             title={t("profile.history.title")}
             subtitle={visitCount === 1 ? t("profile.history.one") : t("profile.history.count", { count: visitCount })}
             thumbs={<Thumbs uris={recentImages} />}
-            onPress={() => router.push("/visits" as any)}
+            onPress={() => router.push("/visits")}
           />
           <ProfileRow
             icon={BarChart3}
             title={t("profile.stats.title")}
             subtitle={t("profile.stats.sub")}
             thumbs={<View style={s.thumbs}>{topCategories.map((cat, i) => <CategoryBox key={cat.id} cat={cat} index={i} />)}</View>}
-            onPress={() => router.push("/stats" as any)}
+            onPress={() => router.push("/stats")}
           />
           <ProfileRow
             icon={Medal}
@@ -376,7 +376,7 @@ export default function ProfileScreen() {
             subtitle={t("profile.challenges.sub", { done: trophiesDone, total: trophies.length })}
             thumbs={<View style={s.thumbs}>{doneTrophies.map((trophy, i) => <TrophyBox key={trophy.key} trophy={trophy} index={i} />)}</View>}
             last
-            onPress={() => router.push("/challenges" as any)}
+            onPress={() => router.push("/challenges")}
           />
         </View>
       </ScrollView>

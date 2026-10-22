@@ -96,7 +96,7 @@ export const DiscoverCard = memo(function DiscoverCard() {
 
   return (
     <Pressable
-      onPress={() => router.push("/discover" as never)}
+      onPress={() => router.push("/discover")}
       onPressIn={() => { press.value = withSpring(0.97, { damping: 36, stiffness: 320 }); }}
       onPressOut={() => { press.value = withSpring(1, { damping: 32, stiffness: 260 }); }}
       accessibilityRole="button"

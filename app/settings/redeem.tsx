@@ -60,7 +60,7 @@ export default function RedeemCodeScreen() {
       overlay={(
         <MembershipMoment
           info={moment}
-          onOffers={() => { setMoment(null); router.replace("/offers" as never); }}
+          onOffers={() => { setMoment(null); router.replace("/offers"); }}
           onDone={() => { setMoment(null); router.back(); }}
         />
       )}

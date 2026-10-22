@@ -52,10 +52,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Österlenappen använder din plats för att visa avstånd, vad som har öppet nära dig och kartan, och för att du ska kunna checka in där du är.",
-          "locationAlwaysAndWhenInUsePermission": "Österlenappen använder din plats, även i bakgrunden, för att du automatiskt ska samla platsmärken (stickers) när du besöker platser på Österlen.",
-          "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
+          "locationWhenInUsePermission": "Österlenappen använder din plats för att visa avstånd, vad som har öppet nära dig och kartan, och för att du ska kunna checka in och hitta skatter där du är."
         }
       ],
       "expo-secure-store",

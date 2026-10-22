@@ -133,7 +133,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
             onLanded={handleLanded}
             onLayout={(e) => { cellY.current[c.id] = e.nativeEvent.layout.y; }}
             onLoaded={() => markLoaded(c.id)}
-            onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } } as any)}
+            onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } })}
           />
         ))}
       </View>

@@ -951,8 +951,8 @@ export default function MapScreen() {
               style={[s.backToMemory, { bottom: cardBottom + PLACE_CARD_H + 12, backgroundColor: dark ? "#1A1A1D" : "#FFFFFF" }]}
               activeOpacity={0.85}
               onPress={() => {
-                router.push("/(tabs)/profile" as any);
-                router.push({ pathname: `/memories/${fromMemoryParam}`, params: { viaMap: "1" } } as any);
+                router.push("/(tabs)/profile");
+                router.push({ pathname: "/memories/[id]", params: { id: fromMemoryParam, viaMap: "1" } });
               }}
             >
               <ArrowLeft size={14} color={colors.text} strokeWidth={2.2} />

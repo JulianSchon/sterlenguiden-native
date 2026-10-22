@@ -34,7 +34,7 @@ export function NearbyCheckInPrompt({
     <TouchableOpacity
       style={s.card}
       activeOpacity={0.85}
-      onPress={() => router.push(`/place/${place.id}?from=checkin` as any)}
+      onPress={() => router.push(`/place/${place.id}?from=checkin`)}
     >
       <View style={s.iconCircle}>
         <MapPin size={22} color={colors.goldText} strokeWidth={2} />

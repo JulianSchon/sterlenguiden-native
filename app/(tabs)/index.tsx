@@ -315,11 +315,11 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const openNews = useCallback((n: NewsItem) => pushOnce(router, `/news/${n.id}`), [router]);
   const openFriend = useCallback((userId: string) => router.push({ pathname: "/friend/[id]", params: { id: userId } }), [router]);
   const openTreasure = useCallback((c: Collectible) => {
-    router.navigate({ pathname: "/(tabs)/map", params: { sticker: c.id } } as never);
+    router.navigate({ pathname: "/(tabs)/map", params: { sticker: c.id } });
   }, [router]);
   const showOpenNow = useCallback(() => openSearch(router, "öppet nu"), [router]);
-  const showCalendar = useCallback(() => router.navigate("/(tabs)/calendar" as never), [router]);
-  const openDiscover = useCallback(() => router.push("/discover" as never), [router]);
+  const showCalendar = useCallback(() => router.navigate("/(tabs)/calendar"), [router]);
+  const openDiscover = useCallback(() => router.push("/discover"), [router]);
 
   // Fliktrycket i navigeringen scrollar upp till toppen
   const listRef = useRef<FlatList<FeedItem>>(null);

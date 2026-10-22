@@ -139,7 +139,7 @@ export default function VisitsScreen() {
           </View>
           <Text style={s.emptyTitle}>Din Österlenresa börjar här</Text>
           <Text style={s.emptyText}>När du checkar in på platser dyker de upp här, i din egen tidslinje.</Text>
-          <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore" as any)}>
+          <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore")}>
             <Text style={s.emptyBtnText}>Utforska platser</Text>
           </TouchableOpacity>
         </View>

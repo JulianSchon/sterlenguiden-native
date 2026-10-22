@@ -20,7 +20,7 @@ export function useAllServicePoints() {
     queryKey: ["service-points", "all"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("service_points" as any)
+        .from("service_points")
         .select("id, name, description, short_description, address, type, lat, lng, phone, logo_url")
         .order("name");
       if (error) throw error;

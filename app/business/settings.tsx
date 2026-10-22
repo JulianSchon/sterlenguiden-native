@@ -43,7 +43,7 @@ export default function BusinessSettings() {
       {
         text: "Lämna", style: "destructive",
         onPress: () => team.remove(user.id).then((r) => {
-          if (r.ok) router.dismissTo("/settings" as never);
+          if (r.ok) router.dismissTo("/settings");
           else Alert.alert("Det går inte än", r.reason === "last_owner" ? "Du är den enda ägaren. Gör någon annan till ägare under Personal först." : "Försök igen.");
         }).catch((e) => Alert.alert("Det gick inte", businessError(e))),
       },

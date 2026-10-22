@@ -189,8 +189,8 @@ export function TrophyHost() {
   // flikarna (t.ex. Mitt Österlen). router.navigate därifrån lade i stället en helt ny kopia av
   // alla flikar ovanpå, med en egen ny Profil.
   const goToProfile = () => {
-    if (segments[0] === "(tabs)") router.navigate("/(tabs)/profile" as any);
-    else router.dismissTo("/(tabs)/profile" as any);
+    if (segments[0] === "(tabs)") router.navigate("/(tabs)/profile");
+    else router.dismissTo("/(tabs)/profile");
   };
 
   // ─── Listinbjudningar och ny månad på topplistan ──────────────────────────
@@ -223,7 +223,7 @@ export function TrophyHost() {
       <ListInviteMoment
         key={inviting.listId}
         invite={inviting}
-        onOpenList={(listId) => router.push(`/lists/${listId}` as any)}
+        onOpenList={(listId) => router.push(`/lists/${listId}`)}
         onClose={() => {
           setAnswered((a) => [...a, inviting.listId]);
           setInviting(null);
@@ -236,7 +236,7 @@ export function TrophyHost() {
     return (
       <MonthResetMoment
         reset={monthReset.moment}
-        onOpenLeaderboard={() => router.push("/leaderboards" as any)}
+        onOpenLeaderboard={() => router.push("/leaderboards")}
         onClose={() => {
           monthReset.done();
           setShowReset(false);
@@ -285,7 +285,7 @@ export function TrophyHost() {
       position={total > 1 ? { index: shown + 1, total } : null}
       onNavigate={() => {
         dropRest.current = true;
-        if (pathname !== "/challenges") router.push("/challenges" as any);
+        if (pathname !== "/challenges") router.push("/challenges");
       }}
       onClose={finish}
     />

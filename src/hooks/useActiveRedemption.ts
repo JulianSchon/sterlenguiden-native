@@ -38,9 +38,9 @@ export function useActiveRedemption() {
       if (!user) return null;
 
       const select = "offer_id, activated_at, offer:offers(title, category, savings_label, place:places(name, logo_url))";
-      let query = (supabase as any).from("offer_redemptions").select(select).eq("user_id", user.id);
+      let query = supabase.from("offer_redemptions").select(select).eq("user_id", user.id);
 
-      const { data: active, error: rpcError } = await (supabase as any).rpc("rpc_active_redemption");
+      const { data: active, error: rpcError } = await supabase.rpc("rpc_active_redemption");
       if (!rpcError) {
         const row = active?.[0];
         if (row?.server_now) syncServerClock(new Date(row.server_now).getTime());

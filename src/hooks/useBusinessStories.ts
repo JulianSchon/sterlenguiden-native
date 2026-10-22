@@ -28,7 +28,7 @@ export function useBusinessStories() {
   return useQuery({
     queryKey: ["business-stories"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("business_stories")
         .select("*, place:places(name, logo_url, categories, nearest_town)")
         .or(

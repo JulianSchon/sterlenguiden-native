@@ -66,6 +66,8 @@ export type Database = {
           id: string
           link_type: string | null
           place_id: number
+          source: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -73,6 +75,8 @@ export type Database = {
           id?: string
           link_type?: string | null
           place_id: number
+          source?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -80,6 +84,8 @@ export type Database = {
           id?: string
           link_type?: string | null
           place_id?: number
+          source?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -101,7 +107,13 @@ export type Database = {
           id: string
           image_url: string
           is_premium: boolean | null
+          link: Json | null
+          offer_category: string | null
           place_id: number
+          redemption_interval: string
+          redemption_limit: number | null
+          savings_label: string | null
+          savings_value: number | null
           user_id: string
         }
         Insert: {
@@ -113,7 +125,13 @@ export type Database = {
           id?: string
           image_url: string
           is_premium?: boolean | null
+          link?: Json | null
+          offer_category?: string | null
           place_id: number
+          redemption_interval?: string
+          redemption_limit?: number | null
+          savings_label?: string | null
+          savings_value?: number | null
           user_id: string
         }
         Update: {
@@ -125,7 +143,13 @@ export type Database = {
           id?: string
           image_url?: string
           is_premium?: boolean | null
+          link?: Json | null
+          offer_category?: string | null
           place_id?: number
+          redemption_interval?: string
+          redemption_limit?: number | null
+          savings_label?: string | null
+          savings_value?: number | null
           user_id?: string
         }
         Relationships: [
@@ -178,43 +202,78 @@ export type Database = {
           sort_order?: number
           town?: string | null
         }
-        Relationships: []
-      }
-      completed_levels: {
-        Row: {
-          completed_at: string | null
-          id: string
-          level_id: string | null
-          profile_id: string | null
-        }
-        Insert: {
-          completed_at?: string | null
-          id?: string
-          level_id?: string | null
-          profile_id?: string | null
-        }
-        Update: {
-          completed_at?: string | null
-          id?: string
-          level_id?: string | null
-          profile_id?: string | null
-        }
         Relationships: [
           {
-            foreignKeyName: "completed_levels_level_id_fkey"
-            columns: ["level_id"]
+            foreignKeyName: "collectibles_place_id_fkey"
+            columns: ["place_id"]
             isOneToOne: false
-            referencedRelation: "game_levels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "completed_levels_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
+      }
+      content_translations: {
+        Row: {
+          created_at: string
+          field: string
+          id: string
+          kind: string
+          lang: string
+          ref_id: string
+          source_hash: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          field: string
+          id?: string
+          kind: string
+          lang: string
+          ref_id: string
+          source_hash: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          field?: string
+          id?: string
+          kind?: string
+          lang?: string
+          ref_id?: string
+          source_hash?: string
+          text?: string
+        }
+        Relationships: []
+      }
+      daily_questions: {
+        Row: {
+          correct_index: number
+          created_at: string
+          explanation: string | null
+          id: string
+          options: Json
+          question: string
+          question_date: string
+        }
+        Insert: {
+          correct_index: number
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          options: Json
+          question: string
+          question_date: string
+        }
+        Update: {
+          correct_index?: number
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          question?: string
+          question_date?: string
+        }
+        Relationships: []
       }
       discovery_dismissals: {
         Row: {
@@ -245,45 +304,110 @@ export type Database = {
           },
         ]
       }
+      discovery_likes: {
+        Row: {
+          created_at: string
+          place_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          place_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          place_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_likes_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
+          booking_required: boolean
+          created_at: string
+          created_by: string | null
           date: string | null
           description: string | null
           end_date: string | null
+          has_food_drink: boolean | null
+          has_parking: boolean | null
           id: number
           image_url: string | null
           is_featured: boolean | null
+          is_indoor: boolean | null
+          is_sold_out: boolean | null
           location: string | null
           logo_url: string | null
+          main_category: string | null
           place_id: number | null
+          series_id: string | null
+          sub_categories: string[] | null
+          ticket_url: string | null
+          tickets_release_at: string | null
+          tickets_required: boolean | null
           time: string | null
           title: string
           website_url: string | null
         }
         Insert: {
+          booking_required?: boolean
+          created_at?: string
+          created_by?: string | null
           date?: string | null
           description?: string | null
           end_date?: string | null
+          has_food_drink?: boolean | null
+          has_parking?: boolean | null
           id?: number
           image_url?: string | null
           is_featured?: boolean | null
+          is_indoor?: boolean | null
+          is_sold_out?: boolean | null
           location?: string | null
           logo_url?: string | null
+          main_category?: string | null
           place_id?: number | null
+          series_id?: string | null
+          sub_categories?: string[] | null
+          ticket_url?: string | null
+          tickets_release_at?: string | null
+          tickets_required?: boolean | null
           time?: string | null
           title: string
           website_url?: string | null
         }
         Update: {
+          booking_required?: boolean
+          created_at?: string
+          created_by?: string | null
           date?: string | null
           description?: string | null
           end_date?: string | null
+          has_food_drink?: boolean | null
+          has_parking?: boolean | null
           id?: number
           image_url?: string | null
           is_featured?: boolean | null
+          is_indoor?: boolean | null
+          is_sold_out?: boolean | null
           location?: string | null
           logo_url?: string | null
+          main_category?: string | null
           place_id?: number | null
+          series_id?: string | null
+          sub_categories?: string[] | null
+          ticket_url?: string | null
+          tickets_release_at?: string | null
+          tickets_required?: boolean | null
           time?: string | null
           title?: string
           website_url?: string | null
@@ -297,42 +421,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      farm_items: {
-        Row: {
-          category: string
-          created_at: string
-          id: string
-          image_url: string
-          is_active: boolean
-          min_level: number
-          name: string
-          season_id: string | null
-          slot_type: string | null
-        }
-        Insert: {
-          category?: string
-          created_at?: string
-          id?: string
-          image_url: string
-          is_active?: boolean
-          min_level?: number
-          name: string
-          season_id?: string | null
-          slot_type?: string | null
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          id?: string
-          image_url?: string
-          is_active?: boolean
-          min_level?: number
-          name?: string
-          season_id?: string | null
-          slot_type?: string | null
-        }
-        Relationships: []
       }
       favorites: {
         Row: {
@@ -383,30 +471,92 @@ export type Database = {
           },
         ]
       }
-      game_levels: {
+      friendships: {
         Row: {
-          config: Json | null
+          addressee_id: string
           created_at: string
-          difficulty: number | null
-          game_type: string | null
           id: string
-          xp_reward: number | null
+          requester_id: string
+          responded_at: string | null
+          status: string
         }
         Insert: {
-          config?: Json | null
+          addressee_id: string
           created_at?: string
-          difficulty?: number | null
-          game_type?: string | null
           id?: string
-          xp_reward?: number | null
+          requester_id: string
+          responded_at?: string | null
+          status?: string
         }
         Update: {
-          config?: Json | null
+          addressee_id?: string
           created_at?: string
-          difficulty?: number | null
-          game_type?: string | null
           id?: string
-          xp_reward?: number | null
+          requester_id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      guide_stories: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          image_url: string | null
+          list_id: string
+          place_id: number | null
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          list_id: string
+          place_id?: number | null
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          list_id?: string
+          place_id?: number | null
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guide_stories_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "trip_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_cover_options: {
+        Row: {
+          created_at: string
+          id: string
+          sort_order: number
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sort_order?: number
+          url?: string
         }
         Relationships: []
       }
@@ -550,9 +700,9 @@ export type Database = {
           highlight: string | null
           id: string
           memory_date: string
-          people: string[] | null
-          photo_paths: string[] | null
-          place_ids: number[] | null
+          people: string[]
+          photo_paths: string[]
+          place_ids: number[]
           story: string | null
           title: string
           trip_id: string | null
@@ -564,10 +714,10 @@ export type Database = {
           created_at?: string
           highlight?: string | null
           id?: string
-          memory_date: string
-          people?: string[] | null
-          photo_paths?: string[] | null
-          place_ids?: number[] | null
+          memory_date?: string
+          people?: string[]
+          photo_paths?: string[]
+          place_ids?: number[]
           story?: string | null
           title: string
           trip_id?: string | null
@@ -580,16 +730,222 @@ export type Database = {
           highlight?: string | null
           id?: string
           memory_date?: string
-          people?: string[] | null
-          photo_paths?: string[] | null
-          place_ids?: number[] | null
+          people?: string[]
+          photo_paths?: string[]
+          place_ids?: number[]
           story?: string | null
           title?: string
           trip_id?: string | null
           updated_at?: string
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "memories_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "resor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news: {
+        Row: {
+          body: string | null
+          category: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          gallery_urls: string[] | null
+          id: string
+          ingress: string | null
+          is_pinned: boolean
+          is_published: boolean
+          link_label: string | null
+          link_url: string | null
+          place_id: number | null
+          priority: number
+          published_at: string | null
+          slug: string
+          source: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          gallery_urls?: string[] | null
+          id?: string
+          ingress?: string | null
+          is_pinned?: boolean
+          is_published?: boolean
+          link_label?: string | null
+          link_url?: string | null
+          place_id?: number | null
+          priority?: number
+          published_at?: string | null
+          slug: string
+          source?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          gallery_urls?: string[] | null
+          id?: string
+          ingress?: string | null
+          is_pinned?: boolean
+          is_published?: boolean
+          link_label?: string | null
+          link_url?: string | null
+          place_id?: number | null
+          priority?: number
+          published_at?: string | null
+          slug?: string
+          source?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          events: boolean
+          news: boolean
+          offers: boolean
+          pass: boolean
+          scope: string
+          towns: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          events?: boolean
+          news?: boolean
+          offers?: boolean
+          pass?: boolean
+          scope?: string
+          towns?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          events?: boolean
+          news?: boolean
+          offers?: boolean
+          pass?: boolean
+          scope?: string
+          towns?: string[]
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: []
+      }
+      offer_redemptions: {
+        Row: {
+          activated_at: string
+          id: string
+          offer_id: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string
+          id?: string
+          offer_id: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string
+          id?: string
+          offer_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_redemptions_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offers: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          place_id: number
+          redemption_interval: string
+          redemption_limit: number | null
+          savings_label: string | null
+          savings_value: number | null
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          place_id: number
+          redemption_interval?: string
+          redemption_limit?: number | null
+          savings_label?: string | null
+          savings_value?: number | null
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          place_id?: number
+          redemption_interval?: string
+          redemption_limit?: number | null
+          savings_label?: string | null
+          savings_value?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pass_gifts: {
         Row: {
@@ -611,18 +967,18 @@ export type Database = {
         Insert: {
           activation_date?: string | null
           buyer_id: string
-          claim_code: string
+          claim_code?: string
           claimed_at?: string | null
           claimed_by?: string | null
           created_at?: string
-          delivery_method: string
+          delivery_method?: string
           id?: string
           message?: string | null
           period: string
           price: number
           recipient_email?: string | null
           recipient_name: string
-          status: string
+          status?: string
         }
         Update: {
           activation_date?: string | null
@@ -639,45 +995,6 @@ export type Database = {
           recipient_email?: string | null
           recipient_name?: string
           status?: string
-        }
-        Relationships: []
-      }
-      pass_purchases: {
-        Row: {
-          created_at: string
-          card_brand: string | null
-          card_last4: string | null
-          gift_id: string | null
-          id: string
-          kind: string
-          note: string | null
-          period: string
-          price: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          card_brand?: string | null
-          card_last4?: string | null
-          gift_id?: string | null
-          id?: string
-          kind: string
-          note?: string | null
-          period: string
-          price: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          card_brand?: string | null
-          card_last4?: string | null
-          gift_id?: string | null
-          id?: string
-          kind?: string
-          note?: string | null
-          period?: string
-          price?: number
-          user_id?: string
         }
         Relationships: []
       }
@@ -720,22 +1037,374 @@ export type Database = {
         }
         Relationships: []
       }
+      pass_purchases: {
+        Row: {
+          card_brand: string | null
+          card_last4: string | null
+          created_at: string
+          gift_id: string | null
+          id: string
+          kind: string
+          note: string | null
+          period: string
+          price: number
+          user_id: string
+        }
+        Insert: {
+          card_brand?: string | null
+          card_last4?: string | null
+          created_at?: string
+          gift_id?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          period: string
+          price?: number
+          user_id: string
+        }
+        Update: {
+          card_brand?: string | null
+          card_last4?: string | null
+          created_at?: string
+          gift_id?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          period?: string
+          price?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_purchases_gift_id_fkey"
+            columns: ["gift_id"]
+            isOneToOne: false
+            referencedRelation: "pass_gifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_changes: {
+        Row: {
+          created_at: string
+          id: number
+          place_id: number
+          user_id: string | null
+          what: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          place_id: number
+          user_id?: string | null
+          what: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          place_id?: number
+          user_id?: string | null
+          what?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_changes_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_claim_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          place_id: number
+          sent_to: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          place_id: number
+          sent_to: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          place_id?: number
+          sent_to?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_claim_codes_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_claims: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          kind: string
+          message: string | null
+          new_place: Json | null
+          phone: string | null
+          place_id: number | null
+          role_title: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          kind: string
+          message?: string | null
+          new_place?: Json | null
+          phone?: string | null
+          place_id?: number | null
+          role_title?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          kind?: string
+          message?: string | null
+          new_place?: Json | null
+          phone?: string | null
+          place_id?: number | null
+          role_title?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_claims_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          declined_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          permissions: string[] | null
+          place_id: number
+          role: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          declined_at?: string | null
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          permissions?: string[] | null
+          place_id: number
+          role?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          declined_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          permissions?: string[] | null
+          place_id?: number
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_invites_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_members: {
+        Row: {
+          created_at: string
+          invited_by: string | null
+          permissions: string[] | null
+          place_id: number
+          role: string
+          terms_accepted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          invited_by?: string | null
+          permissions?: string[] | null
+          place_id: number
+          role?: string
+          terms_accepted_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          invited_by?: string | null
+          permissions?: string[] | null
+          place_id?: number
+          role?: string
+          terms_accepted_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_members_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_reports: {
+        Row: {
+          created_at: string
+          handled: boolean
+          id: string
+          kind: string
+          message: string | null
+          place_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          handled?: boolean
+          id?: string
+          kind: string
+          message?: string | null
+          place_id: number
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          handled?: boolean
+          id?: string
+          kind?: string
+          message?: string | null
+          place_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_reports_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_suggestions: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          handled_at: string | null
+          id: string
+          is_owner: boolean
+          language: string
+          link: string | null
+          location: string | null
+          name: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          handled_at?: string | null
+          id?: string
+          is_owner?: boolean
+          language?: string
+          link?: string | null
+          location?: string | null
+          name: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          handled_at?: string | null
+          id?: string
+          is_owner?: boolean
+          language?: string
+          link?: string | null
+          location?: string | null
+          name?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       places: {
         Row: {
+          amenities: Json
           book_url: string | null
           business_tier: string
           categories: string | null
           checkin_enabled: boolean
+          claim_link_hidden: boolean
           description: string | null
           email: string | null
           facebook_url: string | null
+          hours_exceptions: Json
           id: number
           image_url: string | null
+          info_updated_at: string | null
           instagram_url: string | null
-          is_premium: boolean | null
+          is_business: boolean
           lat: number | null
           lng: number | null
           logo_url: string | null
+          moods: string[]
           name: string
           nearest_town: string | null
           opening_hours: Json | null
@@ -745,23 +1414,30 @@ export type Database = {
           short_description: string | null
           site_group: string | null
           sub_category: string | null
+          tastes: string[]
+          transit_stop_name: string | null
           website_url: string | null
         }
         Insert: {
+          amenities?: Json
           book_url?: string | null
           business_tier?: string
           categories?: string | null
           checkin_enabled?: boolean
+          claim_link_hidden?: boolean
           description?: string | null
           email?: string | null
           facebook_url?: string | null
+          hours_exceptions?: Json
           id?: number
           image_url?: string | null
+          info_updated_at?: string | null
           instagram_url?: string | null
-          is_premium?: boolean | null
+          is_business?: boolean
           lat?: number | null
           lng?: number | null
           logo_url?: string | null
+          moods?: string[]
           name: string
           nearest_town?: string | null
           opening_hours?: Json | null
@@ -771,23 +1447,30 @@ export type Database = {
           short_description?: string | null
           site_group?: string | null
           sub_category?: string | null
+          tastes?: string[]
+          transit_stop_name?: string | null
           website_url?: string | null
         }
         Update: {
+          amenities?: Json
           book_url?: string | null
           business_tier?: string
           categories?: string | null
           checkin_enabled?: boolean
+          claim_link_hidden?: boolean
           description?: string | null
           email?: string | null
           facebook_url?: string | null
+          hours_exceptions?: Json
           id?: number
           image_url?: string | null
+          info_updated_at?: string | null
           instagram_url?: string | null
-          is_premium?: boolean | null
+          is_business?: boolean
           lat?: number | null
           lng?: number | null
           logo_url?: string | null
+          moods?: string[]
           name?: string
           nearest_town?: string | null
           opening_hours?: Json | null
@@ -797,15 +1480,20 @@ export type Database = {
           short_description?: string | null
           site_group?: string | null
           sub_category?: string | null
+          tastes?: string[]
+          transit_stop_name?: string | null
           website_url?: string | null
         }
         Relationships: []
       }
       profiles: {
         Row: {
+          avatar_ring: string | null
           avatar_url: string | null
+          birth_date: string | null
           birth_year: number | null
           card_color: string | null
+          card_photo_changed_at: string | null
           circle_color: string | null
           city: string | null
           country: string | null
@@ -813,22 +1501,25 @@ export type Database = {
           dark_mode: boolean | null
           display_name: string | null
           display_name_changed_at: string | null
-          birth_date: string | null
-          lives_in_osterlen: boolean | null
+          home_city: string | null
+          home_country: string | null
           id: string
           interests: string[] | null
           is_member: boolean | null
-          member_auto_renew: boolean | null
-          member_bonus_days: number | null
+          lives_in_osterlen: boolean | null
+          member_auto_renew: boolean
+          member_bonus_days: number
           member_period: string | null
           member_started_at: string | null
           member_until: string | null
+          notification_prefs: Json
           notifications_enabled: boolean | null
           onboarded_at: string | null
+          onboarding_completed: boolean
+          onboarding_hints: Json
+          phone: string | null
           preferred_language: string | null
           profile_image_url: string | null
-          avatar_ring: string | null
-          card_photo_changed_at: string | null
           show_in_leaderboard: boolean | null
           show_leaderboard_avatar: boolean
           updated_at: string
@@ -836,9 +1527,12 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          avatar_ring?: string | null
           avatar_url?: string | null
+          birth_date?: string | null
           birth_year?: number | null
           card_color?: string | null
+          card_photo_changed_at?: string | null
           circle_color?: string | null
           city?: string | null
           country?: string | null
@@ -846,22 +1540,25 @@ export type Database = {
           dark_mode?: boolean | null
           display_name?: string | null
           display_name_changed_at?: string | null
-          birth_date?: string | null
-          lives_in_osterlen?: boolean | null
+          home_city?: string | null
+          home_country?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
-          member_auto_renew?: boolean | null
-          member_bonus_days?: number | null
+          lives_in_osterlen?: boolean | null
+          member_auto_renew?: boolean
+          member_bonus_days?: number
           member_period?: string | null
           member_started_at?: string | null
           member_until?: string | null
+          notification_prefs?: Json
           notifications_enabled?: boolean | null
           onboarded_at?: string | null
+          onboarding_completed?: boolean
+          onboarding_hints?: Json
+          phone?: string | null
           preferred_language?: string | null
           profile_image_url?: string | null
-          avatar_ring?: string | null
-          card_photo_changed_at?: string | null
           show_in_leaderboard?: boolean | null
           show_leaderboard_avatar?: boolean
           updated_at?: string
@@ -869,9 +1566,12 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          avatar_ring?: string | null
           avatar_url?: string | null
+          birth_date?: string | null
           birth_year?: number | null
           card_color?: string | null
+          card_photo_changed_at?: string | null
           circle_color?: string | null
           city?: string | null
           country?: string | null
@@ -879,22 +1579,25 @@ export type Database = {
           dark_mode?: boolean | null
           display_name?: string | null
           display_name_changed_at?: string | null
-          birth_date?: string | null
-          lives_in_osterlen?: boolean | null
+          home_city?: string | null
+          home_country?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
-          member_auto_renew?: boolean | null
-          member_bonus_days?: number | null
+          lives_in_osterlen?: boolean | null
+          member_auto_renew?: boolean
+          member_bonus_days?: number
           member_period?: string | null
           member_started_at?: string | null
           member_until?: string | null
+          notification_prefs?: Json
           notifications_enabled?: boolean | null
           onboarded_at?: string | null
+          onboarding_completed?: boolean
+          onboarding_hints?: Json
+          phone?: string | null
           preferred_language?: string | null
           profile_image_url?: string | null
-          avatar_ring?: string | null
-          card_photo_changed_at?: string | null
           show_in_leaderboard?: boolean | null
           show_leaderboard_avatar?: boolean
           updated_at?: string
@@ -903,30 +1606,362 @@ export type Database = {
         }
         Relationships: []
       }
-      friendships: {
+      resor: {
         Row: {
-          addressee_id: string
+          activities_per_day: number | null
+          cover_image_url: string | null
           created_at: string
+          end_date: string | null
+          focus: string[] | null
+          hero_image_url: string | null
           id: string
-          requester_id: string
-          responded_at: string | null
-          status: string
+          name: string
+          owner_id: string
+          pace: string | null
+          share_token: string
+          start_date: string | null
+          updated_at: string
         }
         Insert: {
-          addressee_id: string
+          activities_per_day?: number | null
+          cover_image_url?: string | null
           created_at?: string
+          end_date?: string | null
+          focus?: string[] | null
+          hero_image_url?: string | null
           id?: string
-          requester_id: string
-          responded_at?: string | null
-          status?: string
+          name: string
+          owner_id: string
+          pace?: string | null
+          share_token?: string
+          start_date?: string | null
+          updated_at?: string
         }
         Update: {
-          addressee_id?: string
+          activities_per_day?: number | null
+          cover_image_url?: string | null
+          created_at?: string
+          end_date?: string | null
+          focus?: string[] | null
+          hero_image_url?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          pace?: string | null
+          share_token?: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      resor_feed: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          kind: string
+          moodboard_id: string
+          place_id: number | null
+          poll_id: string | null
+          text: string | null
+          user_id: string
+        }
+        Insert: {
           created_at?: string
           id?: string
-          requester_id?: string
-          responded_at?: string | null
-          status?: string
+          image_url?: string | null
+          kind?: string
+          moodboard_id: string
+          place_id?: number | null
+          poll_id?: string | null
+          text?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          kind?: string
+          moodboard_id?: string
+          place_id?: number | null
+          poll_id?: string | null
+          text?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moodboard_feed_moodboard_id_fkey"
+            columns: ["moodboard_id"]
+            isOneToOne: false
+            referencedRelation: "resor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resor_feed_votes: {
+        Row: {
+          created_at: string
+          feed_id: string
+          id: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          feed_id: string
+          id?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          feed_id?: string
+          id?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      resor_members: {
+        Row: {
+          id: string
+          joined_at: string
+          moodboard_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          moodboard_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          moodboard_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moodboard_members_moodboard_id_fkey"
+            columns: ["moodboard_id"]
+            isOneToOne: false
+            referencedRelation: "resor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resor_places: {
+        Row: {
+          created_at: string
+          mood_id: string
+          place_id: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          mood_id: string
+          place_id: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          mood_id?: string
+          place_id?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mood_places_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resor_plan_items: {
+        Row: {
+          added_by: string | null
+          category: string
+          created_at: string
+          day_index: number | null
+          id: string
+          moodboard_id: string
+          place_id: number
+          slot_id: string | null
+          sort_order: number
+        }
+        Insert: {
+          added_by?: string | null
+          category: string
+          created_at?: string
+          day_index?: number | null
+          id?: string
+          moodboard_id: string
+          place_id: number
+          slot_id?: string | null
+          sort_order?: number
+        }
+        Update: {
+          added_by?: string | null
+          category?: string
+          created_at?: string
+          day_index?: number | null
+          id?: string
+          moodboard_id?: string
+          place_id?: number
+          slot_id?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moodboard_plan_items_moodboard_id_fkey"
+            columns: ["moodboard_id"]
+            isOneToOne: false
+            referencedRelation: "resor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resor_plan_slots: {
+        Row: {
+          category: string
+          created_at: string
+          day_index: number
+          id: string
+          moodboard_id: string
+          phase: string | null
+          sort_order: number
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          day_index: number
+          id?: string
+          moodboard_id: string
+          phase?: string | null
+          sort_order?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          day_index?: number
+          id?: string
+          moodboard_id?: string
+          phase?: string | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      resor_polls: {
+        Row: {
+          created_at: string
+          id: string
+          moodboard_id: string
+          question: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          moodboard_id: string
+          question: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          moodboard_id?: string
+          question?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      resor_polls_options: {
+        Row: {
+          id: string
+          label: string
+          place_id: number | null
+          poll_id: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          label: string
+          place_id?: number | null
+          poll_id: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          label?: string
+          place_id?: number | null
+          poll_id?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      resor_polls_votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          poll_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reward_cards: {
+        Row: {
+          bg: string
+          bg2: string
+          created_at: string
+          id: string
+          image_path: string | null
+          kind: string
+          light: boolean
+          name: string
+          period: string | null
+        }
+        Insert: {
+          bg?: string
+          bg2?: string
+          created_at?: string
+          id: string
+          image_path?: string | null
+          kind: string
+          light?: boolean
+          name: string
+          period?: string | null
+        }
+        Update: {
+          bg?: string
+          bg2?: string
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          kind?: string
+          light?: boolean
+          name?: string
+          period?: string | null
         }
         Relationships: []
       }
@@ -1002,6 +2037,166 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_list_members: {
+        Row: {
+          id: string
+          joined_at: string
+          list_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          list_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          list_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trip_list_places: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          curator_note: string | null
+          id: string
+          is_gem: boolean
+          list_id: string
+          place_id: number
+          sort_order: number
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          curator_note?: string | null
+          id?: string
+          is_gem?: boolean
+          list_id: string
+          place_id: number
+          sort_order?: number
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          curator_note?: string | null
+          id?: string
+          is_gem?: boolean
+          list_id?: string
+          place_id?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_list_places_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "trip_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_lists: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          curator_avatar_url: string | null
+          curator_intro: string | null
+          curator_name: string | null
+          curator_title: string | null
+          description: string | null
+          id: string
+          is_curated: boolean
+          name: string
+          share_token: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          curator_avatar_url?: string | null
+          curator_intro?: string | null
+          curator_name?: string | null
+          curator_title?: string | null
+          description?: string | null
+          id?: string
+          is_curated?: boolean
+          name: string
+          share_token?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          curator_avatar_url?: string | null
+          curator_intro?: string | null
+          curator_name?: string | null
+          curator_title?: string | null
+          description?: string | null
+          id?: string
+          is_curated?: boolean
+          name?: string
+          share_token?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_app_opens: {
+        Row: {
+          created_at: string
+          day: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_cards: {
+        Row: {
+          awarded_at: string
+          card_id: string
+          seen_at: string | null
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          card_id: string
+          seen_at?: string | null
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          card_id?: string
+          seen_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_cards_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "reward_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_collectibles: {
         Row: {
           collected_at: string
@@ -1028,121 +2223,40 @@ export type Database = {
           },
         ]
       }
-      user_farm: {
+      user_daily_answers: {
         Row: {
-          crop_left_variant: string | null
-          crop_right_variant: string | null
-          house_color: string | null
+          answered_at: string
           id: string
-          oven_variant: string | null
-          slot_1_item_id: string | null
-          slot_2_item_id: string | null
-          slot_3_item_id: string | null
-          slot_4_item_id: string | null
-          slot_5_item_id: string | null
-          updated_at: string
+          is_correct: boolean
+          question_date: string
+          question_id: string
+          selected_index: number
           user_id: string
-          windmill_variant: string | null
         }
         Insert: {
-          crop_left_variant?: string | null
-          crop_right_variant?: string | null
-          house_color?: string | null
+          answered_at?: string
           id?: string
-          oven_variant?: string | null
-          slot_1_item_id?: string | null
-          slot_2_item_id?: string | null
-          slot_3_item_id?: string | null
-          slot_4_item_id?: string | null
-          slot_5_item_id?: string | null
-          updated_at?: string
+          is_correct: boolean
+          question_date: string
+          question_id: string
+          selected_index: number
           user_id: string
-          windmill_variant?: string | null
         }
         Update: {
-          crop_left_variant?: string | null
-          crop_right_variant?: string | null
-          house_color?: string | null
+          answered_at?: string
           id?: string
-          oven_variant?: string | null
-          slot_1_item_id?: string | null
-          slot_2_item_id?: string | null
-          slot_3_item_id?: string | null
-          slot_4_item_id?: string | null
-          slot_5_item_id?: string | null
-          updated_at?: string
+          is_correct?: boolean
+          question_date?: string
+          question_id?: string
+          selected_index?: number
           user_id?: string
-          windmill_variant?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "user_farm_slot_1_item_id_fkey"
-            columns: ["slot_1_item_id"]
+            foreignKeyName: "user_daily_answers_question_id_fkey"
+            columns: ["question_id"]
             isOneToOne: false
-            referencedRelation: "farm_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_farm_slot_2_item_id_fkey"
-            columns: ["slot_2_item_id"]
-            isOneToOne: false
-            referencedRelation: "farm_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_farm_slot_3_item_id_fkey"
-            columns: ["slot_3_item_id"]
-            isOneToOne: false
-            referencedRelation: "farm_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_farm_slot_4_item_id_fkey"
-            columns: ["slot_4_item_id"]
-            isOneToOne: false
-            referencedRelation: "farm_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_farm_slot_5_item_id_fkey"
-            columns: ["slot_5_item_id"]
-            isOneToOne: false
-            referencedRelation: "farm_items"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_progression: {
-        Row: {
-          created_at: string | null
-          current_level: number | null
-          id: string
-          lifetime_xp: number | null
-          profile_id: string | null
-          season_xp: number
-        }
-        Insert: {
-          created_at?: string | null
-          current_level?: number | null
-          id?: string
-          lifetime_xp?: number | null
-          profile_id?: string | null
-          season_xp: number
-        }
-        Update: {
-          created_at?: string | null
-          current_level?: number | null
-          id?: string
-          lifetime_xp?: number | null
-          profile_id?: string | null
-          season_xp?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_progression_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "daily_questions"
             referencedColumns: ["id"]
           },
         ]
@@ -1164,6 +2278,42 @@ export type Database = {
           id?: string
           name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          current_streak: number
+          last_answered_date: string | null
+          last_opened_date: string | null
+          last_opened_week: string | null
+          longest_streak: number
+          total_correct: number
+          total_wrong: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          last_answered_date?: string | null
+          last_opened_date?: string | null
+          last_opened_week?: string | null
+          longest_streak?: number
+          total_correct?: number
+          total_wrong?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          last_answered_date?: string | null
+          last_opened_date?: string | null
+          last_opened_week?: string | null
+          longest_streak?: number
+          total_correct?: number
+          total_wrong?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -1205,57 +2355,248 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      place_claims_overview: {
+        Row: {
+          Avgjord: string | null
+          "E-post": string | null
+          id: string | null
+          Meddelande: string | null
+          Plats: string | null
+          Skickad: string | null
+          Status: string | null
+          Vad: string | null
+          Vem: string | null
+        }
+        Relationships: []
+      }
+      place_reports_overview: {
+        Row: {
+          Åtgärdat: boolean | null
+          Från: string | null
+          Gäller: string | null
+          id: string | null
+          Meddelande: string | null
+          place_id: number | null
+          Plats: string | null
+          Skickat: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_reports_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      delete_my_account: { Args: never; Returns: undefined }
-      redeem_pass_code: { Args: { _code: string }; Returns: Json }
+      accept_list_invite: {
+        Args: { target_list_id: string }
+        Returns: undefined
+      }
+      add_list_members: {
+        Args: { target_list_id: string; target_user_ids: string[] }
+        Returns: undefined
+      }
+      admin_decide_request: {
+        Args: { p_approve: boolean; p_id: string }
+        Returns: Json
+      }
+      admin_mark_suggestion: {
+        Args: { p_done: boolean; p_id: string }
+        Returns: undefined
+      }
+      admin_requests: { Args: never; Returns: Json }
+      admin_suggestions: { Args: never; Returns: Json }
+      app_email_key: { Args: never; Returns: string }
+      app_email_ready: { Args: never; Returns: boolean }
+      avatar_visible_to_me: {
+        Args: { p_object_name: string }
+        Returns: boolean
+      }
+      award_visits_card: {
+        Args: { p_card_id: string }
+        Returns: {
+          display_name: string
+          user_id: string
+          username: string
+          visit_count: number
+        }[]
+      }
+      bp_adult: { Args: { p_uid: string }; Returns: boolean }
+      bp_can: { Args: { p_perm: string; p_place_id: number }; Returns: boolean }
+      bp_clean_exceptions: { Args: { p: Json }; Returns: Json }
+      bp_default_permissions: { Args: never; Returns: string[] }
+      bp_display_name: { Args: { p_uid: string }; Returns: string }
+      bp_email_admins: {
+        Args: { p_body: string; p_heading: string; p_subject: string }
+        Returns: undefined
+      }
+      bp_email_owners: {
+        Args: {
+          p_body: string
+          p_heading: string
+          p_place_id: number
+          p_subject: string
+        }
+        Returns: undefined
+      }
+      bp_email_user: {
+        Args: {
+          p_body: string
+          p_heading: string
+          p_subject: string
+          p_uid: string
+        }
+        Returns: undefined
+      }
+      bp_html: { Args: { p: string }; Returns: string }
+      bp_image_ok: {
+        Args: { p_place_id: number; p_url: string }
+        Returns: boolean
+      }
+      bp_images: { Args: { p: string }; Returns: string[] }
+      bp_is_email: { Args: { p: string }; Returns: boolean }
+      bp_is_phone: { Args: { p: string }; Returns: boolean }
+      bp_log: {
+        Args: { p_place_id: number; p_what: string }
+        Returns: undefined
+      }
+      bp_media_prefix: { Args: { p_place_id: number }; Returns: string }
+      bp_require_member: {
+        Args: { p_owner?: boolean; p_place_id: number }
+        Returns: string
+      }
+      bp_require_permission: {
+        Args: { p_perm: string; p_place_id: number }
+        Returns: undefined
+      }
+      bp_text: {
+        Args: { p: Json; p_key: string; p_max: number }
+        Returns: string
+      }
+      bp_url: { Args: { p: Json; p_key: string }; Returns: string }
+      business_accept_terms: {
+        Args: { p_place_id: number }
+        Returns: undefined
+      }
+      business_answer_invite: {
+        Args: { p_accept: boolean; p_id: string }
+        Returns: Json
+      }
+      business_answer_join: {
+        Args: { p_accept: boolean; p_id: string }
+        Returns: Json
+      }
+      business_apply_new_place: { Args: { p: Json }; Returns: Json }
+      business_cancel_invite: { Args: { p_id: string }; Returns: undefined }
+      business_cancel_request: { Args: { p_id: string }; Returns: undefined }
+      business_claim_info: { Args: { p_place_id: number }; Returns: Json }
+      business_claim_send_code: { Args: { p_place_id: number }; Returns: Json }
+      business_claim_verify: {
+        Args: { p_code: string; p_place_id: number }
+        Returns: Json
+      }
+      business_delete_event: {
+        Args: { p_id: number; p_scope?: string }
+        Returns: number
+      }
+      business_delete_story: { Args: { p_id: string }; Returns: undefined }
+      business_invite: {
+        Args: {
+          p_email: string
+          p_permissions?: string[]
+          p_place_id: number
+          p_role?: string
+        }
+        Returns: Json
+      }
+      business_offer_action: {
+        Args: { p_action: string; p_id: string }
+        Returns: Json
+      }
+      business_offers: { Args: { p_place_id: number }; Returns: Json }
+      business_overview: { Args: never; Returns: Json }
+      business_post_story: {
+        Args: {
+          p_caption?: string
+          p_image_url: string
+          p_link?: Json
+          p_place_id: number
+        }
+        Returns: string
+      }
+      business_remove_member: {
+        Args: { p_place_id: number; p_user_id: string }
+        Returns: Json
+      }
+      business_request_access: {
+        Args: {
+          p_message?: string
+          p_phone?: string
+          p_place_id: number
+          p_role_title?: string
+        }
+        Returns: Json
+      }
+      business_save_event: {
+        Args: {
+          p_dates?: string[]
+          p_event: Json
+          p_id?: number
+          p_place_id: number
+          p_scope?: string
+        }
+        Returns: Json
+      }
+      business_save_offer: {
+        Args: { p_id?: string; p_offer: Json; p_place_id: number }
+        Returns: string
+      }
+      business_set_member_permissions: {
+        Args: { p_permissions: string[]; p_place_id: number; p_user_id: string }
+        Returns: Json
+      }
+      business_set_member_role: {
+        Args: { p_place_id: number; p_role: string; p_user_id: string }
+        Returns: Json
+      }
+      business_stats: {
+        Args: { p_days?: number; p_place_id: number }
+        Returns: Json
+      }
+      business_stories_overview: { Args: { p_place_id: number }; Returns: Json }
+      business_team: { Args: { p_place_id: number }; Returns: Json }
+      business_update_place: {
+        Args: { p_patch: Json; p_place_id: number }
+        Returns: Json
+      }
+      can_edit_list: {
+        Args: { _list_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_manage_place_media: { Args: { p_name: string }; Returns: boolean }
+      can_view_list: {
+        Args: { _list_id: string; _user_id: string }
+        Returns: boolean
+      }
       collect_sticker: {
         Args: { p_collectible_id: string; p_lat: number; p_lng: number }
         Returns: string
       }
-      join_list: { Args: { code: string }; Returns: string }
-      add_list_members: { Args: { target_list_id: string; target_user_ids: string[] }; Returns: undefined }
-      accept_list_invite: { Args: { target_list_id: string }; Returns: undefined }
-      rpc_pending_list_invites: {
+      delete_my_account: { Args: never; Returns: undefined }
+      get_my_story_engagement: {
         Args: never
         Returns: {
-          list_id: string
-          list_name: string
-          owner_id: string
-          owner_name: string
-          owner_circle_color: string | null
-          owner_ring: string | null
-          owner_avatar_path: string | null
-          cover_image_url: string | null
-          first_place_ids: number[]
-          place_count: number
+          reach: number
+          redemptions: number
+          story_id: string
+          views: number
         }[]
       }
-      rpc_my_last_leaderboard: {
-        Args: { p_period: string }
-        Returns: { period_start: string; placement: number; visit_count: number; participants: number }[]
-      }
-      rpc_list_profiles_public: {
-        Args: { target_user_ids: string[] }
-        Returns: { user_id: string; display_name: string | null; username: string | null; circle_color: string | null; avatar_ring: string | null; avatar_path: string | null }[]
-      }
-      reorder_list_places: { Args: { target_list_id: string; ordered_row_ids: string[] }; Returns: undefined }
-      rpc_leaderboard: {
-        Args: { p_metric: string; p_scope: string; p_period?: string; p_limit?: number; p_offset?: number }
-        Returns: {
-          user_id: string
-          display_name: string
-          circle_color: string | null
-          metric_value: number
-          placement: number | null
-          self_row: boolean
-          row_pos: number | null
-          username: string | null
-          city: string | null
-          avatar_path: string | null
-        }[]
-      }
+      get_open_days: { Args: { _from: string; _to: string }; Returns: string[] }
       get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }
       get_place_favorites_count: {
         Args: { p_place_id: number }
@@ -1271,91 +2612,248 @@ export type Database = {
           place_id: number
         }[]
       }
-      rpc_search_users: {
-        Args: { q: string }
-        Returns: {
-          user_id: string
-          username: string | null
-          display_name: string | null
-          city: string | null
-          circle_color: string | null
-          avatar_ring: string | null
-          is_member: boolean
-          card_color: string | null
-          member_since: string
-          friendship_id: string | null
-          status: string | null
-          direction: string | null
-        }[]
-      }
-      rpc_get_profile: {
-        Args: { target_user_id: string }
-        Returns: {
-          user_id: string
-          username: string | null
-          display_name: string | null
-          city: string | null
-          circle_color: string | null
-          avatar_ring: string | null
-          is_member: boolean
-          card_color: string | null
-          member_since: string
-          friendship_id: string | null
-          status: string | null
-          direction: string | null
-          friends_since: string | null
-          avatar_path: string | null
-        }[]
-      }
-      rpc_list_friendships: {
-        Args: never
-        Returns: {
-          friendship_id: string
-          user_id: string
-          username: string | null
-          display_name: string | null
-          city: string | null
-          circle_color: string | null
-          avatar_ring: string | null
-          is_member: boolean
-          card_color: string | null
-          status: string
-          direction: string
-          created_at: string
-          avatar_path: string | null
-        }[]
-      }
-      rpc_friend_list_places: {
-        Args: { target_list_id: string }
-        Returns: {
-          row_id: string
-          place_id: number
-          added_by: string
-          created_at: string
-          position: number
-        }[]
-      }
-      rpc_friend_lists: {
-        Args: { target_user_id: string }
-        Returns: {
-          id: string
-          name: string
-          description: string | null
-          cover_image_url: string | null
-          place_ids: number[]
-          created_at: string
-        }[]
-      }
-      rpc_friend_stats: {
-        Args: { target_user_id: string }
-        Returns: Json
-      }
+      get_streak_days: { Args: { _days?: number }; Returns: Json }
+      has_all_treasures: { Args: { p_user: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      is_active_member: { Args: { p_uid: string }; Returns: boolean }
+      is_app_admin: { Args: never; Returns: boolean }
+      is_list_member: { Args: { l: string }; Returns: boolean }
+      is_list_owner: { Args: { l: string }; Returns: boolean }
+      is_moodboard_member: {
+        Args: { _mb_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_moodboard_owner: {
+        Args: { _mb_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_place_member: { Args: { p_place_id: number }; Returns: boolean }
+      is_trip_list_member: {
+        Args: { _list_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_trip_list_owner: {
+        Args: { _list_id: string; _user_id: string }
+        Returns: boolean
+      }
+      join_list: { Args: { code: string }; Returns: string }
+      leaderboard_card_winners: {
+        Args: { p_card_id: string }
+        Returns: {
+          display_name: string
+          user_id: string
+          username: string
+          visit_count: number
+        }[]
+      }
+      mark_card_seen: { Args: { p_card_id: string }; Returns: undefined }
+      record_app_open: { Args: never; Returns: Json }
+      redeem_pass_code: { Args: { _code: string }; Returns: Json }
+      reorder_list_places: {
+        Args: { ordered_row_ids: string[]; target_list_id: string }
+        Returns: undefined
+      }
+      ring_requirement_met: {
+        Args: { p_ring: string; p_user: string }
+        Returns: boolean
+      }
+      rpc_active_redemption: {
+        Args: never
+        Returns: {
+          activated_at: string
+          offer_id: string
+          server_now: string
+        }[]
+      }
+      rpc_friend_list_places: {
+        Args: { target_list_id: string }
+        Returns: {
+          added_by: string
+          created_at: string
+          place_id: number
+          position: number
+          row_id: string
+        }[]
+      }
+      rpc_friend_lists: {
+        Args: { target_user_id: string }
+        Returns: {
+          cover_image_url: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          place_ids: number[]
+        }[]
+      }
+      rpc_friend_stats: { Args: { target_user_id: string }; Returns: Json }
+      rpc_friends_at_place: {
+        Args: { p_place_id: number }
+        Returns: {
+          avatar_path: string
+          avatar_ring: string
+          circle_color: string
+          display_name: string
+          last_visit: string
+          saved: boolean
+          user_id: string
+          username: string
+          visits: number
+        }[]
+      }
+      rpc_friends_recent_visits: {
+        Args: { p_limit?: number }
+        Returns: {
+          avatar_path: string
+          avatar_ring: string
+          circle_color: string
+          display_name: string
+          place_id: number
+          user_id: string
+          username: string
+          visited_at: string
+        }[]
+      }
+      rpc_get_profile: {
+        Args: { target_user_id: string }
+        Returns: {
+          avatar_path: string
+          avatar_ring: string
+          card_color: string
+          circle_color: string
+          city: string
+          direction: string
+          display_name: string
+          friends_since: string
+          friendship_id: string
+          is_member: boolean
+          member_since: string
+          status: string
+          user_id: string
+          username: string
+        }[]
+      }
+      rpc_leaderboard: {
+        Args: {
+          p_limit?: number
+          p_metric: string
+          p_offset?: number
+          p_period?: string
+          p_scope: string
+        }
+        Returns: {
+          avatar_path: string
+          circle_color: string
+          city: string
+          display_name: string
+          metric_value: number
+          placement: number
+          row_pos: number
+          self_row: boolean
+          user_id: string
+          username: string
+        }[]
+      }
+      rpc_list_friendships: {
+        Args: never
+        Returns: {
+          avatar_path: string
+          avatar_ring: string
+          card_color: string
+          circle_color: string
+          city: string
+          created_at: string
+          direction: string
+          display_name: string
+          friendship_id: string
+          is_member: boolean
+          status: string
+          user_id: string
+          username: string
+        }[]
+      }
+      rpc_list_profiles_public: {
+        Args: { target_user_ids: string[] }
+        Returns: {
+          avatar_path: string
+          avatar_ring: string
+          circle_color: string
+          display_name: string
+          user_id: string
+          username: string
+        }[]
+      }
+      rpc_my_last_leaderboard: {
+        Args: { p_period: string }
+        Returns: {
+          participants: number
+          period_start: string
+          placement: number
+          visit_count: number
+        }[]
+      }
+      rpc_pending_list_invites: {
+        Args: never
+        Returns: {
+          cover_image_url: string
+          first_place_ids: number[]
+          list_id: string
+          list_name: string
+          owner_avatar_path: string
+          owner_circle_color: string
+          owner_id: string
+          owner_name: string
+          owner_ring: string
+          place_count: number
+        }[]
+      }
+      rpc_search_users: {
+        Args: { q: string }
+        Returns: {
+          avatar_ring: string
+          card_color: string
+          circle_color: string
+          city: string
+          direction: string
+          display_name: string
+          friendship_id: string
+          is_member: boolean
+          member_since: string
+          status: string
+          user_id: string
+          username: string
+        }[]
+      }
+      send_app_email: {
+        Args: {
+          p_body: string
+          p_code?: string
+          p_heading: string
+          p_subject: string
+          p_to: string
+        }
+        Returns: boolean
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_daily_answer: {
+        Args: { _question_id: string; _selected_index: number }
+        Returns: Json
+      }
+      track_place_event: {
+        Args: {
+          p_kind: string
+          p_link?: string
+          p_place_id: number
+          p_source?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
@@ -1375,12 +2873,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1404,11 +2902,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1429,11 +2927,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1454,11 +2952,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1471,11 +2969,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

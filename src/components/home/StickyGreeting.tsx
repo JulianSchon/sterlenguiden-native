@@ -60,7 +60,7 @@ export function StickyGreeting({ scrollY, showAfter }: {
       <Text style={[s.text, { color: colors.text }]} numberOfLines={1}>
         {greeting()}{firstName ? `, ${firstName}` : ""}
       </Text>
-      <TouchableOpacity onPress={() => router.push("/mitt-osterlen" as never)} activeOpacity={0.85} hitSlop={8}>
+      <TouchableOpacity onPress={() => router.push("/mitt-osterlen")} activeOpacity={0.85} hitSlop={8}>
         <HomeAvatar size={AVATAR} />
       </TouchableOpacity>
     </Reanimated.View>

@@ -293,7 +293,7 @@ export function EventSheetHost() {
   // ── Handlingar (stabila, så innehållet inte ritas om i onödan) ──
   const goToPlace = useCallback(() => {
     const id = shownRef.current?.event.place?.id;
-    if (id != null) close(() => router.push(`/place/${id}?from=event` as any));
+    if (id != null) close(() => router.push(`/place/${id}?from=event`));
   }, [close]);
   const openMaps = useCallback(() => {
     const e = shownRef.current?.event;

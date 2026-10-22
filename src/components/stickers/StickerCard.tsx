@@ -108,7 +108,7 @@ function StickerCard({
           <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
           {collectible.town ? <Text style={s.town}>{collectible.town}</Text> : null}
           {collectible.placeId != null && (
-            <TouchableOpacity onPress={() => router.push(`/place/${collectible.placeId}?from=map` as any)} hitSlop={8}>
+            <TouchableOpacity onPress={() => router.push(`/place/${collectible.placeId}?from=map`)} hitSlop={8}>
               <Text style={s.placeLink}>Visa platsen</Text>
             </TouchableOpacity>
           )}
@@ -159,7 +159,7 @@ function StickerCard({
           total={collectibles.length}
           haveBefore={revealing.haveBefore}
           standingBefore={standingBefore.current ?? undefined}
-          onNavigate={() => router.push("/mitt-osterlen" as any)}
+          onNavigate={() => router.push("/mitt-osterlen")}
           onClose={() => setRevealing(null)}
         />
       )}

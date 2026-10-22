@@ -13,8 +13,7 @@ export function useReportPlace() {
     mutationFn: async ({ placeId, kind, message }: { placeId: number; kind: ReportKind; message: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("not_authenticated");
-      // Tabellen finns inte i de genererade typerna än
-      const { error } = await (supabase as any).from("place_reports").insert({
+      const { error } = await supabase.from("place_reports").insert({
         place_id: placeId,
         user_id: user.id,
         kind,
