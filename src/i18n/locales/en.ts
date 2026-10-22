@@ -212,6 +212,7 @@ export const en: typeof sv = {
       used: "This code has already been redeemed.",
       notFound: "We can't find a gift with that code. Check that it's typed correctly.",
       unlimited: "You already have a pass with no end date, so you don't need the code.",
+      tooMany: "You've tried a lot of codes. Wait a while and try again.",
       failed: "The code couldn't be redeemed. Please try again.",
       tipsTitle: "Good to know",
       tip1: "Codes add to your time: 1 month + 1 week becomes 1 month and 1 week.",

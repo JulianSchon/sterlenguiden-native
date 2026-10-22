@@ -212,6 +212,7 @@ export const de: typeof sv = {
       used: "Dieser Code wurde bereits eingelöst.",
       notFound: "Wir finden kein Geschenk mit diesem Code. Prüfe, ob er richtig geschrieben ist.",
       unlimited: "Du hast bereits einen Pass ohne Enddatum, der Code wird also nicht gebraucht.",
+      tooMany: "Du hast viele Codes ausprobiert. Warte eine Weile und versuche es erneut.",
       failed: "Der Code konnte nicht eingelöst werden. Versuche es erneut.",
       tipsTitle: "Gut zu wissen",
       tip1: "Codes werden auf deine Zeit addiert: 1 Monat + 1 Woche ergibt 1 Monat und 1 Woche.",

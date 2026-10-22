@@ -21,6 +21,7 @@ export function JoinListSheet({
   }
 
   const notFound = join.isError && join.error.message === "list_not_found";
+  const tooMany = join.isError && join.error.message === "too_many_attempts";
 
   return (
     <Sheet visible={visible} onClose={onClose} title="Gå med i lista" centered onShow={() => inputRef.current?.focus()}>
@@ -44,7 +45,11 @@ export function JoinListSheet({
         />
         {join.isError && (
           <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: "#E57373" }}>
-            {notFound ? "Hittar ingen lista med den koden." : "Det gick inte att gå med. Försök igen."}
+            {notFound
+              ? "Hittar ingen lista med den koden."
+              : tooMany
+                ? "Du har provat många koder. Vänta en stund och försök igen."
+                : "Det gick inte att gå med. Försök igen."}
           </Text>
         )}
         <PrimaryButton label="Gå med" onPress={submit} disabled={code.trim().length < 4} loading={join.isPending} />

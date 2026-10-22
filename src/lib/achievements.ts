@@ -54,7 +54,8 @@ const TOTAL_CATEGORY_COUNT = CATEGORY_DB_VALUES.length; // 8
 
 function placeMatchesCategory(place: Place, dbValues: string[]): boolean {
   if (!place.categories) return false;
-  const parts = place.categories.split(",").map((s) => s.trim().toLowerCase());
+  // Tomma delar (t.ex. efter ett avslutande komma) räknas inte — som i databasen (user_trophy_stats)
+  const parts = place.categories.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   return dbValues.some((v) => {
     const t = v.toLowerCase();
     return parts.some((p) => p === t || p.includes(t) || t.includes(p));

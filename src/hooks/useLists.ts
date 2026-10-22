@@ -556,13 +556,17 @@ export function useDeclineListInvite() {
   });
 }
 
-/** Går med i en lista via kod. Kastar Error("list_not_found") om koden inte finns. */
+/**
+ * Går med i en lista via kod. Kastar Error("list_not_found") om koden inte finns och
+ * Error("too_many_attempts") efter tio fel på en timme (databasen räknar, så koder inte kan gissas).
+ */
 export function useJoinList() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (code: string) => {
       const { data, error } = await supabase.rpc("join_list", { code });
-      if (error) throw new Error(error.message.includes("list_not_found") ? "list_not_found" : error.message);
+      if (error) throw new Error(error.message.includes("too_many_attempts") ? "too_many_attempts" : error.message);
+      if (!data) throw new Error("list_not_found");
       return data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),

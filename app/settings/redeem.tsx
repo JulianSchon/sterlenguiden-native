@@ -17,7 +17,7 @@ import { PrimaryButton } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-type Failure = "used" | "notFound" | "unlimited" | "failed";
+type Failure = "used" | "notFound" | "unlimited" | "tooMany" | "failed";
 type RedeemResult = {
   ok: boolean; reason?: string; member_until?: string | null; saved?: boolean; days?: number;
   /** Vem gåvan är från och hälsningen (migration 045) */
@@ -42,7 +42,10 @@ export default function RedeemCodeScreen() {
     setBusy(false);
     const result = data as RedeemResult | null;
     if (error || !result) return setFailure("failed");
-    if (!result.ok) return setFailure(result.reason === "used" ? "used" : result.reason === "unlimited" ? "unlimited" : "notFound");
+    if (!result.ok) {
+      const reasons: Record<string, Failure> = { used: "used", unlimited: "unlimited", too_many: "tooMany" };
+      return setFailure(reasons[result.reason ?? ""] ?? "notFound");
+    }
     // Profilen hämtas om först: ögonblicket visar det nya kortet, och om kortfotot saknas
     await queryClient.refetchQueries({ queryKey: ["profile"] }).catch(() => {});
     const profile = queryClient.getQueryData<Profile | null>(["profile"]);

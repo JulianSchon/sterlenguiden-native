@@ -162,6 +162,24 @@ export type Database = {
           },
         ]
       }
+      code_attempts: {
+        Row: {
+          at: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          at?: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          at?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       collectibles: {
         Row: {
           created_at: string
@@ -211,69 +229,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      content_translations: {
-        Row: {
-          created_at: string
-          field: string
-          id: string
-          kind: string
-          lang: string
-          ref_id: string
-          source_hash: string
-          text: string
-        }
-        Insert: {
-          created_at?: string
-          field: string
-          id?: string
-          kind: string
-          lang: string
-          ref_id: string
-          source_hash: string
-          text: string
-        }
-        Update: {
-          created_at?: string
-          field?: string
-          id?: string
-          kind?: string
-          lang?: string
-          ref_id?: string
-          source_hash?: string
-          text?: string
-        }
-        Relationships: []
-      }
-      daily_questions: {
-        Row: {
-          correct_index: number
-          created_at: string
-          explanation: string | null
-          id: string
-          options: Json
-          question: string
-          question_date: string
-        }
-        Insert: {
-          correct_index: number
-          created_at?: string
-          explanation?: string | null
-          id?: string
-          options: Json
-          question: string
-          question_date: string
-        }
-        Update: {
-          correct_index?: number
-          created_at?: string
-          explanation?: string | null
-          id?: string
-          options?: Json
-          question?: string
-          question_date?: string
-        }
-        Relationships: []
       }
       discovery_dismissals: {
         Row: {
@@ -498,68 +453,6 @@ export type Database = {
         }
         Relationships: []
       }
-      guide_stories: {
-        Row: {
-          body: string
-          created_at: string
-          id: string
-          image_url: string | null
-          list_id: string
-          place_id: number | null
-          sort_order: number
-          title: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          list_id: string
-          place_id?: number | null
-          sort_order?: number
-          title: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          list_id?: string
-          place_id?: number | null
-          sort_order?: number
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "guide_stories_list_id_fkey"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "trip_lists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      list_cover_options: {
-        Row: {
-          created_at: string
-          id: string
-          sort_order: number
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          sort_order?: number
-          url: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          sort_order?: number
-          url?: string
-        }
-        Relationships: []
-      }
       list_members: {
         Row: {
           joined_at: string
@@ -739,15 +632,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "memories_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "resor"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       news: {
         Row: {
@@ -1606,329 +1491,6 @@ export type Database = {
         }
         Relationships: []
       }
-      resor: {
-        Row: {
-          activities_per_day: number | null
-          cover_image_url: string | null
-          created_at: string
-          end_date: string | null
-          focus: string[] | null
-          hero_image_url: string | null
-          id: string
-          name: string
-          owner_id: string
-          pace: string | null
-          share_token: string
-          start_date: string | null
-          updated_at: string
-        }
-        Insert: {
-          activities_per_day?: number | null
-          cover_image_url?: string | null
-          created_at?: string
-          end_date?: string | null
-          focus?: string[] | null
-          hero_image_url?: string | null
-          id?: string
-          name: string
-          owner_id: string
-          pace?: string | null
-          share_token?: string
-          start_date?: string | null
-          updated_at?: string
-        }
-        Update: {
-          activities_per_day?: number | null
-          cover_image_url?: string | null
-          created_at?: string
-          end_date?: string | null
-          focus?: string[] | null
-          hero_image_url?: string | null
-          id?: string
-          name?: string
-          owner_id?: string
-          pace?: string | null
-          share_token?: string
-          start_date?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      resor_feed: {
-        Row: {
-          created_at: string
-          id: string
-          image_url: string | null
-          kind: string
-          moodboard_id: string
-          place_id: number | null
-          poll_id: string | null
-          text: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          kind?: string
-          moodboard_id: string
-          place_id?: number | null
-          poll_id?: string | null
-          text?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          kind?: string
-          moodboard_id?: string
-          place_id?: number | null
-          poll_id?: string | null
-          text?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "moodboard_feed_moodboard_id_fkey"
-            columns: ["moodboard_id"]
-            isOneToOne: false
-            referencedRelation: "resor"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      resor_feed_votes: {
-        Row: {
-          created_at: string
-          feed_id: string
-          id: string
-          user_id: string
-          value: number
-        }
-        Insert: {
-          created_at?: string
-          feed_id: string
-          id?: string
-          user_id: string
-          value: number
-        }
-        Update: {
-          created_at?: string
-          feed_id?: string
-          id?: string
-          user_id?: string
-          value?: number
-        }
-        Relationships: []
-      }
-      resor_members: {
-        Row: {
-          id: string
-          joined_at: string
-          moodboard_id: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          joined_at?: string
-          moodboard_id: string
-          role?: string
-          user_id: string
-        }
-        Update: {
-          id?: string
-          joined_at?: string
-          moodboard_id?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "moodboard_members_moodboard_id_fkey"
-            columns: ["moodboard_id"]
-            isOneToOne: false
-            referencedRelation: "resor"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      resor_places: {
-        Row: {
-          created_at: string
-          mood_id: string
-          place_id: number
-          sort_order: number
-        }
-        Insert: {
-          created_at?: string
-          mood_id: string
-          place_id: number
-          sort_order?: number
-        }
-        Update: {
-          created_at?: string
-          mood_id?: string
-          place_id?: number
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mood_places_place_id_fkey"
-            columns: ["place_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      resor_plan_items: {
-        Row: {
-          added_by: string | null
-          category: string
-          created_at: string
-          day_index: number | null
-          id: string
-          moodboard_id: string
-          place_id: number
-          slot_id: string | null
-          sort_order: number
-        }
-        Insert: {
-          added_by?: string | null
-          category: string
-          created_at?: string
-          day_index?: number | null
-          id?: string
-          moodboard_id: string
-          place_id: number
-          slot_id?: string | null
-          sort_order?: number
-        }
-        Update: {
-          added_by?: string | null
-          category?: string
-          created_at?: string
-          day_index?: number | null
-          id?: string
-          moodboard_id?: string
-          place_id?: number
-          slot_id?: string | null
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "moodboard_plan_items_moodboard_id_fkey"
-            columns: ["moodboard_id"]
-            isOneToOne: false
-            referencedRelation: "resor"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      resor_plan_slots: {
-        Row: {
-          category: string
-          created_at: string
-          day_index: number
-          id: string
-          moodboard_id: string
-          phase: string | null
-          sort_order: number
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          day_index: number
-          id?: string
-          moodboard_id: string
-          phase?: string | null
-          sort_order?: number
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          day_index?: number
-          id?: string
-          moodboard_id?: string
-          phase?: string | null
-          sort_order?: number
-        }
-        Relationships: []
-      }
-      resor_polls: {
-        Row: {
-          created_at: string
-          id: string
-          moodboard_id: string
-          question: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          moodboard_id: string
-          question: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          moodboard_id?: string
-          question?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      resor_polls_options: {
-        Row: {
-          id: string
-          label: string
-          place_id: number | null
-          poll_id: string
-          sort_order: number
-        }
-        Insert: {
-          id?: string
-          label: string
-          place_id?: number | null
-          poll_id: string
-          sort_order?: number
-        }
-        Update: {
-          id?: string
-          label?: string
-          place_id?: number | null
-          poll_id?: string
-          sort_order?: number
-        }
-        Relationships: []
-      }
-      resor_polls_votes: {
-        Row: {
-          created_at: string
-          id: string
-          option_id: string
-          poll_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          option_id: string
-          poll_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          option_id?: string
-          poll_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       reward_cards: {
         Row: {
           bg: string
@@ -2037,137 +1599,6 @@ export type Database = {
         }
         Relationships: []
       }
-      trip_list_members: {
-        Row: {
-          id: string
-          joined_at: string
-          list_id: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          joined_at?: string
-          list_id: string
-          role?: string
-          user_id: string
-        }
-        Update: {
-          id?: string
-          joined_at?: string
-          list_id?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      trip_list_places: {
-        Row: {
-          added_by: string | null
-          created_at: string
-          curator_note: string | null
-          id: string
-          is_gem: boolean
-          list_id: string
-          place_id: number
-          sort_order: number
-        }
-        Insert: {
-          added_by?: string | null
-          created_at?: string
-          curator_note?: string | null
-          id?: string
-          is_gem?: boolean
-          list_id: string
-          place_id: number
-          sort_order?: number
-        }
-        Update: {
-          added_by?: string | null
-          created_at?: string
-          curator_note?: string | null
-          id?: string
-          is_gem?: boolean
-          list_id?: string
-          place_id?: number
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_list_places_list_id_fkey"
-            columns: ["list_id"]
-            isOneToOne: false
-            referencedRelation: "trip_lists"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trip_lists: {
-        Row: {
-          cover_image_url: string | null
-          created_at: string
-          curator_avatar_url: string | null
-          curator_intro: string | null
-          curator_name: string | null
-          curator_title: string | null
-          description: string | null
-          id: string
-          is_curated: boolean
-          name: string
-          share_token: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          cover_image_url?: string | null
-          created_at?: string
-          curator_avatar_url?: string | null
-          curator_intro?: string | null
-          curator_name?: string | null
-          curator_title?: string | null
-          description?: string | null
-          id?: string
-          is_curated?: boolean
-          name: string
-          share_token?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          cover_image_url?: string | null
-          created_at?: string
-          curator_avatar_url?: string | null
-          curator_intro?: string | null
-          curator_name?: string | null
-          curator_title?: string | null
-          description?: string | null
-          id?: string
-          is_curated?: boolean
-          name?: string
-          share_token?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      user_app_opens: {
-        Row: {
-          created_at: string
-          day: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          day: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          day?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_cards: {
         Row: {
           awarded_at: string
@@ -2223,44 +1654,6 @@ export type Database = {
           },
         ]
       }
-      user_daily_answers: {
-        Row: {
-          answered_at: string
-          id: string
-          is_correct: boolean
-          question_date: string
-          question_id: string
-          selected_index: number
-          user_id: string
-        }
-        Insert: {
-          answered_at?: string
-          id?: string
-          is_correct: boolean
-          question_date: string
-          question_id: string
-          selected_index: number
-          user_id: string
-        }
-        Update: {
-          answered_at?: string
-          id?: string
-          is_correct?: boolean
-          question_date?: string
-          question_id?: string
-          selected_index?: number
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_daily_answers_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "daily_questions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           id: string
@@ -2278,42 +1671,6 @@ export type Database = {
           id?: string
           name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_streaks: {
-        Row: {
-          current_streak: number
-          last_answered_date: string | null
-          last_opened_date: string | null
-          last_opened_week: string | null
-          longest_streak: number
-          total_correct: number
-          total_wrong: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          current_streak?: number
-          last_answered_date?: string | null
-          last_opened_date?: string | null
-          last_opened_week?: string | null
-          longest_streak?: number
-          total_correct?: number
-          total_wrong?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          current_streak?: number
-          last_answered_date?: string | null
-          last_opened_date?: string | null
-          last_opened_week?: string | null
-          longest_streak?: number
-          total_correct?: number
-          total_wrong?: number
-          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -2395,6 +1752,10 @@ export type Database = {
       accept_list_invite: {
         Args: { target_list_id: string }
         Returns: undefined
+      }
+      achievement_met: {
+        Args: { p_level: string; p_type: string; p_user: string }
+        Returns: boolean
       }
       add_list_members: {
         Args: { target_list_id: string; target_user_ids: string[] }
@@ -2573,46 +1934,30 @@ export type Database = {
         Args: { p_patch: Json; p_place_id: number }
         Returns: Json
       }
-      can_edit_list: {
-        Args: { _list_id: string; _user_id: string }
-        Returns: boolean
-      }
       can_manage_place_media: { Args: { p_name: string }; Returns: boolean }
-      can_view_list: {
-        Args: { _list_id: string; _user_id: string }
-        Returns: boolean
+      check_in: {
+        Args: { p_lat: number; p_lng: number; p_place_id: number }
+        Returns: {
+          created_at: string
+          id: string
+          method: string
+          place_id: number
+          user_id: string
+          visited_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "visits"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
+      code_attempts_left: { Args: { p_kind: string }; Returns: boolean }
       collect_sticker: {
         Args: { p_collectible_id: string; p_lat: number; p_lng: number }
         Returns: string
       }
       delete_my_account: { Args: never; Returns: undefined }
-      get_my_story_engagement: {
-        Args: never
-        Returns: {
-          reach: number
-          redemptions: number
-          story_id: string
-          views: number
-        }[]
-      }
-      get_open_days: { Args: { _from: string; _to: string }; Returns: string[] }
-      get_place_audience_stats: { Args: { p_place_id: number }; Returns: Json }
-      get_place_favorites_count: {
-        Args: { p_place_id: number }
-        Returns: number
-      }
-      get_story_visibility: {
-        Args: never
-        Returns: {
-          created_at: string
-          expires_at: string
-          id: string
-          is_premium: boolean
-          place_id: number
-        }[]
-      }
-      get_streak_days: { Args: { _days?: number }; Returns: Json }
       has_all_treasures: { Args: { p_user: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -2625,23 +1970,7 @@ export type Database = {
       is_app_admin: { Args: never; Returns: boolean }
       is_list_member: { Args: { l: string }; Returns: boolean }
       is_list_owner: { Args: { l: string }; Returns: boolean }
-      is_moodboard_member: {
-        Args: { _mb_id: string; _user_id: string }
-        Returns: boolean
-      }
-      is_moodboard_owner: {
-        Args: { _mb_id: string; _user_id: string }
-        Returns: boolean
-      }
       is_place_member: { Args: { p_place_id: number }; Returns: boolean }
-      is_trip_list_member: {
-        Args: { _list_id: string; _user_id: string }
-        Returns: boolean
-      }
-      is_trip_list_owner: {
-        Args: { _list_id: string; _user_id: string }
-        Returns: boolean
-      }
       join_list: { Args: { code: string }; Returns: string }
       leaderboard_card_winners: {
         Args: { p_card_id: string }
@@ -2653,7 +1982,6 @@ export type Database = {
         }[]
       }
       mark_card_seen: { Args: { p_card_id: string }; Returns: undefined }
-      record_app_open: { Args: never; Returns: Json }
       redeem_pass_code: { Args: { _code: string }; Returns: Json }
       reorder_list_places: {
         Args: { ordered_row_ids: string[]; target_list_id: string }
@@ -2842,10 +2170,6 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
-      submit_daily_answer: {
-        Args: { _question_id: string; _selected_index: number }
-        Returns: Json
-      }
       track_place_event: {
         Args: {
           p_kind: string
@@ -2854,6 +2178,19 @@ export type Database = {
           p_source?: string
         }
         Returns: undefined
+      }
+      user_trophy_stats: {
+        Args: { p_user: string }
+        Returns: {
+          n_categories: number
+          n_favorites: number
+          n_lists: number
+          n_memories: number
+          n_redemptions: number
+          n_swipes: number
+          n_treasures: number
+          n_visits: number
+        }[]
       }
     }
     Enums: {

@@ -215,6 +215,7 @@ export const sv = {
       used: "Den här koden är redan inlöst.",
       notFound: "Vi hittar ingen gåva med den koden. Kontrollera att den är rätt skriven.",
       unlimited: "Du har redan ett pass utan slutdatum, så koden behövs inte.",
+      tooMany: "Du har provat många koder. Vänta en stund och försök igen.",
       failed: "Det gick inte att lösa in koden. Försök igen.",
       tipsTitle: "Bra att veta",
       tip1: "Koder läggs på din tid: 1 månad + 1 vecka blir 1 månad och 1 vecka.",

@@ -33,31 +33,26 @@ export class CheckInCooldownError extends Error {
   }
 }
 
+/** Databasen räknade avståndet själv och tyckte att man stod för långt bort */
+export class CheckInTooFarError extends Error {
+  constructor() {
+    super("too_far");
+  }
+}
+
 /**
- * Registrerar ett besök. Historik, Statistik och Utmaningar läser alla ur
- * visits, så det räcker att invalidera den frågan — inget annat behöver
- * räknas om för hand.
+ * Registrerar ett besök. Databasen (check_in, migration 052) räknar själv avståndet till platsen och
+ * sätter tiden, så ett besök inte går att spara utan att vara där. Historik, Statistik och
+ * Utmaningar läser alla ur visits, så det räcker att invalidera den frågan.
  */
 export function useCheckIn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ placeId, method = "gps" }: { placeId: number; method?: "gps" | "qr" }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("visits")
-        .insert({
-          user_id: user.id,
-          place_id: placeId,
-          visited_at: new Date().toISOString(), // tryckögonblicket, inte när det eventuellt synkas senare
-          method,
-        })
-        .select()
-        .single();
-
+    mutationFn: async ({ placeId, lat, lng }: { placeId: number; lat: number; lng: number }) => {
+      const { data, error } = await supabase.rpc("check_in", { p_place_id: placeId, p_lat: lat, p_lng: lng });
       if (error) {
         if (error.message?.includes("checkin_cooldown")) throw new CheckInCooldownError();
+        if (error.message?.includes("too_far")) throw new CheckInTooFarError();
         throw error;
       }
       return data as Visit;

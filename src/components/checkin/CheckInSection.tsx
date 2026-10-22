@@ -17,7 +17,7 @@ import Reanimated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { MapPin, CheckCircle2 } from "lucide-react-native";
 import type { Place } from "@/hooks/usePlaces";
-import { useVisits, useCheckIn, CheckInCooldownError } from "@/hooks/useVisits";
+import { useVisits, useCheckIn, CheckInCooldownError, CheckInTooFarError } from "@/hooks/useVisits";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useTrophies } from "@/hooks/useTrophies";
 import { fetchMyMonthStanding, type LeaderboardEntry } from "@/hooks/useLeaderboard";
@@ -90,13 +90,15 @@ export function CheckInSection({ place }: { place: Place }) {
         setMessage(`Du verkar vara ${formatDistance(d)} bort. Kom närmare och försök igen.`);
         return;
       }
-      const visit = await checkIn.mutateAsync({ placeId: place.id });
+      const visit = await checkIn.mutateAsync({ placeId: place.id, lat: fresh.lat, lng: fresh.lng });
       setCelebration((cur) => (cur ? { ...cur, status: "done", visitId: visit.id } : cur));
     } catch (e) {
       setCelebration(null);
       setMessage(
         e instanceof CheckInCooldownError
           ? "Du har redan checkat in här nyligen."
+          : e instanceof CheckInTooFarError
+            ? "Du verkar vara för långt bort. Kom närmare och försök igen."
           : __DEV__ && e instanceof Error
             ? `Något gick fel: ${e.message}` // tekniskt fel syns bara under utveckling
             : "Något gick fel. Försök igen."
