@@ -21,8 +21,6 @@ export interface Profile {
   birth_date: string | null;
   lives_in_osterlen: boolean | null;
   preferred_language: string;
-  notifications_enabled: boolean;
-  dark_mode: boolean;
   card_color: string | null;
   circle_color: string | null;
   /** Topplistor: null = aldrig tillfrågad, false = har sagt nej, true = deltar (migration 020) */

@@ -80,7 +80,7 @@ export function useGrantNewTrophies(
       if (t.done && !t.doneAt && !grantedKeys.has(t.key)) {
         grantedKeys.add(t.key);
         grant.mutate(
-          { achievement_type: t.groupId, category: null, level: t.tier },
+          { achievement_type: t.groupId, level: t.tier },
           { onSuccess: () => onGranted?.(t) }
         );
       }

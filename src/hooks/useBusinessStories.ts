@@ -7,12 +7,9 @@ export interface BusinessStory {
   place_id: number;
   image_url: string;
   caption: string | null;
-  filter: string | null;
-  is_premium: boolean;
-  deal_text: string | null;
   expires_at: string | null;
   created_at: string;
-  /** Klistermärket som leder till ett erbjudande eller evenemang (rutan i andelar av bilden) — migration 046 */
+  /** Klistermärket som leder till ett erbjudande eller evenemang (rutan i andelar av bilden) */
   link?: { kind: "offer" | "event"; id: string; x: number; y: number; w: number; h: number } | null;
   // Inbakad place-data från JOIN – används för att bygga story-grupper
   // utan att vänta på usePlaces()
@@ -29,7 +26,7 @@ export function useBusinessStories() {
     queryKey: ["business-stories"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("business_stories")
+        .from("stories")
         .select("*, place:places(name, logo_url, categories, nearest_town)")
         .or(
           "expires_at.gte." +

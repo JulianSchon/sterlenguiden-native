@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      achievements: {
-        Row: {
-          achievement_type: string
-          category: string | null
-          created_at: string
-          id: string
-          level: string
-          unlocked_at: string
-          user_id: string
-        }
-        Insert: {
-          achievement_type: string
-          category?: string | null
-          created_at?: string
-          id?: string
-          level: string
-          unlocked_at?: string
-          user_id: string
-        }
-        Update: {
-          achievement_type?: string
-          category?: string | null
-          created_at?: string
-          id?: string
-          level?: string
-          unlocked_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       app_days: {
         Row: {
           day: string
@@ -59,122 +29,22 @@ export type Database = {
         }
         Relationships: []
       }
-      business_analytics: {
-        Row: {
-          created_at: string
-          event_type: string
-          id: string
-          link_type: string | null
-          place_id: number
-          source: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          event_type: string
-          id?: string
-          link_type?: string | null
-          place_id: number
-          source?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          event_type?: string
-          id?: string
-          link_type?: string | null
-          place_id?: number
-          source?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "business_analytics_place_id_fkey"
-            columns: ["place_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      business_stories: {
-        Row: {
-          caption: string | null
-          created_at: string
-          deal_text: string | null
-          expires_at: string | null
-          filter: string | null
-          id: string
-          image_url: string
-          is_premium: boolean | null
-          link: Json | null
-          offer_category: string | null
-          place_id: number
-          redemption_interval: string
-          redemption_limit: number | null
-          savings_label: string | null
-          savings_value: number | null
-          user_id: string
-        }
-        Insert: {
-          caption?: string | null
-          created_at?: string
-          deal_text?: string | null
-          expires_at?: string | null
-          filter?: string | null
-          id?: string
-          image_url: string
-          is_premium?: boolean | null
-          link?: Json | null
-          offer_category?: string | null
-          place_id: number
-          redemption_interval?: string
-          redemption_limit?: number | null
-          savings_label?: string | null
-          savings_value?: number | null
-          user_id: string
-        }
-        Update: {
-          caption?: string | null
-          created_at?: string
-          deal_text?: string | null
-          expires_at?: string | null
-          filter?: string | null
-          id?: string
-          image_url?: string
-          is_premium?: boolean | null
-          link?: Json | null
-          offer_category?: string | null
-          place_id?: number
-          redemption_interval?: string
-          redemption_limit?: number | null
-          savings_label?: string | null
-          savings_value?: number | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "business_stories_place_id_fkey"
-            columns: ["place_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       code_attempts: {
         Row: {
           at: string
+          id: number
           kind: string
           user_id: string
         }
         Insert: {
           at?: string
+          id?: never
           kind: string
           user_id: string
         }
         Update: {
           at?: string
+          id?: never
           kind?: string
           user_id?: string
         }
@@ -305,7 +175,6 @@ export type Database = {
           main_category: string | null
           place_id: number | null
           series_id: string | null
-          sub_categories: string[] | null
           ticket_url: string | null
           tickets_release_at: string | null
           tickets_required: boolean | null
@@ -332,7 +201,6 @@ export type Database = {
           main_category?: string | null
           place_id?: number | null
           series_id?: string | null
-          sub_categories?: string[] | null
           ticket_url?: string | null
           tickets_release_at?: string | null
           tickets_required?: boolean | null
@@ -359,7 +227,6 @@ export type Database = {
           main_category?: string | null
           place_id?: number | null
           series_id?: string | null
-          sub_categories?: string[] | null
           ticket_url?: string | null
           tickets_release_at?: string | null
           tickets_required?: boolean | null
@@ -588,9 +455,7 @@ export type Database = {
       }
       memories: {
         Row: {
-          cover_image_url: string | null
           created_at: string
-          highlight: string | null
           id: string
           memory_date: string
           people: string[]
@@ -598,14 +463,11 @@ export type Database = {
           place_ids: number[]
           story: string | null
           title: string
-          trip_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          cover_image_url?: string | null
           created_at?: string
-          highlight?: string | null
           id?: string
           memory_date?: string
           people?: string[]
@@ -613,14 +475,11 @@ export type Database = {
           place_ids?: number[]
           story?: string | null
           title: string
-          trip_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          cover_image_url?: string | null
           created_at?: string
-          highlight?: string | null
           id?: string
           memory_date?: string
           people?: string[]
@@ -628,7 +487,6 @@ export type Database = {
           place_ids?: number[]
           story?: string | null
           title?: string
-          trip_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -969,6 +827,44 @@ export type Database = {
           },
         ]
       }
+      place_analytics: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          link_type: string | null
+          place_id: number
+          source: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          link_type?: string | null
+          place_id: number
+          source?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          link_type?: string | null
+          place_id?: number
+          source?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_analytics_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_changes: {
         Row: {
           created_at: string
@@ -1038,59 +934,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "place_claim_codes_place_id_fkey"
-            columns: ["place_id"]
-            isOneToOne: false
-            referencedRelation: "places"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      place_claims: {
-        Row: {
-          created_at: string
-          decided_at: string | null
-          decided_by: string | null
-          id: string
-          kind: string
-          message: string | null
-          new_place: Json | null
-          phone: string | null
-          place_id: number | null
-          role_title: string | null
-          status: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          id?: string
-          kind: string
-          message?: string | null
-          new_place?: Json | null
-          phone?: string | null
-          place_id?: number | null
-          role_title?: string | null
-          status?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          id?: string
-          kind?: string
-          message?: string | null
-          new_place?: Json | null
-          phone?: string | null
-          place_id?: number | null
-          role_title?: string | null
-          status?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "place_claims_place_id_fkey"
             columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
@@ -1224,6 +1067,59 @@ export type Database = {
           },
         ]
       }
+      place_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          kind: string
+          message: string | null
+          new_place: Json | null
+          phone: string | null
+          place_id: number | null
+          role_title: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          kind: string
+          message?: string | null
+          new_place?: Json | null
+          phone?: string | null
+          place_id?: number | null
+          role_title?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          kind?: string
+          message?: string | null
+          new_place?: Json | null
+          phone?: string | null
+          place_id?: number | null
+          role_title?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_requests_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_suggestions: {
         Row: {
           category: string | null
@@ -1273,7 +1169,6 @@ export type Database = {
         Row: {
           amenities: Json
           book_url: string | null
-          business_tier: string
           categories: string | null
           checkin_enabled: boolean
           claim_link_hidden: boolean
@@ -1289,15 +1184,12 @@ export type Database = {
           lat: number | null
           lng: number | null
           logo_url: string | null
-          moods: string[]
           name: string
           nearest_town: string | null
           opening_hours: Json | null
           phone: string | null
           price_level: number | null
-          qr_token: string | null
           short_description: string | null
-          site_group: string | null
           sub_category: string | null
           tastes: string[]
           transit_stop_name: string | null
@@ -1306,7 +1198,6 @@ export type Database = {
         Insert: {
           amenities?: Json
           book_url?: string | null
-          business_tier?: string
           categories?: string | null
           checkin_enabled?: boolean
           claim_link_hidden?: boolean
@@ -1322,15 +1213,12 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           logo_url?: string | null
-          moods?: string[]
           name: string
           nearest_town?: string | null
           opening_hours?: Json | null
           phone?: string | null
           price_level?: number | null
-          qr_token?: string | null
           short_description?: string | null
-          site_group?: string | null
           sub_category?: string | null
           tastes?: string[]
           transit_stop_name?: string | null
@@ -1339,7 +1227,6 @@ export type Database = {
         Update: {
           amenities?: Json
           book_url?: string | null
-          business_tier?: string
           categories?: string | null
           checkin_enabled?: boolean
           claim_link_hidden?: boolean
@@ -1355,15 +1242,12 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           logo_url?: string | null
-          moods?: string[]
           name?: string
           nearest_town?: string | null
           opening_hours?: Json | null
           phone?: string | null
           price_level?: number | null
-          qr_token?: string | null
           short_description?: string | null
-          site_group?: string | null
           sub_category?: string | null
           tastes?: string[]
           transit_stop_name?: string | null
@@ -1381,13 +1265,9 @@ export type Database = {
           card_photo_changed_at: string | null
           circle_color: string | null
           city: string | null
-          country: string | null
           created_at: string
-          dark_mode: boolean | null
           display_name: string | null
           display_name_changed_at: string | null
-          home_city: string | null
-          home_country: string | null
           id: string
           interests: string[] | null
           is_member: boolean | null
@@ -1397,12 +1277,7 @@ export type Database = {
           member_period: string | null
           member_started_at: string | null
           member_until: string | null
-          notification_prefs: Json
-          notifications_enabled: boolean | null
           onboarded_at: string | null
-          onboarding_completed: boolean
-          onboarding_hints: Json
-          phone: string | null
           preferred_language: string | null
           profile_image_url: string | null
           show_in_leaderboard: boolean | null
@@ -1420,13 +1295,9 @@ export type Database = {
           card_photo_changed_at?: string | null
           circle_color?: string | null
           city?: string | null
-          country?: string | null
           created_at?: string
-          dark_mode?: boolean | null
           display_name?: string | null
           display_name_changed_at?: string | null
-          home_city?: string | null
-          home_country?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
@@ -1436,12 +1307,7 @@ export type Database = {
           member_period?: string | null
           member_started_at?: string | null
           member_until?: string | null
-          notification_prefs?: Json
-          notifications_enabled?: boolean | null
           onboarded_at?: string | null
-          onboarding_completed?: boolean
-          onboarding_hints?: Json
-          phone?: string | null
           preferred_language?: string | null
           profile_image_url?: string | null
           show_in_leaderboard?: boolean | null
@@ -1459,13 +1325,9 @@ export type Database = {
           card_photo_changed_at?: string | null
           circle_color?: string | null
           city?: string | null
-          country?: string | null
           created_at?: string
-          dark_mode?: boolean | null
           display_name?: string | null
           display_name_changed_at?: string | null
-          home_city?: string | null
-          home_country?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
@@ -1475,12 +1337,7 @@ export type Database = {
           member_period?: string | null
           member_started_at?: string | null
           member_until?: string | null
-          notification_prefs?: Json
-          notifications_enabled?: boolean | null
           onboarded_at?: string | null
-          onboarding_completed?: boolean
-          onboarding_hints?: Json
-          phone?: string | null
           preferred_language?: string | null
           profile_image_url?: string | null
           show_in_leaderboard?: boolean | null
@@ -1532,51 +1389,83 @@ export type Database = {
           address: string | null
           created_at: string
           description: string | null
-          distance: string | null
           id: string
           lat: number
-          led_map: string | null
           lng: number
           logo_url: string | null
           name: string
           phone: string | null
           short_description: string | null
           type: string
-          walk_bike: string | null
         }
         Insert: {
           address?: string | null
           created_at?: string
           description?: string | null
-          distance?: string | null
           id?: string
           lat: number
-          led_map?: string | null
           lng: number
           logo_url?: string | null
           name: string
           phone?: string | null
           short_description?: string | null
           type: string
-          walk_bike?: string | null
         }
         Update: {
           address?: string | null
           created_at?: string
           description?: string | null
-          distance?: string | null
           id?: string
           lat?: number
-          led_map?: string | null
           lng?: number
           logo_url?: string | null
           name?: string
           phone?: string | null
           short_description?: string | null
           type?: string
-          walk_bike?: string | null
         }
         Relationships: []
+      }
+      stories: {
+        Row: {
+          caption: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          image_url: string
+          link: Json | null
+          place_id: number
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          image_url: string
+          link?: Json | null
+          place_id: number
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          image_url?: string
+          link?: Json | null
+          place_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       story_views: {
         Row: {
@@ -1596,6 +1485,33 @@ export type Database = {
           story_id?: string
           user_id?: string
           viewed_at?: string
+        }
+        Relationships: []
+      }
+      trophies: {
+        Row: {
+          achievement_type: string
+          created_at: string
+          id: string
+          level: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_type: string
+          created_at?: string
+          id?: string
+          level: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_type?: string
+          created_at?: string
+          id?: string
+          level?: string
+          unlocked_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1657,19 +1573,16 @@ export type Database = {
       user_roles: {
         Row: {
           id: string
-          name: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           id?: string
-          name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           id?: string
-          name?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -1712,20 +1625,6 @@ export type Database = {
       }
     }
     Views: {
-      place_claims_overview: {
-        Row: {
-          Avgjord: string | null
-          "E-post": string | null
-          id: string | null
-          Meddelande: string | null
-          Plats: string | null
-          Skickad: string | null
-          Status: string | null
-          Vad: string | null
-          Vem: string | null
-        }
-        Relationships: []
-      }
       place_reports_overview: {
         Row: {
           Åtgärdat: boolean | null
@@ -1746,6 +1645,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      place_requests_overview: {
+        Row: {
+          Avgjord: string | null
+          "E-post": string | null
+          id: string | null
+          Meddelande: string | null
+          Plats: string | null
+          Skickad: string | null
+          Status: string | null
+          Vad: string | null
+          Vem: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {
@@ -1970,7 +1883,6 @@ export type Database = {
       is_app_admin: { Args: never; Returns: boolean }
       is_list_member: { Args: { l: string }; Returns: boolean }
       is_list_owner: { Args: { l: string }; Returns: boolean }
-      is_place_member: { Args: { p_place_id: number }; Returns: boolean }
       join_list: { Args: { code: string }; Returns: string }
       leaderboard_card_winners: {
         Args: { p_card_id: string }
@@ -2168,8 +2080,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       track_place_event: {
         Args: {
           p_kind: string

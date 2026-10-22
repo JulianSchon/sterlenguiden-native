@@ -68,7 +68,7 @@ export async function selectPlaces<T>(
 }
 
 const LIST_COLUMNS =
-  "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, phone, email, website_url, facebook_url, instagram_url, book_url, price_level, checkin_enabled, qr_token, site_group, amenities, transit_stop_name";
+  "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, phone, email, website_url, facebook_url, instagram_url, book_url, price_level, checkin_enabled, amenities, transit_stop_name";
 const SEARCH_COLUMNS =
   "id, name, categories, sub_category, lat, lng, image_url, opening_hours, nearest_town, short_description, price_level";
 

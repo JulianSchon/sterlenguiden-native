@@ -20,7 +20,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, Crown, MapPin } from "lucide-react-native";
+import { ArrowLeft, MapPin } from "lucide-react-native";
 import Svg, {
   Defs,
   LinearGradient as SvgGrad,
@@ -31,7 +31,6 @@ import * as Location from "expo-location";
 import {
   usePlaces, isPlaceOpen, type Place,
 } from "@/hooks/usePlaces";
-import { useBusinessStories } from "@/hooks/useBusinessStories";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const BG    = "#121212";
@@ -181,10 +180,9 @@ const CFG: Record<string, CatConfig> = {
 interface PlaceCardProps {
   place: Place & { _dist: number | null };
   showPrice: boolean;
-  isPremium: boolean;
 }
 
-function PlaceCard({ place, showPrice, isPremium }: PlaceCardProps) {
+function PlaceCard({ place, showPrice }: PlaceCardProps) {
   const router  = useRouter();
   const imgUri  = place.image_url?.split(",")[0].trim();
   const distKm  = place._dist !== null ? drivingKm(place._dist) : null;
@@ -227,13 +225,6 @@ function PlaceCard({ place, showPrice, isPremium }: PlaceCardProps) {
         </View>
       ) : null}
 
-      {/* Kronbadge – uppe höger */}
-      {isPremium && (
-        <View style={s.crownBadge}>
-          <Crown size={12} color="#1C1C1C" strokeWidth={2.2} />
-        </View>
-      )}
-
       {/* Text – nere */}
       <View style={s.cardText}>
         <Text style={s.cardName} numberOfLines={2}>{place.name}</Text>
@@ -253,20 +244,18 @@ interface RowProps {
   sub: SubCat;
   places: Array<Place & { _dist: number | null }>;
   showPrice: boolean;
-  premiumIds: Set<number>;
 }
 
-function SubCategoryRow({ sub, places, showPrice, premiumIds }: RowProps) {
+function SubCategoryRow({ sub, places, showPrice }: RowProps) {
   const renderCard = useCallback(
     ({ item }: { item: Place & { _dist: number | null } }) => (
       <PlaceCard
         key={item.id}
         place={item}
         showPrice={showPrice}
-        isPremium={premiumIds.has(item.id)}
       />
     ),
-    [showPrice, premiumIds],
+    [showPrice],
   );
 
   return (
@@ -301,7 +290,6 @@ export default function CategoryScreen() {
 
   const cfg = CFG[categoryId ?? ""] ?? null;
   const { data: allPlaces = [] } = usePlaces();
-  const { data: stories  = [] } = useBusinessStories();
 
   // GPS
   useEffect(() => {
@@ -312,16 +300,6 @@ export default function CategoryScreen() {
       );
     });
   }, []);
-
-  // Premium-IDs
-  const premiumIds = useMemo(() => {
-    const now = new Date().toISOString();
-    return new Set(
-      stories
-        .filter((s) => s.is_premium && (!s.expires_at || s.expires_at >= now))
-        .map((s) => s.place_id),
-    );
-  }, [stories]);
 
   // Filtrerade + sorterade platser
   const catPlaces = useMemo(() => {
@@ -448,7 +426,6 @@ export default function CategoryScreen() {
             sub={{ key: "__open__", title: "Öppet just nu", subtitle: "Platser med öppet denna stund" }}
             places={openNow}
             showPrice={cfg.showPrice}
-            premiumIds={premiumIds}
           />
         )}
 
@@ -460,7 +437,6 @@ export default function CategoryScreen() {
               sub={sub}
               places={places}
               showPrice={cfg.showPrice}
-              premiumIds={premiumIds}
             />
           ))
         ) : (
@@ -605,17 +581,6 @@ const s = StyleSheet.create({
     paddingVertical: 2,
   },
   priceBadgeText: { fontSize: 11, fontWeight: "600", color: "#fff" },
-  crownBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(197,160,89,0.95)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   // Tom-state
   emptyState: { alignItems: "center", paddingVertical: 48 },

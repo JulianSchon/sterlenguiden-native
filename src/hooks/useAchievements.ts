@@ -1,16 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-/**
- * Matchar de riktiga kolumnerna i achievements-tabellen (delad med webben) —
- * INTE det gamla lokala challenge_id-systemet som app/challenges.tsx
- * använde tidigare och som aldrig var kopplat till databasen.
- */
+/** En klarad trofé (tabellen trophies). Databasen kontrollerar att den verkligen är klar. */
 export interface Achievement {
   id: string;
   user_id: string;
   achievement_type: string; // gruppens id, t.ex. "utforskaren" (se src/lib/achievements.ts)
-  category: string | null;  // alltid null — fanns bara för det gamla kategori-baserade systemet
   level: string;             // "bronze" | "silver" | "gold"
   unlocked_at: string;
 }
@@ -22,12 +17,12 @@ export function useAchievements() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [] as Achievement[];
       const { data, error } = await supabase
-        .from("achievements")
+        .from("trophies")
         .select("*")
         .eq("user_id", user.id)
         .order("unlocked_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as Achievement[];
+      return data ?? [];
     },
   });
 }
@@ -35,16 +30,15 @@ export function useAchievements() {
 export function useGrantAchievement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: { achievement_type: string; category: string | null; level: string }) => {
+    mutationFn: async (vars: { achievement_type: string; level: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase.from("achievements").insert({
+      const { error } = await supabase.from("trophies").insert({
         user_id: user.id,
         achievement_type: vars.achievement_type,
-        category: vars.category,
         level: vars.level,
-      } as never);
-      // 23505: troféen fanns redan (databasen tillåter bara en per konto, migration 037) — det är ok
+      });
+      // 23505: troféen fanns redan (databasen tillåter bara en per konto) — det är ok
       if (error && error.code !== "23505") throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["achievements"] }),
