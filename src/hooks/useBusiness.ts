@@ -172,7 +172,7 @@ export const claimSendCode = (placeId: number) => rpc<ClaimResult>("business_cla
 export const claimVerify = (placeId: number, code: string) => rpc<ClaimResult>("business_claim_verify", { p_place_id: placeId, p_code: code });
 export const requestAccess = (placeId: number, roleTitle: string | null, phone: string | null, message: string | null) =>
   rpc<ClaimResult>("business_request_access", { p_place_id: placeId, p_role_title: roleTitle, p_phone: phone, p_message: message });
-export const applyNewPlace = (p: { name: string; town: string; category: string | null; website: string | null; phone: string; role_title: string | null; message: string | null }) =>
+export const applyNewPlace = (p: { name: string; town: string; category: string | null; website: string | null; message: string | null }) =>
   rpc<ClaimResult>("business_apply_new_place", { p });
 export const cancelRequest = (id: string) => rpc<void>("business_cancel_request", { p_id: id });
 export const answerInvite = (id: string, accept: boolean) => rpc<ClaimResult & { place_id?: number }>("business_answer_invite", { p_id: id, p_accept: accept });

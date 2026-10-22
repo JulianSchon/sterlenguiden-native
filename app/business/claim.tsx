@@ -3,38 +3,45 @@
  *
  *  1. Platsen och en bock: "Jag driver eller jobbar på …" (så ingen trycker vidare av misstag).
  *  2. Har platsen en e-post skickas en sexsiffrig kod dit — bara den som driver företaget kan läsa
- *     den. Kommer man inte åt adressen (eller saknas den) skickar man en förfrågan med sitt
- *     telefonnummer, och vi godkänner efter att ha pratat med en.
- *  3. Rätt kod: klart, man sköter platsen. Förfrågan: "Tack, vi hör av oss".
+ *     den. Kommer man inte åt adressen (eller saknas den) skickar man en förfrågan och mejlar oss
+ *     från företagets egen adress. Det mejlet är beviset; admin godkänner. Ingen ringer.
+ *  3. Rätt kod: klart, man sköter platsen. Förfrågan: "Mejla oss från företagets adress".
  * Har platsen redan någon som sköter den går förfrågan till dem i stället.
  *
  * Databasen sätter gränserna (högst 3 koder per företag och dygn, 5 per person, 18 år), så ingen
  * kan fylla ett företags inkorg med koder.
  */
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image as ExpoImage } from "expo-image";
-import { Check, Mail, Phone } from "lucide-react-native";
+import { Check, Mail } from "lucide-react-native";
 import { AUTH_GUTTER, AuthButton, FieldNote, TextButton } from "@/components/auth/AuthParts";
 import { StepLayout } from "@/components/onboarding/StepLayout";
 import { CodeBoxes, type CodePhase } from "@/components/onboarding/CodeBoxes";
 import { Skeleton } from "@/components/Skeleton";
-import { Chip, PortalField } from "@/components/business/PortalParts";
+import { PortalField } from "@/components/business/PortalParts";
 import { WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment } from "@/components/business/WizardParts";
 import {
   cancelRequest, claimSendCode, claimVerify, requestAccess, useBusinessOverview, useClaimInfo, type ClaimResult,
 } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
-import { businessError, isPhone, type ClaimInfo } from "@/lib/business";
+import { businessError, type ClaimInfo } from "@/lib/business";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 type Step = "intro" | "method" | "code" | "request" | "sent" | "done";
 const PROGRESS: Record<Step, number> = { intro: 0.25, method: 0.5, code: 0.75, request: 0.75, sent: 1, done: 1 };
-const ROLES = ["Ägare", "Delägare", "Chef", "Anställd"];
+const HELP_EMAIL = "hej@osterlenappen.se";
+
+/** Mejlet som bevisar att man driver företaget: skickas från företagets egen adress */
+function mailProof(placeName: string, placeId: number) {
+  const subject = encodeURIComponent(`${placeName} i Österlenappen`);
+  const body = encodeURIComponent(`Hej! Jag skickar det här från vår egen e-post, så ni vet att det är vi som vill ta hand om ${placeName} (nr ${placeId}) i appen.`);
+  Linking.openURL(`mailto:${HELP_EMAIL}?subject=${subject}&body=${body}`).catch(() => {});
+}
 
 function sendProblem(r: ClaimResult): string {
   switch (r.reason) {
@@ -56,12 +63,19 @@ export default function ClaimScreen() {
   const { data: overview } = useBusinessOverview();
   const [step, setStep] = useState<Step>("intro");
   const [forward, setForward] = useState(true);
-  const go = (next: Step, fwd = true) => { setForward(fwd); setStep(next); };
+  // Om man kom till förfrågan via "Vi skickar en kod" (då går pilen dit, annars till början)
+  const cameFromMethod = useRef(false);
+  const go = (next: Step, fwd = true) => {
+    if (fwd) cameFromMethod.current = step === "method" || step === "code";
+    setForward(fwd);
+    setStep(next);
+  };
 
   const back = () => {
     if (step === "intro" || step === "sent" || step === "done") router.back();
     else if (step === "method") go("intro", false);
-    else if (step === "code" || step === "request") go(info?.has_owner ? "intro" : "method", false);
+    else if (step === "code") go("method", false);
+    else if (step === "request") go(!info?.has_owner && info?.email && cameFromMethod.current ? "method" : "intro", false);
   };
 
   // Inställningar och platssidan får veta (inte den här sidans egen fråga — då hoppade sidan förbi Klart)
@@ -89,9 +103,12 @@ export default function ClaimScreen() {
     content = (
       <StepLayout
         title="Vi har fått er förfrågan"
-        subtitle={info.pending === "join" ? `Den har gått till dem som sköter ${info.place.name}. Du får tillgång när de godkänt.` : "Vi hör av oss – oftast inom ett par dagar. Du ser det under Inställningar när det är klart."}
+        subtitle={info.pending === "join"
+          ? `Den har gått till dem som sköter ${info.place.name}. Du får tillgång när de godkänt.`
+          : `Har ni mejlat oss från ${info.place.name}s egen e-post? Då godkänner vi så snart vi sett det. Ni ser det under Inställningar.`}
         footer={<>
-          <AuthButton label="Klart" onPress={() => router.back()} />
+          {info.pending === "claim" && <AuthButton label="Mejla oss från företagets e-post" onPress={() => mailProof(info.place.name, placeId)} />}
+          <AuthButton label="Klart" variant={info.pending === "claim" ? "outline" : "primary"} onPress={() => router.back()} />
           <TextButton label="Ta tillbaka förfrågan" onPress={async () => {
             const req = overview?.requests.find((r) => r.place_id === placeId && r.status === "pending");
             if (req) await cancelRequest(req.id).catch(() => {});
@@ -149,8 +166,6 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
   const [focused, setFocused] = useState(true);
   const [resendAt, setResendAt] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const [role, setRole] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [sentKind, setSentKind] = useState<"claim" | "join">("claim");
   const input = useRef<TextInput>(null);
@@ -213,9 +228,9 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
     setBusy(true);
     setError(null);
     try {
-      const r = await requestAccess(placeId, role, phone.trim() || null, message.trim() || null);
+      const r = await requestAccess(placeId, null, null, message.trim() || null);
       if (!r.ok) {
-        setError(r.reason === "already_pending" ? "Du har redan skickat en förfrågan." : r.reason === "too_many" ? "Du har skickat många förfrågningar i dag. Försök i morgon." : r.reason === "closed" ? "Den här sidan tar inte emot förfrågningar. Be dem bjuda in dig." : r.reason === "phone_required" ? "Skriv ditt telefonnummer så vi kan ringa." : "Det gick inte att skicka.");
+        setError(r.reason === "already_pending" ? "Du har redan skickat en förfrågan." : r.reason === "too_many" ? "Du har skickat många förfrågningar i dag. Försök i morgon." : r.reason === "closed" ? "Den här sidan tar inte emot förfrågningar. Be dem bjuda in dig." : "Det gick inte att skicka.");
         return;
       }
       setSentKind(r.kind === "join" ? "join" : "claim");
@@ -313,29 +328,19 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
 
   if (step === "request") {
     const claim = !info.has_owner;
-    const ok = !!role && (!claim || isPhone(phone));
     return (
       <StepLayout
-        title={claim ? "Vi hör av oss" : "Skicka en förfrågan"}
+        title={claim ? "Bekräfta med företagets e-post" : "Skicka en förfrågan"}
         subtitle={claim
-          ? "Skriv ditt nummer så ringer vi och kollar att det är du. Sedan kan du sköta sidan."
+          ? `Skicka förfrågan och mejla oss sedan från ${info.place.name}s egen e-post. Det mejlet visar att det är ni.`
           : `Förfrågan går till dem som sköter ${info.place.name}. Du får tillgång när de godkänt.`}
-        scroll
         footer={<>
           {error && <FieldNote tone="danger" text={error} />}
-          <AuthButton label="Skicka" onPress={submitRequest} loading={busy} disabled={!ok} />
+          <AuthButton label="Skicka förfrågan" onPress={submitRequest} loading={busy} />
         </>}
       >
-        <Text style={s.small}>Vad gör du där?</Text>
-        <View style={s.chips}>
-          {ROLES.map((r) => <Chip key={r} label={r} selected={role === r} onPress={() => setRole(r)} />)}
-        </View>
-        {claim && (
-          <PortalField label="Ditt telefonnummer" icon={Phone} value={phone} onChangeText={setPhone} keyboardType="phone-pad"
-            placeholder="070-123 45 67" textContentType="telephoneNumber" />
-        )}
-        <PortalField label="Något mer vi behöver veta? (valfritt)" value={message} onChangeText={setMessage} multiline maxLength={600}
-          placeholder={claim ? "T.ex. bästa tiden att ringa" : "T.ex. Hej! Jag jobbar i köket i sommar."} style={{ minHeight: 70 }} />
+        <PortalField label="Meddelande (valfritt)" value={message} onChangeText={setMessage} maxLength={300}
+          placeholder={claim ? "T.ex. Hej! Jag driver stället sedan 2015." : "T.ex. Hej! Jag jobbar i köket i sommar."} />
       </StepLayout>
     );
   }
@@ -343,9 +348,12 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
   if (step === "sent") {
     return (
       <DoneMoment
-        title="Tack!"
-        text={sentKind === "join" ? `Förfrågan har gått till ${info.place.name}. Du ser sidan under Inställningar när de godkänt.` : "Vi hör av oss – oftast inom ett par dagar. När det är klart hittar du ert företag under Inställningar."}
-        primary={{ label: "Klart", onPress: onClose }}
+        title={sentKind === "join" ? "Tack!" : "Sista steget"}
+        text={sentKind === "join"
+          ? `Förfrågan har gått till ${info.place.name}. Du ser sidan under Inställningar när de godkänt.`
+          : `Mejla oss från ${info.place.name}s egen e-post. När vi sett mejlet godkänner vi – sedan hittar du ert företag under Inställningar.`}
+        primary={sentKind === "join" ? { label: "Klart", onPress: onClose } : { label: "Mejla oss nu", onPress: () => { mailProof(info.place.name, placeId); onClose(); } }}
+        secondary={sentKind === "join" ? undefined : { label: "Jag gör det sen", onPress: onClose }}
       />
     );
   }
@@ -390,7 +398,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.goldBorder,
   },
   emailText: { flex: 1, fontFamily: "Inter_700Bold", fontSize: 16, color: c.text },
-  small: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.muted },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   hidden: { position: "absolute", opacity: 0, width: 1, height: 1 },
 });

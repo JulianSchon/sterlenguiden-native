@@ -2,8 +2,9 @@
  * Admin: förfrågningar om att ta hand om en plats (när koden inte gick att skicka) och ansökningar
  * från företag som inte finns i appen. Bara den som har rollen admin ser sidan (databasen kollar).
  *
- * Varje kort visar vem som frågar (namn, e-post, telefon — med Ring och Mejla), vilken plats, och
- * om någon redan sköter den. Godkänn = personen blir ägare (för en ny plats skapas den först, utan
+ * Varje kort visar vem som frågar (namn, e-post — med Mejla), vilken plats, och om någon redan
+ * sköter den. Beviset är ett mejl från företagets egen adress till hej@osterlenappen.se: godkänn
+ * först när det kommit. Godkänn = personen blir ägare (för en ny plats skapas den först, utan
  * läge på kartan: lägg in lat/lng i Supabase efteråt). Personen får ett mejl om svaret.
  */
 import { useState } from "react";
@@ -69,7 +70,7 @@ export default function AdminScreen() {
             </Rise>
           )}
           <Rise index={2}>
-            <Note text="Godkänner du blir personen ägare till platsen och får ett mejl. Ring gärna först om du är osäker." />
+            <Note text="Godkänn först när ett mejl kommit från företagets egen e-post. Då blir personen ägare till platsen och får ett mejl." />
           </Rise>
         </>
       )}

@@ -1,25 +1,25 @@
 /**
- * Företaget finns inte i appen än: en kort ansökan (namn, ort, kategori, hemsida, telefon och vad
- * man gör där). Vi lägger till platsen, ringer och kollar — sedan sköter man den själv.
+ * Företaget finns inte i appen än: en kort ansökan (namn, ort, kategori, hemsida). Sedan mejlar man
+ * oss från företagets egen e-post (beviset), vi lägger till platsen — och man sköter den själv.
  */
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Globe, Phone, Store } from "lucide-react-native";
+import { Globe, Store } from "lucide-react-native";
 import { AuthButton, FieldNote } from "@/components/auth/AuthParts";
 import { StepLayout } from "@/components/onboarding/StepLayout";
 import { Chip, PortalField } from "@/components/business/PortalParts";
 import { WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment } from "@/components/business/WizardParts";
 import { applyNewPlace } from "@/hooks/useBusiness";
-import { businessError, cleanUrl, isPhone } from "@/lib/business";
+import { businessError, cleanUrl } from "@/lib/business";
 import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
 import { CATEGORIES, CATEGORY_DB_VALUE, type CategoryId } from "@/theme/categories";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-const ROLES = ["Ägare", "Delägare", "Chef", "Anställd"];
+const HELP_EMAIL = "hej@osterlenappen.se";
 
 export default function ApplyScreen() {
   const router = useRouter();
@@ -30,8 +30,6 @@ export default function ApplyScreen() {
   const [otherTown, setOtherTown] = useState("");
   const [cat, setCat] = useState<CategoryId | null>(null);
   const [web, setWeb] = useState("");
-  const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +38,7 @@ export default function ApplyScreen() {
 
   const townValue = town === "other" ? otherTown.trim() : town;
   const website = cleanUrl(web);
-  const ok = name.trim().length >= 2 && !!townValue && isPhone(phone) && website !== false && !!role;
+  const ok = name.trim().length >= 2 && !!townValue && website !== false;
 
   const send = async () => {
     setBusy(true);
@@ -48,7 +46,7 @@ export default function ApplyScreen() {
     try {
       const r = await applyNewPlace({
         name: name.trim(), town: townValue!, category: cat ? CATEGORY_DB_VALUE[cat] : null,
-        website: website || null, phone: phone.trim(), role_title: role, message: message.trim() || null,
+        website: website || null, message: message.trim() || null,
       });
       if (!r.ok) {
         setError(r.reason === "already_pending" ? "Du har redan en ansökan som väntar." : r.reason === "not_adult" ? "Du behöver vara 18 år." : r.reason === "too_many" ? "Du har skickat många förfrågningar i dag. Försök i morgon." : "Kolla att allt är ifyllt.");
@@ -67,14 +65,22 @@ export default function ApplyScreen() {
     <WizardFrame stepKey={sent ? "sent" : "form"} progress={sent ? 1 : 0.5} forward onBack={() => router.back()} hideBar={sent}>
       {sent ? (
         <DoneMoment
-          title="Tack!"
-          text={`Vi lägger till ${name.trim()} och ringer dig – oftast inom ett par dagar. Sedan hittar du företaget under Inställningar.`}
-          primary={{ label: "Klart", onPress: () => router.back() }}
+          title="Sista steget"
+          text={`Mejla oss från ${name.trim()}s egen e-post, så vet vi att det är ni. Sedan lägger vi till företaget och du hittar det under Inställningar.`}
+          primary={{
+            label: "Mejla oss nu",
+            onPress: () => {
+              const subject = encodeURIComponent(`${name.trim()} vill finnas i Österlenappen`);
+              Linking.openURL(`mailto:${HELP_EMAIL}?subject=${subject}`).catch(() => {});
+              router.back();
+            },
+          }}
+          secondary={{ label: "Jag gör det sen", onPress: () => router.back() }}
         />
       ) : (
         <StepLayout
           title="Berätta om företaget"
-          subtitle="Vi lägger till det i appen och ringer dig för att kolla att allt stämmer."
+          subtitle="Vi lägger till det i appen. Sedan mejlar du oss från företagets e-post, så vet vi att det är ni."
           scroll
           footer={<>
             {error && <FieldNote tone="danger" text={error} />}
@@ -95,11 +101,6 @@ export default function ApplyScreen() {
           <PortalField label="Hemsida eller Instagram (valfritt)" icon={Globe} value={web} onChangeText={(v) => { setWeb(v); if (webError) setWebError(null); }}
             onBlur={() => setWebError(cleanUrl(web) === false ? "Länken ser inte rätt ut." : null)} error={webError}
             keyboardType="url" autoCapitalize="none" autoCorrect={false} placeholder="ertforetag.se" />
-          <PortalField label="Ditt telefonnummer" icon={Phone} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="070-123 45 67" />
-          <Text style={s.small}>Vad gör du där?</Text>
-          <View style={s.chips}>
-            {ROLES.map((r) => <Chip key={r} label={r} selected={role === r} onPress={() => setRole(r)} />)}
-          </View>
           <PortalField label="Något mer? (valfritt)" value={message} onChangeText={setMessage} multiline maxLength={600} style={{ minHeight: 70 }} />
         </StepLayout>
       )}
