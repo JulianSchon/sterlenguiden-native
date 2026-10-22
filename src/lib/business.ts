@@ -232,7 +232,7 @@ export function businessError(e: unknown): string {
   if (message.includes("not_signed_in")) return "Du behöver vara inloggad.";
   if (message.includes("locked")) return "Någon har redan använt erbjudandet, så det kan inte skrivas om. Avsluta det och skapa ett nytt i stället.";
   if (message.includes("too_many:offers")) return "Ni kan ha högst 10 erbjudanden igång samtidigt.";
-  if (message.includes("too_many:stories")) return "Ni har lagt upp många berättelser i dag. Vänta till i morgon.";
+  if (message.includes("too_many:stories")) return "Ni har lagt upp många stories i dag. Vänta till i morgon.";
   if (message.includes("too_many:events")) return "Ni har väldigt många kommande evenemang. Ta bort några gamla först.";
   if (message.includes("too_many:dates")) return "Högst 52 tillfällen åt gången.";
   if (message.includes("too_many:image_url")) return "Högst 10 bilder.";

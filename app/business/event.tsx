@@ -8,7 +8,7 @@
  * på en gång. Utan egen bild får evenemanget platsens första bild.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import {
@@ -20,7 +20,7 @@ import { DateBox } from "@/components/events/EventCards";
 import { IconSwitch } from "@/components/IconSwitch";
 import { Chip, ChoiceCard, Note, PortalField, PortalToast, type PortalToastHandle } from "@/components/business/PortalParts";
 import { DateCalendar, TimeWheel, dayText, todayIso } from "@/components/business/Pickers";
-import { useWizard, WizardFrame } from "@/components/business/Wizard";
+import { useScreenEntered, useWizard, WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment, ImageChooser } from "@/components/business/WizardParts";
 import { useBusinessPlace, useEventActions, usePlaceEvents, usePortalPlace, type EventDraft } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
@@ -105,6 +105,12 @@ export default function EventComposer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const entered = useScreenEntered();
+  const titleRef = useRef<TextInput>(null);
+  // Första fältet får fokus när sidan glidit in klart (då följer knappen tangentbordet mjukt)
+  useEffect(() => {
+    if (entered && wizard.step === "title" && draft && !editingId) titleRef.current?.focus();
+  }, [entered, wizard.step, !!draft, editingId]);
   const images = useMemo(() => placeImages(place?.image_url), [place?.image_url]);
   const source = events?.find((e) => String(e.id) === (params.id ?? params.copy));
 
@@ -194,9 +200,9 @@ export default function EventComposer() {
   switch (wizard.step) {
     case "title":
       content = (
-        <StepLayout title="Vad heter evenemanget?" subtitle="Kort och lockande – det är det som syns i kalendern."
+        <StepLayout title="Vad heter evenemanget?" subtitle="Kort och lockande – det är det som syns i kalendern." scroll
           footer={<AuthButton label="Fortsätt" onPress={wizard.next} disabled={draft.title.trim().length < 2} />}>
-          <PortalField label="Namn" big value={draft.title} maxLength={70} autoFocus placeholder="T.ex. Allsångsquiz med Bradders"
+          <PortalField ref={titleRef} label="Namn" big value={draft.title} maxLength={70} placeholder="T.ex. Allsångsquiz med Bradders"
             onChangeText={(v) => set({ title: v })} returnKeyType="next" onSubmitEditing={() => draft.title.trim().length >= 2 && wizard.next()} />
           <View style={s.chips}>
             {SUGGESTIONS.map((t) => <Chip key={t} label={t} selected={draft.title === t} onPress={() => set({ title: t })} />)}
@@ -356,9 +362,7 @@ export default function EventComposer() {
     <>
       <WizardFrame stepKey={wizard.step} progress={(wizard.index + 1) / (wizard.count - 1)} forward={wizard.forward}
         onBack={() => (wizard.first ? leave() : wizard.back())} hideBar={wizard.step === "done"}>
-        {wizard.step === "title"
-          ? <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" scrollEnabled={false}>{content}</ScrollView>
-          : content}
+        {content}
       </WizardFrame>
       <PortalToast ref={toast} />
     </>

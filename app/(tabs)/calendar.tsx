@@ -41,6 +41,7 @@ import { MonthCalendar } from "@/components/events/MonthCalendar";
 import { LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
 import { CategoryHeader } from "@/components/CategoryHeader";
 import { Skeleton } from "@/components/Skeleton";
+import { useMyPlaceIds } from "@/hooks/useBusiness";
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { darkColors } from "@/theme/colors";
 
@@ -110,6 +111,7 @@ export default function CalendarScreen() {
   // rankas inte listan om medan man tittar (korten hade hoppat), först nästa gång.
   const favoritePlaceIds = useMemo(() => new Set(favorites.flatMap((f) => (f.place_id != null ? [f.place_id] : []))), [favorites]);
   const visitedPlaceIds = useMemo(() => new Set(visits.map((v) => v.place_id)), [visits]);
+  const ownPlaceIds = useMyPlaceIds();
   const picks = useMemo(() => recommendEvents({
     events,
     places,
@@ -118,7 +120,8 @@ export default function CalendarScreen() {
     visitedPlaceIds,
     categoryCounts: likedCategories(places, visitedPlaceIds, favoritePlaceIds, profile?.interests ?? []),
     location,
-  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location, profile?.interests]);
+    ownPlaceIds,
+  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location, profile?.interests, ownPlaceIds]);
 
   // Eventets panel: får eventet direkt (ingen väntan) och sidans eget sparat-läge
   const eventsRef = useRef(events);

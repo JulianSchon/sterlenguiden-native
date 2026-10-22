@@ -3,7 +3,8 @@
  * framstegsbalk och samma mjuka steg som onboardingen. Varje steg är en StepLayout med rubrik,
  * innehåll och knappen nertill (som följer tangentbordet).
  */
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useNavigation } from "expo-router";
 import { View } from "react-native";
 import Reanimated, { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,6 +28,23 @@ export function useWizard<T extends string>(steps: T[]) {
     setIndex(target);
   }, [steps, safe]);
   return { step: steps[safe], index: safe, count: steps.length, first: safe === 0, forward, next, back, goTo };
+}
+
+/**
+ * Sidan har glidit in klart. Först då får första fältet fokus: kommer tangentbordet upp medan sidan
+ * fortfarande glider följer knappen inte med (samma lösning som onboardingen).
+ */
+export function useScreenEntered(): boolean {
+  const navigation = useNavigation();
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const unsub = navigation.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
+      if (!e?.data?.closing) setEntered(true);
+    });
+    const t = setTimeout(() => setEntered(true), 700);
+    return () => { unsub(); clearTimeout(t); };
+  }, [navigation]);
+  return entered;
 }
 
 export function WizardFrame({ stepKey, progress, forward, onBack, hideBar = false, children }: {

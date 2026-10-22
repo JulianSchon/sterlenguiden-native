@@ -27,7 +27,7 @@ const WHAT: Record<string, string> = {
   hours: "ändrade öppettiderna", exceptions: "ändrade tillfälliga öppettider", about: "ändrade texten om er",
   contact: "ändrade kontaktuppgifterna", photos: "ändrade bilderna", categories: "ändrade kategorierna",
   amenities: "ändrade vad som finns", settings: "ändrade inställningarna", offer: "ändrade ett erbjudande",
-  event: "ändrade ett evenemang", story: "lade upp en berättelse", team: "ändrade personalen",
+  event: "ändrade ett evenemang", story: "lade upp en story", team: "ändrade personalen",
   claimed: "tog hand om sidan", joined: "gick med",
 };
 
@@ -198,7 +198,7 @@ export default function BusinessTeam() {
             )}
 
             <Rise index={4}>
-              <Note icon={Users} text="Ägare kan bjuda in och ta bort personal. Personal kan ändra allt på sidan – öppettider, erbjudanden, evenemang och berättelser." />
+              <Note icon={Users} text="Ägare kan bjuda in och ta bort personal. Personal kan ändra allt på sidan – öppettider, erbjudanden, evenemang och stories." />
             </Rise>
 
             {team.changes.length > 0 && (

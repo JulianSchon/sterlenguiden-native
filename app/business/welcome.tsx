@@ -65,7 +65,7 @@ export default function BusinessWelcome() {
             <Text style={s.kicker}>Mitt företag</Text>
             <Text style={s.title}>Välkommen, {mine?.name ?? ""}!</Text>
             <Text style={s.lead}>
-              Här tar ni hand om er sida i Österlenappen: öppettider, bilder, erbjudanden i Österlenpasset, evenemang och berättelser.
+              Här tar ni hand om er sida i Österlenappen: öppettider, bilder, erbjudanden i Österlenpasset, evenemang och stories.
             </Text>
           </Rise>
           <View style={s.promises}>

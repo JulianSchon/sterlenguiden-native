@@ -276,13 +276,13 @@ function StoryEditor() {
       setTimeout(() => router.back(), 1300);
     } catch (e) {
       setPhase("edit");
-      setError(e instanceof Error && e.message === "snapshot" ? "Berättelsen kunde inte sparas. Försök igen." : businessError(e));
+      setError(e instanceof Error && e.message === "snapshot" ? "Storyn kunde inte sparas. Försök igen." : businessError(e));
     }
   };
 
   const close = () => {
     if (phase === "pick" || (items.length === 0 && !source)) { router.back(); return; }
-    Alert.alert("Släng berättelsen?", "Det du gjort sparas inte.", [
+    Alert.alert("Släng storyn?", "Det du gjort sparas inte.", [
       { text: "Fortsätt redigera", style: "cancel" },
       { text: "Släng", style: "destructive", onPress: () => router.back() },
     ]);
@@ -302,7 +302,7 @@ function StoryEditor() {
           <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel="Stäng"><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
         </View>
         <View style={s.pickBody}>
-          <Text style={s.pickTitle}>Ny berättelse</Text>
+          <Text style={s.pickTitle}>Ny story</Text>
           <Text style={s.pickLead}>Visa hur det ser ut hos er just nu. Den syns överst på Hem i 24 timmar.</Text>
           <View style={s.pickButtons}>
             <TouchableOpacity style={[s.pickBtn, { backgroundColor: GOLD }]} activeOpacity={0.85} onPress={() => start("camera")}>
@@ -388,7 +388,7 @@ function StoryEditor() {
             {phase === "done" ? (
               <>
                 <View style={s.doneCircle}><Check size={40} color="#1A1408" strokeWidth={3} /></View>
-                <Text style={s.publishText}>Berättelsen är ute!</Text>
+                <Text style={s.publishText}>Storyn är ute!</Text>
               </>
             ) : (
               <Text style={s.publishText}>Lägger upp …</Text>

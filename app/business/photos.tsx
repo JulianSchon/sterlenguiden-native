@@ -203,7 +203,7 @@ export default function BusinessPhotos() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.logoTitle}>{logo ? "Byt logga" : "Lägg till er logga"}</Text>
-          <Text style={s.logoSub}>Syns i en rund ram på er sida och i era berättelser.</Text>
+          <Text style={s.logoSub}>Syns i en rund ram på er sida och i era stories.</Text>
         </View>
       </TouchableOpacity>
       <View style={{ height: 26 }} />

@@ -138,7 +138,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
           <View>
             <Text style={s.label}>Skapa</Text>
             <View style={s.createRow}>
-              <CreateTile Icon={Camera} title="Berättelse" sub="Visa dagen" onPress={() => go("story")} />
+              <CreateTile Icon={Camera} title="Story" sub="Visa dagen" onPress={() => go("story")} />
               <CreateTile Icon={Ticket} title="Erbjudande" sub="I Österlenpasset" onPress={() => go("offer")} />
               <CreateTile Icon={CalendarPlus} title="Evenemang" sub="Bjud in gäster" onPress={() => go("event")} />
             </View>
@@ -157,7 +157,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
               {activeStories.length > 0 && (
                 <SettingsRow
                   icon={Camera}
-                  label={activeStories.length === 1 ? "1 berättelse ute nu" : `${activeStories.length} berättelser ute nu`}
+                  label={activeStories.length === 1 ? "1 story ute nu" : `${activeStories.length} stories ute nu`}
                   subtitle={`${activeStories.reduce((n, st) => n + st.views, 0)} har sett ${activeStories.length === 1 ? "den" : "dem"}`}
                   onPress={() => go("stories")}
                 />
@@ -197,7 +197,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
           <SettingsGroup label="Mer">
             <SettingsRow icon={Ticket} label="Erbjudanden" value={activeOffers.length ? `${activeOffers.length} igång` : undefined} onPress={() => go("offers")} />
             <SettingsRow icon={CalendarDays} label="Evenemang" value={upcoming.length ? `${upcoming.length} kommande` : undefined} onPress={() => go("events")} />
-            <SettingsRow icon={Camera} label="Berättelser" onPress={() => go("stories")} />
+            <SettingsRow icon={Camera} label="Stories" onPress={() => go("stories")} />
             <SettingsRow icon={BarChart3} label="Statistik" onPress={() => go("stats")} />
             <SettingsRow
               icon={Users}
@@ -340,15 +340,19 @@ function TodayCard({ place, onCloseToday, onChange, onUndo, onHours }: {
         )}
         <View style={s.todayButtons}>
           {!closedToday && status && (
-            <PressableScale scale={0.97} style={[s.todayBtn, s.todayBtnStrong]} onPress={onCloseToday} accessibilityRole="button">
-              <DoorClosed size={17} color={colors.text} strokeWidth={2} />
-              <Text style={s.todayBtnText}>Stängt i dag</Text>
-            </PressableScale>
+            <View style={{ flex: 1 }}>
+              <PressableScale scale={0.97} style={[s.todayBtn, s.todayBtnStrong]} onPress={onCloseToday} accessibilityRole="button">
+                <DoorClosed size={17} color={colors.text} strokeWidth={2} />
+                <Text style={s.todayBtnText} numberOfLines={1}>Stängt i dag</Text>
+              </PressableScale>
+            </View>
           )}
-          <PressableScale scale={0.97} style={s.todayBtn} onPress={status ? onChange : onHours} accessibilityRole="button">
-            <Clock size={17} color={colors.text} strokeWidth={2} />
-            <Text style={s.todayBtnText}>{status ? "Ändra i dag" : "Öppettider"}</Text>
-          </PressableScale>
+          <View style={{ flex: 1 }}>
+            <PressableScale scale={0.97} style={s.todayBtn} onPress={status ? onChange : onHours} accessibilityRole="button">
+              <Clock size={17} color={colors.text} strokeWidth={2} />
+              <Text style={s.todayBtnText} numberOfLines={1}>{status ? "Ändra i dag" : "Öppettider"}</Text>
+            </PressableScale>
+          </View>
         </View>
       </View>
     </GradientCard>
@@ -418,13 +422,15 @@ function CreateTile({ Icon, title, sub, onPress }: { Icon: typeof Camera; title:
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
-    <PressableScale scale={0.95} style={s.tile} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
-      <View style={s.tileIcon}>
-        <Icon size={24} color={colors.goldText} strokeWidth={1.9} />
-      </View>
-      <Text style={s.tileTitle} numberOfLines={1}>{title}</Text>
-      <Text style={s.tileSub} numberOfLines={1}>{sub}</Text>
-    </PressableScale>
+    <View style={{ flex: 1 }}>
+      <PressableScale scale={0.95} style={s.tile} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+        <View style={s.tileIcon}>
+          <Icon size={24} color={colors.goldText} strokeWidth={1.9} />
+        </View>
+        <Text style={s.tileTitle} numberOfLines={1}>{title}</Text>
+        <Text style={s.tileSub} numberOfLines={1}>{sub}</Text>
+      </PressableScale>
+    </View>
   );
 }
 
@@ -448,7 +454,7 @@ function WeekCard({ stats, onPress }: { stats: ReturnType<typeof useBusinessStat
           </View>
           <Text style={s.weekHeadline}>{headline}</Text>
           {stats.visitors === 0 ? (
-            <Text style={s.weekSub}>Lägg upp en berättelse – den syns direkt överst på Hem.</Text>
+            <Text style={s.weekSub}>Lägg upp en story – den syns direkt överst på Hem.</Text>
           ) : diff !== 0 && stats.visitors_prev > 0 ? (
             <Text style={[s.weekSub, { color: diff > 0 ? colors.success : colors.muted }]}>
               {diff > 0 ? `${diff} fler än veckan innan` : `${-diff} färre än veckan innan`}
@@ -541,7 +547,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   ownUndoText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.goldText },
   todayButtons: { flexDirection: "row", gap: 10, marginTop: 14 },
   todayBtn: {
-    flex: 1, height: 48, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    height: 48, paddingHorizontal: 10, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
   },
   todayBtnStrong: { backgroundColor: c.raised },
@@ -559,7 +565,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
 
   createRow: { flexDirection: "row", gap: 10 },
   tile: {
-    flex: 1, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 10, alignItems: "center",
+    borderRadius: 18, paddingVertical: 16, paddingHorizontal: 10, alignItems: "center",
     backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border,
   },
   tileIcon: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: c.goldSoft, marginBottom: 10 },

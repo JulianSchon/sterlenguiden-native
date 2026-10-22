@@ -10,7 +10,7 @@
  * det också): annars kunde man lova en sak och ge en annan.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSharedValue } from "react-native-reanimated";
 import { CalendarDays, CalendarRange, Infinity as InfinityIcon, Repeat, Sun, Ticket } from "lucide-react-native";
@@ -20,7 +20,7 @@ import { OfferTicket } from "@/components/offers/OfferTicket";
 import type { TearEdge } from "@/components/offers/OfferDrawer";
 import { Chip, ChoiceCard, Note, PortalField, PortalToast, type PortalToastHandle } from "@/components/business/PortalParts";
 import { DateCalendar, addDaysIso, rangeText, todayIso } from "@/components/business/Pickers";
-import { useWizard, WizardFrame } from "@/components/business/Wizard";
+import { useScreenEntered, useWizard, WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment, ImageChooser } from "@/components/business/WizardParts";
 import { useBusinessOffers, useBusinessPlace, useOfferActions, usePortalPlace, type OfferDraft } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
@@ -89,6 +89,12 @@ export default function OfferComposer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const entered = useScreenEntered();
+  const titleRef = useRef<TextInput>(null);
+  // Första fältet får fokus när sidan glidit in klart (då följer knappen tangentbordet mjukt)
+  useEffect(() => {
+    if (entered && wizard.step === "title" && draft && !editingId) titleRef.current?.focus();
+  }, [entered, wizard.step, !!draft, editingId]);
   const images = useMemo(() => placeImages(place?.image_url), [place?.image_url]);
   const summer = new Date().getMonth() <= 6;
 
@@ -175,9 +181,10 @@ export default function OfferComposer() {
         <StepLayout
           title="Vad får gästen?"
           subtitle="Kort och tydligt – det här är det första medlemmarna ser."
+          scroll
           footer={footer(draft.title.trim().length >= 2)}
         >
-          <PortalField label="Erbjudandet" big value={draft.title} maxLength={60} counter={60} autoFocus
+          <PortalField ref={titleRef} label="Erbjudandet" big value={draft.title} maxLength={60} counter={60}
             placeholder="T.ex. 2 för 1 på lunch" onChangeText={(v) => set({ title: v })} returnKeyType="next"
             onSubmitEditing={() => draft.title.trim().length >= 2 && wizard.next()} />
           <View style={s.chips}>
@@ -191,6 +198,7 @@ export default function OfferComposer() {
         <StepLayout
           title="Vad är det värt?"
           subtitle="Ungefär hur mycket sparar gästen? Det visar hur mycket man sparar med passet."
+          scroll
           footer={<>
             <AuthButton label="Fortsätt" onPress={wizard.next} />
           </>}
@@ -283,7 +291,7 @@ export default function OfferComposer() {
           text={editingId ? "Ändringen syns direkt i appen." : "Nu syns det för alla med Österlenpasset – på er sida och under Förmåner."}
           primary={{ label: "Klart", onPress: () => router.back() }}
           secondary={editingId ? undefined : {
-            label: "Berätta om det i en berättelse",
+            label: "Berätta om det i en story",
             onPress: () => { router.back(); setTimeout(() => pushOnce(router, `/business/story?place=${placeId}&offer=${savedId}`), 350); },
           }}
         />
@@ -300,9 +308,7 @@ export default function OfferComposer() {
         onBack={back}
         hideBar={wizard.step === "done"}
       >
-        {wizard.step === "use" || wizard.step === "time" || wizard.step === "image" || wizard.step === "review"
-          ? content
-          : <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" scrollEnabled={false}>{content}</ScrollView>}
+        {content}
       </WizardFrame>
       <PortalToast ref={toast} />
     </>

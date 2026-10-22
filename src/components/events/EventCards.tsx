@@ -17,7 +17,7 @@ import Reanimated, {
   Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
 } from "react-native-reanimated";
 import {
-  CalendarDays, Compass, Footprints, Heart, MapPin, Navigation, ThumbsUp, type LucideIcon,
+  CalendarDays, Compass, Footprints, Heart, MapPin, Navigation, Store, ThumbsUp, type LucideIcon,
 } from "lucide-react-native";
 import type { Event } from "@/hooks/useEvents";
 import { dateBadge, eventWhen, type Reason, type ReasonKind } from "@/lib/events";
@@ -31,6 +31,7 @@ const RED = "#EF4444";
 const LIVE = "#FF8000";
 
 const REASON_ICON: Partial<Record<ReasonKind, LucideIcon>> = {
+  own: Store,
   saved: Heart,
   favoritePlace: Heart,
   visitedPlace: Footprints,

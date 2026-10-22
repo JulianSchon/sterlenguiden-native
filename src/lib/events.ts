@@ -75,7 +75,7 @@ const EVENT_TO_PLACE: Record<string, CategoryId[]> = {
 };
 
 export type ReasonKind =
-  | "saved" | "favoritePlace" | "visitedPlace" | "category" | "nearby" | "discover"
+  | "own" | "saved" | "favoritePlace" | "visitedPlace" | "category" | "nearby" | "discover"
   | "today" | "ongoing" | "tomorrow" | "weekend" | "soon" | "later";
 
 export interface Reason { kind: ReasonKind; text: string }
@@ -99,12 +99,14 @@ export function liveReason(pick: EventPick, saved: boolean): Reason {
 }
 
 /** Skäl som handlar om personen (inte bara om när) — de visas hellre än "I morgon" */
-const PERSONAL: ReasonKind[] = ["saved", "favoritePlace", "visitedPlace", "category", "nearby", "discover"];
+const PERSONAL: ReasonKind[] = ["own", "saved", "favoritePlace", "visitedPlace", "category", "nearby", "discover"];
 
 export function recommendEvents({
-  events, places, favoritePlaceIds, savedEventIds, visitedPlaceIds, categoryCounts, location, now = new Date(),
+  events, places, favoritePlaceIds, savedEventIds, visitedPlaceIds, categoryCounts, location, ownPlaceIds, now = new Date(),
 }: {
   events: Event[];
+  /** Platser man själv sköter (Mitt företag): deras evenemang är "Ert evenemang" */
+  ownPlaceIds?: Set<number>;
   places: Place[];
   favoritePlaceIds: Set<number>;
   savedEventIds: Set<number>;
@@ -129,7 +131,9 @@ export function recommendEvents({
     const reasons: { kind: ReasonKind; text: string; weight: number }[] = [];
 
     if (savedEventIds.has(event.id)) reasons.push({ ...SAVED_REASON, weight: 60 });
-    if (place && favoritePlaceIds.has(place.id)) {
+    if (place && ownPlaceIds?.has(place.id)) {
+      reasons.push({ kind: "own", text: "Ert evenemang", weight: 70 });
+    } else if (place && favoritePlaceIds.has(place.id)) {
       reasons.push({ kind: "favoritePlace", text: "Hos en av dina favoritplatser", weight: 50 });
     } else if (place && visitedPlaceIds.has(place.id)) {
       reasons.push({ kind: "visitedPlace", text: `Du har varit på ${place.name}`, weight: 30 });

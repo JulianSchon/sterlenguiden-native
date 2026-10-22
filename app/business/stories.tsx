@@ -1,12 +1,15 @@
 /**
- * Berättelser: de som är ute nu (24 timmar) och de senaste 30 dagarna, med hur många som sett var
- * och en. Tryck på en för att ta bort den. Nya skapas med Ny berättelse (business/story).
+ * Stories: de som är ute nu (24 timmar) och de senaste 30 dagarna, med hur många som sett var och
+ * en. Ett tryck visar storyn i helskärm (som gästerna ser den); där kan man ta bort den. Nya
+ * skapas med Ny story (business/story).
  */
-import { useRef } from "react";
-import { Alert, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useRef, useState } from "react";
+import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { Image as ExpoImage } from "expo-image";
-import { Camera, Eye } from "lucide-react-native";
+import { Camera, Eye, Trash2, X } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
@@ -18,11 +21,17 @@ import { pushOnce } from "@/lib/navigateOnce";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-/** "3 h kvar", "Ute i 20 min till" */
-function left(st: BusinessStory): string {
-  const ms = new Date(st.expires_at ?? 0).getTime() - Date.now();
-  const h = Math.floor(ms / 3_600_000);
-  return h >= 1 ? `${h} h kvar` : `${Math.max(1, Math.round(ms / 60_000))} min kvar`;
+const isLive = (st: BusinessStory) => !!st.expires_at && new Date(st.expires_at).getTime() > Date.now();
+
+/** "3 h kvar", "20 min kvar" — eller när den lades upp, för en som gått ut */
+function when(st: BusinessStory): string {
+  if (isLive(st)) {
+    const ms = new Date(st.expires_at ?? 0).getTime() - Date.now();
+    const h = Math.floor(ms / 3_600_000);
+    return h >= 1 ? `${h} h kvar` : `${Math.max(1, Math.round(ms / 60_000))} min kvar`;
+  }
+  const d = new Date(st.created_at);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
 export default function BusinessStories() {
@@ -33,27 +42,28 @@ export default function BusinessStories() {
   const { data: stories } = usePlaceStories(placeId);
   const actions = useStoryActions(placeId);
   const toast = useRef<PortalToastHandle>(null);
-  const live = (stories ?? []).filter((st) => st.expires_at && new Date(st.expires_at).getTime() > Date.now());
-  const old = (stories ?? []).filter((st) => !live.includes(st));
+  const [open, setOpen] = useState<BusinessStory | null>(null);
+  const live = (stories ?? []).filter(isLive);
+  const old = (stories ?? []).filter((st) => !isLive(st));
   const w = (width - 32 - 20) / 3;
 
-  const ask = (st: BusinessStory) => {
-    Alert.alert("Ta bort berättelsen?", "Den försvinner direkt för alla.", [
+  const remove = (st: BusinessStory) => {
+    Alert.alert("Ta bort storyn?", "Den försvinner direkt för alla.", [
       { text: "Avbryt", style: "cancel" },
       {
         text: "Ta bort", style: "destructive",
         onPress: () => actions.remove(st.id)
-          .then(() => { removePlaceImages([st.image_url]); toast.current?.show("Borttagen"); })
+          .then(() => { setOpen(null); removePlaceImages([st.image_url]); setTimeout(() => toast.current?.show("Borttagen"), 250); })
           .catch((e) => toast.current?.show(businessError(e))),
       },
     ]);
   };
 
-  const tile = (st: BusinessStory, isLive: boolean) => (
-    <Pressable key={st.id} onPress={() => ask(st)} style={[s.tile, { width: w, height: w * 16 / 9 }]} accessibilityLabel="Berättelse">
+  const tile = (st: BusinessStory) => (
+    <Pressable key={st.id} onPress={() => setOpen(st)} style={[s.tile, { width: w, height: w * 16 / 9 }]} accessibilityLabel="Visa storyn">
       <ExpoImage source={{ uri: st.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
       <View style={s.tileShade} />
-      {isLive && <Text style={s.tileLive}>{left(st)}</Text>}
+      {isLive(st) && <Text style={s.tileLive}>{when(st)}</Text>}
       <View style={s.tileViews}>
         <Eye size={13} color="#FFFFFF" strokeWidth={2.2} />
         <Text style={s.tileViewsText}>{st.views}</Text>
@@ -63,9 +73,9 @@ export default function BusinessStories() {
 
   return (
     <>
-      <SettingsScreen title="Berättelser">
+      <SettingsScreen title="Stories">
         <Rise index={0}>
-          <Note icon={Camera} text="En berättelse syns överst på Hem i 24 timmar – för alla, och först för dem som sparat er." />
+          <Note icon={Camera} text="En story syns överst på Hem i 24 timmar – för alla, och först för dem som sparat er." />
         </Rise>
         {!stories ? (
           <View style={{ flexDirection: "row", gap: 10 }}>
@@ -76,27 +86,57 @@ export default function BusinessStories() {
             <Rise index={1}>
               <View>
                 <SectionHeader title={live.length ? `Ute nu · ${live.length}` : "Ute nu"} />
-                {live.length ? <View style={s.grid}>{live.map((st) => tile(st, true))}</View> : (
-                  <Text style={s.none}>Ingen berättelse ute just nu.</Text>
-                )}
+                {live.length ? <View style={s.grid}>{live.map(tile)}</View> : <Text style={s.none}>Ingen story ute just nu.</Text>}
               </View>
             </Rise>
             {old.length > 0 && (
               <Rise index={2}>
                 <View>
                   <SectionHeader title="Senaste 30 dagarna" />
-                  <View style={s.grid}>{old.map((st) => tile(st, false))}</View>
+                  <View style={s.grid}>{old.map(tile)}</View>
                 </View>
               </Rise>
             )}
           </>
         )}
         <Rise index={3}>
-          <GoldButton label="Ny berättelse" onPress={() => pushOnce(router, `/business/story?place=${placeId}`)} />
+          <GoldButton label="Ny story" onPress={() => pushOnce(router, `/business/story?place=${placeId}`)} />
         </Rise>
       </SettingsScreen>
+      <StoryPreview story={open} onClose={() => setOpen(null)} onRemove={remove} />
       <PortalToast ref={toast} />
     </>
+  );
+}
+
+/** Storyn i helskärm, som gästerna ser den — med hur många som sett den, och Ta bort */
+function StoryPreview({ story, onClose, onRemove }: { story: BusinessStory | null; onClose: () => void; onRemove: (st: BusinessStory) => void }) {
+  const insets = useSafeAreaInsets();
+  const s = useThemedStyles(createStyles);
+  return (
+    <Modal visible={!!story} animationType="fade" transparent statusBarTranslucent onRequestClose={onClose}>
+      <StatusBar style="light" />
+      {story && (
+        <View style={s.preview}>
+          <ExpoImage source={{ uri: story.image_url }} style={StyleSheet.absoluteFill} contentFit="contain" />
+          <View style={[s.previewTop, { paddingTop: insets.top + 10 }]}>
+            <View style={s.previewInfo}>
+              <Eye size={16} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={s.previewText}>{story.views} har sett den · {when(story)}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={12} style={s.round} accessibilityLabel="Stäng">
+              <X size={22} color="#FFFFFF" strokeWidth={2.2} />
+            </TouchableOpacity>
+          </View>
+          <View style={[s.previewBottom, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+            <TouchableOpacity style={s.removeBtn} onPress={() => onRemove(story)} activeOpacity={0.8}>
+              <Trash2 size={18} color="#FFFFFF" strokeWidth={2.2} />
+              <Text style={s.removeText}>Ta bort storyn</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </Modal>
   );
 }
 
@@ -111,4 +151,12 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   tileViews: { position: "absolute", bottom: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 4 },
   tileViewsText: { fontFamily: "Inter_700Bold", fontSize: 13, color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   none: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, paddingHorizontal: 4 },
+  preview: { flex: 1, backgroundColor: "#000000" },
+  previewTop: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
+  previewInfo: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18 },
+  previewText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#FFFFFF" },
+  round: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.45)" },
+  previewBottom: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center" },
+  removeBtn: { flexDirection: "row", alignItems: "center", gap: 8, height: 50, paddingHorizontal: 24, borderRadius: 25, backgroundColor: "rgba(220,38,38,0.9)" },
+  removeText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#FFFFFF" },
 });

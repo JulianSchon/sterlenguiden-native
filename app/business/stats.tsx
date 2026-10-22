@@ -29,7 +29,7 @@ const LINKS: { key: string; label: string }[] = [
 ];
 const SOURCES: Record<string, string> = {
   home: "Hem", search: "Sök", map: "Kartan", calendar: "Kalendern", profile: "Profil", category: "Kategorier",
-  lists: "Listor och favoriter", place: "Andra platser", offers: "Förmåner", story: "Berättelser", friends: "Vänner", other: "Annat",
+  lists: "Listor och favoriter", place: "Andra platser", offers: "Förmåner", story: "Stories", friends: "Vänner", other: "Annat",
 };
 const AGES: { key: string; label: string }[] = [
   { key: "under25", label: "Under 25" }, { key: "25-34", label: "25–34" }, { key: "35-44", label: "35–44" },
@@ -101,7 +101,7 @@ function Content({ stats, days }: { stats: BusinessStats; days: Days }) {
           <Tile n={stats.favorites_new} prev={stats.favorites_new_prev} label={`Nya favoriter (${stats.favorites_total} totalt)`} />
           <Tile n={stats.checkins} prev={stats.checkins_prev} label="Incheckningar hos er" />
           <Tile n={stats.redemptions} prev={stats.redemptions_prev} label="Använda erbjudanden" />
-          <Tile n={stats.story_views} label="Visningar av berättelser" />
+          <Tile n={stats.story_views} label="Visningar av stories" />
         </View>
       </Rise>
 
@@ -157,7 +157,7 @@ function Content({ stats, days }: { stats: BusinessStats; days: Days }) {
             ) : (
               <View style={s.waiting}>
                 <Text style={s.waitingText}>
-                  Visas när minst 20 personer tittat på er sida under perioden{stats.audience_people ? ` – nu ${stats.audience_people}` : ""}.
+                  Här ser ni ålder och var gästerna bor – men först när minst 20 olika personer tittat på er sida under perioden, så att ingen enskild går att känna igen. Hittills {stats.audience_people ?? 0} {stats.audience_people === 1 ? "person" : "personer"}.
                 </Text>
               </View>
             )}
