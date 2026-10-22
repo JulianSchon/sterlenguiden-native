@@ -3,8 +3,9 @@ import * as SecureStore from "expo-secure-store";
 import type { Database } from "./types";
 
 const SUPABASE_URL = "https://hnaaalewgkpqcylaaidj.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuYWFhbGV3Z2twcWN5bGFhaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3OTI1ODIsImV4cCI6MjA4NTM2ODU4Mn0.sStAEXlIxK6T2CJ98N8Ki9kSyTcRZUROIoMIKWl_8zs";
+// Den publika nyckeln (publishable key). Den får ligga i appen: vad den släpper in styrs helt av
+// databasens regler (RLS), och utloggade kommer inte åt någonting.
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_n5mlxyuWrqa9oOWNoAVtVQ_mSgDEoYK";
 
 // SecureStore adapter — replaces localStorage used in the web version
 const ExpoSecureStoreAdapter = {
@@ -16,7 +17,7 @@ const ExpoSecureStoreAdapter = {
 
 export const supabase = createClient<Database>(
   SUPABASE_URL,
-  SUPABASE_ANON_KEY,
+  SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
       storage: ExpoSecureStoreAdapter,
