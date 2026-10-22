@@ -14,6 +14,7 @@
  * flugit ut byter alla kort plats i samma bildruta — inget blinkar.
  */
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import i18n from "i18next";
 import { StyleSheet, Text, View } from "react-native";
 import Reanimated, {
   Easing, runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming,
@@ -232,7 +233,7 @@ export const SwipeCard = memo(function SwipeCard({
               <View style={s.catRow}>
                 <View style={[s.dot, { backgroundColor: cat ? CATEGORY_DOT.dark[cat.id] : "rgba(255,255,255,0.6)" }]} />
                 <Text style={s.cat} numberOfLines={1}>
-                  {[cat?.label ?? "Plats", place.nearest_town].filter(Boolean).join("  ·  ")}
+                  {[cat?.label ?? i18n.t("categories.place"), place.nearest_town].filter(Boolean).join("  ·  ")}
                 </Text>
               </View>
               <Text style={s.name} numberOfLines={2}>{place.name}</Text>
@@ -245,7 +246,7 @@ export const SwipeCard = memo(function SwipeCard({
               )}
               {!!place.short_description && <Text style={s.desc} numberOfLines={2}>{place.short_description}</Text>}
             </View>
-            <View style={s.openBtn} accessibilityRole="button" accessibilityLabel={`Öppna ${place.name}`}>
+            <View style={s.openBtn} accessibilityRole="button" accessibilityLabel={i18n.t("discover.open", { name: place.name })}>
               <BlurView intensity={20} tint="dark" style={[StyleSheet.absoluteFill, s.glass]} />
               <ArrowUpRight size={22} color="#FFFFFF" strokeWidth={2.2} />
             </View>

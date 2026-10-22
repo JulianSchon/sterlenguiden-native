@@ -820,4 +820,11 @@ export const de: typeof sv = {
       late: "spät geöffnet", dog: "mit Hund", nature: "Natur", events: "Veranstaltungen",
     },
   },
+  nav: { home: "Start", search: "Suche", map: "Karte", calendar: "Kalender", profile: "Profil" },
+  discover: {
+    title: "ENTDECKEN", left: "noch {{count}}", skip: "Überspringen", save: "Speichern", open: "{{name}} öffnen",
+    allSeenTitle: "Du hast alle Orte gesehen",
+    allSeenText: "Neue Orte erscheinen hier, sobald sie in die App kommen. Was du gespeichert hast, findest du unter Favoriten.",
+    toFavorites: "Zu den Favoriten", back: "Zurück",
+  },
 };

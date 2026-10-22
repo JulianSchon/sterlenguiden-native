@@ -820,4 +820,11 @@ export const en: typeof sv = {
       late: "open late", dog: "with a dog", nature: "nature", events: "events",
     },
   },
+  nav: { home: "Home", search: "Search", map: "Map", calendar: "Calendar", profile: "Profile" },
+  discover: {
+    title: "DISCOVER", left: "{{count}} left", skip: "Skip", save: "Save", open: "Open {{name}}",
+    allSeenTitle: "You've seen every place",
+    allSeenText: "New places show up here when they're added to the app. What you saved is under Favourites.",
+    toFavorites: "Go to Favourites", back: "Back",
+  },
 };

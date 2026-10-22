@@ -16,9 +16,9 @@ import Reanimated, {
 
 /** Bredd delat med höjd för varje bild */
 const PHOTOS = [
-  { source: require("../../../assets/welcome/ales-stenar.jpg"), ratio: 3000 / 2000 },
+  { source: require("../../../assets/welcome/ales-stenar.jpg"), ratio: 1800 / 2000 },
   { source: require("../../../assets/welcome/hammars-backar.jpg"), ratio: 1600 / 2400 },
-  { source: require("../../../assets/welcome/kor-hammars-backar.jpg"), ratio: 3000 / 2000 },
+  { source: require("../../../assets/welcome/kor-hammars-backar.jpg"), ratio: 1800 / 2000 },
   { source: require("../../../assets/welcome/strand.jpg"), ratio: 1600 / 2840 },
   { source: require("../../../assets/welcome/rapsfalt.jpg"), ratio: 1600 / 2400 },
 ];

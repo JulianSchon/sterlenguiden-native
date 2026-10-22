@@ -29,6 +29,7 @@ import * as Haptics from "expo-haptics";
 import { scrollToTop } from "@/lib/scrollRefs";
 import { useNavHidden } from "@/lib/navVisibility";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useTranslation } from "react-i18next";
 import {
   NavHome,
   NavSearch,
@@ -127,6 +128,7 @@ function NavButton({ onPress, label, isActive, showBadge, children }: NavButtonP
 // ─── FloatingNav ──────────────────────────────────────────────────────────────
 export default function FloatingNav() {
   const { colors, scheme } = useTheme();
+  const { t } = useTranslation();
   const dark      = scheme === "dark";
   const router    = useRouter();
   const pathname  = usePathname();
@@ -171,19 +173,19 @@ export default function FloatingNav() {
   const tabs = [
     {
       id: "home",
-      label: "Hem",
+      label: t("nav.home"),
       onPress: () => go("/(tabs)/", "home"),
       icon: <NavHome active={active === "home"} />,
     },
     {
       id: "search",
-      label: "Sök",
+      label: t("nav.search"),
       onPress: () => go("/(tabs)/explore", "search"),
       icon: <NavSearch active={active === "search"} />,
     },
     {
       id: "map",
-      label: "Karta",
+      label: t("nav.map"),
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         router.push("/(tabs)/map");
@@ -192,13 +194,13 @@ export default function FloatingNav() {
     },
     {
       id: "calendar",
-      label: "Kalender",
+      label: t("nav.calendar"),
       onPress: () => go("/(tabs)/calendar", "calendar"),
       icon: <NavCalendar active={active === "calendar"} />,
     },
     {
       id: "profile",
-      label: "Profil",
+      label: t("nav.profile"),
       onPress: () => go("/(tabs)/profile", "profile"),
       icon: <NavProfile active={active === "profile"} />,
       showBadge: unseen > 0,

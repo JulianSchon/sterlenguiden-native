@@ -21,6 +21,7 @@ import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useDismissals, useDismissPlace, useLikePlace } from "@/hooks/useDismissals";
 import { useKnownLocation } from "@/hooks/useUserLocation";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useTranslation } from "react-i18next";
 import { distanceMeters } from "@/lib/checkin";
 import { pushOnce } from "@/lib/navigateOnce";
 import { Skeleton } from "@/components/Skeleton";
@@ -45,6 +46,7 @@ export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const location = useKnownLocation();
 
   const { data: places = NO_PLACES, isFetched: placesFetched } = usePlaces();
@@ -117,8 +119,8 @@ export default function DiscoverScreen() {
         <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={() => router.back()}>
           <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: colors.text }]} numberOfLines={1}>UPPTÄCK</Text>
-        {queue && left > 0 && <Text style={[s.left, { color: colors.muted }]}>{left} kvar</Text>}
+        <Text style={[s.headerTitle, { color: colors.text }]} numberOfLines={1}>{t("discover.title")}</Text>
+        {queue && left > 0 && <Text style={[s.left, { color: colors.muted }]}>{t("discover.left", { count: left })}</Text>}
       </View>
 
       <View style={s.deck} onLayout={(e) => setWidth(e.nativeEvent.layout.width - DECK_SIDE * 2)}>
@@ -146,10 +148,10 @@ export default function DiscoverScreen() {
       </View>
 
       <View style={[s.actions, { paddingBottom: insets.bottom + 18 }]}>
-        <ActionButton label="Skippa" disabled={!current} onPress={() => throwTop(-1)}>
+        <ActionButton label={t("discover.skip")} disabled={!current} onPress={() => throwTop(-1)}>
           <X size={30} color={NO} strokeWidth={2.8} />
         </ActionButton>
-        <ActionButton label="Spara" disabled={!current} onPress={() => throwTop(1)}>
+        <ActionButton label={t("discover.save")} disabled={!current} onPress={() => throwTop(1)}>
           <Heart size={28} color={YES} fill={YES} strokeWidth={2} />
         </ActionButton>
       </View>
@@ -185,20 +187,21 @@ function ActionButton({ label, disabled, onPress, children }: {
 /** Alla platser svepta */
 function AllSeen({ onFavorites, onBack }: { onFavorites: () => void; onBack: () => void }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={s.allSeen}>
       <View style={[s.allSeenIcon, { backgroundColor: colors.goldSoft }]}>
         <Check size={28} color={colors.goldText} strokeWidth={2.4} />
       </View>
-      <Text style={[s.allSeenTitle, { color: colors.text }]}>Du har sett alla platser</Text>
+      <Text style={[s.allSeenTitle, { color: colors.text }]}>{t("discover.allSeenTitle")}</Text>
       <Text style={[s.allSeenText, { color: colors.muted }]}>
-        Nya platser dyker upp här när de kommer till appen. Det du sparat finns under Favoriter.
+        {t("discover.allSeenText")}
       </Text>
       <TouchableOpacity style={[s.allSeenBtn, { backgroundColor: colors.gold }]} activeOpacity={0.85} onPress={onFavorites}>
-        <Text style={[s.allSeenBtnText, { color: colors.onGold }]}>Till Favoriter</Text>
+        <Text style={[s.allSeenBtnText, { color: colors.onGold }]}>{t("discover.toFavorites")}</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onBack} hitSlop={10}>
-        <Text style={[s.allSeenLink, { color: colors.muted }]}>Tillbaka</Text>
+        <Text style={[s.allSeenLink, { color: colors.muted }]}>{t("discover.back")}</Text>
       </TouchableOpacity>
     </View>
   );

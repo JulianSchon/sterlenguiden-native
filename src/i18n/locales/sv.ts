@@ -823,4 +823,11 @@ export const sv = {
       late: "öppet sent", dog: "med hund", nature: "natur", events: "evenemang",
     },
   },
+  nav: { home: "Hem", search: "Sök", map: "Karta", calendar: "Kalender", profile: "Profil" },
+  discover: {
+    title: "UPPTÄCK", left: "{{count}} kvar", skip: "Skippa", save: "Spara", open: "Öppna {{name}}",
+    allSeenTitle: "Du har sett alla platser",
+    allSeenText: "Nya platser dyker upp här när de kommer till appen. Det du sparat finns under Favoriter.",
+    toFavorites: "Till Favoriter", back: "Tillbaka",
+  },
 };
