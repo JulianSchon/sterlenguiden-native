@@ -342,6 +342,40 @@ export function useAdminRequests() {
   });
 }
 
+/** Ett tips från "Saknas ditt smultronställe?" (tabellen place_suggestions) */
+export interface AdminSuggestion {
+  id: string;
+  name: string;
+  category: string | null;
+  location: string | null;
+  description: string | null;
+  link: string | null;
+  is_owner: boolean | null;
+  created_at: string;
+  handled_at: string | null;
+  user_name: string | null;
+  user_email: string | null;
+}
+
+export function useAdminSuggestions() {
+  return useQuery({
+    queryKey: ["business", "admin", "suggestions"],
+    queryFn: () => rpc<AdminSuggestion[]>("admin_suggestions"),
+  });
+}
+
+export function useMarkSuggestion() {
+  const queryClient = useQueryClient();
+  return useCallback(async (id: string, done: boolean) => {
+    try {
+      await rpc<void>("admin_mark_suggestion", { p_id: id, p_done: done });
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ["business", "admin", "suggestions"] });
+      queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
+    }
+  }, [queryClient]);
+}
+
 export function useDecideRequest() {
   const queryClient = useQueryClient();
   return useCallback(async (id: string, approve: boolean) => {

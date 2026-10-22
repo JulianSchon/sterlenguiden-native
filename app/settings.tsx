@@ -4,7 +4,7 @@
  *
  * Sköter man ett företag finns Mitt företag här (och inbjudningar till ett företag, när någon
  * bjudit in en). Admin ser förfrågningarna som väntar. Alla andra ser en diskret rad längre ner:
- * Har du ett företag?
+ * Vill ert företag synas här?
  */
 import { useState } from "react";
 import { Text, TouchableOpacity, Pressable, Alert, Image, StyleSheet } from "react-native";
@@ -176,7 +176,7 @@ export default function SettingsHub() {
               <SettingsRow
                 compact
                 icon={Store}
-                label="Har du ett företag?"
+                label="Vill ert företag synas här?"
                 subtitle="Ta hand om er sida i appen – gratis"
                 strong
                 tint={colors.warm}

@@ -12,13 +12,13 @@ import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from "react-
 import { useRouter } from "expo-router";
 import { format } from "date-fns";
 import { sv } from "date-fns/locale";
-import { AlertTriangle, Inbox, Mail, Phone } from "lucide-react-native";
+import { AlertTriangle, Check, ExternalLink, Inbox, Lightbulb, Mail, Phone, Undo2 } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
 import { Note, SectionHeader } from "@/components/business/PortalParts";
-import { useAdminRequests, useDecideRequest } from "@/hooks/useBusiness";
+import { useAdminRequests, useAdminSuggestions, useDecideRequest, useMarkSuggestion, type AdminSuggestion } from "@/hooks/useBusiness";
 import { businessError, type AdminRequest } from "@/lib/business";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -77,9 +77,87 @@ export default function AdminScreen() {
           <Rise index={2}>
             <Note text="Godkänn först när ett mejl kommit från företagets egen e-post. Då blir personen ägare till platsen och får ett mejl." />
           </Rise>
+          <Rise index={3}>
+            <Suggestions />
+          </Rise>
         </>
       )}
     </SettingsScreen>
+  );
+}
+
+const SUGGEST_CATEGORY: Record<string, string> = {
+  food: "Mat & Dryck", stay: "Boende", cafe: "Café & Bageri", shops: "Butiker",
+  nature: "Natur", activities: "Aktiviteter", sights: "Sevärdheter", crafts: "Hantverk",
+};
+
+/** Tips från "Saknas ditt smultronställe?": de som väntar, och de klara under */
+function Suggestions() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const { data } = useAdminSuggestions();
+  const mark = useMarkSuggestion();
+  const [showDone, setShowDone] = useState(false);
+  if (!data) return null;
+  const open = data.filter((x) => !x.handled_at);
+  const done = data.filter((x) => x.handled_at);
+
+  const card = (t: AdminSuggestion) => (
+    <GradientCard key={t.id}>
+      <View style={s.card}>
+        <View style={s.cardHead}>
+          <Text style={[s.kind, t.is_owner ? { color: colors.goldText, backgroundColor: colors.goldSoft } : null]}>
+            {t.is_owner ? "Eget företag" : "Tips"}
+          </Text>
+          <Text style={s.when}>{format(new Date(t.created_at), "d MMM yyyy", { locale: sv })}</Text>
+        </View>
+        <Text style={s.title}>{t.name}</Text>
+        <Text style={s.sub}>{[t.category ? SUGGEST_CATEGORY[t.category] ?? t.category : null, t.location].filter(Boolean).join(" · ") || "Ingen ort angiven"}</Text>
+        {t.description && <Text style={s.message}>”{t.description}”</Text>}
+        {t.link && (
+          <TouchableOpacity style={s.linkRow} onPress={() => Linking.openURL(/^https?:/i.test(t.link!) ? t.link! : `https://${t.link}`).catch(() => {})}>
+            <ExternalLink size={14} color={colors.goldText} strokeWidth={2.2} />
+            <Text style={s.linkText} numberOfLines={1}>{t.link}</Text>
+          </TouchableOpacity>
+        )}
+        <Text style={s.whoSub}>Från {[t.user_name ?? "Utan namn", t.user_email].filter(Boolean).join(" · ")}</Text>
+        <View style={s.buttons}>
+          {t.handled_at ? (
+            <TouchableOpacity style={s.btn} onPress={() => mark(t.id, false).catch((e) => Alert.alert("Det gick inte", businessError(e)))}>
+              <Undo2 size={16} color={colors.text} strokeWidth={2.2} />
+              <Text style={s.btnText}>Ångra klar</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={[s.btn, { backgroundColor: colors.gold }]} onPress={() => mark(t.id, true).catch((e) => Alert.alert("Det gick inte", businessError(e)))}>
+              <Check size={16} color={colors.onGold} strokeWidth={2.6} />
+              <Text style={[s.btnText, { color: colors.onGold }]}>Klar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </GradientCard>
+  );
+
+  return (
+    <View>
+      <SectionHeader title={open.length ? `Tips om nya platser · ${open.length}` : "Tips om nya platser"} />
+      {open.length === 0 ? (
+        <View style={s.empty}>
+          <Lightbulb size={26} color={colors.faint} strokeWidth={1.7} />
+          <Text style={s.emptyText}>Inga nya tips. De kommer från "Saknas ditt smultronställe?" i Inställningar.</Text>
+        </View>
+      ) : (
+        <View style={{ gap: 14 }}>{open.map(card)}</View>
+      )}
+      {done.length > 0 && (
+        <View style={{ marginTop: 14, gap: 14 }}>
+          <TouchableOpacity onPress={() => setShowDone(!showDone)} style={s.showDone}>
+            <Text style={s.showDoneText}>{showDone ? "Dölj klara" : `Visa klara (${done.length})`}</Text>
+          </TouchableOpacity>
+          {showDone && done.map(card)}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -192,7 +270,11 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   contactText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.text },
   buttons: { flexDirection: "row", gap: 10, marginTop: 14 },
-  btn: { flex: 1, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  linkText: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.goldText },
+  showDone: { alignSelf: "center", paddingVertical: 6 },
+  showDoneText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.muted },
+  btn: { flex: 1, flexDirection: "row", gap: 7, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong },
   btnText: { fontFamily: "Inter_700Bold", fontSize: 14.5, color: c.text },
   done: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
   border: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
