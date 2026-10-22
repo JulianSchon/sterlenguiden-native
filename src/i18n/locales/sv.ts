@@ -429,6 +429,15 @@ export const sv = {
     },
     providerUnavailable: "Inloggning med {{provider}} kommer i nästa version av appen.",
     providerFailed: "Det gick inte att logga in med {{provider}}. Försök igen.",
+    business: {
+      title: "Har du ett företag?",
+      lead: "Det finns inget särskilt företagskonto. Du loggar in som vanligt och tar sedan hand om ert företag direkt i appen.",
+      step1: "Skapa ett konto – eller logga in – med din egen e-post.",
+      step2: "Sök fram ert företag och tryck på ”Är det här ditt företag?” längst ner på sidan.",
+      step3: "Vi skickar en kod till företagets e-post. Sedan ändrar du öppettider, bilder, erbjudanden och evenemang själv.",
+      create: "Skapa ett konto",
+      login: "Jag har ett konto – logga in",
+    },
     login: {
       title: "Välkommen tillbaka",
       subtitle: "Logga in med e-post och lösenord, eller som du gjorde förra gången.",

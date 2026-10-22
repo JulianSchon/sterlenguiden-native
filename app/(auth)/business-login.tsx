@@ -1,78 +1,64 @@
 /**
- * Företagsportal – enkel placeholder tills vi bygger ut den
+ * "Har du ett företag?" från inloggningen. Det finns inget separat företagskonto: man loggar in
+ * (eller skapar ett konto) som vanligt och tar sedan hand om sitt företag i appen. Här står hur,
+ * i tre steg.
  */
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import { Store } from "lucide-react-native";
+import { AUTH_GUTTER, AuthButton, StepBar, TextButton } from "@/components/auth/AuthParts";
+import { Rise } from "@/components/Rise";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const GOLD = "#C5A059";
-const BG   = "#0D0D0D";
+export default function BusinessIntro() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const steps = [t("auth.business.step1"), t("auth.business.step2"), t("auth.business.step3")];
 
-export default function BusinessLoginScreen() {
   return (
-    <View style={s.bg}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={s.safe}>
-
-        {/* Topbar */}
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={22} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
-
-        <View style={s.center}>
-          <Text style={s.label}>FÖRETAGSPORTAL</Text>
-          <Text style={s.title}>Kommer snart</Text>
-          <Text style={s.body}>
-            Logga in som företagspartner är under uppbyggnad.{"\n"}
-            Kontakta oss på info@osterlenappen.se för tidig åtkomst.
-          </Text>
-          <TouchableOpacity onPress={() => router.back()} style={s.btn} activeOpacity={0.85}>
-            <Text style={s.btnText}>← Tillbaka</Text>
-          </TouchableOpacity>
+    <View style={[s.root, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <StepBar progress={0} onBack={() => router.back()} />
+      <View style={s.body}>
+        <Rise index={0}>
+          <View style={s.icon}><Store size={28} color={colors.goldText} strokeWidth={1.8} /></View>
+          <Text style={s.title}>{t("auth.business.title")}</Text>
+          <Text style={s.lead}>{t("auth.business.lead")}</Text>
+        </Rise>
+        <View style={s.steps}>
+          {steps.map((text, i) => (
+            <Rise key={text} index={i + 1}>
+              <View style={s.step}>
+                <View style={s.stepN}><Text style={s.stepNText}>{i + 1}</Text></View>
+                <Text style={s.stepText}>{text}</Text>
+              </View>
+            </Rise>
+          ))}
         </View>
-
-      </SafeAreaView>
+      </View>
+      <View style={s.footer}>
+        <AuthButton label={t("auth.business.create")} onPress={() => router.dismissTo("/(auth)/welcome")} />
+        <TextButton label={t("auth.business.login")} onPress={() => router.back()} />
+      </View>
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  bg:      { flex: 1, backgroundColor: BG },
-  safe:    { flex: 1, paddingHorizontal: 28 },
-  backBtn: { marginTop: 16, padding: 4, alignSelf: "flex-start" },
-  center:  { flex: 1, justifyContent: "center", alignItems: "center", gap: 16 },
-  label: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 10,
-    letterSpacing: 3,
-    color: GOLD,
-    marginBottom: 4,
-  },
-  title: {
-    fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 36,
-    color: "#fff",
-    textAlign: "center",
-  },
-  body: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.5)",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  btn: {
-    marginTop: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  btnText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.6)",
-  },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
+  body: { flex: 1, paddingHorizontal: AUTH_GUTTER, paddingTop: 12 },
+  icon: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", backgroundColor: c.goldSoft, marginBottom: 18 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 28, lineHeight: 34, letterSpacing: -0.7, color: c.text },
+  lead: { fontFamily: "Inter_400Regular", fontSize: 16, lineHeight: 23, color: c.muted, marginTop: 10 },
+  steps: { marginTop: 28, gap: 18 },
+  step: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
+  stepN: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: c.gold },
+  stepNText: { fontFamily: "Montserrat_700Bold", fontSize: 15, color: c.onGold },
+  stepText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 15.5, lineHeight: 22, color: c.text, paddingTop: 5 },
+  footer: { paddingHorizontal: AUTH_GUTTER, gap: 4 },
 });

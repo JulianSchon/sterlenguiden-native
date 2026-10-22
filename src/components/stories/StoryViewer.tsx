@@ -10,6 +10,9 @@
  * - Bara bilden som företaget lagt ut (med texten de själva lagt på den), hela bilden, och strecken
  *   och vem och när överst — inget annat ovanpå, precis som i Instagram.
  *
+ * - Ett tryck på berättelsens länk (klistermärket "Erbjudande" eller "Evenemang" som företaget lagt
+ *   på bilden) öppnar erbjudandet eller evenemanget.
+ *
  * Allt som rör sig räknas på UI-tråden (Reanimated + gesture handler). Appens egen kod ritar bara
  * om när man byter berättelse. Sett-markeringarna sparas direkt men listan på Hem uppdateras först
  * när visaren stängs — annars bytte cirklarna plats under ens fingrar.
@@ -60,7 +63,17 @@ function ago(iso: string): string {
   return h < 24 ? `${h} h` : "i går";
 }
 
-export function StoryViewer({ groups, startGroup, startStory, origin, presented, onOpenPlace, onClosed }: {
+/** Var en berättelse i 9:16 hamnar på skärmen (den visas hel, mitt på) */
+function storyFrame(W: number, H: number) {
+  let w = W;
+  let h = (W * 16) / 9;
+  if (h > H) { h = H; w = (H * 9) / 16; }
+  return { left: (W - w) / 2, top: (H - h) / 2, w, h };
+}
+
+export type StoryLinkTarget = NonNullable<BusinessStory["link"]>;
+
+export function StoryViewer({ groups, startGroup, startStory, origin, presented, onOpenPlace, onOpenLink, onClosed }: {
   /** Grupperna som de såg ut när visaren öppnades (ändras inte medan den är öppen) */
   groups: StoryGroupData[];
   startGroup: number;
@@ -70,6 +83,8 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   /** Modalen syns: öppningen kan börja */
   presented: boolean;
   onOpenPlace: (placeId: number) => void;
+  /** Ett tryck på berättelsens länk (erbjudande eller evenemang) */
+  onOpenLink?: (link: StoryLinkTarget, placeId: number) => void;
   /** Stängd: berättelserna man sett, och när de är sparade */
   onClosed: (viewed: string[], saved: Promise<unknown>) => void;
 }) {
@@ -171,6 +186,24 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
 
   // ── Gesterna ──
   const pause = useCallback((on: boolean) => setPaused(on), []);
+  // Ett tryck: på länken öppnas den, annars nästa (höger) eller förra (vänster) berättelse
+  const tapAt = useCallback((x: number, y: number) => {
+    const link = current?.link;
+    if (link && onOpenLink) {
+      const f = storyFrame(W, H);
+      const lx = f.left + link.x * f.w;
+      const ly = f.top + link.y * f.h;
+      if (x >= lx - 8 && x <= lx + link.w * f.w + 8 && y >= ly - 8 && y <= ly + link.h * f.h + 8) {
+        Haptics.selectionAsync().catch(() => {});
+        const placeId = groups[group]?.placeId;
+        finish();
+        if (placeId != null) onOpenLink(link, placeId);
+        return;
+      }
+    }
+    if (x < W * 0.3) prev();
+    else next();
+  }, [current, onOpenLink, W, H, groups, group, finish, prev, next]);
   const axis = useSharedValue(0); // 1 = sidled (kuben), 2 = nedåt (stäng)
   const startPos = useSharedValue(0);
   const gesture = useMemo(() => {
@@ -213,9 +246,9 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
       .onFinalize(() => { held.value = withTiming(0, { duration: 160 }); runOnJS(pause)(false); });
     const tap = Gesture.Tap()
       .maxDistance(10)
-      .onEnd((e, ok) => { if (ok) runOnJS(e.x < W * 0.3 ? prev : next)(); });
+      .onEnd((e, ok) => { if (ok) runOnJS(tapAt)(e.absoluteX, e.absoluteY); });
     return Gesture.Race(pan, Gesture.Exclusive(hold, tap));
-  }, [W, groups.length, pos, dragY, held, axis, startPos, pause, close, prev, next]);
+  }, [W, groups.length, pos, dragY, held, axis, startPos, pause, close, tapAt]);
 
   // ── Hela visaren: växer ut ur cirkeln, krymper när man drar nedåt ──
   const frameStyle = useAnimatedStyle(() => {

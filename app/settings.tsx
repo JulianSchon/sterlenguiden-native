@@ -1,18 +1,24 @@
 /**
  * Inställningar — hubben. Profilbild och namn i mitten, sedan grupperade
  * rader. Språket väljs med flaggan uppe till höger.
+ *
+ * Sköter man ett företag finns Mitt företag här (och inbjudningar till ett företag, när någon
+ * bjudit in en). Admin ser förfrågningarna som väntar. Alla andra ser en diskret rad längre ner:
+ * Har du ett företag?
  */
 import { useState } from "react";
 import { Text, TouchableOpacity, Pressable, Alert, Image, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus, ThumbsUp } from "lucide-react-native";
+import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus, ThumbsUp, Store, MailOpen, ShieldCheck } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { answerInvite, useBusinessOverview } from "@/hooks/useBusiness";
+import type { MyInvite } from "@/lib/business";
 import { supabase } from "@/integrations/supabase/client";
 import { setLanguage, currentLanguage, type LanguageCode } from "@/i18n";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
@@ -36,6 +42,33 @@ export default function SettingsHub() {
   const { data: profile } = useProfile();
   const queryClient = useQueryClient();
   const [langOpen, setLangOpen] = useState(false);
+  const { data: business } = useBusinessOverview();
+  const myPlaces = business?.places ?? [];
+  const invites = business?.invites ?? [];
+  const joinRequests = myPlaces.reduce((n, p) => n + p.requests, 0);
+
+  const openInvite = (invite: MyInvite) => {
+    Alert.alert(
+      `Inbjudan från ${invite.place_name}`,
+      `${invite.invited_by ?? "Någon"} har bjudit in dig att sköta ${invite.place_name} i appen${invite.role === "owner" ? " som ägare" : ""}.`,
+      [
+        { text: "Senare", style: "cancel" },
+        { text: "Nej tack", style: "destructive", onPress: () => answerInvite(invite.id, false).finally(() => queryClient.invalidateQueries({ queryKey: ["business", "overview"] })) },
+        {
+          text: "Gå med",
+          onPress: async () => {
+            try {
+              await answerInvite(invite.id, true);
+              await queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
+              router.push(`/business/welcome?place=${invite.place_id}` as any);
+            } catch {
+              Alert.alert(t("common.error"), "Det gick inte att gå med just nu. Försök igen.");
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? "";
   // profilbilden (framsidan). Kortfotot på baksidan (profile_image_url) ska inte visas här.
@@ -93,6 +126,41 @@ export default function SettingsHub() {
         </Rise>
 
         {/* Mindre viktig än raderna ovan, därför lägre och utan undertext */}
+        {(myPlaces.length > 0 || invites.length > 0 || business?.admin != null) && (
+          <Rise index={2}>
+            <SettingsGroup>
+              {myPlaces.length > 0 && (
+                <SettingsRow
+                  icon={Store}
+                  label="Mitt företag"
+                  subtitle={myPlaces.map((p) => p.name).join(", ")}
+                  value={joinRequests > 0 ? `${joinRequests} vill gå med` : undefined}
+                  tint={colors.goldText}
+                  onPress={() => router.push(`/business?place=${myPlaces[0].id}` as any)}
+                />
+              )}
+              {invites.map((invite) => (
+                <SettingsRow
+                  key={invite.id}
+                  icon={MailOpen}
+                  label={`Inbjudan: ${invite.place_name}`}
+                  subtitle={`${invite.invited_by ?? "Någon"} har bjudit in dig`}
+                  tint={colors.goldText}
+                  onPress={() => openInvite(invite)}
+                />
+              ))}
+              {business?.admin != null && (
+                <SettingsRow
+                  icon={ShieldCheck}
+                  label="Admin"
+                  value={business.admin > 0 ? `${business.admin} väntar` : undefined}
+                  onPress={() => router.push("/admin" as any)}
+                />
+              )}
+            </SettingsGroup>
+          </Rise>
+        )}
+
         <Rise index={2}>
           <SettingsGroup>
             <SettingsRow
@@ -104,6 +172,17 @@ export default function SettingsHub() {
               tint={colors.warm}
               onPress={() => router.push("/settings/suggest" as any)}
             />
+            {myPlaces.length === 0 && (
+              <SettingsRow
+                compact
+                icon={Store}
+                label="Har du ett företag?"
+                subtitle="Ta hand om er sida i appen – gratis"
+                strong
+                tint={colors.warm}
+                onPress={() => router.push("/business/start" as any)}
+              />
+            )}
           </SettingsGroup>
         </Rise>
 

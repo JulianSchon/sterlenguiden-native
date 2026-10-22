@@ -426,6 +426,15 @@ export const de: typeof sv = {
     },
     providerUnavailable: "Die Anmeldung mit {{provider}} kommt in der nächsten Version der App.",
     providerFailed: "Die Anmeldung mit {{provider}} hat nicht geklappt. Bitte versuche es noch einmal.",
+    business: {
+      title: "Hast du ein Unternehmen?",
+      lead: "Es gibt kein eigenes Firmenkonto. Du meldest dich wie gewohnt an und verwaltest dein Unternehmen dann direkt in der App.",
+      step1: "Erstelle ein Konto – oder melde dich an – mit deiner eigenen E-Mail.",
+      step2: "Suche dein Unternehmen und tippe unten auf der Seite auf „Ist das dein Unternehmen?“.",
+      step3: "Wir schicken einen Code an die E-Mail des Unternehmens. Danach änderst du Öffnungszeiten, Bilder, Angebote und Veranstaltungen selbst.",
+      create: "Konto erstellen",
+      login: "Ich habe ein Konto – anmelden",
+    },
     login: {
       title: "Willkommen zurück",
       subtitle: "Melde dich mit E-Mail und Passwort an – oder so wie beim letzten Mal.",

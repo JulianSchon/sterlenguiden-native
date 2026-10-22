@@ -42,6 +42,34 @@ export const CATEGORIES: CategoryDef[] = [
   { id: "hantverk-service",  dbValues: ["Hantverk & Service", "Hantverk"],      label: "Design & Hantverk",   screen: "#6B7280", stats: "#8A8F98", icon: Palette },
 ];
 
+/** Hur kategorin skrivs i databasen (places.categories) när ett företag själv väljer den */
+export const CATEGORY_DB_VALUE: Record<CategoryId, string> = {
+  "mat-dryck": "Mat & Dryck",
+  "hotell-bb": "Hotell & B&B",
+  "cafe-bageri": "Café & Bageri",
+  "butiker": "Butiker",
+  "natur-upplevelser": "Natur & Upplevelser",
+  "aktiviteter": "Aktiviteter",
+  "sevardheter": "Sevärdheter",
+  "hantverk-service": "Hantverk & Service",
+};
+
+/**
+ * Underkategorierna, som de skrivs i databasen (places.sub_category, flera med komma). Samma
+ * nycklar som kategorisidorna delar upp platserna efter (app/category/[categoryId].tsx) och som
+ * företagen väljer bland i Mitt företag.
+ */
+export const SUBCATEGORIES: Record<CategoryId, string[]> = {
+  "mat-dryck": ["Fine Dining", "Casual", "Pizza", "Streetfood", "Pub & Bar"],
+  "hotell-bb": ["Hotell", "B&B", "Spa"],
+  "cafe-bageri": ["Café", "Bageri", "Glass", "Trädgård", "Snabbt"],
+  "butiker": ["Livsmedel & Dagligvaror", "Kläder & Mode", "Hem & Inredning", "Sport & Fritid"],
+  "natur-upplevelser": ["Stränder", "Vandring", "Utsikt", "Djur", "Spa"],
+  "aktiviteter": ["Sport", "Barn", "Hälsa", "Spa"],
+  "sevardheter": ["Historia", "Museum", "Konst", "Kyrkor"],
+  "hantverk-service": ["Ateljéer", "Gallerier", "Verkstäder", "Inredning & Livsstil"],
+};
+
 /** Kategorin som en databasrad hör till, eller undefined */
 export function findCategory(category: string | null): CategoryDef | undefined {
   if (!category) return undefined;

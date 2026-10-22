@@ -12,6 +12,8 @@ export interface BusinessStory {
   deal_text: string | null;
   expires_at: string | null;
   created_at: string;
+  /** Klistermärket som leder till ett erbjudande eller evenemang (rutan i andelar av bilden) — migration 046 */
+  link?: { kind: "offer" | "event"; id: string; x: number; y: number; w: number; h: number } | null;
   // Inbakad place-data från JOIN – används för att bygga story-grupper
   // utan att vänta på usePlaces()
   place?: {

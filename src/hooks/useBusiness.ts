@@ -8,6 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useLocalSearchParams } from "expo-router";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizePlace, type Place } from "@/hooks/usePlaces";
 import type { Tables } from "@/integrations/supabase/types";
@@ -38,6 +39,19 @@ export function useBusinessOverview() {
       }
     },
   });
+}
+
+/**
+ * Platsen en Mitt företag-sida gäller (?place=…, annars den första man sköter), och om man
+ * faktiskt sköter den (mine = null om inte).
+ */
+export function usePortalPlace() {
+  const { place } = useLocalSearchParams<{ place?: string }>();
+  const { data: overview, isLoading, error, refetch } = useBusinessOverview();
+  const places = overview?.places ?? [];
+  const placeId = Number(place) || places[0]?.id || 0;
+  const mine = places.find((p) => p.id === placeId) ?? null;
+  return { placeId, mine, places, loading: isLoading && !overview, error: overview ? null : error, refetch };
 }
 
 /** Platserna jag sköter (för att t.ex. inte kunna lösa in sina egna erbjudanden) */

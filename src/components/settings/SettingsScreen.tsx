@@ -15,11 +15,13 @@ import { darkColors, lightColors, type ThemeColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
 
 export function SettingsScreen({
-  title, right, compact = false, morph, scrollRef, onScroll, overlay, page = false, children,
+  title, right, compact = false, morph, scrollRef, onScroll, overlay, page = false, fixed = false, children,
 }: {
   title: string; right?: ReactNode; compact?: boolean; morph?: SharedValue<number>;
   /** Rubriken i samma storlek som Profils övriga sidor (Mitt Österlen, Favoriter …) i stället för Inställningars */
   page?: boolean;
+  /** Sidan har en egen scrollyta (t.ex. en lista man drar om) — då ligger innehållet utan ScrollView */
+  fixed?: boolean;
   /** För sidor som själva behöver scrolla eller veta var i listan man är */
   scrollRef?: RefObject<ScrollView | null>; onScroll?: (y: number) => void;
   /** Lager ovanpå hela sidan, rubriken inräknad (t.ex. en panel som flyger in från en lista) */
@@ -64,18 +66,22 @@ export function SettingsScreen({
         <Animated.Text style={[s.title, morph ? titleMorph : null]} numberOfLines={1}>{title}</Animated.Text>
         {right}
       </Animated.View>
-      <ScrollView
-        ref={scrollRef}
-        onScroll={onScroll ? (e) => onScroll(e.nativeEvent.contentOffset.y) : undefined}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        // Sidor som ryms på skärmen ska stå stilla; bara längre sidor (eller små skärmar) gungar och scrollar
-        alwaysBounceVertical={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[s.body, compact && s.bodyCompact, { paddingBottom: Math.max(insets.bottom, 16) + (compact ? 8 : 40) }]}
-      >
-        {children}
-      </ScrollView>
+      {fixed ? (
+        <View style={s.fixed}>{children}</View>
+      ) : (
+        <ScrollView
+          ref={scrollRef}
+          onScroll={onScroll ? (e) => onScroll(e.nativeEvent.contentOffset.y) : undefined}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          // Sidor som ryms på skärmen ska stå stilla; bara längre sidor (eller små skärmar) gungar och scrollar
+          alwaysBounceVertical={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[s.body, compact && s.bodyCompact, { paddingBottom: Math.max(insets.bottom, 16) + (compact ? 8 : 40) }]}
+        >
+          {children}
+        </ScrollView>
+      )}
       {overlay}
     </Animated.View>
   );
@@ -102,4 +108,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   body: { paddingHorizontal: 16, paddingTop: 20, gap: 22 },
   // För sidor som ska rymmas utan att scrolla
   bodyCompact: { paddingTop: 10, gap: 14 },
+  fixed: { flex: 1 },
 });

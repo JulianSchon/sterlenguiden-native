@@ -146,6 +146,30 @@ function AppStack() {
         <Stack.Screen name="memories/index" options={{ headerShown: false }} />
         <Stack.Screen name="memories/edit" options={{ headerShown: false }} />
         <Stack.Screen name="memories/[id]" options={{ headerShown: false }} />
+        {/* Mitt företag. Det man skapar (erbjudande, evenemang, berättelse) och att ta över en plats
+            glider upp underifrån, över hela skärmen */}
+        <Stack.Screen name="business/index" options={{ headerShown: false }} />
+        <Stack.Screen name="business/welcome" options={{ headerShown: false, presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="business/hours" options={{ headerShown: false }} />
+        <Stack.Screen name="business/about" options={{ headerShown: false }} />
+        <Stack.Screen name="business/photos" options={{ headerShown: false }} />
+        <Stack.Screen name="business/contact" options={{ headerShown: false }} />
+        <Stack.Screen name="business/categories" options={{ headerShown: false }} />
+        <Stack.Screen name="business/amenities" options={{ headerShown: false }} />
+        <Stack.Screen name="business/offers" options={{ headerShown: false }} />
+        <Stack.Screen name="business/offer" options={{ headerShown: false, presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="business/events" options={{ headerShown: false }} />
+        <Stack.Screen name="business/event" options={{ headerShown: false, presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="business/stories" options={{ headerShown: false }} />
+        <Stack.Screen name="business/story" options={{ headerShown: false, presentation: "fullScreenModal", animation: "fade", gestureEnabled: false }} />
+        <Stack.Screen name="business/stats" options={{ headerShown: false }} />
+        <Stack.Screen name="business/team" options={{ headerShown: false }} />
+        <Stack.Screen name="business/settings" options={{ headerShown: false }} />
+        <Stack.Screen name="business/terms" options={{ headerShown: false }} />
+        <Stack.Screen name="business/start" options={{ headerShown: false }} />
+        <Stack.Screen name="business/claim" options={{ headerShown: false, presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="business/apply" options={{ headerShown: false, presentation: "fullScreenModal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={scheme === "light" ? "dark" : "light"} />

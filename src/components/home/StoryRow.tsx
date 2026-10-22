@@ -25,11 +25,12 @@ import * as Haptics from "expo-haptics";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
 import { useStoryViews } from "@/hooks/useStoryViews";
 import { useFavorites } from "@/hooks/useFavorites";
-import { StoryViewer, type StoryGroupData, type StoryOrigin } from "@/components/stories/StoryViewer";
+import { StoryViewer, type StoryGroupData, type StoryLinkTarget, type StoryOrigin } from "@/components/stories/StoryViewer";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Skeleton } from "@/components/Skeleton";
 import { pushOnce } from "@/lib/navigateOnce";
+import { openEvent } from "@/lib/eventSheet";
 
 // ─── Cirkeln ─────────────────────────────────────────────────────────────────
 
@@ -206,6 +207,11 @@ export const StoryRow = memo(function StoryRow() {
   const onOpenPlace = useCallback((placeId: number) => {
     pushOnce(router, `/place/${placeId}?from=story`);
   }, [router]);
+  // Berättelsens länk: erbjudandet öppnas på platssidan, evenemanget i sin panel
+  const onOpenLink = useCallback((link: StoryLinkTarget, placeId: number) => {
+    if (link.kind === "offer") pushOnce(router, `/place/${placeId}?from=story&offer=${link.id}`);
+    else openEvent(Number(link.id));
+  }, [router]);
 
   // Medan berättelserna hämtas: grå cirklar på deras plats (så inget hoppar när de kommer)
   if (isLoading) {
@@ -249,6 +255,7 @@ export const StoryRow = memo(function StoryRow() {
             origin={opened.origin}
             presented={presented}
             onOpenPlace={onOpenPlace}
+            onOpenLink={onOpenLink}
             onClosed={onClosed}
           />
         )}

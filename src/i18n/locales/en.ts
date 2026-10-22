@@ -426,6 +426,15 @@ export const en: typeof sv = {
     },
     providerUnavailable: "Signing in with {{provider}} is coming in the next version of the app.",
     providerFailed: "Couldn't sign in with {{provider}}. Please try again.",
+    business: {
+      title: "Run a business?",
+      lead: "There's no separate business account. You sign in as usual and then manage your business right in the app.",
+      step1: "Create an account – or sign in – with your own email.",
+      step2: "Find your business and tap “Is this your business?” at the bottom of its page.",
+      step3: "We send a code to the business's email. Then you update opening hours, photos, offers and events yourself.",
+      create: "Create an account",
+      login: "I have an account – sign in",
+    },
     login: {
       title: "Welcome back",
       subtitle: "Log in with email and password, or the way you did last time.",

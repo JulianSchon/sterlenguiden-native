@@ -317,6 +317,25 @@ export function socialHandle(url: string | null | undefined, site: "instagram" |
 export const isPhone = (v: string) => /^\+?[0-9][0-9 ()-]{4,28}$/.test(v.trim());
 export const isEmail = (v: string) => v.trim().length <= 200 && /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(v.trim());
 
+// ── Underkategorierna i klartext ────────────────────────────────────────────
+
+/** Det företaget ser på knappen (databasens nyckel står kvar om den inte finns här) */
+export const SUB_LABELS: Record<string, string> = {
+  "Fine Dining": "Fine dining",
+  "Casual": "Avslappnat",
+  "Pub & Bar": "Pub & bar",
+  "Trädgård": "Trädgårdscafé",
+  "Snabbt": "Fika att ta med",
+  "Livsmedel & Dagligvaror": "Livsmedel",
+  "Barn": "Barnvänligt",
+  "Sport": "Sport & rörelse",
+  "Hälsa": "Hälsa & välmående",
+  "Djur": "Djurupplevelser",
+  "Stränder": "Strand",
+  "Utsikt": "Utsikt",
+  "Kyrkor": "Kyrka",
+};
+
 // ── Erbjudandets kategori ───────────────────────────────────────────────────
 
 /** Erbjudandena har fyra kategorier (som Förmåner filtrerar på) — vilken platsen hör till */

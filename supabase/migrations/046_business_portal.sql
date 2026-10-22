@@ -68,13 +68,18 @@ returns text[] language sql immutable as $$
   from regexp_split_to_table(coalesce(p, ''), ',(?=\s*https?://)') x
 $$;
 
+-- Bilderna platsen haft (de senaste 40), så en borttagen bild kan läggas tillbaka. Läggs till här
+-- eftersom bp_image_ok nedan läser den.
+alter table public.places add column if not exists image_history text[] not null default '{}';
+
 -- Var företagens egna bilder ligger: bucketen place-media, i en mapp per plats
 create or replace function public.bp_media_prefix(p_place_id bigint)
 returns text language sql immutable as $$
   select 'https://hnaaalewgkpqcylaaidj.supabase.co/storage/v1/object/public/place-media/' || p_place_id::text || '/'
 $$;
 
--- En bild får användas om den ligger i platsens egen mapp, eller redan är en av platsens bilder
+-- En bild får användas om den ligger i platsens egen mapp, eller är (eller har varit) en av
+-- platsens bilder — så Ångra fungerar även för de gamla bilderna från innan portalen fanns
 create or replace function public.bp_image_ok(p_place_id bigint, p_url text)
 returns boolean language sql stable security definer set search_path = public as $$
   select p_url is not null and (
@@ -82,7 +87,8 @@ returns boolean language sql stable security definer set search_path = public as
       and substr(p_url, char_length(public.bp_media_prefix(p_place_id)) + 1) ~ '^[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$')
     or exists (
       select 1 from public.places pl
-      where pl.id = p_place_id and (p_url = any(public.bp_images(pl.image_url)) or p_url = pl.logo_url)
+      where pl.id = p_place_id
+        and (p_url = any(public.bp_images(pl.image_url)) or p_url = pl.logo_url or p_url = any(coalesce(pl.image_history, '{}')))
     )
   )
 $$;
@@ -315,6 +321,7 @@ declare
   v_price int; v_hidden boolean;
   v_url text;
   v_list text[];
+  v_history text[];
   v_groups text[] := '{}';
   v_out jsonb;
 begin
@@ -400,6 +407,16 @@ begin
     v_images := nullif(array_to_string(v_list, ','), '');
   end if;
 
+  -- Bilder som tas bort (och en utbytt logga) sparas i historiken, så Ångra kan lägga tillbaka dem
+  v_history := coalesce(v_cur.image_history, '{}');
+  if p_patch ? 'image_url' then
+    v_history := v_history || array(select x from unnest(public.bp_images(v_cur.image_url)) x where not (x = any(v_list)));
+  end if;
+  if p_patch ? 'logo_url' and v_cur.logo_url is not null and v_cur.logo_url is distinct from v_logo then
+    v_history := v_history || v_cur.logo_url;
+  end if;
+  if cardinality(v_history) > 40 then v_history := v_history[cardinality(v_history) - 39:]; end if;
+
   if p_patch ? 'logo_url' then
     v_logo := nullif(btrim(coalesce(p_patch ->> 'logo_url', '')), '');
     if v_logo is not null and not public.bp_image_ok(p_place_id, v_logo) then raise exception 'invalid:logo_url' using errcode = 'P0001'; end if;
@@ -435,7 +452,8 @@ begin
     image_url         = case when p_patch ? 'image_url' then v_images else image_url end,
     logo_url          = case when p_patch ? 'logo_url' then v_logo else logo_url end,
     price_level       = case when p_patch ? 'price_level' then v_price else price_level end,
-    claim_link_hidden = case when p_patch ? 'claim_link_hidden' then v_hidden else claim_link_hidden end
+    claim_link_hidden = case when p_patch ? 'claim_link_hidden' then v_hidden else claim_link_hidden end,
+    image_history     = v_history
   where id = p_place_id;
 
   select array_agg(distinct g) into v_groups from unnest(v_groups) g;
