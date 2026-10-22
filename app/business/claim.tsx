@@ -21,7 +21,6 @@ import { AUTH_GUTTER, AuthButton, FieldNote, TextButton } from "@/components/aut
 import { StepLayout } from "@/components/onboarding/StepLayout";
 import { CodeBoxes, type CodePhase } from "@/components/onboarding/CodeBoxes";
 import { Skeleton } from "@/components/Skeleton";
-import { PortalField } from "@/components/business/PortalParts";
 import { WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment } from "@/components/business/WizardParts";
 import {
@@ -166,7 +165,6 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
   const [focused, setFocused] = useState(true);
   const [resendAt, setResendAt] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const [message, setMessage] = useState("");
   const [sentKind, setSentKind] = useState<"claim" | "join">("claim");
   const input = useRef<TextInput>(null);
 
@@ -228,12 +226,14 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
     setBusy(true);
     setError(null);
     try {
-      const r = await requestAccess(placeId, null, null, message.trim() || null);
+      const r = await requestAccess(placeId, null, null, null);
       if (!r.ok) {
         setError(r.reason === "already_pending" ? "Du har redan skickat en förfrågan." : r.reason === "too_many" ? "Du har skickat många förfrågningar i dag. Försök i morgon." : r.reason === "closed" ? "Den här sidan tar inte emot förfrågningar. Be dem bjuda in dig." : "Det gick inte att skicka.");
         return;
       }
       setSentKind(r.kind === "join" ? "join" : "claim");
+      // Mejlet som visar att det är ert företag öppnas direkt, färdigskrivet
+      if (r.kind !== "join") mailProof(info.place.name, placeId);
       await onFinished();
       go("sent");
     } catch (e) {
@@ -330,17 +330,21 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
     const claim = !info.has_owner;
     return (
       <StepLayout
-        title={claim ? "Bekräfta med företagets e-post" : "Skicka en förfrågan"}
+        title={claim ? "Visa att det är ert företag" : "Skicka en förfrågan"}
         subtitle={claim
-          ? `Skicka förfrågan och mejla oss sedan från ${info.place.name}s egen e-post. Det mejlet visar att det är ni.`
+          ? "Skicka ett mejl till oss från företagets e-post – den ni använder i jobbet. När mejlet kommit fram får du tillgång."
           : `Förfrågan går till dem som sköter ${info.place.name}. Du får tillgång när de godkänt.`}
         footer={<>
           {error && <FieldNote tone="danger" text={error} />}
-          <AuthButton label="Skicka förfrågan" onPress={submitRequest} loading={busy} />
+          <AuthButton label={claim ? "Skriv mejlet" : "Skicka förfrågan"} onPress={submitRequest} loading={busy} />
         </>}
       >
-        <PortalField label="Meddelande (valfritt)" value={message} onChangeText={setMessage} maxLength={300}
-          placeholder={claim ? "T.ex. Hej! Jag driver stället sedan 2015." : "T.ex. Hej! Jag jobbar i köket i sommar."} />
+        {claim && (
+          <View style={s.emailCard}>
+            <Mail size={20} color={colors.goldText} strokeWidth={2} />
+            <Text style={s.mailNote}>Mejlet är redan skrivet. Kolla bara att det skickas från företagets adress och tryck Skicka.</Text>
+          </View>
+        )}
       </StepLayout>
     );
   }
@@ -348,12 +352,12 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
   if (step === "sent") {
     return (
       <DoneMoment
-        title={sentKind === "join" ? "Tack!" : "Sista steget"}
+        title="Tack!"
         text={sentKind === "join"
           ? `Förfrågan har gått till ${info.place.name}. Du ser sidan under Inställningar när de godkänt.`
-          : `Mejla oss från ${info.place.name}s egen e-post. När vi sett mejlet godkänner vi – sedan hittar du ert företag under Inställningar.`}
-        primary={sentKind === "join" ? { label: "Klart", onPress: onClose } : { label: "Mejla oss nu", onPress: () => { mailProof(info.place.name, placeId); onClose(); } }}
-        secondary={sentKind === "join" ? undefined : { label: "Jag gör det sen", onPress: onClose }}
+          : "När ditt mejl kommit fram får du tillgång – oftast inom en dag. Ert företag dyker då upp under Inställningar."}
+        primary={{ label: "Klart", onPress: onClose }}
+        secondary={sentKind === "join" ? undefined : { label: "Öppna mejlet igen", onPress: () => mailProof(info.place.name, placeId) }}
       />
     );
   }
@@ -398,5 +402,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.goldBorder,
   },
   emailText: { flex: 1, fontFamily: "Inter_700Bold", fontSize: 16, color: c.text },
+  mailNote: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14.5, lineHeight: 20, color: c.text },
   hidden: { position: "absolute", opacity: 0, width: 1, height: 1 },
 });
