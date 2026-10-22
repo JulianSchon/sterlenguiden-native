@@ -173,6 +173,8 @@ export interface ClaimInfo {
   role: MemberRole | null;
   has_owner: boolean;
   link_hidden: boolean;
+  /** false = en plats (strand, kyrka …), inget företag att ta över (migration 048) */
+  is_business?: boolean;
   pending: "claim" | "join" | null;
   /** Platsens e-post om koden kan skickas dit (null = ingen e-post, eller mejlen är inte igång) */
   email: string | null;

@@ -91,6 +91,13 @@ export default function ClaimScreen() {
     );
   } else if (!info) {
     content = <View style={{ padding: AUTH_GUTTER, gap: 16 }}><Skeleton height={34} width="70%" radius={8} /><Skeleton height={180} radius={20} /></View>;
+  } else if (info.is_business === false) {
+    content = (
+      <StepLayout title="Det här är ingen företagssida" subtitle={`${info.place.name} är en plats i appen, inte ett företag. Tycker du att något är fel? Tipsa oss längst ner på sidan.`}
+        footer={<AuthButton label="Okej" onPress={() => router.back()} />}>
+        <PlaceCard info={info} />
+      </StepLayout>
+    );
   } else if (info.role) {
     content = (
       <StepLayout title="Du sköter redan den här sidan" subtitle={`Allt för ${info.place.name} finns under Mitt företag.`}

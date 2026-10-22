@@ -590,7 +590,7 @@ function OwnerLink({ place }: { place: Place }) {
   const router = useRouter();
   const { colors } = useTheme();
   const mine = useMyPlaceIds().has(place.id);
-  if (!mine && place.claim_link_hidden) return null;
+  if (!mine && (place.claim_link_hidden || place.is_business === false)) return null;
   return (
     <TouchableOpacity
       style={s.owner}

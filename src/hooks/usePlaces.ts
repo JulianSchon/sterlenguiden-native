@@ -14,6 +14,8 @@ export type Place = Tables<"places"> & {
   tastes?: string[] | null;
   /** Någon sköter platsen och har dolt "Är det här ditt företag?" */
   claim_link_hidden?: boolean | null;
+  /** Ett företag (restaurang, butik …) — inte en strand eller kyrka. Bara företag kan tas över (migration 048) */
+  is_business?: boolean | null;
 };
 
 /**
@@ -51,7 +53,7 @@ function normalizePlaces(places: Tables<"places">[]): Place[] {
  * Kolumnerna från företagsportalen (migration 046). Har migrationen inte körts än saknas de, och då
  * hämtas platserna utan dem i stället för att appen slutar visa platser.
  */
-const PORTAL_COLUMNS = ", hours_exceptions, tastes, claim_link_hidden";
+const PORTAL_COLUMNS = ", hours_exceptions, tastes, claim_link_hidden, is_business";
 let portalColumns = true;
 
 export async function selectPlaces<T>(

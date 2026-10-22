@@ -55,7 +55,7 @@ export default function AdminScreen() {
           {decided.length > 0 && (
             <Rise index={1}>
               <View>
-                <SectionHeader title="Senaste 30 dagarna" />
+                <SectionHeader title="Historik" />
                 <GradientCard>
                   {decided.map((r, i) => (
                     <View key={r.id} style={[s.done, i > 0 && s.border]}>
