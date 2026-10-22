@@ -220,7 +220,7 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
         return;
       }
       setPhase("wrong");
-      setError(r.reason === "expired" ? "Koden har gått ut. Be om en ny." : r.reason === "locked" ? "För många fel försök. Be om en ny kod." : r.reason === "has_owner" ? "Någon har precis tagit hand om platsen." : "Fel kod – försök igen.");
+      setError(r.reason === "expired" ? "Koden har gått ut. Be om en ny." : r.reason === "locked" ? "För många fel försök. Be om en ny kod." : r.reason === "has_owner" ? "Någon har precis tagit hand om platsen." : r.left != null ? `Fel kod – ${r.left} försök kvar.` : "Fel kod – försök igen.");
       setCode("");
       setTimeout(() => setPhase((p) => (p === "wrong" ? "typing" : p)), 1000);
     } catch (e) {

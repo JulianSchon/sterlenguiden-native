@@ -219,7 +219,7 @@ export default function MemoryDetailScreen() {
               <Text style={s.sectionLabel}>PLATSER</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.placesRow}>
                 {memoryPlaces.map((p) => (
-                  <MemoryPlaceCard key={p.id} place={p} onPress={() => router.push(`/place/${p.id}` as any)} />
+                  <MemoryPlaceCard key={p.id} place={p} onPress={() => router.push(`/place/${p.id}?from=profile` as any)} />
                 ))}
               </ScrollView>
             </View>

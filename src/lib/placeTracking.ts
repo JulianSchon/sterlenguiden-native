@@ -13,7 +13,18 @@ export type PlaceLink = "phone" | "website" | "book" | "instagram" | "facebook" 
 
 /** Var i appen man kom ifrån ("Så hittade de er" i statistiken) */
 export type PlaceSource =
-  | "home" | "search" | "map" | "calendar" | "profile" | "category" | "lists" | "place" | "offers" | "story" | "friends" | "other";
+  | "home" | "search" | "map" | "calendar" | "profile" | "category" | "lists" | "place" | "offers" | "story" | "friends"
+  | "event" | "discover" | "news" | "checkin" | "other";
+
+const SOURCES: PlaceSource[] = [
+  "home", "search", "map", "calendar", "profile", "category", "lists", "place", "offers", "story", "friends",
+  "event", "discover", "news", "checkin",
+];
+
+/** ?from=… från länken till platssidan (den som öppnade sidan vet bäst varifrån) */
+export function sourceFromParam(from: string | undefined): PlaceSource | null {
+  return from && (SOURCES as string[]).includes(from) ? (from as PlaceSource) : null;
+}
 
 function send(placeId: number, kind: "profile_view" | "link_click" | "navigation_click", link: PlaceLink | null, source: PlaceSource | null) {
   // Funktionen finns inte i de genererade typerna än

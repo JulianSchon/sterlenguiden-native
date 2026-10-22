@@ -616,7 +616,7 @@ export default function MapScreen() {
     Linking.openURL(url).catch(() =>
       Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`).catch(() => {}));
   }, []);
-  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}`), [router]);
+  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}?from=map`), [router]);
   const navigatePlace = useCallback((p: Place) => navigateTo(p.lat, p.lng), [navigateTo]);
   const distanceKm = useCallback((p: Place) => (
     userLoc && p.lat != null && p.lng != null ? distanceMeters(userLoc.latitude, userLoc.longitude, p.lat, p.lng) / 1000 : null

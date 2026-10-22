@@ -134,7 +134,7 @@ export const OfferTicket = memo(function OfferTicket({
     stubRef.current.measureInWindow((x, y, w, h) => onOpen(offer, { x, y, w, h }));
   }, [offer, onOpen]);
   const arm = useCallback(() => armTicketImage(imageUrl), [imageUrl]);
-  const openPlace = useCallback(() => router.push(`/place/${offer.place_id}` as never), [router, offer.place_id]);
+  const openPlace = useCallback(() => router.push(`/place/${offer.place_id}?from=offers` as never), [router, offer.place_id]);
 
   // Ett tryck: fingret får inte röra sig mer än 10 punkter, och listan får inte ha glidit nyss. Trycket
   // på loggan (uppe till höger, med lite marginal) öppnar platssidan i stället för erbjudandet

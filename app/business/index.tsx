@@ -44,7 +44,7 @@ import {
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, canDo, type BusinessPlace, type MyPlace, type Permission } from "@/lib/business";
 import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
-import { hasAnyHours, setToday, todayOnly } from "@/lib/hoursEditor";
+import { hasAnyHours, isHotel, noFixedHoursKey, setToday, todayOnly } from "@/lib/hoursEditor";
 import { effectiveHours, hoursStatus } from "@/lib/openingHours";
 import { pushOnce } from "@/lib/navigateOnce";
 import { dayKey, lastDay } from "@/lib/events";
@@ -385,18 +385,23 @@ function Tasks({ placeId, place, hasOffer, onOpen }: {
   const s = useThemedStyles(createStyles);
   const key = `business-tasks-hidden:v1:${placeId}`;
   const [hidden, setHidden] = useState<boolean | null>(null);
+  const [noHours, setNoHours] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(noFixedHoursKey(placeId)).then((v) => setNoHours(v === "1")).catch(() => {});
+  }, [placeId]);
   useEffect(() => {
     AsyncStorage.getItem(key).then((v) => setHidden(v === "1")).catch(() => setHidden(false));
   }, [key]);
 
   const tasks = useMemo(() => [
-    { key: "hours", label: "Fyll i öppettiderna", done: hasAnyHours(place.opening_hours), page: "hours" },
+    // Hotell (och den som valt "inga fasta öppettider") behöver inga öppettider för att vara klar
+    { key: "hours", label: "Fyll i öppettiderna", done: hasAnyHours(place.opening_hours) || noHours || isHotel(place.categories), page: "hours" },
     { key: "about", label: "Skriv några rader om er", done: !!place.short_description?.trim(), page: "about" },
     { key: "photos", label: "Lägg till minst tre bilder", done: placeImages(place.image_url).length >= 3, page: "photos" },
     { key: "logo", label: "Lägg till er logga", done: !!place.logo_url, page: "photos" },
     { key: "contact", label: "Telefon eller hemsida", done: !!(place.phone || place.website_url), page: "contact" },
     { key: "offer", label: "Skapa ert första erbjudande", done: hasOffer, page: "offer" },
-  ], [place, hasOffer]);
+  ], [place, hasOffer, noHours]);
   const done = tasks.filter((t) => t.done).length;
   if (hidden !== false || done === tasks.length) return null;
   const left = tasks.filter((t) => !t.done).slice(0, 3);

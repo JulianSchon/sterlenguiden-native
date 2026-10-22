@@ -303,12 +303,12 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   openOfferRef.current = openOffer;
   const openOfferPlace = useCallback(() => {
     const o = openOfferRef.current;
-    if (o) pushOnce(router, `/place/${o.offer.place_id}`);
+    if (o) pushOnce(router, `/place/${o.offer.place_id}?from=home`);
   }, [router]);
   const hasOffers = useMemo(() => (feed ?? NO_ITEMS).some((i) => i.kind === "offer"), [feed]);
 
   // ── Att öppna saker ──
-  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}`), [router]);
+  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}?from=home`), [router]);
   const openEventCard = useCallback((e: Event) => {
     openEvent(e.id, { event: e, saved: savedRef.current.isEventSaved(e.id), onToggleSave: toggleEvent });
   }, [toggleEvent]);

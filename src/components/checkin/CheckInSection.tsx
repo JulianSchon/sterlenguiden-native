@@ -111,7 +111,7 @@ export function CheckInSection({ place }: { place: Place }) {
   const handleCelebrationNavigate = (exit: CelebrationExit) => {
     if (exit === "offers") router.push("/offers" as any);
     else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } } as any);
-    else router.push(`/place/${exit.placeId}` as any);
+    else router.push(`/place/${exit.placeId}?from=checkin` as any);
   };
 
   const handleRecheck = async () => {

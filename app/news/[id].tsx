@@ -151,7 +151,7 @@ export default function NewsScreen() {
             {(item.place || item.link_url) && (
               <View style={[s.links, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {item.place && (
-                  <TouchableOpacity style={s.linkRow} activeOpacity={0.7} onPress={() => pushOnce(router, `/place/${item.place!.id}`)}>
+                  <TouchableOpacity style={s.linkRow} activeOpacity={0.7} onPress={() => pushOnce(router, `/place/${item.place!.id}?from=news`)}>
                     <View style={[s.linkIcon, { backgroundColor: colors.fill }]}>
                       <MapPin size={18} color={colors.text} strokeWidth={2} />
                     </View>

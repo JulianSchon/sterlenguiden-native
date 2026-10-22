@@ -29,7 +29,8 @@ const LINKS: { key: string; label: string }[] = [
 ];
 const SOURCES: Record<string, string> = {
   home: "Hem", search: "Sök", map: "Kartan", calendar: "Kalendern", profile: "Profil", category: "Kategorier",
-  lists: "Listor och favoriter", place: "Andra platser", offers: "Förmåner", story: "Stories", friends: "Vänner", other: "Annat",
+  lists: "Listor och favoriter", place: "Platser i närheten", offers: "Förmåner", story: "Stories", friends: "Vänner",
+  event: "Evenemang", discover: "Upptäck", news: "Nyheter", checkin: "Incheckning", other: "Övrigt",
 };
 const AGES: { key: string; label: string }[] = [
   { key: "under25", label: "Under 25" }, { key: "25-34", label: "25–34" }, { key: "35-44", label: "35–44" },
@@ -71,7 +72,8 @@ function Content({ stats, days }: { stats: BusinessStats; days: Days }) {
   const s = useThemedStyles(createStyles);
   const diff = stats.visitors - stats.visitors_prev;
   const linkMax = Math.max(1, ...LINKS.map((l) => stats.links[l.key] ?? 0));
-  const sources = Object.entries(stats.sources).sort((a, b) => b[1] - a[1]);
+  // Övrigt sist, oavsett hur stort
+  const sources = Object.entries(stats.sources).sort((a, b) => (a[0] === "other" ? 1 : b[0] === "other" ? -1 : b[1] - a[1]));
   const sourceTotal = sources.reduce((n, [, v]) => n + v, 0);
 
   return (
@@ -125,7 +127,7 @@ function Content({ stats, days }: { stats: BusinessStats; days: Days }) {
             <GradientCard>
               <View style={s.bars}>
                 {sources.map(([key, n]) => (
-                  <Bar key={key} label={SOURCES[key] ?? key} n={n} max={sources[0][1]} suffix={`${Math.round((n / sourceTotal) * 100)} %`} />
+                  <Bar key={key} label={SOURCES[key] ?? key} n={n} max={Math.max(...sources.map(([, v]) => v))} suffix={`${Math.round((n / sourceTotal) * 100)} %`} />
                 ))}
               </View>
             </GradientCard>

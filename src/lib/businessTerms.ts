@@ -5,7 +5,7 @@
 export const BUSINESS_TERMS: { title: string; body: string }[] = [
   {
     title: "Det kostar ingenting",
-    body: "Att finnas i Österlenappen och använda Mitt företag är gratis. Vi tar ingen avgift och ingen del av er försäljning.",
+    body: "Att finnas i Österlenappen och använda Mitt företag är gratis i dag – inga avgifter och ingen del av er försäljning. Skulle vi någon gång vilja ta betalt för något säger vi till i god tid innan, och ni väljer själva om ni vill fortsätta.",
   },
   {
     title: "Ni ansvarar för det ni lägger upp",
@@ -22,6 +22,14 @@ export const BUSINESS_TERMS: { title: string; body: string }[] = [
   {
     title: "Vi får ta bort det som inte hör hemma här",
     body: "Är något vilseledande, olagligt eller stötande kan vi ta bort det. Vid upprepade fel kan vi stänga tillgången till Mitt företag.",
+  },
+  {
+    title: "Att ta hand om en sida",
+    body: "Koden som mejlas till företagets e-post gäller i 15 minuter, och efter fem fel försök behöver man be om en ny. Högst tre koder skickas till samma företag per dygn, så ingen kan fylla er inkorg. Saknas e-post bekräftar man med ett mejl från företagets egen adress.",
+  },
+  {
+    title: "Nya ägare",
+    body: "Säljs företaget eller får det nya ägare? Gör den nya ägaren till ägare under Personal och lämna sedan själv. Går det inte – mejla oss, så flyttar vi sidan till de nya ägarna.",
   },
   {
     title: "Personal",

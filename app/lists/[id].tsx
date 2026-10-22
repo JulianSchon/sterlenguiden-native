@@ -316,7 +316,7 @@ export default function ListDetailScreen() {
                 hasOffer={offerPlaceIds.has(item.place.id)}
                 isActive={isActive}
                 viewOnly={viewOnly}
-                onPress={() => router.push(`/place/${item.place.id}` as any)}
+                onPress={() => router.push(`/place/${item.place.id}?from=lists` as any)}
                 onDrag={drag}
                 onRemove={() =>
                   confirm("Ta bort plats", `Ta bort ${item.place.name} från listan? Det gäller alla medlemmar.`, "Ta bort", () =>

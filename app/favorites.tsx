@@ -124,7 +124,7 @@ function useFavoritesDetailed() {
             description: row.places.short_description ?? row.places.description ?? "",
             categories: categories || null,
             imageUrl: row.places.image_url?.split(",")[0]?.trim() ?? null,
-            route: `/place/${row.places.id}`,
+            route: `/place/${row.places.id}?from=lists`,
           });
         } else if (row.events) {
           items.push({

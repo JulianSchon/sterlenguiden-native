@@ -167,7 +167,7 @@ export default function VisitsScreen() {
                 last={i === entries.length - 1}
                 scrollY={scrollY}
                 focusY={focusY}
-                onPress={() => pushOnce(router, `/place/${e.visit.place.id}`)}
+                onPress={() => pushOnce(router, `/place/${e.visit.place.id}?from=profile`)}
               />
             )
           )}

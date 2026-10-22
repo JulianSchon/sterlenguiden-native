@@ -97,7 +97,7 @@ export default function DiscoverScreen() {
     queryClient.invalidateQueries({ queryKey: ["favorites"] });
   }, [queryClient]));
 
-  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}`), [router]);
+  const openPlace = useCallback((p: Place) => pushOnce(router, `/place/${p.id}?from=discover`), [router]);
   const throwTop = useCallback((dir: 1 | -1) => {
     Haptics.selectionAsync().catch(() => {});
     fly.value = { dir, n: fly.value.n + 1 };

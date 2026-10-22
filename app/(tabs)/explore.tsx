@@ -264,7 +264,7 @@ export default function ExploreScreen() {
   const openPlace = useCallback((place: Place, fromSearch: boolean) => {
     Keyboard.dismiss();
     if (fromSearch) addHistory({ kind: "place", id: place.id });
-    pushOnce(router, `/place/${place.id}`);
+    pushOnce(router, `/place/${place.id}?from=search`);
   }, [addHistory, router]);
   const openEventItem = useCallback((event: Event, fromSearch: boolean) => {
     Keyboard.dismiss();

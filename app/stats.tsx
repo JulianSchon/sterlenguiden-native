@@ -212,7 +212,7 @@ export default function StatsScreen() {
           {stats.topPlace && (
             <>
               <Text style={s.sectionTitle}>Mest besökta platsen</Text>
-              <TouchableOpacity style={[s.card, s.topPlace]} activeOpacity={0.8} onPress={() => pushOnce(router, `/place/${stats.topPlace!.place.id}`)}>
+              <TouchableOpacity style={[s.card, s.topPlace]} activeOpacity={0.8} onPress={() => pushOnce(router, `/place/${stats.topPlace!.place.id}?from=profile`)}>
                 <View style={s.topThumb}>
                   {firstImageUrl(stats.topPlace.place.image_url)
                     ? <Image source={{ uri: firstImageUrl(stats.topPlace.place.image_url)! }} style={StyleSheet.absoluteFill} resizeMode="cover" />

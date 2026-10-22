@@ -104,4 +104,10 @@ export function regularToday(hours: Hours, now = new Date()): DayEdit {
   return readDay(hours?.[DAY_NAMES[now.getDay()]]);
 }
 
+/** "Vi har inga fasta öppettider" (sparas i telefonen; gör att Kom igång räknar öppettiderna som klara) */
+export const noFixedHoursKey = (placeId: number) => `business-no-hours:v1:${placeId}`;
+
+/** Hotell har oftast incheckning, inte öppettider — öppettiderna är frivilliga för dem */
+export const isHotel = (categories: string | null | undefined) => /hotell|b&b|boende/i.test(categories ?? "");
+
 export const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;

@@ -56,7 +56,7 @@ import { offerEligibility, type Offer, type RedemptionRow } from "@/lib/offers";
 import { hoursStatus, weekRows } from "@/lib/openingHours";
 import { openInfo, placeCategories } from "@/lib/search";
 import { pushOnce } from "@/lib/navigateOnce";
-import { placeSource, trackDirections, trackPlaceLink, trackPlaceView } from "@/lib/placeTracking";
+import { placeSource, sourceFromParam, trackDirections, trackPlaceLink, trackPlaceView } from "@/lib/placeTracking";
 import { useMyPlaceIds } from "@/hooks/useBusiness";
 import {
   callPhone, copyText, openDirections, openExternal, openWebsite, sendEmail, siteName, withProtocol,
@@ -185,7 +185,7 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
 
   // Företagets statistik: en visning, och varifrån man kom
   useEffect(() => {
-    trackPlaceView(place.id, params.from === "story" ? "story" : placeSource(navigation.getState() as never));
+    trackPlaceView(place.id, sourceFromParam(params.from) ?? placeSource(navigation.getState() as never));
     // Räknas en gång per gång sidan öppnas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [place.id]);
@@ -489,7 +489,7 @@ const PlaceContent = memo(function PlaceContent({
 
       {later && nearby.length > 0 && (
         <Section title="I närheten">
-          <NearbyRail items={nearby} onPress={(p) => pushOnce(router, `/place/${p.id}`)} />
+          <NearbyRail items={nearby} onPress={(p) => pushOnce(router, `/place/${p.id}?from=place`)} />
         </Section>
       )}
 

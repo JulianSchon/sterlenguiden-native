@@ -550,7 +550,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
   // Stickers leder ingenstans — de hör hemma på kartan, som inte har en tillbaka-pil att ta sig
   // därifrån igen.
   const target =
-    activity.placeId ? `/place/${activity.placeId}` :
+    activity.placeId ? `/place/${activity.placeId}?from=friends` :
     null;
 
   const content = (

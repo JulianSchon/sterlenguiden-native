@@ -195,7 +195,7 @@ function PlaceCard({ place, showPrice, isPremium }: PlaceCardProps) {
   return (
     <Pressable
       style={({ pressed }) => [s.card, pressed && { transform: [{ scale: 0.97 }] }]}
-      onPress={() => router.push(`/place/${place.id}` as any)}
+      onPress={() => router.push(`/place/${place.id}?from=category` as any)}
     >
       {/* Bild */}
       {imgUri ? (

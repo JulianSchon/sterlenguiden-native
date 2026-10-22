@@ -19,8 +19,10 @@ import { dayText, parseIso } from "@/components/business/Pickers";
 import { useBusinessPlace, usePlaceAutosave, usePortalPlace } from "@/hooks/useBusiness";
 import { upcomingHolidays } from "@/lib/business";
 import {
-  WEEK_ORDER, dayLabel, newId, readWeek, writeWeek, type DayEdit,
+  WEEK_ORDER, dayLabel, isHotel, newId, noFixedHoursKey, readWeek, writeWeek, type DayEdit,
 } from "@/lib/hoursEditor";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { IconSwitch } from "@/components/IconSwitch";
 import { DAY_NAMES, exceptionFor, exceptionLine, isoDay, type HoursException } from "@/lib/openingHours";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -42,6 +44,14 @@ export default function BusinessHours() {
   const [exceptions, setExceptions] = useState<HoursException[] | null>(null);
   const [day, setDay] = useState<number | null>(null);
   const [sheet, setSheet] = useState<{ kind: ExceptionKind; editing: HoursException | null } | null>(null);
+  const [noHours, setNoHours] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(noFixedHoursKey(placeId)).then((v) => setNoHours(v === "1")).catch(() => {});
+  }, [placeId]);
+  const toggleNoHours = (v: boolean) => {
+    setNoHours(v);
+    (v ? AsyncStorage.setItem(noFixedHoursKey(placeId), "1") : AsyncStorage.removeItem(noFixedHoursKey(placeId))).catch(() => {});
+  };
 
   useEffect(() => {
     if (!place || week) return;
@@ -89,6 +99,19 @@ export default function BusinessHours() {
           <View>
             <SectionHeader title="Vanliga veckan" />
             {empty && (
+              <View style={s.noHours}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.noHoursTitle}>{isHotel(place?.categories) ? "Öppettider behövs inte för hotell" : "Vi har inga fasta öppettider"}</Text>
+                  <Text style={s.noHoursText}>
+                    {isHotel(place?.categories)
+                      ? "Hotell behöver inga – fyll bara i om ni har t.ex. restaurang eller reception med fasta tider."
+                      : "T.ex. öppet efter överenskommelse. Då visas inga tider på er sida."}
+                  </Text>
+                </View>
+                {!isHotel(place?.categories) && <IconSwitch value={noHours} onChange={toggleNoHours} />}
+              </View>
+            )}
+            {empty && !noHours && !isHotel(place?.categories) && (
               <View style={s.quick}>
                 <Text style={s.quickLead}>Snabbstart – välj det som liknar er, och ändra sedan det som skiljer:</Text>
                 <View style={s.chips}>
@@ -262,6 +285,12 @@ function AddButton({ Icon, label, sub, onPress }: { Icon: typeof Sun; label: str
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   quick: { marginBottom: 12, gap: 10 },
+  noHours: {
+    flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, marginBottom: 14,
+    backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border,
+  },
+  noHoursTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
+  noHoursText: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, color: c.muted, marginTop: 2 },
   quickLead: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: c.muted, paddingHorizontal: 4 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   dayRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 18, minHeight: 56 },
