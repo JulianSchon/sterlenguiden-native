@@ -129,7 +129,9 @@ export default function ExploreScreen() {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const searching = focused || query.length > 0;
+  // Öppnar man något från söket står söket kvar när man kommer tillbaka (som i Spotify) — tills Avbryt
+  const [stay, setStay] = useState(false);
+  const searching = focused || query.length > 0 || stay;
   const changeQuery = useCallback((q: string) => {
     setQuery(q);
     setShowAll(false);
@@ -209,6 +211,7 @@ export default function ExploreScreen() {
 
   // ── Sökfältet ─────────────────────────────────────────────────────────────
   const cancel = useCallback(() => {
+    setStay(false);
     changeQuery("");
     inputRef.current?.blur();
     Keyboard.dismiss();
@@ -259,12 +262,12 @@ export default function ExploreScreen() {
   // ── Att öppna något (via söket hamnar det överst i historiken) ───────────
   const openPlace = useCallback((place: Place, fromSearch: boolean) => {
     Keyboard.dismiss();
-    if (fromSearch) addHistory({ kind: "place", id: place.id });
+    if (fromSearch) { addHistory({ kind: "place", id: place.id }); setStay(true); }
     pushOnce(router, `/place/${place.id}`);
   }, [addHistory, router]);
   const openEventItem = useCallback((event: Event, fromSearch: boolean) => {
     Keyboard.dismiss();
-    if (fromSearch) addHistory({ kind: "event", id: event.id });
+    if (fromSearch) { addHistory({ kind: "event", id: event.id }); setStay(true); }
     openEvent(event.id, { event });
   }, [addHistory]);
   const chooseTown = useCallback((name: string) => {
