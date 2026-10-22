@@ -306,9 +306,16 @@ export default function SignupScreen() {
     const { data, error: e } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: "email" });
     if (e || !data.user) {
       setBusy(false);
+      setCode("");
+      // Utan nät, eller för många försök: koden kan vara rätt, så rutorna skakar inte
+      const offline = !e || e.status === 0 || /fetch|network/i.test(e.message ?? "");
+      if (offline || e.status === 429) {
+        setCodePhase("typing");
+        setError(t(offline ? "onboarding.code.offline" : "onboarding.code.tooMany"));
+        return;
+      }
       setCodePhase("wrong");
       setError(t("onboarding.code.wrong"));
-      setCode("");
       setTimeout(() => setCodePhase((p) => (p === "wrong" ? "typing" : p)), 1000);
       return;
     }

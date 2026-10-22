@@ -418,6 +418,7 @@ export const de: typeof sv = {
       google: "Weiter mit Google",
       email: "Weiter mit E-Mail",
       haveAccount: "Du hast schon ein Konto?",
+      skipIntro: "Intro überspringen",
       logIn: "Anmelden",
       legalPrefix: "Mit dem Fortfahren akzeptierst du unsere ",
       terms: "Nutzungsbedingungen",
@@ -484,6 +485,8 @@ export const de: typeof sv = {
       resendIn: "Neuen Code senden in {{seconds}} s",
       sent: "Ein neuer Code ist unterwegs.",
       wrong: "Der Code ist falsch oder abgelaufen. Prüfe ihn oder fordere einen neuen an.",
+      offline: "Wir erreichen den Server gerade nicht. Prüfe deine Internetverbindung und gib den Code erneut ein.",
+      tooMany: "Du hast es oft versucht. Warte ein paar Minuten und versuche es erneut.",
       spam: "Keine E-Mail? Schau im Spam-Ordner nach.",
     },
     password: {

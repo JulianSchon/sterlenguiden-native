@@ -421,6 +421,7 @@ export const sv = {
       google: "Fortsätt med Google",
       email: "Fortsätt med e-post",
       haveAccount: "Har du redan ett konto?",
+      skipIntro: "Hoppa över introt",
       logIn: "Logga in",
       legalPrefix: "Genom att fortsätta godkänner du våra ",
       terms: "villkor",
@@ -487,6 +488,8 @@ export const sv = {
       resendIn: "Skicka en ny kod om {{seconds}} s",
       sent: "En ny kod är på väg.",
       wrong: "Koden stämmer inte eller har gått ut. Kontrollera den eller be om en ny.",
+      offline: "Vi når inte servern just nu. Kolla att du har internet och skriv in koden igen.",
+      tooMany: "Du har provat många gånger. Vänta några minuter och försök igen.",
       spam: "Syns inget mejl? Titta i skräpposten.",
     },
     password: {

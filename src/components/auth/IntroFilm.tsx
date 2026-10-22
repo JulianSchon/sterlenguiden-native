@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet } from "react-native";
 import { requireOptionalNativeModule } from "expo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTranslation } from "react-i18next";
 import Reanimated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 
 const SEEN_KEY = "intro-seen:v1";
@@ -36,6 +37,7 @@ export function useShouldShowIntro(reduced: boolean): boolean | null {
 export function IntroFilm({ onReveal, onDone }: { onReveal: () => void; onDone: () => void }) {
   // Laddas först här: att importera expo-video i en app utan modulen kraschar hela appen
   const { useVideoPlayer, VideoView } = require("expo-video") as typeof import("expo-video");
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>("film");
   const started = useRef(false);
 
@@ -83,7 +85,7 @@ export function IntroFilm({ onReveal, onDone }: { onReveal: () => void; onDone: 
   if (phase === "out") return null;
   return (
     <Reanimated.View style={[StyleSheet.absoluteFill, s.root, coverStyle]}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={() => setPhase("logo")} accessibilityLabel="Hoppa över introt">
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => setPhase("logo")} accessibilityLabel={t("auth.welcome.skipIntro")}>
         {phase === "film" && (
           <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
         )}
