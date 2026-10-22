@@ -193,7 +193,7 @@ export function MembershipMoment({
           <Reanimated.View style={[s.text, textStyle]}>
             {info?.fromName ? (
               <View style={s.from}>
-                <Gift size={15} color={colors.goldText} strokeWidth={2} />
+                <Gift size={15} color={colors.onGold} strokeWidth={2.2} />
                 <Text style={s.fromText} numberOfLines={1}>{t("pass.moment.from", { name: info.fromName })}</Text>
               </View>
             ) : null}
@@ -241,9 +241,10 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   text: { alignItems: "center", gap: 10, maxWidth: 360 },
   from: {
     flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12, height: 30, borderRadius: 15,
-    backgroundColor: c.goldSoft, marginBottom: 2,
+    // Solid, inte genomskinlig: annars flöt den ihop med strålarna bakom
+    backgroundColor: c.gold, marginBottom: 2,
   },
-  fromText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.goldText },
+  fromText: { fontFamily: "Inter_700Bold", fontSize: 13.5, color: c.onGold },
   title: { fontFamily: "Montserrat_700Bold", fontSize: 30, lineHeight: 36, letterSpacing: -0.8, color: c.text, textAlign: "center" },
   body: { fontFamily: "Inter_400Regular", fontSize: 16, lineHeight: 23, color: c.muted, textAlign: "center" },
   message: { fontFamily: "Inter_500Medium", fontStyle: "italic", fontSize: 15.5, lineHeight: 22, color: c.text, textAlign: "center", marginTop: 2 },
