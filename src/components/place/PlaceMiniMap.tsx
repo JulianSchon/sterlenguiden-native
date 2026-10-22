@@ -18,7 +18,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE, MAP_IS_STYLEABLE, MAP_PROVIDER } from "@/components/map/mapStyle";
 import { SELECTED_ANCHOR, SELECTED_SIZE, SelectedPin } from "@/components/map/MapPins";
 
-export const MINI_MAP_H = 180;
+const MINI_MAP_H = 180;
 
 export function PlaceMiniMap({ lat, lng, mount, onPress }: {
   lat: number;

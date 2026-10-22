@@ -36,6 +36,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { sv } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
+import { ProblemScreen } from "@/components/ProblemScreen";
 import { Bus, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone } from "lucide-react-native";
 import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
 import { supabase } from "@/integrations/supabase/client";
@@ -647,16 +648,15 @@ function PlaceSkeleton() {
 
 function NotFound() {
   const router = useRouter();
-  const { colors } = useTheme();
   return (
-    <View style={[s.screen, s.notFound, { backgroundColor: colors.bg }]}>
-      <MapPin size={34} color={colors.faint} strokeWidth={1.6} />
-      <Text style={[s.notFoundTitle, { color: colors.text }]}>Vi hittar inte den här platsen</Text>
-      <Text style={[s.notFoundText, { color: colors.muted }]}>Den kan ha tagits bort, eller så är du utan nät just nu.</Text>
-      <TouchableOpacity style={[s.quiet, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.back()}>
-        <Text style={[s.quietText, { color: colors.text }]}>Tillbaka</Text>
-      </TouchableOpacity>
-    </View>
+    <ProblemScreen
+      icon={(color) => <MapPin size={36} color={color} strokeWidth={1.6} />}
+      title="Vi hittar inte den här platsen"
+      text="Den kan ha tagits bort, eller så är du utan nät just nu."
+      primary={router.canGoBack()
+        ? { label: "Tillbaka", onPress: () => router.back() }
+        : { label: "Till startsidan", onPress: () => router.replace("/") }}
+    />
   );
 }
 
@@ -706,12 +706,4 @@ const s = StyleSheet.create({
 
   skeletonBar: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", paddingHorizontal: 12 },
 
-  notFound: { alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 32 },
-  notFoundTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, textAlign: "center" },
-  notFoundText: { fontFamily: "Inter_400Regular", fontSize: 14, textAlign: "center", lineHeight: 20, marginBottom: 8 },
-  quiet: {
-    height: 44, paddingHorizontal: 22, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center", justifyContent: "center",
-  },
-  quietText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5 },
 });

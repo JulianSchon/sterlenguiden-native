@@ -28,7 +28,7 @@ function dayString(n: number): string {
   return new Date(n * DAY_MS).toISOString().slice(0, 10);
 }
 
-export interface StreakStats {
+interface StreakStats {
   /** Antal dagar i rad fram till idag (eller igår, om idag inte hunnit räknas än) */
   current: number;
   longest: number;

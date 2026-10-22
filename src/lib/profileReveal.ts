@@ -10,7 +10,7 @@
  * skapas, eller får den nya ringen/designen, medan signalen gäller spelar inklistringen, räknat
  * från samma tidpunkt. Signalen förbrukas inte; den gäller tills inklistringen hunnit spelas klart.
  */
-export type RevealKind = "ring" | "card";
+type RevealKind = "ring" | "card";
 
 let pending: { kind: RevealKind; id: string; at: number } | null = null;
 const listeners = new Set<() => void>();

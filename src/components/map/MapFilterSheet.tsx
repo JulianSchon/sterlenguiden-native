@@ -36,7 +36,7 @@ const toggled = <T,>(set: Set<T>, v: T) => {
 };
 
 /** Ett aktivt filter som ett chip/piller: namn och hur det tas bort */
-export interface ActiveFilter { key: string; label: string; remove: (f: MapFilters) => MapFilters }
+interface ActiveFilter { key: string; label: string; remove: (f: MapFilters) => MapFilters }
 
 /**
  * De aktiva filtren i ordning: kategorier, underkategori, praktiskt, Mina, listor, skatter. I

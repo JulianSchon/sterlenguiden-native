@@ -271,7 +271,7 @@ export function businessError(e: unknown): string {
 
 // ── Bilderna ────────────────────────────────────────────────────────────────
 
-export const MEDIA_BUCKET = "place-media";
+const MEDIA_BUCKET = "place-media";
 
 /** Krymper bilden och lägger den i platsens egen mapp. Returnerar den publika adressen. */
 export async function uploadPlaceImage(
@@ -376,7 +376,7 @@ export function offerCategoryFor(categories: string | null): string {
 
 // ── Svenska helgdagar (för "Stängt på midsommarafton?") ─────────────────────
 
-export interface Holiday { date: string; name: string }
+interface Holiday { date: string; name: string }
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -406,7 +406,7 @@ function firstWeekday(year: number, month: number, day: number, weekday: number)
   return d;
 }
 
-export function swedishHolidays(year: number): Holiday[] {
+function swedishHolidays(year: number): Holiday[] {
   const e = easter(year);
   const plus = (n: number) => new Date(e.getFullYear(), e.getMonth(), e.getDate() + n);
   const list: [Date, string][] = [
@@ -438,5 +438,3 @@ export function upcomingHolidays(days = 120, now = new Date()): Holiday[] {
   return [...swedishHolidays(now.getFullYear()), ...swedishHolidays(now.getFullYear() + 1)]
     .filter((h) => h.date >= today && h.date <= until);
 }
-
-export { iso as isoDate };

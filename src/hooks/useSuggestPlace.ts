@@ -9,7 +9,7 @@ import { currentLanguage } from "@/i18n";
 
 export type SuggestionCategory = "food" | "stay" | "cafe" | "shops" | "nature" | "activities" | "sights" | "crafts";
 
-export interface PlaceSuggestion {
+interface PlaceSuggestion {
   name: string;
   category: SuggestionCategory | null;
   location: string;

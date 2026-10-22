@@ -5,11 +5,11 @@
  *
  * Allt tar färger från temat, så sidorna fungerar i både ljust och mörkt läge.
  */
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, type TextInputProps,
 } from "react-native";
-import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { AlertCircle, Check, CircleCheck, type LucideIcon } from "lucide-react-native";
@@ -50,7 +50,7 @@ export function SaveIndicator({ state, onRetry }: { state: SaveState; onRetry?: 
 
 // ── Textfält ────────────────────────────────────────────────────────────────
 
-export interface PortalFieldProps extends TextInputProps {
+interface PortalFieldProps extends TextInputProps {
   label: string;
   icon?: LucideIcon;
   /** Förklaring under fältet */
@@ -274,17 +274,6 @@ export const PortalToast = forwardRef<PortalToastHandle>(function PortalToast(_,
     </Reanimated.View>
   );
 });
-
-/** Skjuter ett besked till senare (efter att en panel stängts) */
-export const later = (fn: () => void, ms = 250) => setTimeout(fn, ms);
-
-/** Innehåll som tonar in (för sidor som byter läge) */
-export function FadeIn({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
-  const v = useSharedValue(0);
-  useEffect(() => { v.value = withDelay(delay, withTiming(1, { duration: 260 })); }, [v, delay]);
-  const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 8 }] }));
-  return <Reanimated.View style={style}>{children}</Reanimated.View>;
-}
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   saveRow: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 74, justifyContent: "flex-end" },

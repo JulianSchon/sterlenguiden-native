@@ -23,7 +23,7 @@ export type CardVariant = {
   light: boolean;    // true = ljust kort → mörk text
 };
 
-export type CardColors = {
+type CardColors = {
   text: string;
   muted: string;
   accent: string;

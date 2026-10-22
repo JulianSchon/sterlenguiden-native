@@ -9,7 +9,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
 
-export const LEADERBOARD_PAGE = 50;
+const LEADERBOARD_PAGE = 50;
 
 export type LeaderboardMetric = "visits" | "streak" | "stickers";
 export type LeaderboardScope = "all" | "area" | "friends";
@@ -31,7 +31,7 @@ export interface LeaderboardEntry {
   avatarUrl: string | null;
 }
 
-export interface Leaderboard {
+interface Leaderboard {
   entries: LeaderboardEntry[];
   me: LeaderboardEntry | null;
 }

@@ -11,7 +11,7 @@ import { Platform } from "react-native";
 import { PROVIDER_DEFAULT, PROVIDER_GOOGLE, type MapStyleElement } from "react-native-maps";
 
 /** Google Kartor även på iPhone (kräver Google Maps-nyckeln i bygget, se app.config.js) */
-export const GOOGLE_MAPS_ON_IOS = true;
+const GOOGLE_MAPS_ON_IOS = true;
 
 export const MAP_PROVIDER = Platform.OS === "ios" && !GOOGLE_MAPS_ON_IOS ? PROVIDER_DEFAULT : PROVIDER_GOOGLE;
 /** Stilarna gäller bara Google-kartan */

@@ -227,7 +227,7 @@ export default function FriendProfileScreen() {
             {isError && <Text style={s.errorText}>Kunde inte hämta statistik just nu.</Text>}
             {stats && streak && (
               <RealContent
-                who={who} stats={stats} streak={streak} topCategory={topCategory} totalPlaces={places.length}
+                who={who} stats={stats} topCategory={topCategory} totalPlaces={places.length}
                 lists={friendLists} friendId={id!}
               />
             )}
@@ -274,9 +274,9 @@ export default function FriendProfileScreen() {
 // En sektion utan innehåll (inga listor, troféer, skatter …) visas inte alls.
 
 function RealContent({
-  who, stats, streak, topCategory, totalPlaces, lists, friendId,
+  who, stats, topCategory, totalPlaces, lists, friendId,
 }: {
-  who: string; stats: FriendStats; streak: ReturnType<typeof computeStreak>;
+  who: string; stats: FriendStats;
   topCategory: ReturnType<typeof computeCategoryStats>[number] | null; totalPlaces: number;
   lists: FriendList[]; friendId: string;
 }) {

@@ -9,10 +9,10 @@
 import type { NavigationState, PartialState } from "@react-navigation/native";
 import { supabase } from "@/integrations/supabase/client";
 
-export type PlaceLink = "phone" | "website" | "book" | "instagram" | "facebook" | "email";
+type PlaceLink = "phone" | "website" | "book" | "instagram" | "facebook" | "email";
 
 /** Var i appen man kom ifrån ("Så hittade de er" i statistiken) */
-export type PlaceSource =
+type PlaceSource =
   | "home" | "search" | "map" | "calendar" | "profile" | "category" | "lists" | "place" | "offers" | "story" | "friends"
   | "event" | "discover" | "news" | "checkin" | "other";
 

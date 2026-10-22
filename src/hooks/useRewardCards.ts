@@ -27,7 +27,7 @@ export interface RewardCard {
   light: boolean;
 }
 
-export interface OwnedCard {
+interface OwnedCard {
   cardId: string;
   awardedAt: string;
   /** När presenten öppnades; null = presenten väntar */

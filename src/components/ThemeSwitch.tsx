@@ -7,7 +7,7 @@
  * när den kommit fram. Ett enkelt tryck byter också.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
 import { Moon, Sun } from "lucide-react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";

@@ -8,7 +8,7 @@
  * pending_eas_build_features). Alla anrop finns redan på rätt ställen; vid nästa build fylls
  * bara den här funktionen i med expo-audio och ljudfilerna, ingenting annat behöver ändras.
  */
-export type SoundName =
+type SoundName =
   | "holdComplete" | "stamp" | "tick" | "milestone" | "welcomeBack"
   /** En stapel som fylls (stigande ton) */
   | "fill"

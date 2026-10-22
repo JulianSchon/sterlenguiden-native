@@ -9,7 +9,7 @@ import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
 import { serverNow } from "@/lib/serverClock";
 
-export type RedemptionInterval = "once" | "daily" | "weekly" | "monthly" | "unlimited";
+type RedemptionInterval = "once" | "daily" | "weekly" | "monthly" | "unlimited";
 
 export interface Offer {
   id: string;
@@ -40,7 +40,7 @@ export interface RedemptionRow {
   activated_at: string;
 }
 
-export interface Eligibility {
+interface Eligibility {
   /** Har använts minst en gång */
   used: boolean;
   /** Får aktiveras just nu */
@@ -103,7 +103,6 @@ export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibili
 
 // ─── Värdeberäkning ───────────────────────────────────────────────────────────
 
-
 const AMOUNT_RE  = /(\d[\d\s]*)\s*(kr|:-|sek)/;
 const PERCENT_RE = /(\d{1,2})\s*%/;
 const FREEBIE_RE = /2 för 1|två för en|gratis|fri entré|fri frakt/;
@@ -158,13 +157,4 @@ export function splitSavings(label: string): { before: string; big: string; afte
     big: m[0].trim(),
     after: label.slice(m.index + m[0].length).trim(),
   };
-}
-
-// ─── Filtrering ───────────────────────────────────────────────────────────────
-
-/** Ett erbjudande som får visas: påslaget och inte utgånget */
-export function isActiveOffer(offer: { is_active: boolean; expires_at: string | null }): boolean {
-  if (!offer.is_active) return false;
-  if (!offer.expires_at) return true;
-  return new Date(offer.expires_at).getTime() >= serverNow();
 }

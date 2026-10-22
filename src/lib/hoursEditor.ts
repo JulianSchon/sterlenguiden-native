@@ -3,7 +3,7 @@
  * eller har en egen text som appen inte förstår ("Enligt överenskommelse") och lämnar som den är.
  * Sparas i samma form som resten av appen läser (lib/openingHours): "10:00-17:00, 18:00-22:00".
  */
-import { DAY_NAMES, clock, exceptionFor, isoDay, parseDay, type Hours, type HoursException } from "@/lib/openingHours";
+import { DAY_NAMES, clock, isoDay, parseDay, type Hours, type HoursException } from "@/lib/openingHours";
 
 export interface TimeRange { from: string; to: string }
 
@@ -19,13 +19,13 @@ export const SHORT_DAYS = ["Sön", "Mån", "Tis", "Ons", "Tor", "Fre", "Lör"];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 /** Minuter → "HH:MM" (midnatt efter dagen blir "00:00") */
-export const hhmm = (min: number) => `${pad(Math.floor(min / 60) % 24)}:${pad(min % 60)}`;
+const hhmm = (min: number) => `${pad(Math.floor(min / 60) % 24)}:${pad(min % 60)}`;
 const toMin = (v: string) => {
   const [h, m] = v.split(":").map(Number);
   return h * 60 + (m || 0);
 };
 
-export function readDay(text: string | null | undefined): DayEdit {
+function readDay(text: string | null | undefined): DayEdit {
   if (!text?.trim()) return { kind: "unset" };
   const parsed = parseDay(text);
   if (parsed === "closed") return { kind: "closed" };
@@ -33,7 +33,7 @@ export function readDay(text: string | null | undefined): DayEdit {
   return { kind: "open", ranges: parsed.map((r) => ({ from: hhmm(r.from), to: hhmm(r.to) })) };
 }
 
-export function writeDay(day: DayEdit): string | null {
+function writeDay(day: DayEdit): string | null {
   if (day.kind === "unset") return null;
   if (day.kind === "closed") return "Stängt";
   if (day.kind === "text") return day.text;
@@ -88,9 +88,6 @@ export function todayOnly(exceptions: HoursException[] | null | undefined, now =
   const day = isoDay(now);
   return (exceptions ?? []).find((e) => e.from === day && e.to === day && !e.yearly) ?? null;
 }
-
-/** Undantaget som gäller i dag (en dag, semester eller säsong) */
-export const todayException = (exceptions: HoursException[] | null | undefined, now = new Date()) => exceptionFor(exceptions, now);
 
 /** Byter dagens egen ändring (null = ta bort den) och lämnar resten som det var */
 export function setToday(exceptions: HoursException[] | null | undefined, change: Omit<HoursException, "id" | "from" | "to"> | null, now = new Date()): HoursException[] {

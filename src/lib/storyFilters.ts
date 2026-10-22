@@ -7,13 +7,6 @@ import { ImageFormat, Skia } from "@shopify/react-native-skia";
 
 type Matrix = number[];
 
-const IDENTITY: Matrix = [
-  1, 0, 0, 0, 0,
-  0, 1, 0, 0, 0,
-  0, 0, 1, 0, 0,
-  0, 0, 0, 1, 0,
-];
-
 /** Två färgmatriser efter varandra (först b, sedan a) */
 function concat(a: Matrix, b: Matrix): Matrix {
   const out: Matrix = new Array(20).fill(0);
@@ -57,7 +50,7 @@ function fade(amount: number): Matrix {
   return [k, 0, 0, 0, amount, 0, k, 0, 0, amount, 0, 0, k, 0, amount, 0, 0, 0, 1, 0];
 }
 
-export interface StoryFilter { id: string; name: string; matrix: Matrix | null }
+interface StoryFilter { id: string; name: string; matrix: Matrix | null }
 
 export const STORY_FILTERS: StoryFilter[] = [
   { id: "none", name: "Original", matrix: null },
@@ -68,7 +61,6 @@ export const STORY_FILTERS: StoryFilter[] = [
   { id: "bw", name: "Svartvit", matrix: concat(contrast(1.15), saturation(0)) },
 ];
 
-export { IDENTITY };
 
 /**
  * Ritar bilden med filtret och returnerar en ny bild (data-adress, JPEG). `maxEdge` håller den i

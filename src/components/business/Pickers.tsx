@@ -18,14 +18,14 @@ const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 
 /** "10:00" → [10, 0] (minuterna avrundade till närmaste femminutersteg) */
-export function splitTime(value: string): [number, number] {
+function splitTime(value: string): [number, number] {
   const m = value.match(/^(\d{1,2})(?::(\d{2}))?/);
   const h = Math.min(23, Number(m?.[1] ?? 0));
   const min = Math.min(55, Math.round(Number(m?.[2] ?? 0) / 5) * 5);
   return [h, min];
 }
 
-export const joinTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+const joinTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 
 /** Två hjul bredvid varandra: timme och minut. value är "HH:MM". */
 export function TimeWheel({ value, onChange }: { value: string; onChange: (value: string) => void }) {

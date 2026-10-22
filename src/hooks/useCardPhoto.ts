@@ -13,7 +13,7 @@ import { pickSquarePhoto, removeStoredImage, requireUserId, type PhotoSource } f
 import type { Profile } from "@/hooks/useProfile";
 
 const CARD_PHOTO_MAX_EDGE = 512;
-export const CARD_PHOTO_COOLDOWN_DAYS = 30;
+const CARD_PHOTO_COOLDOWN_DAYS = 30;
 
 /** När kortfotot kan bytas igen, eller null om det går att byta nu. */
 export function nextCardPhotoChange(profile: Pick<Profile, "card_photo_changed_at"> | null | undefined): Date | null {

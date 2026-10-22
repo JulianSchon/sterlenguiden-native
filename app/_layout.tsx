@@ -1,4 +1,6 @@
-import { Stack, router } from "expo-router";
+import { Stack, router, type ErrorBoundaryProps } from "expo-router";
+import { CloudOff } from "lucide-react-native";
+import { ProblemScreen } from "@/components/ProblemScreen";
 import { ActiveOfferHost } from "@/components/offers/ActiveOfferHost";
 import { TrophyHost } from "@/components/trophies/TrophyHost";
 import { EventSheetHost } from "@/components/events/EventSheet";
@@ -30,6 +32,19 @@ import { loadSavedLanguage } from "@/i18n";
 import { forgetGoogleAccount } from "@/lib/socialAuth";
 import { tabsEnterFromBelow } from "@/lib/tabsEntrance";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
+
+/** Om något kraschar visas det här i stället för Expos tekniska felsida */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <ProblemScreen
+      icon={(color) => <CloudOff size={36} color={color} strokeWidth={1.6} />}
+      title="Något gick fel"
+      text="Vi ber om ursäkt – appen stötte på ett problem. Försök igen. Hjälper det inte, stäng appen helt och öppna den på nytt."
+      primary={{ label: "Försök igen", onPress: () => { retry(); } }}
+      detail={error.message}
+    />
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -180,7 +195,7 @@ function AppStack() {
         <Stack.Screen name="business/claim" options={{ headerShown: false, animation: "slide_from_bottom", gestureEnabled: false }} />
         <Stack.Screen name="business/apply" options={{ headerShown: false, animation: "slide_from_bottom", gestureEnabled: false }} />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="+not-found" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style={scheme === "light" ? "dark" : "light"} />
       {/* Personalskärmen för ett aktivt erbjudande: ovanpå allt, syns var man än är */}

@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type SocialProvider = "apple" | "google";
 
-export type SocialResult =
+type SocialResult =
   | { ok: true; name?: { first: string; last: string } }
   | { ok: false; reason: "cancelled" | "unavailable" | "failed" };
 
@@ -39,7 +39,7 @@ function googleModule(): typeof import("@react-native-google-signin/google-signi
   return require("@react-native-google-signin/google-signin");
 }
 
-export async function signInWithApple(): Promise<SocialResult> {
+async function signInWithApple(): Promise<SocialResult> {
   const Apple = appleModule();
   if (!Apple || !(await Apple.isAvailableAsync().catch(() => false))) return { ok: false, reason: "unavailable" };
   try {
@@ -64,7 +64,7 @@ export async function signInWithApple(): Promise<SocialResult> {
 
 let googleConfigured = false;
 
-export async function signInWithGoogle(): Promise<SocialResult> {
+async function signInWithGoogle(): Promise<SocialResult> {
   const G = googleModule();
   if (!G) return { ok: false, reason: "unavailable" };
   try {

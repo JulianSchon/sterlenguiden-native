@@ -9,7 +9,7 @@
  */
 
 /** "  st. olof " → "Sankt olof" (versal första bokstav, ett blanksteg mellan orden) */
-export function normalizeTown(name: string): string {
+function normalizeTown(name: string): string {
   const cleaned = name.replace(/\s+/g, " ").trim().replace(/^st\.?\s+/i, "Sankt ");
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }

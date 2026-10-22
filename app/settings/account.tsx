@@ -134,7 +134,11 @@ export default function AccountSettings() {
     setPwBusy(true);
     const { error } = await supabase.auth.updateUser({ password: newPw });
     setPwBusy(false);
-    if (error) return Alert.alert(t("common.error"), error.message);
+    if (error) {
+      // Supabases egna (engelska) felmeddelanden visas aldrig
+      const key = error.code === "same_password" ? "same" : error.code === "weak_password" ? "weak" : "failed";
+      return Alert.alert(t("common.error"), t(`onboarding.password.${key}`));
+    }
     Alert.alert(t("account.password.updated"));
     setNewPw("");
     setConfPw("");

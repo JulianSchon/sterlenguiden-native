@@ -9,7 +9,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   View, Text, FlatList, TouchableOpacity,
-  Image, StyleSheet, Dimensions, Pressable,
+  Image, StyleSheet, Pressable,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -33,12 +33,9 @@ import {
 } from "@/hooks/usePlaces";
 import { useBusinessStories } from "@/hooks/useBusinessStories";
 
-const { width: SW } = Dimensions.get("window");
-
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const BG    = "#121212";
 const FG    = "#F5F2EA";
-const GOLD  = "#C5A059";
 const MUTED = "rgba(255,255,255,0.45)";
 
 const HEADER_H  = 200;

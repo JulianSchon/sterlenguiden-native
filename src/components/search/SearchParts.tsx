@@ -43,7 +43,7 @@ export function useOpenColors() {
 // ── Småbitar ─────────────────────────────────────────────────────────────────
 
 /** Texten med det man sökt på markerat (guld, fetare) */
-export function Highlight({ text, tokens, style, mark }: {
+function Highlight({ text, tokens, style, mark }: {
   text: string; tokens: string[]; style: StyleProp<TextStyle>; mark: StyleProp<TextStyle>;
 }) {
   const plain = normChars(text);

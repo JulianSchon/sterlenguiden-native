@@ -4,7 +4,7 @@
  */
 import { Skia, type SkPath } from "@shopify/react-native-skia";
 
-export const TEAR_TEETH = 16;
+const TEAR_TEETH = 16;
 export const TEAR_DEPTH = 5;      // hur djupa tänderna är
 export const TEAR_FRINGE = 0.9;   // bredden på den vita papperskanten på bandet
 export const EDGE_STROKE = 1;     // linjetjockleken på kanten som blir kvar på biljetten

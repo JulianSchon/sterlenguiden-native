@@ -22,7 +22,7 @@ export interface Memory {
   createdAt: string;
 }
 
-export interface MemoryInput {
+interface MemoryInput {
   title: string;
   story: string;
   memoryDate: string;

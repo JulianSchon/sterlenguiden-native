@@ -287,7 +287,7 @@ export interface Parsed {
 }
 
 /** Hur olika två ord är (antal tecken som måste ändras), avbryter när det blir fler än max */
-export function editDistance(a: string, b: string, max: number): number {
+function editDistance(a: string, b: string, max: number): number {
   if (Math.abs(a.length - b.length) > max) return max + 1;
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
@@ -513,7 +513,7 @@ export function atLabel(at: At): string {
 }
 
 /** Dagen (och klockslaget) man frågar efter, räknat från nu: nästa sådan veckodag, i dag eller i morgon */
-export function atDate(at: At, now = new Date()): Date {
+function atDate(at: At, now = new Date()): Date {
   const day = startOfDay(now);
   const offset = at.weekday !== null ? (at.weekday - getDay(day) + 7) % 7 : at.rel ?? 0;
   const d = addDays(day, offset);
@@ -595,7 +595,7 @@ const MENTION_WORDS: Record<PracticalKey, string[]> = {
 };
 
 
-export interface PlaceResult {
+interface PlaceResult {
   hits: PlaceHit[];
   /** Det som släpptes för att det inte gav några träffar (uppgifter platserna inte angett än) */
   relaxed: Intent[];

@@ -9,7 +9,7 @@ import { Appearance, StyleSheet } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { darkColors, lightColors, type ThemeColors } from "./colors";
 
-export type ThemeMode = "light" | "dark";
+type ThemeMode = "light" | "dark";
 
 const STORAGE_KEY = "app-theme-mode";
 

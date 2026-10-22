@@ -12,12 +12,6 @@ type TabId = "home" | "search" | "calendar" | "profile";
 const refs      = new Map<TabId, RefObject<ScrollView>>();
 const callbacks = new Map<TabId, () => void>();
 
-/** Registrera en ScrollView-ref för en tab. */
-export function registerScroll(tab: TabId, ref: RefObject<ScrollView>) {
-  refs.set(tab, ref);
-  callbacks.delete(tab);
-}
-
 /** Registrera en scroll-to-top-callback för en tab (när ScrollView är inuti en sub-komponent). */
 export function registerScrollCallback(tab: TabId, fn: () => void) {
   callbacks.set(tab, fn);

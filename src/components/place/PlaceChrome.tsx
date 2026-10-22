@@ -35,7 +35,7 @@ export const TOP_BAR_H = 60;
 const ROUND = 46;
 
 /** Dela platsen: namnet, orten och hemsidan */
-export function sharePlace(place: Place) {
+function sharePlace(place: Place) {
   const town = place.nearest_town ? `, ${place.nearest_town}` : "";
   const link = place.website_url ? `\n${withProtocol(place.website_url)}` : "";
   Share.share({ message: `${place.name}${town}${link}` }).catch(() => {});
@@ -47,7 +47,7 @@ export function sharePlace(place: Place) {
 const glassFg = (dark: boolean) => (dark ? "rgba(255,255,255,0.9)" : "#1A1A1A");
 
 /** Rund glasknapp: bara den frostade cirkeln, ingen kant eller skugga runt */
-export function RoundButton({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
+function RoundButton({ label, onPress, children }: { label: string; onPress: () => void; children: React.ReactNode }) {
   const dark = useTheme().scheme === "dark";
   const press = useSharedValue(1);
   const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));

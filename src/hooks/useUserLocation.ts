@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import * as Location from "expo-location";
 
-export type UserLocationState =
+type UserLocationState =
   | { status: "loading" }
   | { status: "denied" }
   | { status: "unavailable" } // platstjänster av, eller ingen position gick att få

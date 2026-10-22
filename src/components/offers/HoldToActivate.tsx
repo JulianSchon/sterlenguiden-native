@@ -26,7 +26,7 @@ import type { ThemeColors } from "@/theme/colors";
 const HOLD_MS = 1000;
 
 /** Eskalerande vibration när något lyckas — används även av aktiva vyn */
-export function celebrationHaptic() {
+function celebrationHaptic() {
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}), 80);
   setTimeout(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}), 180);

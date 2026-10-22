@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/integrations/supabase/client";
 
-export interface StoryView {
+interface StoryView {
   story_id: string;
   viewed_at?: string | null;
 }

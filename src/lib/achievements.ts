@@ -27,7 +27,7 @@ import type { RedemptionRow } from "@/lib/offers";
 
 export type Tier = "bronze" | "silver" | "gold";
 
-export const TIER_LABEL: Record<Tier, string> = { bronze: "Brons", silver: "Silver", gold: "Guld" };
+const TIER_LABEL: Record<Tier, string> = { bronze: "Brons", silver: "Silver", gold: "Guld" };
 const TIER_ORDER: Tier[] = ["bronze", "silver", "gold"];
 
 export const TIER_PALETTE: Record<Tier, { rim: string; field: [string, string, string]; ink: string; glow: string }> = {
@@ -62,7 +62,7 @@ function placeMatchesCategory(place: Place, dbValues: string[]): boolean {
 }
 
 // ─── Användarens råsiffror — allt en trofés framsteg räknas mot ────────────────
-export interface UserStats {
+interface UserStats {
   uniqueVisits: number;
   favoritesCount: number;
   redemptionsDistinct: number;
@@ -239,7 +239,7 @@ const GROUPS: GroupDef[] = [
 
 export const GROUP_ORDER = GROUPS.map((g) => g.id);
 
-export interface TrophyMeta {
+interface TrophyMeta {
   identity: string;      // gruppens temanamn, t.ex. "Utforskaren"
   levelName: string;     // nivå-specifikt smeknamn
   levelLabel: string;    // "Brons"/"Silver"/"Guld"

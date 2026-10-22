@@ -132,7 +132,7 @@ export function CodeStep({
 
 // ── Lösenord ─────────────────────────────────────────────────────────────────
 
-export function passwordChecks(pw: string) {
+function passwordChecks(pw: string) {
   return { length: pw.length >= 8, upper: /[A-ZÅÄÖ]/.test(pw), digit: /\d/.test(pw) };
 }
 

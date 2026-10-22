@@ -10,7 +10,7 @@ import type { ComponentType } from "react";
 import type { Place } from "@/hooks/usePlaces";
 import { CATEGORIES } from "@/theme/categories";
 
-export interface StatCategory {
+interface StatCategory {
   id: string;
   label: string;
   color: string;
@@ -18,7 +18,7 @@ export interface StatCategory {
   dbValues: string[];
 }
 
-export const STAT_CATEGORIES: StatCategory[] = CATEGORIES.map((c) => ({
+const STAT_CATEGORIES: StatCategory[] = CATEGORIES.map((c) => ({
   id: c.id, label: c.label, color: c.screen, Icon: c.icon, dbValues: c.dbValues,
 }));
 

@@ -54,7 +54,7 @@ export function NavHome({ active }: IconProps) {
 // ─── NavSearch ────────────────────────────────────────────────────────────────
 // Förstoringsglas. Aktiv: ytterring + ifylld innercirkel + tjockare skaft.
 export function NavSearch({ active }: IconProps) {
-  const { GOLD, INACTIVE, CUT } = useNavColors();
+  const { GOLD, INACTIVE } = useNavColors();
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (
@@ -155,7 +155,7 @@ export function NavCalendar({ active }: IconProps) {
 // ─── NavProfile ───────────────────────────────────────────────────────────────
 // Person. Aktiv: fylld kropp.
 export function NavProfile({ active }: IconProps) {
-  const { GOLD, INACTIVE, CUT } = useNavColors();
+  const { GOLD, INACTIVE } = useNavColors();
   return (
     <Svg width={SIZE} height={SIZE} viewBox="0 0 26 26">
       {active ? (

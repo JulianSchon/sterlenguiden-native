@@ -129,7 +129,7 @@ export async function suggestUsername(first: string, last: string): Promise<stri
 
 // ── Klart ────────────────────────────────────────────────────────────────────
 
-export type FinishError = "username_taken" | "failed";
+type FinishError = "username_taken" | "failed";
 
 /** Fält som kom med migration 043 — utan den sparas resten ändå */
 const NEW_COLUMNS = ["interests", "onboarded_at"] as const;

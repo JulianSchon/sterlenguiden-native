@@ -46,7 +46,7 @@ export function contrastOn(hex: string): string {
   return l > 0.6 ? "#111111" : "#FFFFFF";
 }
 
-export function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
+function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
   if (item.kind === "text") {
     const font = FONTS.find((f) => f.id === item.font) ?? FONTS[0];
     const solid = item.bg === "solid";

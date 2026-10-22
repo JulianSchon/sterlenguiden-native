@@ -17,7 +17,7 @@ export interface NotificationPrefs {
   towns: string[];
 }
 
-export const DEFAULT_PREFS: NotificationPrefs = { events: true, offers: true, news: true, pass: true, scope: "all", towns: [] };
+const DEFAULT_PREFS: NotificationPrefs = { events: true, offers: true, news: true, pass: true, scope: "all", towns: [] };
 
 const KEY = ["notification-prefs"];
 // Tabellen finns inte i de genererade typerna än

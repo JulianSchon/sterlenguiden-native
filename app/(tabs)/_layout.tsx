@@ -6,12 +6,14 @@ import { usePrefetchPass } from "@/hooks/usePassHistory";
 import { prefetchCardImages } from "@/lib/cardImages";
 import { CardImagePreloader } from "@/components/CardImagePreloader";
 import { useEffect } from "react";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export default function TabLayout() {
   // Sparar dagen för streaken när appen öppnas (tab-gruppen visas bara inloggad)
   useRecordAppDay();
   usePrefetchPass();
   useEffect(prefetchCardImages, []);
+  const { colors } = useTheme();
   return (
     <View style={{ flex: 1 }}>
       {/*
@@ -20,8 +22,7 @@ export default function TabLayout() {
        */}
       <Tabs
         tabBar={() => null}
-        sceneContainerStyle={{ borderRadius: 0, backgroundColor: "#121212" }}
-        screenOptions={{ headerShown: false }}
+        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
       >
         <Tabs.Screen name="index"    options={{ title: "Hem" }} />
         <Tabs.Screen name="explore"  options={{ title: "Sök" }} />

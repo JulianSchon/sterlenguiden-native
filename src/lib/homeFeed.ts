@@ -45,7 +45,7 @@ export type FeedItem =
   | { kind: "discover"; key: string }
   | { kind: "shortcuts"; key: string };
 
-export interface FeedInput {
+interface FeedInput {
   places: Place[];
   events: Event[];
   offers: Offer[];
@@ -238,7 +238,7 @@ export function buildFeed(input: FeedInput): FeedItem[] {
 }
 
 /** Evenemangen i helgen (fredag–söndag den här veckan), tidigast först */
-export function weekendEvents(events: Event[], now = new Date()): Event[] {
+function weekendEvents(events: Event[], now = new Date()): Event[] {
   const dow = getDay(now); // 0 = söndag
   const friday = addDays(now, dow === 0 ? -2 : 5 - dow);
   const days = new Set([0, 1, 2].map((i) => dayKey(addDays(friday, i))));

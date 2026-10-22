@@ -9,7 +9,7 @@
 const RANGE = /(\d{1,2})(?:[:.](\d{2}))?\s*[-–]\s*(\d{1,2})(?:[:.](\d{2}))?/;
 
 /** Öppet nu enligt ett tidsintervall i texten; null om texten inte är en tid */
-export function openNowIn(text: string, now = new Date()): boolean | null {
+function openNowIn(text: string, now = new Date()): boolean | null {
   const m = text.match(RANGE);
   if (!m) return /stängt/i.test(text) ? false : null;
   const from = Number(m[1]) * 60 + Number(m[2] ?? 0);
@@ -31,7 +31,7 @@ export function splitRange(text: string, now = new Date()) {
   };
 }
 
-export interface DayHours { label: string; text: string; today: boolean; open: boolean }
+interface DayHours { label: string; text: string; today: boolean; open: boolean }
 
 /** Vård: "08-15, stängt, (Stängt)" → vardagar, lördag, söndag — och vilken som gäller idag */
 export function careHours(text: string, now = new Date()): DayHours[] | null {

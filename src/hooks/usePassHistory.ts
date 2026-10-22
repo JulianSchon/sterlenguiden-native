@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export interface PassPurchase {
+interface PassPurchase {
   id: string;
   /** "self" = eget köp, "gift" = köpt som present */
   kind: string;
@@ -15,7 +15,7 @@ export interface PassPurchase {
   cardLast4: string | null;
 }
 
-export interface PassGift {
+interface PassGift {
   id: string;
   recipientName: string;
   period: string;
@@ -27,7 +27,7 @@ export interface PassGift {
 }
 
 /** En kod du själv löst in: tiden du fick i present. */
-export interface RedeemedGift {
+interface RedeemedGift {
   id: string;
   period: string;
   /** Vad presenten var värd */

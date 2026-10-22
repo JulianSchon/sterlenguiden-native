@@ -12,7 +12,7 @@ import {
 } from "@shopify/react-native-skia";
 
 /** En ikon som kartan kan visa (Marker icon/image) */
-export type MapIcon = { uri: string };
+type MapIcon = { uri: string };
 
 const SCALE = PixelRatio.get();
 const cache = new Map<string, MapIcon | null>();

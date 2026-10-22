@@ -13,7 +13,7 @@
  *  - member_period      vilken sorts pass det senaste köpet gällde (week, month, …)
  */
 
-export interface MembershipFields {
+interface MembershipFields {
   is_member?: boolean | null;
   member_period?: string | null;
   member_started_at?: string | null;
@@ -22,7 +22,7 @@ export interface MembershipFields {
   member_bonus_days?: number | null;
 }
 
-export interface MembershipStatus {
+interface MembershipStatus {
   active: boolean;
   /** Sista dagen man har åtkomst, inklusive sparade dagar när passet inte förnyas. null = ingen slutdag. */
   until: Date | null;
@@ -61,8 +61,4 @@ export function membershipStatus(
     waitingBonusDays: autoRenews ? bonusDays : 0,
     period: profile?.member_period ?? null,
   };
-}
-
-export function isActiveMember(profile: MembershipFields | null | undefined, now = new Date()): boolean {
-  return membershipStatus(profile, now).active;
 }

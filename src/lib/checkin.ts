@@ -14,7 +14,7 @@ export const CHECKIN_RADIUS_M = 100;
 /** Inom så här långt syns knappen grå med avstånd; längre bort finns den inte. */
 export const CHECKIN_NEAR_M = 500;
 /** Spärr mellan två incheckningar på samma plats. Samma värde tvingas även av databasen. */
-export const CHECKIN_COOLDOWN_H = 4;
+const CHECKIN_COOLDOWN_H = 4;
 
 /** Avstånd i meter mellan två koordinater (haversine). */
 export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {

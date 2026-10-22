@@ -14,10 +14,10 @@ const DAY_SHORT = ["sön", "mån", "tis", "ons", "tor", "fre", "lör"];
 const DAY = 24 * 60;
 
 /** En öppen tid i minuter från dagens början. `to` är alltid större än `from` (över midnatt: mer än 24 h) */
-export interface Range { from: number; to: number }
+interface Range { from: number; to: number }
 
 /** En dag: tiderna, "closed", eller null om dagen saknas eller texten inte är tider */
-export type DayHours = Range[] | "closed" | null;
+type DayHours = Range[] | "closed" | null;
 
 export type Hours = Record<string, string> | null | undefined;
 
@@ -61,7 +61,7 @@ export function isOpenNow(hours: Hours, now = new Date()): boolean {
   return openRange(hours, now) != null;
 }
 
-export interface TodayHours {
+interface TodayHours {
   /** Öppet just nu */
   open: boolean;
   /** Stängningen (öppet) eller nästa öppning i dag (stängt), i minuter */
@@ -88,7 +88,7 @@ export function todayHours(hours: Hours, now = new Date()): TodayHours | null {
 
 export type HoursState = "open" | "closingSoon" | "closed";
 
-export interface HoursStatus { state: HoursState; label: string }
+interface HoursStatus { state: HoursState; label: string }
 
 /** Så länge innan stängning det heter "Stänger snart" */
 const SOON_MIN = 60;
@@ -214,7 +214,7 @@ const MONTHS = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "
 const dayOfIso = (iso: string) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
 
 /** "i dag", "i morgon", "24 juni", "1–14 juli", "28 juni–3 juli" */
-export function exceptionDates(ex: HoursException, now = new Date()): string {
+function exceptionDates(ex: HoursException, now = new Date()): string {
   const from = dayOfIso(ex.from);
   const to = dayOfIso(ex.to);
   if (ex.from === ex.to && !ex.yearly) {
@@ -241,7 +241,7 @@ export function exceptionLine(ex: HoursException, now = new Date()): string {
   return `${label || "Andra tider"} ${when}`;
 }
 
-export interface WeekRow {
+interface WeekRow {
   /** Dagens nummer som Date.getDay() */
   day: number;
   name: string;

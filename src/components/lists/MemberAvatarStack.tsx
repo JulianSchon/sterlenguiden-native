@@ -16,7 +16,7 @@ import { Avatar } from "@/components/profile/Avatar";
 
 const GOLD = "#C5A059";
 
-export interface StackMember {
+interface StackMember {
   userId: string;
   name: string;
   /** Färdig adress till fotot (t.ex. det egna i ett formulär) … */
