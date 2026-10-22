@@ -3,11 +3,11 @@
  * (app/(auth)/signup.tsx) och sparas på servern först när hela onboardingen är klar.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, TextInput, TurboModuleRegistry, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, TurboModuleRegistry, View, useWindowDimensions } from "react-native";
 import { Check, Eye, House, Luggage, MapPin, User } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
-import { AuthButton, AuthField, FieldNote } from "@/components/auth/AuthParts";
+import { AUTH_GUTTER, AuthButton, AuthField, FieldNote } from "@/components/auth/AuthParts";
 import { StepLayout } from "./StepLayout";
 import { USERNAME_PATTERN, usernameTaken } from "@/lib/onboarding";
 import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
@@ -249,6 +249,8 @@ export function HomeStep({
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const towns = OSTERLEN_TOWNS.map((town) => town.name);
+  const { width } = useWindowDimensions();
+  const townW = Math.floor((width - AUTH_GUTTER * 2 - TOWN_GAP * 2) / 3);
   const isListed = towns.some((town) => town.toLowerCase() === city.trim().toLowerCase());
   // "Annan ort" på Österlen: ett eget fält i stället för en ort i listan
   const [otherTown, setOtherTown] = useState(lives === true && city.length > 0 && !isListed);
@@ -277,17 +279,19 @@ export function HomeStep({
       {lives === true ? (
         <View style={s.townBlock}>
           <Text style={s.label}>{t("onboarding.home.whichTown")}</Text>
-          <View style={s.chips}>
+          {/* Orterna som rutor i tre kolumner, och Annan ort över hela bredden sist */}
+          <View style={s.towns}>
             {towns.map((town) => (
-              <Chip
+              <TownBox
                 key={town}
                 label={town}
+                width={townW}
                 near={town === near}
                 selected={!otherTown && city.trim().toLowerCase() === town.toLowerCase()}
                 onPress={() => { setOtherTown(false); onChange(true, town); }}
               />
             ))}
-            <Chip label={t("onboarding.home.otherTown")} selected={otherTown} onPress={() => { setOtherTown(true); onChange(true, ""); }} />
+            <TownBox label={t("onboarding.home.otherTown")} width="100%" selected={otherTown} onPress={() => { setOtherTown(true); onChange(true, ""); }} />
           </View>
           {otherTown ? (
             <AuthField
@@ -358,18 +362,23 @@ function Choice({ icon: Icon, title, sub, selected, onPress }: {
   );
 }
 
-function Chip({ label, selected, near = false, onPress }: { label: string; selected: boolean; near?: boolean; onPress: () => void }) {
+const TOWN_GAP = 8;
+
+/** En ort som ruta. Orten där man är just nu har en liten nål */
+function TownBox({ label, width, selected, near = false, onPress }: {
+  label: string; width: number | "100%"; selected: boolean; near?: boolean; onPress: () => void;
+}) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
     <Pressable
       onPress={() => { Haptics.selectionAsync().catch(() => {}); onPress(); }}
-      style={({ pressed }) => [s.chip, selected && s.chipOn, pressed && { opacity: 0.8 }]}
+      style={({ pressed }) => [s.town, { width }, selected && s.townOn, pressed && { opacity: 0.8 }]}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
     >
-      {near ? <MapPin size={14} color={selected ? colors.onGold : colors.goldText} strokeWidth={2.2} /> : null}
-      <Text style={[s.chipText, selected && s.chipTextOn]}>{label}</Text>
+      {near ? <MapPin size={13} color={selected ? colors.onGold : colors.goldText} strokeWidth={2.4} /> : null}
+      <Text style={[s.townText, selected && s.townTextOn]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
     </Pressable>
   );
 }
@@ -401,13 +410,13 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   publicNote: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 18 },
   publicText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 13.5, color: c.faint },
   label: { fontFamily: "Inter_600SemiBold", fontSize: 13, letterSpacing: 1.2, textTransform: "uppercase", color: c.muted },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 16, height: 42, borderRadius: 21, justifyContent: "center",
+  towns: { flexDirection: "row", flexWrap: "wrap", gap: TOWN_GAP },
+  town: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5,
+    height: 54, borderRadius: 14, paddingHorizontal: 8,
     backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.borderStrong,
   },
-  chipOn: { backgroundColor: c.gold, borderColor: c.gold },
-  chipText: { fontFamily: "Inter_500Medium", fontSize: 15, color: c.text },
-  chipTextOn: { color: c.onGold, fontFamily: "Inter_600SemiBold" },
+  townOn: { backgroundColor: c.gold, borderColor: c.gold },
+  townText: { fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.text, flexShrink: 1 },
+  townTextOn: { color: c.onGold },
 });

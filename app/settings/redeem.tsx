@@ -18,7 +18,11 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 type Failure = "used" | "notFound" | "unlimited" | "failed";
-type RedeemResult = { ok: boolean; reason?: string; member_until?: string | null; saved?: boolean; days?: number };
+type RedeemResult = {
+  ok: boolean; reason?: string; member_until?: string | null; saved?: boolean; days?: number;
+  /** Vem gåvan är från och hälsningen (migration 045) */
+  from_name?: string | null; message?: string | null;
+};
 
 export default function RedeemCodeScreen() {
   const { t } = useTranslation();
@@ -43,9 +47,10 @@ export default function RedeemCodeScreen() {
     await queryClient.refetchQueries({ queryKey: ["profile"] }).catch(() => {});
     const profile = queryClient.getQueryData<Profile | null>(["profile"]);
     const startsAt = profile?.member_started_at ? new Date(profile.member_started_at) : null;
-    if (result.saved) setMoment({ kind: "saved", date: null, days: result.days ?? 0 });
-    else if (startsAt && startsAt.getTime() > Date.now()) setMoment({ kind: "scheduled", date: profile!.member_started_at, days: result.days ?? 0 });
-    else setMoment({ kind: "activated", date: result.member_until ?? null, days: result.days ?? 0 });
+    const gift = { days: result.days ?? 0, fromName: result.from_name ?? null, message: result.message ?? null };
+    if (result.saved) setMoment({ kind: "saved", date: null, ...gift });
+    else if (startsAt && startsAt.getTime() > Date.now()) setMoment({ kind: "scheduled", date: profile!.member_started_at, ...gift });
+    else setMoment({ kind: "activated", date: result.member_until ?? null, ...gift });
     setCode("");
   }
 

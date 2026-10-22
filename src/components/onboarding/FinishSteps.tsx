@@ -93,7 +93,8 @@ export function WelcomeStep({
   const { width, height } = useWindowDimensions();
   const reduced = useReducedMotion();
   const cardW = width - AUTH_GUTTER * 2;
-  const photoH = Math.round(height * 0.42);
+  // Fotot fyller överdelen; kortet, texten och siffrorna står samlade ner mot knappen (ingen tom yta)
+  const photoH = Math.round(height * 0.56);
 
   const page = useSharedValue(0);
   const card = useSharedValue(0);
@@ -174,7 +175,7 @@ export function WelcomeStep({
         <LinearGradient colors={[withAlpha(colors.bg, 0), colors.bg]} style={s.fade} />
       </View>
 
-      <View style={[s.welcomeBody, { paddingTop: photoH * 0.5 }]}>
+      <View style={s.welcomeBody}>
         <Reanimated.View style={[s.cardWrap, cardStyle]}>{memberCard}</Reanimated.View>
         <Reanimated.View style={[s.welcomeText, textStyle]}>
           <Text style={s.welcomeTitle}>{t("onboarding.done.title", { name: firstName.trim() })}</Text>
@@ -243,8 +244,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   welcome: { ...StyleSheet.absoluteFillObject, backgroundColor: c.bg, zIndex: 10 },
   photo: { position: "absolute", top: 0, left: 0, right: 0, overflow: "hidden" },
   topShade: { position: "absolute", top: 0, left: 0, right: 0 },
-  fade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "70%" },
-  welcomeBody: { flex: 1, paddingHorizontal: AUTH_GUTTER },
+  fade: { position: "absolute", left: 0, right: 0, bottom: 0, height: "60%" },
+  welcomeBody: { flex: 1, paddingHorizontal: AUTH_GUTTER, justifyContent: "flex-end", paddingBottom: 30 },
   cardWrap: { alignSelf: "center" },
   welcomeText: { marginTop: 28, gap: 8 },
   welcomeTitle: { fontFamily: "Montserrat_700Bold", fontSize: 30, lineHeight: 36, letterSpacing: -0.8, color: c.text },
