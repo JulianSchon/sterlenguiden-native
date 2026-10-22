@@ -196,6 +196,17 @@ export const sv = {
       soon: "Betalningen öppnar vid lansering. Vi meddelar dig när det är klart!",
     },
 
+    moment: {
+      title: "Välkommen som medlem",
+      until: "Ditt Österlenpass gäller till {{date}}.",
+      savedTitle: "Tiden är sparad",
+      savedBody: "{{days}} dagar läggs på när ditt pass slutar förnyas. Du förlorar ingenting.",
+      scheduledTitle: "Ditt pass startar {{date}}",
+      scheduledBody: "Då låses kortet och förmånerna upp.",
+      photoNote: "Lägg till ett foto på kortets baksida – så känner personalen igen dig i kassan.",
+      addPhoto: "Lägg till kortfoto",
+      offers: "Se dina förmåner",
+    },
     redeem: {
       title: "Lös in kod",
       heading: "Lös in din kod",
@@ -205,11 +216,6 @@ export const sv = {
       notFound: "Vi hittar ingen gåva med den koden. Kontrollera att den är rätt skriven.",
       unlimited: "Du har redan ett pass utan slutdatum, så koden behövs inte.",
       failed: "Det gick inte att lösa in koden. Försök igen.",
-      savedTitle: "Tiden är sparad!",
-      activatedTitle: "Passet är aktiverat!",
-      savedBody: "{{days}} dagar är sparade och används när ditt pass slutar förnyas. Du förlorar ingenting.",
-      activeUntil: "Ditt Österlenpass gäller nu till och med {{date}}.",
-      stackNote: "Löser du in fler koder läggs tiden på automatiskt.",
       tipsTitle: "Bra att veta",
       tip1: "Koder läggs på din tid: 1 månad + 1 vecka blir 1 månad och 1 vecka.",
       tip2: "Har du ett pass som förnyas sparas tiden och används när du slutar förnya. Den försvinner aldrig.",
@@ -376,6 +382,7 @@ export const sv = {
       business: "Ej tillgängligt för företagskonton",
       expired: "Erbjudandet har gått ut",
       getPass: "Skaffa Österlenpasset",
+      addPhoto: "Lägg till kortfoto för att använda",
     },
     hold: { idle: "Håll inne för att aktivera", holding: "Håll inne…" },
     confirm: {

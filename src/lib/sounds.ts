@@ -13,7 +13,9 @@ export type SoundName =
   /** En stapel som fylls (stigande ton) */
   | "fill"
   /** Man går om någon i topplistan */
-  | "climb";
+  | "climb"
+  /** Kortet låses upp: man blev medlem */
+  | "unlock";
 
 export function playSound(_name: SoundName): void {
   // Medvetet tom tills expo-audio finns i dev-clienten (nästa EAS-build).

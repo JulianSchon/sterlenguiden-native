@@ -1,19 +1,18 @@
 /**
- * Inställningar › Lös in kod. En kod (t.ex. en present eller en testkod) ger
+ * Inställningar › Lös in kod. En kod (t.ex. en gåva eller en testkod) ger
  * tid i Österlenpasset. Själva utdelningen sker i databasfunktionen
  * redeem_pass_code, som räknar ut den nya tiden — appen skriver aldrig
- * medlemsdatum själv.
+ * medlemsdatum själv. Lyckas det spelas medlemsögonblicket upp (MembershipMoment).
  */
 import { useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check } from "lucide-react-native";
-import * as Haptics from "expo-haptics";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDate } from "@/i18n/dates";
+import type { Profile } from "@/hooks/useProfile";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
+import { MembershipMoment, type MomentInfo } from "@/components/pass/MembershipMoment";
 import { PrimaryButton } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -30,7 +29,7 @@ export default function RedeemCodeScreen() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
-  const [outcome, setOutcome] = useState<{ until: string | null; saved: boolean; days: number } | null>(null);
+  const [moment, setMoment] = useState<MomentInfo | null>(null);
 
   async function redeem() {
     setBusy(true);
@@ -40,30 +39,27 @@ export default function RedeemCodeScreen() {
     const result = data as RedeemResult | null;
     if (error || !result) return setFailure("failed");
     if (!result.ok) return setFailure(result.reason === "used" ? "used" : result.reason === "unlimited" ? "unlimited" : "notFound");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
-    setOutcome({ until: result.member_until ?? null, saved: !!result.saved, days: result.days ?? 0 });
+    // Profilen hämtas om först: ögonblicket visar det nya kortet, och om kortfotot saknas
+    await queryClient.refetchQueries({ queryKey: ["profile"] }).catch(() => {});
+    const profile = queryClient.getQueryData<Profile | null>(["profile"]);
+    const startsAt = profile?.member_started_at ? new Date(profile.member_started_at) : null;
+    if (result.saved) setMoment({ kind: "saved", date: null, days: result.days ?? 0 });
+    else if (startsAt && startsAt.getTime() > Date.now()) setMoment({ kind: "scheduled", date: profile!.member_started_at, days: result.days ?? 0 });
+    else setMoment({ kind: "activated", date: result.member_until ?? null, days: result.days ?? 0 });
+    setCode("");
   }
 
   return (
-    <SettingsScreen title={t("pass.redeem.title")}>
-      {outcome ? (
-        <View style={s.center}>
-          <View style={s.check}>
-            <Check size={30} color={colors.onGold} strokeWidth={3} />
-          </View>
-          <Text style={s.title}>{outcome.saved ? t("pass.redeem.savedTitle") : t("pass.redeem.activatedTitle")}</Text>
-          {outcome.saved ? (
-            <Text style={s.sub}>{t("pass.redeem.savedBody", { days: outcome.days })}</Text>
-          ) : outcome.until ? (
-            <Text style={s.sub}>{t("pass.redeem.activeUntil", { date: formatDate(outcome.until, "d MMMM yyyy") })}</Text>
-          ) : null}
-          <Text style={s.note}>{t("pass.redeem.stackNote")}</Text>
-          <View style={{ alignSelf: "stretch" }}>
-            <PrimaryButton label={t("common.done")} onPress={() => router.back()} />
-          </View>
-        </View>
-      ) : (
+    <SettingsScreen
+      title={t("pass.redeem.title")}
+      overlay={(
+        <MembershipMoment
+          info={moment}
+          onOffers={() => { setMoment(null); router.replace("/offers" as never); }}
+          onDone={() => { setMoment(null); router.back(); }}
+        />
+      )}
+    >
         <>
           <View style={s.center}>
             <Text style={s.title}>{t("pass.redeem.heading")}</Text>
@@ -96,7 +92,6 @@ export default function RedeemCodeScreen() {
             ))}
           </View>
         </>
-      )}
     </SettingsScreen>
   );
 }
@@ -112,9 +107,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   inputError: { borderColor: c.danger },
   error: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.danger, textAlign: "center" },
-  note: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.faint, textAlign: "center", lineHeight: 18 },
   tips: { padding: 16, borderRadius: 16, gap: 8, backgroundColor: c.fill, borderWidth: StyleSheet.hairlineWidth, borderColor: c.border },
   tipsTitle: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: c.text },
   tip: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.muted },
-  check: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.gold, alignItems: "center", justifyContent: "center" },
 });

@@ -38,10 +38,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
-import { Crown, X, Clock, Timer, FileText, Check, ChevronRight } from "lucide-react-native";
+import { Camera, Crown, X, Clock, Timer, FileText, Check, ChevronRight } from "lucide-react-native";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions, useActivateOffer } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
+import { useProfile } from "@/hooks/useProfile";
+import { useChangeCardPhoto } from "@/hooks/useCardPhoto";
+import { usePhotoMenu } from "@/hooks/usePhotoMenu";
 import { useIsBusiness } from "@/hooks/useUserRole";
 import { offerEligibility, offerSavingsLabel, splitSavings, ACTIVE_SECS, type Offer } from "@/lib/offers";
 import { formatDate } from "@/i18n/dates";
@@ -112,6 +115,11 @@ export const OfferDrawer = memo(function OfferDrawer({
   const { data: rawOffers = [] } = useOffers(placeId);
   const { data: redemptions = [] } = useOfferRedemptions();
   const { isMember } = useMembership();
+  // Utan kortfoto kan personalen inte känna igen en: det måste läggas till innan man kan aktivera
+  const { data: profile } = useProfile();
+  const needsPhoto = isMember && !profile?.profile_image_url;
+  const changeCardPhoto = useChangeCardPhoto();
+  const openPhotoMenu = usePhotoMenu(changeCardPhoto.mutateAsync, t("pass.card.title"));
   const { isBusiness } = useIsBusiness();
   const activate = useActivateOffer();
   // Biljettens bild läses in när fingret nuddar biljetten; pappersbitarna klipps ur den (utan den yr vita bitar)
@@ -383,8 +391,10 @@ export const OfferDrawer = memo(function OfferDrawer({
               redemptions={redemptions}
               isMember={isMember}
               isBusiness={isBusiness}
+              needsPhoto={needsPhoto}
               onActivate={() => setPending(offer)}
               onGetPass={handleGetPass}
+              onAddPhoto={openPhotoMenu}
             />
           ))}
           {offers.length === 0 && <Text style={s.empty}>{t("offers.drawer.none")}</Text>}
@@ -534,8 +544,10 @@ function OfferCard({
   redemptions,
   isMember,
   isBusiness,
+  needsPhoto,
   onActivate,
   onGetPass,
+  onAddPhoto,
 }: {
   offer: Offer;
   index: number;
@@ -543,8 +555,11 @@ function OfferCard({
   redemptions: { offer_id: string; activated_at: string }[];
   isMember: boolean;
   isBusiness: boolean;
+  /** Medlem utan kortfoto: fotot måste läggas till först */
+  needsPhoto: boolean;
   onActivate: () => void;
   onGetPass: () => void;
+  onAddPhoto: () => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -624,6 +639,14 @@ function OfferCard({
             <Check size={16} color={colors.muted} strokeWidth={2.5} />
             <Text style={c.blockedText}>{blocked}</Text>
           </View>
+        ) : isMember && needsPhoto ? (
+          <Pressable
+            onPress={onAddPhoto}
+            style={({ pressed }) => [c.buyBox, pressed && { transform: [{ scale: 0.98 }] }]}
+          >
+            <Camera size={15} color={colors.onGold} strokeWidth={2} />
+            <Text style={c.buyText}>{t("offers.drawer.addPhoto")}</Text>
+          </Pressable>
         ) : isMember ? (
           <HoldToActivate onComplete={onActivate} />
         ) : (

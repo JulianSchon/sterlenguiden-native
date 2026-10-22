@@ -66,6 +66,7 @@ export function MemberCard({
   readOnly = false,
   lockedBack = false,
   autoFlip = false,
+  revealBack = false,
   onReady,
   width = CARD_W,
 }: {
@@ -100,6 +101,8 @@ export function MemberCard({
   lockedBack?: boolean;
   /** Kortet vänder sig själv fram och tillbaka (köpsidan) */
   autoFlip?: boolean;
+  /** När den blir sann vänder sig kortet till baksidan, en gång (medlemsögonblicket) */
+  revealBack?: boolean;
   /** Kortets design (bilden) har ritats klart — för sidor som visar kortet först då */
   onReady?: () => void;
   /** Kortets bredd; höjden och alla mått följer med. */
@@ -229,6 +232,8 @@ export function MemberCard({
   );
 
   const FLIP_SPRING = { damping: 14, stiffness: 110, mass: 0.9 };
+  // Vänds kortet om på signal (medlemsögonblicket) — bara en gång, och bara till baksidan
+  const revealed = useRef(false);
 
   /** Kortet landar på en sida (efter tryck eller när ett svep släpps). */
   const landOn = (side: boolean) => {
@@ -250,6 +255,13 @@ export function MemberCard({
     flipProgress.value = withSpring(side ? 1 : 0, FLIP_SPRING);
     landOn(side);
   };
+
+  useEffect(() => {
+    if (!revealBack || revealed.current || !isMember) return;
+    revealed.current = true;
+    if (!flippedRef.current) flip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealBack, isMember]);
 
   // Ett svep räknas inte också som ett tryck: annars vänder trycket vid släpp tillbaka kortet igen
   // (svepet åt "rätt" håll tar ut sig självt, och åt "fel" håll vänder trycket kortet)

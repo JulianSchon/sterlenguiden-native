@@ -193,6 +193,17 @@ export const en: typeof sv = {
       soon: "Payments open at launch. We'll let you know when it's ready!",
     },
 
+    moment: {
+      title: "Welcome, member",
+      until: "Your Österlen Pass is valid until {{date}}.",
+      savedTitle: "The time is saved",
+      savedBody: "{{days}} days are added when your pass stops renewing. You lose nothing.",
+      scheduledTitle: "Your pass starts {{date}}",
+      scheduledBody: "That's when your card and perks unlock.",
+      photoNote: "Add a photo to the back of your card – so the staff recognise you at the till.",
+      addPhoto: "Add card photo",
+      offers: "See your perks",
+    },
     redeem: {
       title: "Redeem code",
       heading: "Redeem your code",
@@ -202,11 +213,6 @@ export const en: typeof sv = {
       notFound: "We can't find a gift with that code. Check that it's typed correctly.",
       unlimited: "You already have a pass with no end date, so you don't need the code.",
       failed: "The code couldn't be redeemed. Please try again.",
-      savedTitle: "Your time is saved!",
-      activatedTitle: "Your pass is active!",
-      savedBody: "{{days}} days are saved and will be used when your pass stops renewing. You lose nothing.",
-      activeUntil: "Your Österlen Pass is now valid until {{date}}.",
-      stackNote: "If you redeem more codes, the time is added automatically.",
       tipsTitle: "Good to know",
       tip1: "Codes add to your time: 1 month + 1 week becomes 1 month and 1 week.",
       tip2: "If your pass renews, the time is saved and used when you stop renewing. It never disappears.",
@@ -373,6 +379,7 @@ export const en: typeof sv = {
       business: "Not available for business accounts",
       expired: "This offer has expired",
       getPass: "Get the Österlen Pass",
+      addPhoto: "Add a card photo to use it",
     },
     hold: { idle: "Press and hold to activate", holding: "Keep holding…" },
     confirm: {

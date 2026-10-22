@@ -193,6 +193,17 @@ export const de: typeof sv = {
       soon: "Die Zahlung startet zum Launch. Wir melden uns, sobald es soweit ist!",
     },
 
+    moment: {
+      title: "Willkommen als Mitglied",
+      until: "Dein Österlen-Pass gilt bis {{date}}.",
+      savedTitle: "Die Zeit ist gespeichert",
+      savedBody: "{{days}} Tage kommen hinzu, sobald sich dein Pass nicht mehr verlängert. Du verlierst nichts.",
+      scheduledTitle: "Dein Pass startet am {{date}}",
+      scheduledBody: "Dann werden Karte und Vorteile freigeschaltet.",
+      photoNote: "Füge ein Foto auf der Rückseite deiner Karte hinzu – damit dich das Personal an der Kasse erkennt.",
+      addPhoto: "Kartenfoto hinzufügen",
+      offers: "Deine Vorteile ansehen",
+    },
     redeem: {
       title: "Code einlösen",
       heading: "Löse deinen Code ein",
@@ -202,11 +213,6 @@ export const de: typeof sv = {
       notFound: "Wir finden kein Geschenk mit diesem Code. Prüfe, ob er richtig geschrieben ist.",
       unlimited: "Du hast bereits einen Pass ohne Enddatum, der Code wird also nicht gebraucht.",
       failed: "Der Code konnte nicht eingelöst werden. Versuche es erneut.",
-      savedTitle: "Die Zeit ist gespeichert!",
-      activatedTitle: "Der Pass ist aktiviert!",
-      savedBody: "{{days}} Tage sind gespeichert und werden genutzt, sobald sich dein Pass nicht mehr verlängert. Du verlierst nichts.",
-      activeUntil: "Dein Österlen-Pass gilt jetzt bis {{date}}.",
-      stackNote: "Wenn du weitere Codes einlöst, wird die Zeit automatisch addiert.",
       tipsTitle: "Gut zu wissen",
       tip1: "Codes werden auf deine Zeit addiert: 1 Monat + 1 Woche ergibt 1 Monat und 1 Woche.",
       tip2: "Verlängert sich dein Pass, wird die Zeit gespeichert und genutzt, sobald du nicht mehr verlängerst. Sie geht nie verloren.",
@@ -373,6 +379,7 @@ export const de: typeof sv = {
       business: "Für Firmenkonten nicht verfügbar",
       expired: "Dieses Angebot ist abgelaufen",
       getPass: "Österlen-Pass holen",
+      addPhoto: "Kartenfoto hinzufügen, um es zu nutzen",
     },
     hold: { idle: "Gedrückt halten zum Aktivieren", holding: "Weiter halten…" },
     confirm: {
