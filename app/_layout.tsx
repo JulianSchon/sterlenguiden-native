@@ -59,13 +59,23 @@ export default function RootLayout() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    // Kontot som datan i appen hör till (null = utloggad)
+    let currentUser: string | null = null;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "INITIAL_SESSION") {
+        currentUser = session?.user?.id ?? null;
         // Vart man skickas vid start avgör app/index.tsx, när navigeringen finns. Att navigera härifrån
         // (innan något ritats) byter ut hela rotlayouten — den prenumererar då på nytt, får ett nytt
         // INITIAL_SESSION och navigerar igen: en oändlig loop och vit skärm när man startar utloggad.
         setAuthReady(true);
+      } else if (event === "SIGNED_IN" && session?.user?.id && session.user.id !== currentUser) {
+        // Inloggad (efter att ha varit utloggad): det som ligger alltid igång (troféer, kort, profil …)
+        // hann hämta på nytt medan man var utloggad och fick tomma svar. Allt hämtas om med det nya
+        // kontot — annars såg kontot oanvänt ut och allt firades som nytt, tills man laddade om appen.
+        currentUser = session.user.id;
+        queryClient.resetQueries();
       } else if (event === "SIGNED_OUT") {
+        currentUser = null;
         // Utan detta visades förra kontots cachade data (favoriter, listor, profil...) tills
         // en manuell refetch hann hämta det nya kontots — queries är inte user-id-namngivna.
         queryClient.clear();

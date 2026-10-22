@@ -68,6 +68,16 @@ export function TrophyHost() {
   // silent = första genomgången för kontot: det som redan var klart då firas inte
   const seen = useRef<{ userId: string | null; keys: Set<string>; silent: boolean }>({ userId: null, keys: new Set(), silent: true });
 
+  // Utloggad: nästa inloggning (även på samma konto) börjar om, och det som redan var klart firas
+  // inte igen. Annars såg allt ut som nytt när kontots data hämtades på nytt efter inloggningen.
+  useEffect(() => {
+    if (user) return;
+    seen.current = { userId: null, keys: new Set(), silent: true };
+    ringSeen.current = { userId: null, ids: new Set(), silent: true };
+    setQueue([]);
+    setRingQueue([]);
+  }, [user]);
+
   // Nya klara troféer (klara men inte sparade än) → kön och placeringslistan
   useEffect(() => {
     if (!ready || !user) return;
