@@ -14,12 +14,12 @@ import { WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment } from "@/components/business/WizardParts";
 import { applyNewPlace } from "@/hooks/useBusiness";
 import { businessError, cleanUrl } from "@/lib/business";
+import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
 import { CATEGORIES, CATEGORY_DB_VALUE, type CategoryId } from "@/theme/categories";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-const HELP_EMAIL = "hej@osterlenappen.se";
 
 export default function ApplyScreen() {
   const router = useRouter();

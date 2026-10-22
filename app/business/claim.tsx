@@ -28,12 +28,12 @@ import {
 } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, type ClaimInfo } from "@/lib/business";
+import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 type Step = "intro" | "method" | "code" | "request" | "sent" | "done";
 const PROGRESS: Record<Step, number> = { intro: 0.25, method: 0.5, code: 0.75, request: 0.75, sent: 1, done: 1 };
-const HELP_EMAIL = "hej@osterlenappen.se";
 
 /** Mejlet som bevisar att man driver företaget: skickas från företagets egen adress */
 function mailProof(placeName: string, placeId: number) {

@@ -14,11 +14,11 @@ import { SaveIndicator } from "@/components/business/PortalParts";
 import { useBusinessPlace, usePlaceAutosave, usePortalPlace, useTeamActions } from "@/hooks/useBusiness";
 import { useAuth } from "@/hooks/useAuth";
 import { businessError } from "@/lib/business";
+import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-const HELP_EMAIL = "hej@osterlenappen.se";
 
 export default function BusinessSettings() {
   const router = useRouter();

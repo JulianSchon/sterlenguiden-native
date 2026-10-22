@@ -11,6 +11,12 @@ export const APP_VERSION = Constants.expoConfig?.version ?? "";
 export const SUPPORT_EMAIL: string | null = null;
 
 /**
+ * Dit företagen mejlar: hjälp, och beviset när de tar över en plats utan e-post (Mitt företag).
+ * Adressen behöver finnas på riktigt innan appen släpps – byt här om den ändras.
+ */
+export const BUSINESS_EMAIL = "hej@osterlenappen.se";
+
+/**
  * Adresser till de juridiska texterna på webbplatsen. Fyll i när sidorna finns; en rad
  * visas på Om-sidan först när dess adress är satt. Apple kräver dessutom en publik
  * adress till integritetspolicyn när appen skickas in.

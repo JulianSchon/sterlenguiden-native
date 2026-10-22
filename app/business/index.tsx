@@ -36,6 +36,7 @@ import {
 } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, type BusinessPlace, type MyPlace } from "@/lib/business";
+import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { hasAnyHours, setToday, todayOnly } from "@/lib/hoursEditor";
 import { effectiveHours, hoursStatus } from "@/lib/openingHours";
 import { pushOnce } from "@/lib/navigateOnce";
@@ -44,7 +45,6 @@ import { findCategory } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-const HELP_EMAIL = "hej@osterlenappen.se";
 
 export default function BusinessHome() {
   const router = useRouter();
