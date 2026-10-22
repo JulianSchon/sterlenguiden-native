@@ -4,12 +4,15 @@
  * övertoning: loggan, vad appen är på en rad och sätten att komma in — Apple, Google eller e-post.
  * Har man redan ett konto loggar man in längst ner. Språket väljs med flaggan uppe till höger.
  *
+ * Första gången appen öppnas spelas introfilmen först (components/auth/IntroFilm), och sidans
+ * innehåll glider upp när den tonat undan.
+ *
  * Sidan är alltid mörk (den ligger över ett foto), oavsett om appen står i ljust eller mörkt läge.
  * Fotot ligger i appen, inte på servern: sidan visas innan man loggat in och ska synas direkt,
  * även utan nät.
  */
 import { useCallback, useState } from "react";
-import { Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Image as ExpoImage } from "expo-image";
@@ -25,6 +28,7 @@ import { ProviderButtons, useSocialSignIn } from "@/components/auth/ProviderButt
 import { LanguageMenu } from "@/components/settings/LanguageMenu";
 import { RoundFlag } from "@/components/RoundFlag";
 import { Rise } from "@/components/Rise";
+import { IntroFilm, useShouldShowIntro } from "@/components/auth/IntroFilm";
 import { pushOnce } from "@/lib/navigateOnce";
 import { LEGAL_URLS } from "@/lib/appInfo";
 import { currentLanguage, setLanguage, type LanguageCode } from "@/i18n";
@@ -74,6 +78,23 @@ function Welcome() {
     return () => cancelAnimation(pan);
   }, [leg, pan, reduced]));
   const photoStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -pan.value * travel }] }));
+
+  // Introt första gången: innehållet visas först när filmen tonat undan (null = kollas fortfarande)
+  const firstTime = useShouldShowIntro(reduced);
+  const [replay, setReplay] = useState(0);
+  const showIntro = replay > 0 || firstTime;
+  const [revealed, setRevealed] = useState(false);
+  const [introGone, setIntroGone] = useState(false);
+  const reveal = useCallback(() => setRevealed(true), []);
+  const gone = useCallback(() => setIntroGone(true), []);
+  const contentVisible = showIntro === false || revealed;
+  // Bara under utvecklingen: håll på loggan för att se introt igen
+  const replayIntro = () => {
+    if (!__DEV__) return;
+    setRevealed(false);
+    setIntroGone(false);
+    setReplay((n) => n + 1);
+  };
   const open = (href: "/(auth)/signup" | "/(auth)/login") => {
     cancelAnimation(pan);
     pushOnce(router, href);
@@ -101,70 +122,79 @@ function Welcome() {
         pointerEvents="none"
       />
 
-      <View style={[s.topRow, { top: insets.top + 10 }]}>
-        {/* Fotografens namn måste stå nära bilden (Visit Skånes villkor) */}
-        <View style={s.credit}>
-          <View style={s.place}>
-            <MapPin size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
-            <Text style={s.placeText}>Ales stenar, Kåseberga</Text>
-          </View>
-          <Text style={s.byline}>© Frits Meyst / WideOyster.com</Text>
-        </View>
-        <TouchableOpacity
-          style={s.flag}
-          onPress={() => setLangOpen(true)}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel={t("settings.language")}
-        >
-          <RoundFlag code={currentLanguage()} size={34} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Scrollar bara om det inte får plats (t.ex. med extra stor text) */}
-      <ScrollView
-        style={StyleSheet.absoluteFill}
-        contentContainerStyle={[s.content, { paddingTop: insets.top + 60, paddingBottom: Math.max(insets.bottom, 16) }]}
-        alwaysBounceVertical={false}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ flex: 1 }} />
-        <Rise index={0}>
-          <View style={s.brand}>
-            <Image source={require("../../assets/Osterlenappen-logo.png")} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
-            <Text style={s.title}>Österlenappen</Text>
-            <Text style={s.tagline}>{t("auth.welcome.tagline")}</Text>
-          </View>
-        </Rise>
-
-        <Rise index={1}>
-          <View style={s.actions}>
-            <ProviderButtons busy={busy} onPress={signIn} />
-            <AuthButton
-              variant="outline"
-              label={t("auth.welcome.email")}
-              icon={<Mail size={19} color="#FFFFFF" strokeWidth={1.8} />}
-              onPress={() => open("/(auth)/signup")}
-              disabled={!!busy}
-            />
-            {error ? <FieldNote tone="danger" text={error} /> : null}
-            <TouchableOpacity onPress={() => open("/(auth)/login")} activeOpacity={0.6} style={s.login} disabled={!!busy}>
-              <Text style={s.loginText}>
-                {t("auth.welcome.haveAccount")} <Text style={s.loginLink}>{t("auth.welcome.logIn")}</Text>
-              </Text>
+      {contentVisible && (
+        <>
+          <View style={[s.topRow, { top: insets.top + 10 }]}>
+            {/* Fotografens namn måste stå nära bilden (Visit Skånes villkor) */}
+            <View style={s.credit}>
+              <View style={s.place}>
+                <MapPin size={13} color="rgba(255,255,255,0.9)" strokeWidth={2.2} />
+                <Text style={s.placeText}>Ales stenar, Kåseberga</Text>
+              </View>
+              <Text style={s.byline}>© Frits Meyst / WideOyster.com</Text>
+            </View>
+            <TouchableOpacity
+              style={s.flag}
+              onPress={() => setLangOpen(true)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t("settings.language")}
+            >
+              <RoundFlag code={currentLanguage()} size={34} />
             </TouchableOpacity>
-            {legal ? (
-              <Text style={s.legal}>
-                {t("auth.welcome.legalPrefix")}
-                <Text style={s.legalLink} onPress={() => Linking.openURL(legal.terms)}>{t("auth.welcome.terms")}</Text>
-                {t("auth.welcome.legalMiddle")}
-                <Text style={s.legalLink} onPress={() => Linking.openURL(legal.privacy)}>{t("auth.welcome.privacy")}</Text>
-                {t("auth.welcome.legalSuffix")}
-              </Text>
-            ) : null}
           </View>
-        </Rise>
-      </ScrollView>
+
+          {/* Scrollar bara om det inte får plats (t.ex. med extra stor text) */}
+          <ScrollView
+            style={StyleSheet.absoluteFill}
+            contentContainerStyle={[s.content, { paddingTop: insets.top + 60, paddingBottom: Math.max(insets.bottom, 16) }]}
+            alwaysBounceVertical={false}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={{ flex: 1 }} />
+            <Rise index={0}>
+              <View style={s.brand}>
+                <Pressable onLongPress={replayIntro} disabled={!__DEV__}>
+                    <Image source={require("../../assets/Osterlenappen-logo.png")} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
+                  </Pressable>
+                <Text style={s.title}>Österlenappen</Text>
+                <Text style={s.tagline}>{t("auth.welcome.tagline")}</Text>
+              </View>
+            </Rise>
+
+            <Rise index={1}>
+              <View style={s.actions}>
+                <ProviderButtons busy={busy} onPress={signIn} />
+                <AuthButton
+                  variant="outline"
+                  label={t("auth.welcome.email")}
+                  icon={<Mail size={19} color="#FFFFFF" strokeWidth={1.8} />}
+                  onPress={() => open("/(auth)/signup")}
+                  disabled={!!busy}
+                />
+                {error ? <FieldNote tone="danger" text={error} /> : null}
+                <TouchableOpacity onPress={() => open("/(auth)/login")} activeOpacity={0.6} style={s.login} disabled={!!busy}>
+                  <Text style={s.loginText}>
+                    {t("auth.welcome.haveAccount")} <Text style={s.loginLink}>{t("auth.welcome.logIn")}</Text>
+                  </Text>
+                </TouchableOpacity>
+                {legal ? (
+                  <Text style={s.legal}>
+                    {t("auth.welcome.legalPrefix")}
+                    <Text style={s.legalLink} onPress={() => Linking.openURL(legal.terms)}>{t("auth.welcome.terms")}</Text>
+                    {t("auth.welcome.legalMiddle")}
+                    <Text style={s.legalLink} onPress={() => Linking.openURL(legal.privacy)}>{t("auth.welcome.privacy")}</Text>
+                    {t("auth.welcome.legalSuffix")}
+                  </Text>
+                ) : null}
+              </View>
+            </Rise>
+          </ScrollView>
+        </>
+      )}
+
+      {showIntro === null && <View style={[StyleSheet.absoluteFill, s.root]} />}
+      {showIntro && !introGone && <IntroFilm key={replay} onReveal={reveal} onDone={gone} />}
 
       <LanguageMenu visible={langOpen} top={insets.top + 54} onSelect={chooseLanguage} onClose={() => setLangOpen(false)} />
     </View>
