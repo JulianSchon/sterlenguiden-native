@@ -6,7 +6,7 @@
 -- Går att köra flera gånger: en lekplats som redan finns (samma ställe) läggs inte in igen.
 
 insert into public.service_points (type, name, lat, lng)
-select Lekplats, v.name, v.lat, v.lng
+select 'Lekplats', v.name, v.lat, v.lng
 from (values
   ('Lekplats, Tomelilla', 55.534485, 13.939115),
   ('Lekplats, Tomelilla', 55.549928, 13.944551),
@@ -55,5 +55,5 @@ from (values
 ) as v(name, lat, lng)
 where not exists (
   select 1 from public.service_points s
-  where s.type = Lekplats and abs(s.lat - v.lat) < 0.0002 and abs(s.lng - v.lng) < 0.0003
+  where s.type = 'Lekplats' and abs(s.lat - v.lat) < 0.0002 and abs(s.lng - v.lng) < 0.0003
 );
