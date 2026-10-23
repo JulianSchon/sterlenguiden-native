@@ -828,6 +828,7 @@ export const sv = {
     title: "UPPTÄCK", left: "{{count}} kvar", skip: "Skippa", save: "Spara", open: "Öppna {{name}}",
     allSeenTitle: "Du har sett alla platser",
     allSeenText: "Nya platser dyker upp här när de kommer till appen. Det du sparat finns under Favoriter.",
+    stampSave: "SPARA", stampSkip: "SKIPPA",
     toFavorites: "Till Favoriter", back: "Tillbaka",
   },
 };

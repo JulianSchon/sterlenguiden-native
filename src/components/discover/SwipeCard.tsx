@@ -222,10 +222,10 @@ export const SwipeCard = memo(function SwipeCard({
           {/* Stämplarna medan man drar */}
           <Reanimated.View style={[s.stamp, s.stampLike, likeStyle]} pointerEvents="none">
             <Heart size={20} color={YES} fill={YES} strokeWidth={2} />
-            <Text style={[s.stampText, { color: YES }]}>SPARA</Text>
+            <Text style={[s.stampText, { color: YES }]}>{i18n.t("discover.stampSave")}</Text>
           </Reanimated.View>
           <Reanimated.View style={[s.stamp, s.stampNope, nopeStyle]} pointerEvents="none">
-            <Text style={[s.stampText, { color: NO }]}>SKIPPA</Text>
+            <Text style={[s.stampText, { color: NO }]}>{i18n.t("discover.stampSkip")}</Text>
           </Reanimated.View>
 
           <View style={s.info} pointerEvents="box-none">

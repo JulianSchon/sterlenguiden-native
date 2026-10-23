@@ -825,6 +825,7 @@ export const de: typeof sv = {
     title: "ENTDECKEN", left: "noch {{count}}", skip: "Überspringen", save: "Speichern", open: "{{name}} öffnen",
     allSeenTitle: "Du hast alle Orte gesehen",
     allSeenText: "Neue Orte erscheinen hier, sobald sie in die App kommen. Was du gespeichert hast, findest du unter Favoriten.",
+    stampSave: "SPEICHERN", stampSkip: "WEITER",
     toFavorites: "Zu den Favoriten", back: "Zurück",
   },
 };

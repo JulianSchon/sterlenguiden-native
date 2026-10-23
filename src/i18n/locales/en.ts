@@ -825,6 +825,7 @@ export const en: typeof sv = {
     title: "DISCOVER", left: "{{count}} left", skip: "Skip", save: "Save", open: "Open {{name}}",
     allSeenTitle: "You've seen every place",
     allSeenText: "New places show up here when they're added to the app. What you saved is under Favourites.",
+    stampSave: "SAVE", stampSkip: "SKIP",
     toFavorites: "Go to Favourites", back: "Back",
   },
 };
