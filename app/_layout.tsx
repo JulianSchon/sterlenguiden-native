@@ -33,6 +33,11 @@ import { forgetGoogleAccount } from "@/lib/socialAuth";
 import { tabsEnterFromBelow } from "@/lib/tabsEntrance";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import i18n from "i18next";
+import { LogBox } from "react-native";
+
+// iOS-delen av React Native skickar ibland ett sista animationsvärde efter att lyssnaren tagits bort.
+// Ofarligt och bara i utvecklingsläget; döljs så att riktiga varningar syns.
+if (__DEV__) LogBox.ignoreLogs(["Sending `onAnimatedValueUpdate` with no listeners registered"]);
 
 /** Om något kraschar visas det här i stället för Expos tekniska felsida */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {

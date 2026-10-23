@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
+import { useTheme } from "@/theme/ThemeProvider";
 import * as Haptics from "expo-haptics";
 import { X } from "lucide-react-native";
 import type { BusinessStory } from "@/hooks/useBusinessStories";
@@ -89,6 +90,7 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   onClosed: (viewed: string[], saved: Promise<unknown>) => void;
 }) {
   const { width: W, height: H } = useWindowDimensions();
+  const { colors } = useTheme();
   const [group, setGroup] = useState(startGroup);
   // Var man är i varje grupp (grannarna i kuben visar sin)
   const [storyAt, setStoryAt] = useState<Record<number, number>>(() => ({ [startGroup]: startStory }));
@@ -156,16 +158,22 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   }, [group, story, setStory, toGroup]);
 
   // ── Tiden: startar när bilden laddats, stannar vid paus ──
-  const remaining = useRef(STORY_MS);
+  // En ny (eller omstartad) berättelse får alltid hela tiden. Att läsa av stapeln direkt efter att
+  // den nollställts gav ibland det gamla värdet: nästan sedd → bara en bråkdel kvar → den rusade
+  const fresh = useRef(true);
   useEffect(() => {
-    remaining.current = STORY_MS;
+    fresh.current = true;
     progress.value = 0;
   }, [group, story, restart, progress]);
   const isLoaded = !!current && loadedIds.has(current.id);
   const running = isLoaded && !paused && presented;
   useEffect(() => {
     if (!running) return;
-    const ms = Math.max(1, (1 - progress.value) * STORY_MS);
+    const startFresh = fresh.current;
+    fresh.current = false;
+    if (startFresh) progress.value = 0;
+    // Ny: hela tiden. Efter en paus: det som var kvar
+    const ms = startFresh ? STORY_MS : Math.max(1, (1 - progress.value) * STORY_MS);
     progress.value = withTiming(1, { duration: ms, easing: Easing.linear }, (done) => {
       if (done) runOnJS(next)();
     });
@@ -270,14 +278,14 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
       ],
     };
   });
-  // Bakom: svart, även medan man drar nedåt (som i Instagram). Tonar bort först när den stängs
+  // Bakom: appens bakgrund, även medan man drar nedåt (som i Instagram). Tonar bort först när den stängs
   const backdropStyle = useAnimatedStyle(() => ({ opacity: open.value }));
 
   const visible = [group - 1, group, group + 1].filter((g) => g >= 0 && g < groups.length);
   return (
     <GestureHandlerRootView style={StyleSheet.absoluteFill}>
       <StatusBar style="light" />
-      <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
+      <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }, backdropStyle]} />
       <GestureDetector gesture={gesture}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.frame, frameStyle]}>
           {visible.map((g) => (
@@ -392,7 +400,6 @@ function Bar({ fill, progress, active }: { fill: number | null; progress: Shared
 }
 
 const s = StyleSheet.create({
-  backdrop: { backgroundColor: "#000000" },
   frame: { overflow: "hidden", backgroundColor: "#000000" },
   page: { backgroundColor: "#111113", backfaceVisibility: "hidden", overflow: "hidden" },
   topShade: { position: "absolute", top: 0, left: 0, right: 0 },
