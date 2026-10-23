@@ -38,7 +38,7 @@ export const TIER_PALETTE: Record<Tier, { rim: string; field: [string, string, s
 
 // ─── 8 platskategorier — bara använt för "Mångsidig"s breddmått (hur många
 // OLIKA kategorier du besökt i, inte hur mycket av en specifik). Samma
-// dbValues som appens övriga kategori-matchning (category/[categoryId].tsx,
+// dbValues som appens övriga kategori-matchning (theme/categories.ts,
 // stats.tsx m.fl.) ──────────────────────────────────────────────────────
 const CATEGORY_DB_VALUES: string[][] = [
   ["Mat", "Mat & Dryck"],

@@ -28,7 +28,7 @@ const LINKS: { key: string; label: string }[] = [
   { key: "instagram", label: "Instagram" }, { key: "facebook", label: "Facebook" }, { key: "email", label: "E-post" },
 ];
 const SOURCES: Record<string, string> = {
-  home: "Hem", search: "Sök", map: "Kartan", calendar: "Kalendern", profile: "Profil", category: "Kategorier",
+  home: "Hem", search: "Sök", map: "Kartan", calendar: "Kalendern", profile: "Profil",
   lists: "Listor och favoriter", place: "Platser i närheten", offers: "Förmåner", story: "Stories", friends: "Vänner",
   event: "Evenemang", discover: "Upptäck", news: "Nyheter", checkin: "Incheckning", other: "Övrigt",
 };

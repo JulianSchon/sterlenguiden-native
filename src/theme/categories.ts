@@ -56,9 +56,8 @@ export const CATEGORY_DB_VALUE: Record<CategoryId, string> = {
 };
 
 /**
- * Underkategorierna, som de skrivs i databasen (places.sub_category, flera med komma). Samma
- * nycklar som kategorisidorna delar upp platserna efter (app/category/[categoryId].tsx) och som
- * företagen väljer bland i Mitt företag.
+ * Underkategorierna, som de skrivs i databasen (places.sub_category, flera med komma). Det är
+ * dem företagen väljer bland i Mitt företag.
  */
 export const SUBCATEGORIES: Record<CategoryId, string[]> = {
   "mat-dryck": ["Fine Dining", "Casual", "Pizza", "Streetfood", "Pub & Bar"],

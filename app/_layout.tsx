@@ -140,7 +140,6 @@ function AppStack() {
         {/* Efter onboardingen glider Hem upp underifrån (lib/tabsEntrance) */}
         <Stack.Screen name="(tabs)" options={() => ({ headerShown: false, animation: tabsEnterFromBelow() ? "slide_from_bottom" : "default" })} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="category/[categoryId]" options={{ headerShown: false }} />
         <Stack.Screen name="place/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="discover" options={{ headerShown: false }} />
         <Stack.Screen name="news/[id]" options={{ headerShown: false }} />

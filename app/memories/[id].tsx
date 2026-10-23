@@ -277,8 +277,7 @@ export default function MemoryDetailScreen() {
 }
 
 /** Ett platskort med platsens egen bild, namnet skrivet direkt i bilden över en mörk fade
- * nedtill (samma SVG-gradient-mönster som platskorten i app/category/[categoryId].tsx — en
- * riktig gradient, inte expo-linear-gradient, som inte är kompilerad i dev-clienten än). */
+ * nedtill (en riktig SVG-gradient, inte expo-linear-gradient, som inte är kompilerad i dev-clienten än). */
 function MemoryPlaceCard({ place, onPress }: { place: { id: number; name: string; image_url: string | null }; onPress: () => void }) {
   const img = firstImageUrl(place.image_url);
   return (

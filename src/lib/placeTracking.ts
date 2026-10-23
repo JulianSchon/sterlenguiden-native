@@ -13,11 +13,11 @@ type PlaceLink = "phone" | "website" | "book" | "instagram" | "facebook" | "emai
 
 /** Var i appen man kom ifrån ("Så hittade de er" i statistiken) */
 type PlaceSource =
-  | "home" | "search" | "map" | "calendar" | "profile" | "category" | "lists" | "place" | "offers" | "story" | "friends"
+  | "home" | "search" | "map" | "calendar" | "profile" | "lists" | "place" | "offers" | "story" | "friends"
   | "event" | "discover" | "news" | "checkin" | "other";
 
 const SOURCES: PlaceSource[] = [
-  "home", "search", "map", "calendar", "profile", "category", "lists", "place", "offers", "story", "friends",
+  "home", "search", "map", "calendar", "profile", "lists", "place", "offers", "story", "friends",
   "event", "discover", "news", "checkin",
 ];
 
@@ -56,7 +56,6 @@ export function placeSource(state: AnyState): PlaceSource {
   }
   if (name.startsWith("place/")) return "place";
   if (name.startsWith("lists/") || name === "favorites") return "lists";
-  if (name.startsWith("category/")) return "category";
   if (name === "offers") return "offers";
   if (name.startsWith("friend")) return "friends";
   if (name === "discover" || name.startsWith("news/")) return "home";
