@@ -23,6 +23,7 @@ import { getTreasuresToPlace, removeTreasureToPlace } from "@/lib/treasurePlacem
 import { holdTrophyMoments } from "@/lib/trophyMoments";
 import { PressableScale } from "@/components/PressableScale";
 import { StickerArt } from "./StickerArt";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -120,8 +121,8 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
   return (
     <View style={s.section} onLayout={(e) => { sectionY.current = e.nativeEvent.layout.y; }}>
       <View style={s.head}>
-        <Text style={s.title}>Österlens skatter</Text>
-        <Text style={s.count}>{have} av {collectibles.length}</Text>
+        <Text style={s.title}>{i18n.t("treasure.collection")}</Text>
+        <Text style={s.count}>{i18n.t("treasure.ofTotal", { count: have, total: collectibles.length })}</Text>
       </View>
       <View style={s.grid} onLayout={(e) => { gridY.current = e.nativeEvent.layout.y; }}>
         {visible.map((c) => (
@@ -139,7 +140,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
       </View>
       {canExpand && (
         <PressableScale style={s.moreBtn} scale={0.97} onPress={() => setExpanded((e) => !e)}>
-          <Text style={s.moreBtnText}>{expanded ? "Visa färre" : "Visa fler"}</Text>
+          <Text style={s.moreBtnText}>{i18n.t(expanded ? "place.showFewer" : "rewards.showMore")}</Text>
           {expanded ? (
             <ChevronUp size={16} color={PURPLE} strokeWidth={2.2} />
           ) : (

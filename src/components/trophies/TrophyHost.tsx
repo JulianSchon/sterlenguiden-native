@@ -44,6 +44,7 @@ import { usePendingListInvites, type PendingListInvite } from "@/hooks/useLists"
 import { useMonthReset } from "@/hooks/useMonthReset";
 import { ListInviteMoment } from "@/components/lists/ListInviteMoment";
 import { MonthResetMoment } from "@/components/leaderboard/MonthResetMoment";
+import i18n from "i18next";
 
 const TIERS = ["bronze", "silver", "gold"];
 
@@ -262,8 +263,8 @@ export function TrophyHost() {
   if (!current) {
     if (!ringCurrent || ringArmed !== ringCurrent.id) return null;
     const reason = ringCurrent.rule.kind === "treasures"
-      ? `Du har hittat ${ringCurrent.rule.count} av Österlens skatter.`
-      : "Du har klarat alla utmaningar.";
+      ? i18n.t("rewards.ringTreasures", { count: ringCurrent.rule.count })
+      : i18n.t("rewards.ringAllChallenges");
     return (
       <RingCelebration
         key={ringCurrent.id}

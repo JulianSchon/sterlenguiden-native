@@ -306,7 +306,7 @@ function MemoryBead({
         <Text style={[s.beadDate, { textAlign: onRight ? "right" : "left" }]}>{formatMemoryDate(memory.memoryDate)}</Text>
         <Text style={[s.beadMeta, { textAlign: onRight ? "right" : "left" }]}>
           {photoCount === 1 ? i18n.t("memories.photoOne") : i18n.t("memories.photoOther", { count: photoCount })}
-          {placeCount > 0 ? ` · ${placeCount} ${placeCount === 1 ? "plats" : "platser"}` : ""}
+          {placeCount > 0 ? ` · ${placeCount === 1 ? i18n.t("lists.placesOne") : i18n.t("lists.placesOther", { count: placeCount })}` : ""}
         </Text>
       </Animated.View>
     </Animated.View>

@@ -17,6 +17,7 @@ import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { Confetti, FlipNumber, GhostButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
 import { Flame, FLAME_COLORS } from "./Flame";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.7)";
@@ -32,12 +33,7 @@ const BUILD_TICKS: [number, Haptics.ImpactFeedbackStyle][] = [
   [1370, Haptics.ImpactFeedbackStyle.Medium], [1440, Haptics.ImpactFeedbackStyle.Medium], [1500, Haptics.ImpactFeedbackStyle.Medium],
 ];
 
-const HEADLINES: Record<number, string> = {
-  7: "En hel vecka i rad!",
-  30: "En hel månad i rad!",
-  100: "Hundra dagar i rad!",
-  365: "Ett helt år i rad!",
-};
+const HEADLINES: Record<number, "week" | "month" | "hundred" | "year"> = { 7: "week", 30: "month", 100: "hundred", 365: "year" };
 
 export function StreakMilestone({ days, onClose }: { days: number; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
@@ -169,17 +165,17 @@ export function StreakMilestone({ days, onClose }: { days: number; onClose: () =
             <Reanimated.View style={[s.texts, textStyle]}>
               <View style={s.countRow}>
                 <FlipNumber value={count} style={s.count} animate={!reduceMotion} />
-                <Text style={s.countLabel}> dagar i rad</Text>
+                <Text style={s.countLabel}>{i18n.t("rewards.daysInRow")}</Text>
               </View>
-              <Text style={s.headline}>{HEADLINES[days] ?? `${days} dagar i rad!`}</Text>
-              <Text style={s.sub}>Öppna appen imorgon för att hålla elden vid liv.</Text>
+              <Text style={s.headline}>{HEADLINES[days] ? i18n.t(`rewards.${HEADLINES[days]}`) : i18n.t("rewards.nDays", { count: days })}</Text>
+              <Text style={s.sub}>{i18n.t("rewards.keepAlive")}</Text>
             </Reanimated.View>
           </Pressable>
 
           <View style={[s.buttons, { height: 52 + bottomPad, paddingBottom: bottomPad }]}>
             {ready && (
               <Reveal show>
-                <GhostButton label="Fortsätt" onPress={close} />
+                <GhostButton label={i18n.t("rewards.continue")} onPress={close} />
               </Reveal>
             )}
           </View>

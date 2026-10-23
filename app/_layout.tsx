@@ -32,15 +32,16 @@ import { loadSavedLanguage } from "@/i18n";
 import { forgetGoogleAccount } from "@/lib/socialAuth";
 import { tabsEnterFromBelow } from "@/lib/tabsEntrance";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
+import i18n from "i18next";
 
 /** Om något kraschar visas det här i stället för Expos tekniska felsida */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
     <ProblemScreen
       icon={(color) => <CloudOff size={36} color={color} strokeWidth={1.6} />}
-      title="Något gick fel"
-      text="Vi ber om ursäkt – appen stötte på ett problem. Försök igen. Hjälper det inte, stäng appen helt och öppna den på nytt."
-      primary={{ label: "Försök igen", onPress: () => { retry(); } }}
+      title={i18n.t("problems.crashTitle")}
+      text={i18n.t("problems.crashText")}
+      primary={{ label: i18n.t("common.tryAgain"), onPress: () => { retry(); } }}
       detail={error.message}
     />
   );

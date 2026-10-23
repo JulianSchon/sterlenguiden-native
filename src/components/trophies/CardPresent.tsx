@@ -43,11 +43,12 @@ import { MemberCard, CARD_W, CARD_H } from "@/components/MemberCard";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { Confetti, GOLD, GhostButton, GoldButton, GoldRays } from "@/components/checkin/CelebrationFx";
 import { PresentBase, PresentLid, PRESENT_H, PRESENT_SEAM_Y, PRESENT_W, prefetchPresentImages } from "./PresentBox";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
 const TAPS = 3;
-const HINTS = ["Tryck på paketet!", "Igen!", "Nästan…!"];
+const hints = () => [i18n.t("rewards.hints.tap"), i18n.t("rewards.hints.again"), i18n.t("rewards.hints.almost")];
 const SPARKS = ["#FFF1C1", "#F5D88A", "#E9C46A", "#FFFFFF"];
 const DUST = ["#C9B38A", "#A88E62", "#E2D3B0"];
 const BOOM_DELAY = 300;
@@ -368,10 +369,10 @@ export function CardPresent({ card, onNavigate, onClose }: {
   const glowSize = width * 1.4;
   const bottomPad = Math.max(insets.bottom, 16) + 8;
   const reason = card.kind === "treasures"
-    ? "Du har hittat alla Österlens skatter."
+    ? i18n.t("rewards.cardTreasures")
     : card.kind === "visits_month" && card.period
-      ? `Flest besök i hela appen under ${formatDate(`${card.period}-01T12:00:00`, "MMMM yyyy")}.`
-      : `Flest besök i hela appen under ${card.period ?? ""}.`;
+      ? i18n.t("rewards.cardMostVisits", { period: formatDate(`${card.period}-01T12:00:00`, "MMMM yyyy") })
+      : i18n.t("rewards.cardMostVisitsYear", { year: card.period ?? "" });
 
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={() => exit(false)}>
@@ -426,18 +427,18 @@ export function CardPresent({ card, onNavigate, onClose }: {
             </Reanimated.View>
 
             <View style={[s.below, { top: presentY + presentH / 2 + 4 }]} pointerEvents="none">
-              <Reanimated.Text style={[s.hint, hintStyle]}>{HINTS[Math.min(taps, TAPS - 1)]}</Reanimated.Text>
+              <Reanimated.Text style={[s.hint, hintStyle]}>{hints()[Math.min(taps, TAPS - 1)]}</Reanimated.Text>
             </View>
             <Reanimated.View style={[s.below, { top: finalY + cardH / 2 + 28 }, textStyle]} pointerEvents="none">
-              <Text style={s.eyebrow}>NYTT KORT!</Text>
+              <Text style={s.eyebrow}>{i18n.t("rewards.newCard")}</Text>
               <Text style={s.name}>{rewardCardName(card, t)}</Text>
               <Text style={s.reason}>{reason}</Text>
             </Reanimated.View>
           </Pressable>
 
           <Reanimated.View style={[s.buttons, { paddingBottom: bottomPad }, buttonsStyle]}>
-            <GoldButton label="Använd kortet" onPress={() => press(true)} />
-            <GhostButton label="Fortsätt" onPress={() => press(false)} />
+            <GoldButton label={i18n.t("rewards.useCard")} onPress={() => press(true)} />
+            <GhostButton label={i18n.t("rewards.continue")} onPress={() => press(false)} />
           </Reanimated.View>
         </Reanimated.View>
 

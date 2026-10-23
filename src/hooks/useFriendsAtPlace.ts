@@ -5,6 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import i18n from "i18next";
 
 export interface FriendAtPlace {
   userId: string;
@@ -35,7 +36,7 @@ export function useFriendsAtPlace(placeId: number | null) {
       if (error) return [];
       return ((data ?? []) as Row[]).map((r) => ({
         userId: r.user_id,
-        name: r.display_name || r.username || "Vän",
+        name: r.display_name || r.username || i18n.t("problems.friend"),
         avatarPath: r.avatar_path,
         circleColor: r.circle_color,
         avatarRing: r.avatar_ring,

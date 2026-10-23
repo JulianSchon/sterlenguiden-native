@@ -35,8 +35,8 @@ import Reanimated, {
   withSequence, withSpring, withTiming,
 } from "react-native-reanimated";
 import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { serverNow } from "@/lib/serverClock";
+import i18n from "i18next";
 
 const { width: SW } = Dimensions.get("window");
 /** Kortets standardstorlek (hela skärmbredden minus sidomarginaler) */
@@ -454,15 +454,15 @@ export function MemberCard({
             {displayName.toUpperCase()}
           </Text>
           {isMember && memberSince ? (
-            <Text style={[mc.since, { color: colors.muted }, variant?.light && mc.onLight]}>Sedan {memberSince}</Text>
+            <Text style={[mc.since, { color: colors.muted }, variant?.light && mc.onLight]}>{i18n.t("rewards.since", { date: memberSince })}</Text>
           ) : null}
           {isMember ? (
             <View style={mc.passRow}>
               <Crown size={12 * k} color={colors.accent} strokeWidth={2} />
-              <Text style={[mc.passLabel, { color: colors.accent }, variant?.light && mc.onLight]}>ÖSTERLENPASSET</Text>
+              <Text style={[mc.passLabel, { color: colors.accent }, variant?.light && mc.onLight]}>{i18n.t("rewards.pass")}</Text>
             </View>
           ) : readOnly ? null : (
-            <Text style={[mc.ctaHint, { color: colors.accent }, variant?.light && mc.onLight]}>Tryck för att aktivera →</Text>
+            <Text style={[mc.ctaHint, { color: colors.accent }, variant?.light && mc.onLight]}>{i18n.t("rewards.activate")}</Text>
           )}
         </View>
       </View>
@@ -472,7 +472,7 @@ export function MemberCard({
   );
 
   // ── Back ──────────────────────────────────────────────────────────────────
-  const clockStr = format(time, "HH:mm:ss", { locale: sv });
+  const clockStr = format(time, "HH:mm:ss");
 
   // ── Låst baksida (inte medlem) ────────────────────────────────────────────
   const LockedBack = (
@@ -492,8 +492,8 @@ export function MemberCard({
         <View style={mc.lockCircle}>
           <Lock size={22 * k} color="#F3E3BE" strokeWidth={1.8} />
         </View>
-        <Text style={mc.lockedTitle}>Lås upp med Österlenpasset</Text>
-        <Text style={mc.lockedSub}>Här visar du kortet vid kassan och får rabatten</Text>
+        <Text style={mc.lockedTitle}>{i18n.t("rewards.lockedTitle")}</Text>
+        <Text style={mc.lockedSub}>{i18n.t("rewards.lockedSub")}</Text>
       </View>
       {finish("glareLocked", "rgba(255,255,255,0.22)")}
     </Reanimated.View>
@@ -536,7 +536,7 @@ export function MemberCard({
       {/* ── Innehåll — centrerad kolumn, alla element med samma gap ── */}
       <View style={mc.backCol}>
 
-        <Text style={mc.liveLabel}>LIVE-VERIFIERING</Text>
+        <Text style={mc.liveLabel}>{i18n.t("rewards.live")}</Text>
 
         {/* Profilbild-cirkel */}
         {/* Kortfotot ändras under Österlenpasset (en gång i månaden), inte här */}
@@ -546,7 +546,7 @@ export function MemberCard({
           ) : (
             <View style={mc.backCirclePlaceholder}>
               <Camera size={24 * k} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />
-              <Text style={mc.uploadText}>Foto saknas</Text>
+              <Text style={mc.uploadText}>{i18n.t("rewards.noPhoto")}</Text>
             </View>
           )}
         </View>
@@ -555,7 +555,7 @@ export function MemberCard({
         <Text style={mc.liveClock}>{clockStr}</Text>
 
         {/* Instruktion — i flex-flödet, samma gap som övriga element */}
-        <Text style={mc.liveInstruction}>Visa vid kassan • Tryck för att vända</Text>
+        <Text style={mc.liveInstruction}>{i18n.t("rewards.instruction")}</Text>
 
       </View>
 

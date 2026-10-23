@@ -140,7 +140,7 @@ export const OfferDrawer = memo(function OfferDrawer({
   const bandCategory = (focusOffer ?? rawOffers[0])?.category ?? null;
   const CategoryIcon = findCategory(bandCategory)?.icon ?? Crown;
   const [gradFrom, gradTo] = ticketColors(bandCategory);
-  const label = (bandCategory ?? "Österlen").toUpperCase();
+  const label = (findCategory(bandCategory)?.label ?? bandCategory ?? "Österlen").toUpperCase();
   const tint = findCategory(bandCategory)?.screen ?? "#D4A84F";
   // Etiketten på högkant krymps så den ryms, precis som på biljetten
   const fit = Math.min(1, STUB_TEXT_W / (label.length * 9.8));

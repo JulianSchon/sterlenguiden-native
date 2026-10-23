@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { useCollected } from "@/hooks/useCollectibles";
 import { useTrophies } from "@/hooks/useTrophies";
 import { AVATAR_RINGS, type AvatarRingDef } from "@/lib/avatarRings";
+import i18n from "i18next";
 
 export function useRingUnlocks() {
   const { data: collected, isSuccess: collectedLoaded } = useCollected();
@@ -26,8 +27,8 @@ export function useRingUnlocks() {
   /** Vad som krävs, kort: "6 skatter", "Alla utmaningar" */
   const requirement = (def: AvatarRingDef): string => {
     switch (def.rule.kind) {
-      case "treasures": return `${def.rule.count} skatter`;
-      case "allChallenges": return "Alla utmaningar";
+      case "treasures": return i18n.t("rewards.ringReqTreasures", { count: def.rule.count });
+      case "allChallenges": return i18n.t("rewards.ringReqChallenges");
       default: return "";
     }
   };

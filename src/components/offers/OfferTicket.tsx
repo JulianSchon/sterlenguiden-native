@@ -181,7 +181,7 @@ export const OfferTicket = memo(function OfferTicket({
           </View>
           <View style={s.stubTextZone}>
             <Text style={s.stubText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-              {offer.category ?? "Österlen"}
+              {findCategory(offer.category)?.label ?? offer.category ?? "Österlen"}
             </Text>
           </View>
         </Reanimated.View>

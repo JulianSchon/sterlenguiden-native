@@ -49,20 +49,22 @@ export default function SettingsHub() {
 
   const openInvite = (invite: MyInvite) => {
     Alert.alert(
-      `Inbjudan från ${invite.place_name}`,
-      `${invite.invited_by ?? "Någon"} har bjudit in dig att sköta ${invite.place_name} i appen${invite.role === "owner" ? " som ägare" : ""}.`,
+      t("settingsBusiness.inviteTitle", { place: invite.place_name }),
+      t(invite.role === "owner" ? "settingsBusiness.inviteTextOwner" : "settingsBusiness.inviteText", {
+        name: invite.invited_by ?? t("settingsBusiness.someone"), place: invite.place_name,
+      }),
       [
-        { text: "Senare", style: "cancel" },
-        { text: "Nej tack", style: "destructive", onPress: () => answerInvite(invite.id, false).finally(() => queryClient.invalidateQueries({ queryKey: ["business", "overview"] })) },
+        { text: t("settingsBusiness.later"), style: "cancel" },
+        { text: t("settingsBusiness.noThanks"), style: "destructive", onPress: () => answerInvite(invite.id, false).finally(() => queryClient.invalidateQueries({ queryKey: ["business", "overview"] })) },
         {
-          text: "Gå med",
+          text: t("settingsBusiness.join"),
           onPress: async () => {
             try {
               await answerInvite(invite.id, true);
               await queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
               router.push(`/business/welcome?place=${invite.place_id}`);
             } catch {
-              Alert.alert(t("common.error"), "Det gick inte att gå med just nu. Försök igen.");
+              Alert.alert(t("common.error"), t("settingsBusiness.joinFailed"));
             }
           },
         },
@@ -132,9 +134,9 @@ export default function SettingsHub() {
               {myPlaces.length > 0 && (
                 <SettingsRow
                   icon={Store}
-                  label="Mitt företag"
+                  label={t("settingsBusiness.myBusiness")}
                   subtitle={myPlaces.map((p) => p.name).join(", ")}
-                  value={joinRequests > 0 ? `${joinRequests} vill gå med` : undefined}
+                  value={joinRequests > 0 ? t("settingsBusiness.wantsToJoin", { count: joinRequests }) : undefined}
                   tint={colors.goldText}
                   onPress={() => router.push(`/business?place=${myPlaces[0].id}`)}
                 />
@@ -143,8 +145,8 @@ export default function SettingsHub() {
                 <SettingsRow
                   key={invite.id}
                   icon={MailOpen}
-                  label={`Inbjudan: ${invite.place_name}`}
-                  subtitle={`${invite.invited_by ?? "Någon"} har bjudit in dig`}
+                  label={t("settingsBusiness.inviteRow", { place: invite.place_name })}
+                  subtitle={t("settingsBusiness.invitedYou", { name: invite.invited_by ?? t("settingsBusiness.someone") })}
                   tint={colors.goldText}
                   onPress={() => openInvite(invite)}
                 />
@@ -152,8 +154,8 @@ export default function SettingsHub() {
               {business?.admin != null && (
                 <SettingsRow
                   icon={ShieldCheck}
-                  label="Admin"
-                  value={business.admin > 0 ? `${business.admin} väntar` : undefined}
+                  label={t("settingsBusiness.admin")}
+                  value={business.admin > 0 ? t("settingsBusiness.waiting", { count: business.admin }) : undefined}
                   onPress={() => router.push("/admin")}
                 />
               )}
@@ -176,8 +178,8 @@ export default function SettingsHub() {
               <SettingsRow
                 compact
                 icon={Store}
-                label="Vill ert företag synas här?"
-                subtitle="Ta hand om er sida i appen – gratis"
+                label={t("settingsBusiness.promoTitle")}
+                subtitle={t("settingsBusiness.promoSub")}
                 strong
                 tint={colors.warm}
                 onPress={() => router.push("/business/start")}

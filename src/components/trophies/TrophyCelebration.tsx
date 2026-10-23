@@ -26,6 +26,7 @@ import { playSound } from "@/lib/sounds";
 import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { RadialGlow, TrophyMedal } from "@/components/trophies/TrophyMedal";
 import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.62)";
@@ -211,7 +212,7 @@ export function TrophyCelebration({
             </View>
 
             <Reanimated.View style={[s.texts, titleStyle]}>
-              <Text style={[s.eyebrow, { color: tierLight.ink }]}>UTMANING KLARAD!</Text>
+              <Text style={[s.eyebrow, { color: tierLight.ink }]}>{i18n.t("rewards.challengeDone")}</Text>
               <Text style={s.title}>{trophy.identity}</Text>
               <View style={s.levelPill}>
                 <Text style={s.levelText}>{trophy.levelLabel} · {trophy.levelName}</Text>
@@ -226,7 +227,7 @@ export function TrophyCelebration({
                   <View style={s.nextTop}>
                     <TrophyMedal size={40} tier={next.tier} Icon={next.Icon} unlocked={false} groupId={next.groupId} />
                     <View style={{ flex: 1 }}>
-                      <Text style={s.nextLabel}>NÄSTA MÅL</Text>
+                      <Text style={s.nextLabel}>{i18n.t("rewards.nextGoal")}</Text>
                       <Text style={s.nextTitle} numberOfLines={1}>{next.levelLabel} · {next.levelName}</Text>
                     </View>
                     <Text style={s.nextCount}>{next.progress} / {next.target}</Text>
@@ -237,7 +238,7 @@ export function TrophyCelebration({
                   <Text style={s.nextReq}>{next.requirementText}</Text>
                 </>
               ) : (
-                <Text style={s.allDone}>Alla tre nivåer klara — hela utmaningen är din!</Text>
+                <Text style={s.allDone}>{i18n.t("rewards.allLevels")}</Text>
               )}
             </Reanimated.View>
           </Pressable>
@@ -246,10 +247,10 @@ export function TrophyCelebration({
             {ready && (
               <>
                 <Reveal show>
-                  <GoldButton label="Se i Utmaningar" onPress={() => exitTo(true)} />
+                  <GoldButton label={i18n.t("rewards.seeChallenges")} onPress={() => exitTo(true)} />
                 </Reveal>
                 <Reveal show delay={100}>
-                  <GhostButton label="Fortsätt" onPress={() => exitTo(false)} />
+                  <GhostButton label={i18n.t("rewards.continue")} onPress={() => exitTo(false)} />
                 </Reveal>
               </>
             )}

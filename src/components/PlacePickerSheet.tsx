@@ -7,6 +7,7 @@ import { useSearchPlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { Sheet, useSheetInput } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 export function PlacePickerSheet({
   visible, onClose, title, selectedIds, onPick,
@@ -30,7 +31,7 @@ export function PlacePickerSheet({
         style={sheetInput}
         value={query}
         onChangeText={setQuery}
-        placeholder="Sök plats"
+        placeholder={i18n.t("problems.searchPlace")}
         placeholderTextColor="rgba(255,255,255,0.35)"
         autoCorrect={false}
       />

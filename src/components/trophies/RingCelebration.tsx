@@ -30,6 +30,7 @@ import { Avatar } from "@/components/profile/Avatar";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { Confetti, GOLD, GhostButton, GoldButton, GoldRays } from "@/components/checkin/CelebrationFx";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
@@ -181,15 +182,15 @@ export function RingCelebration({ ring, reason, onNavigate, onClose }: {
             </View>
 
             <Reanimated.View style={[s.texts, { top: centerY + AV / 2 + 44 }, textStyle]} pointerEvents="none">
-              <Text style={[s.eyebrow, { color: ring.colors?.[0] ?? GOLD }]}>NY PROFILRING!</Text>
+              <Text style={[s.eyebrow, { color: ring.colors?.[0] ?? GOLD }]}>{i18n.t("rewards.newRing")}</Text>
               <Text style={s.name}>{t(`appearance.ring.${ring.id}` as "appearance.ring.none")}</Text>
               <Text style={s.reason}>{reason}</Text>
             </Reanimated.View>
           </Pressable>
 
           <Reanimated.View style={[s.buttons, { paddingBottom: bottomPad }, buttonsStyle]} pointerEvents={ready ? "auto" : "none"}>
-            <GoldButton label="Använd ringen" onPress={() => exit(true)} />
-            <GhostButton label="Fortsätt" onPress={() => exit(false)} />
+            <GoldButton label={i18n.t("rewards.useRing")} onPress={() => exit(true)} />
+            <GhostButton label={i18n.t("rewards.continue")} onPress={() => exit(false)} />
           </Reanimated.View>
         </Reanimated.View>
 

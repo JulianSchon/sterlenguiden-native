@@ -231,7 +231,7 @@ export default function MemoryDetailScreen() {
           <View style={s.actions}>
             <Text style={s.sectionLabel}>{i18n.t("memories.more")}</Text>
             <View style={{ gap: 8 }}>
-              <ActionRow icon={<Plus size={18} color={FG} strokeWidth={2} />} label="Skapa nytt minne" onPress={() => router.push("/memories/edit")} />
+              <ActionRow icon={<Plus size={18} color={FG} strokeWidth={2} />} label={i18n.t("problems.createMemory")} onPress={() => router.push("/memories/edit")} />
               {memoryPlaces.length > 0 && (
                 <ActionRow
                   icon={<MapPin size={18} color={FG} strokeWidth={2} />}
@@ -239,8 +239,8 @@ export default function MemoryDetailScreen() {
                   onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } })}
                 />
               )}
-              <ActionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label="Redigera minne" onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } })} />
-              <ActionRow icon={<Trash2 size={18} color="#E57373" strokeWidth={2} />} label="Radera minne" danger onPress={confirmDelete} />
+              <ActionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label={i18n.t("problems.editMemory")} onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } })} />
+              <ActionRow icon={<Trash2 size={18} color="#E57373" strokeWidth={2} />} label={i18n.t("problems.deleteMemory")} danger onPress={confirmDelete} />
             </View>
           </View>
 

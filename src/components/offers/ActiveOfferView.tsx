@@ -29,9 +29,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { ACTIVE_SECS, splitSavings } from "@/lib/offers";
 import { preventScreenCapture } from "@/lib/screenCapture";
 import { findCategory, withAlpha } from "@/theme/categories";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { serverNow } from "@/lib/serverClock";
+import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
 
 const GOLD    = "#C5A059";
 const GOLD_LT = "#E8C674";
@@ -143,10 +143,8 @@ export function ActiveOfferView({
   }, [visible]);
   const pulseOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
 
-  const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? "Medlem";
-  const memberSince = profile?.created_at
-    ? format(new Date(profile.created_at), "MMMM yyyy", { locale: sv })
-    : null;
+  const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? i18n.t("rewards.member");
+  const memberSince = profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null;
 
   if (!visible) return null;
 
@@ -186,7 +184,7 @@ export function ActiveOfferView({
         <View style={a.statusRow}>
           <RNAnimated.View style={[a.pulseDot, { opacity: pulseOpacity }, expired && { backgroundColor: WARN }]} />
           <Text style={[a.statusLabel, expired && { color: WARN }]}>
-            {expired ? "UTGÅNGET" : "AKTIVT ERBJUDANDE"}
+            {i18n.t(expired ? "rewards.offerExpired" : "rewards.offerActive")}
           </Text>
         </View>
 
@@ -222,7 +220,7 @@ export function ActiveOfferView({
         </Canvas>
         <View style={a.ringCenter} pointerEvents="none">
           <Text style={[a.seconds, warn && { color: WARN }]}>{remaining}</Text>
-          <Text style={a.secondsLabel}>SEKUNDER KVAR</Text>
+          <Text style={a.secondsLabel}>{i18n.t("rewards.secondsLeft")}</Text>
         </View>
       </Animated.View>
 

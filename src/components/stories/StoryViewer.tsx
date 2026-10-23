@@ -371,7 +371,7 @@ const StoryPage = memo(function StoryPage({
             <Text style={s.name} numberOfLines={1}>{name}</Text>
             <Text style={s.time}>{ago(story.created_at)}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} hitSlop={14} accessibilityLabel="Stäng">
+          <TouchableOpacity onPress={onClose} hitSlop={14} accessibilityLabel={i18n.t("common.close")}>
             <X size={26} color="#FFFFFF" strokeWidth={2.2} />
           </TouchableOpacity>
         </View>
