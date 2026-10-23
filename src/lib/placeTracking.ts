@@ -1,7 +1,7 @@
 /**
  * Företagens statistik: när någon öppnar en platssida, trycker på telefon, hemsida, boka, Instagram,
  * Facebook eller e-post, eller tar fram en vägbeskrivning. Skickas i bakgrunden och märks aldrig —
- * går det inte (inget nät, databasen utan migration 046) händer ingenting.
+ * går det inte (inget nät) händer ingenting.
  *
  * Databasen (track_place_event) räknar inte företagets egna visningar, räknar samma person som en
  * visning per halvtimme och ett dubbeltryck som ett klick. Företaget ser bara antal, aldrig vem.

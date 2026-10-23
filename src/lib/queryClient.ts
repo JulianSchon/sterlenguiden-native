@@ -45,6 +45,8 @@ export function shouldPersistQuery(query: Query): boolean {
   if (query.state.status !== "success") return false;
   const [root, sub] = query.queryKey;
   if (root === "lists" && sub === "pending-invites") return false;
+  // Platsväljarens sökresultat: ett nytt för varje ord man skriver
+  if (root === "places" && sub === "search") return false;
   return PERSISTED.has(String(root));
 }
 

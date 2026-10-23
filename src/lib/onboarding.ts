@@ -131,9 +131,6 @@ export async function suggestUsername(first: string, last: string): Promise<stri
 
 type FinishError = "username_taken" | "failed";
 
-/** Fält som kom med migration 043 — utan den sparas resten ändå */
-const NEW_COLUMNS = ["interests", "onboarded_at"] as const;
-
 /**
  * Sparar allt på en gång: profilen (namn, användarnamn, födelsedag, ort, intressen, språk och att
  * kontot är klart) och favoriterna. Favoriterna är inte avgörande — går de inte att spara blir
@@ -160,13 +157,7 @@ export async function finishOnboarding(userId: string, draft: OnboardingDraft): 
     return inserted.error;
   };
 
-  let error = await write(row);
-  // Kolumnerna från migration 043 saknas: spara resten
-  if (error && (error.code === "PGRST204" || error.code === "42703")) {
-    const rest = { ...row };
-    for (const key of NEW_COLUMNS) delete rest[key];
-    error = await write(rest);
-  }
+  const error = await write(row);
   if (error) return error.code === "23505" ? "username_taken" : "failed";
 
   if (draft.favorites.length > 0) {

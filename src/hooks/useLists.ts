@@ -8,7 +8,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { firstImageUrl, selectPlaces } from "@/hooks/usePlaces";
+import { firstImageUrl } from "@/hooks/usePlaces";
 import { effectiveHours, type HoursException } from "@/lib/openingHours";
 import { preparePhoto } from "@/lib/photos";
 import { pickSquarePhoto, type PhotoSource } from "@/hooks/useAccount";
@@ -316,7 +316,7 @@ export function useFriendListDetail(listId: string | undefined, ownerId: string 
       const addedByIds = [...new Set((rows ?? []).map((r) => r.added_by))];
       const [{ data: placeRows }, { data: profiles }] = await Promise.all([
         placeIds.length > 0
-          ? selectPlaces((extra) => supabase.from("places").select("id, name, image_url, nearest_town, categories, opening_hours" + extra).in("id", placeIds))
+          ? supabase.from("places").select("id, name, image_url, nearest_town, categories, opening_hours, hours_exceptions").in("id", placeIds)
           : Promise.resolve({ data: [] as never[] }),
         addedByIds.length > 0
           ? supabase.rpc("rpc_list_profiles_public", { target_user_ids: addedByIds })

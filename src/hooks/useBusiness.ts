@@ -14,13 +14,10 @@ import { normalizePlace, type Place } from "@/hooks/usePlaces";
 import type { Tables } from "@/integrations/supabase/types";
 import type { Event } from "@/hooks/useEvents";
 import {
-  BusinessError, EMPTY_OVERVIEW, businessError, rpc,
+  businessError, rpc,
   type AdminRequest, type BusinessOffer, type BusinessOverview, type BusinessPlace, type BusinessStats,
   type BusinessStory, type ClaimInfo, type MemberRole, type Permission, type PlacePatch, type StoryLink, type Team,
 } from "@/lib/business";
-
-const missingFunction = (e: unknown) =>
-  e instanceof BusinessError && (e.code === "PGRST202" || /could not find the function/i.test(e.message));
 
 // ── Vad jag sköter ──────────────────────────────────────────────────────────
 
@@ -29,15 +26,7 @@ export function useBusinessOverview() {
   return useQuery({
     queryKey: ["business", "overview"],
     staleTime: 30_000,
-    queryFn: async () => {
-      try {
-        return await rpc<BusinessOverview>("business_overview");
-      } catch (e) {
-        // Innan migration 046 körts finns inget att visa
-        if (missingFunction(e)) return EMPTY_OVERVIEW;
-        throw e;
-      }
-    },
+    queryFn: () => rpc<BusinessOverview>("business_overview"),
   });
 }
 

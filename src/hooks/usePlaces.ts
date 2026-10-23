@@ -49,35 +49,19 @@ function normalizePlaces(places: Tables<"places">[]): Place[] {
   return places.map((place) => normalizePlace(place, now));
 }
 
-/**
- * Kolumnerna från företagsportalen (migration 046). Har migrationen inte körts än saknas de, och då
- * hämtas platserna utan dem i stället för att appen slutar visa platser.
- */
+/** Det företagen själva sköter i Mitt företag: tillfälliga öppettider, smaker, och om platsen tagits om hand */
 const PORTAL_COLUMNS = ", hours_exceptions, tastes, claim_link_hidden, is_business";
-let portalColumns = true;
-
-export async function selectPlaces<T>(
-  run: (extra: string) => PromiseLike<{ data: T | null; error: { code?: string } | null }>,
-): Promise<{ data: T | null; error: { code?: string } | null }> {
-  if (portalColumns) {
-    const res = await run(PORTAL_COLUMNS);
-    if (res.error?.code !== "42703") return res;
-    portalColumns = false;
-  }
-  return run("");
-}
 
 const LIST_COLUMNS =
-  "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, phone, email, website_url, facebook_url, instagram_url, book_url, price_level, checkin_enabled, amenities, transit_stop_name";
+  "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, phone, email, website_url, facebook_url, instagram_url, book_url, price_level, checkin_enabled, amenities, transit_stop_name" + PORTAL_COLUMNS;
 const SEARCH_COLUMNS =
-  "id, name, categories, sub_category, lat, lng, image_url, opening_hours, nearest_town, short_description, price_level";
+  "id, name, categories, sub_category, lat, lng, image_url, opening_hours, nearest_town, short_description, price_level" + PORTAL_COLUMNS;
 
 export function usePlaces() {
   return useQuery({
     queryKey: ["places"],
     queryFn: async () => {
-      const { data, error } = await selectPlaces((extra) =>
-        supabase.from("places").select(LIST_COLUMNS + extra).order("name"));
+      const { data, error } = await supabase.from("places").select(LIST_COLUMNS).order("name");
       if (error) throw error;
       return normalizePlaces(data as unknown as Tables<"places">[]);
     },
@@ -90,18 +74,16 @@ export function useSearchPlaces(searchQuery: string) {
     queryKey: ["places", "search", searchQuery],
     queryFn: async () => {
       if (!searchQuery.trim()) {
-        const { data, error } = await selectPlaces((extra) =>
-          supabase.from("places").select(SEARCH_COLUMNS + extra).order("name"));
+        const { data, error } = await supabase.from("places").select(SEARCH_COLUMNS).order("name");
         if (error) throw error;
         return normalizePlaces(data as unknown as Tables<"places">[]);
       }
 
       const sanitized = searchQuery.replace(/[%_\\(),.]/g, (c) => `\\${c}`);
-      const { data, error } = await selectPlaces((extra) =>
-        supabase
-          .from("places")
-          .select(SEARCH_COLUMNS + extra)
-          .or(`name.ilike.%${sanitized}%,description.ilike.%${sanitized}%,short_description.ilike.%${sanitized}%,categories.ilike.%${sanitized}%`));
+      const { data, error } = await supabase
+        .from("places")
+        .select(SEARCH_COLUMNS)
+        .or(`name.ilike.%${sanitized}%,description.ilike.%${sanitized}%,short_description.ilike.%${sanitized}%,categories.ilike.%${sanitized}%`);
       if (error) throw error;
 
       const places = normalizePlaces(data as unknown as Tables<"places">[]);

@@ -79,8 +79,6 @@ export interface BusinessOverview {
   admin: number | null;
 }
 
-export const EMPTY_OVERVIEW: BusinessOverview = { places: [], invites: [], requests: [], admin: null };
-
 /** Platsen som den ligger i databasen, utan appens omräkningar (portalen ändrar ju just det) */
 export interface BusinessPlace {
   id: number;
