@@ -103,7 +103,9 @@ const shownCategory = (item: FavItem) =>
 
 function useFavoritesDetailed() {
   return useQuery<FavItem[]>({
-    queryKey: ["favorites-detail"],
+    // Under "favorites": när ett hjärta trycks någon annanstans (platssidan, Hem, Kalender …) och
+    // de säger till om ["favorites"] hämtas den här listan också på nytt
+    queryKey: ["favorites", "detail"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -209,8 +211,8 @@ export default function FavoritesScreen() {
       setTimeout(() => queryClient.invalidateQueries({ queryKey: ["favorites"] }), 450);
     }
     if (toggledRef.current.size === 0) return;
-    queryClient.setQueryData<FavItem[]>(["favorites-detail"], (old) => old?.filter((i) => !toggledRef.current.has(i.key)));
-    queryClient.invalidateQueries({ queryKey: ["favorites-detail"], refetchType: "none" });
+    queryClient.setQueryData<FavItem[]>(["favorites", "detail"], (old) => old?.filter((i) => !toggledRef.current.has(i.key)));
+    queryClient.invalidateQueries({ queryKey: ["favorites", "detail"], refetchType: "none" });
   }, [queryClient]);
 
   // Platser är sidor, evenemang öppnas i panelen (med samma hjärta som kortet här)
