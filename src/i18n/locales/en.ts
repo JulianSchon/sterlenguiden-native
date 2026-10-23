@@ -985,4 +985,9 @@ export const en: typeof sv = {
     continue: "Continue", offersOne: "The place has 1 active offer", offersOther: "The place has {{count}} active offers",
     createMemory: "Create a memory", done: "Done",
   },
+  news: {
+    title: "NEWS", back: "Back", share: "Share",
+    missingTitle: "We can't find this story", missingText: "It may have been removed, or you're offline right now.",
+    aboutPlace: "Read more about the place", readMore: "Read more",
+  },
 };

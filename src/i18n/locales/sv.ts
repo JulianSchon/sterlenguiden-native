@@ -988,4 +988,9 @@ export const sv = {
     continue: "Fortsätt", offersOne: "Platsen har 1 aktivt erbjudande", offersOther: "Platsen har {{count}} aktiva erbjudanden",
     createMemory: "Skapa minne", done: "Klar",
   },
+  news: {
+    title: "NYHET", back: "Tillbaka", share: "Dela",
+    missingTitle: "Vi hittar inte nyheten", missingText: "Den kan ha tagits bort, eller så är du utan nät just nu.",
+    aboutPlace: "Läs mer om platsen", readMore: "Läs mer",
+  },
 };

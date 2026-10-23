@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image as ExpoImage } from "expo-image";
 import { ArrowLeft, ArrowUpRight, ChevronRight, MapPin, Newspaper } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { useNewsItem, type NewsItem } from "@/hooks/useNews";
 import { useTheme } from "@/theme/ThemeProvider";
 import { formatDate } from "@/i18n/dates";
@@ -62,6 +63,7 @@ export default function NewsScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { data: fetched, isError } = useNewsItem(id ?? null);
   // Finns nyheten redan i listan som Hem hämtat visas den direkt
   const cached = useMemo(() => {
@@ -94,12 +96,12 @@ export default function NewsScreen() {
     <View style={[s.screen, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
       {/* Samma rubrik som de andra undersidorna */}
       <View style={s.header}>
-        <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={() => router.back()}>
+        <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={() => router.back()} accessibilityLabel={t("news.back")}>
           <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: colors.text }]}>NYHET</Text>
+        <Text style={[s.headerTitle, { color: colors.text }]}>{t("news.title")}</Text>
         {item && (
-          <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={share}>
+          <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={share} accessibilityLabel={t("news.share")}>
             <ShareIcon size={20} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
         )}
@@ -109,8 +111,8 @@ export default function NewsScreen() {
         isError ? (
           <View style={s.center}>
             <Newspaper size={34} color={colors.faint} strokeWidth={1.6} />
-            <Text style={[s.missingTitle, { color: colors.text }]}>Vi hittar inte nyheten</Text>
-            <Text style={[s.missingText, { color: colors.muted }]}>Den kan ha tagits bort, eller så är du utan nät just nu.</Text>
+            <Text style={[s.missingTitle, { color: colors.text }]}>{t("news.missingTitle")}</Text>
+            <Text style={[s.missingText, { color: colors.muted }]}>{t("news.missingText")}</Text>
           </View>
         ) : (
           <View style={{ paddingHorizontal: GUTTER, gap: 12, paddingTop: 8 }} pointerEvents="none">
@@ -156,7 +158,7 @@ export default function NewsScreen() {
                       <MapPin size={18} color={colors.text} strokeWidth={2} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[s.linkLabel, { color: colors.muted }]}>Läs mer om platsen</Text>
+                      <Text style={[s.linkLabel, { color: colors.muted }]}>{t("news.aboutPlace")}</Text>
                       <Text style={[s.linkTitle, { color: colors.text }]} numberOfLines={1}>{item.place.name}</Text>
                     </View>
                     <ChevronRight size={18} color={colors.faint} strokeWidth={2} />
@@ -168,7 +170,7 @@ export default function NewsScreen() {
                     <View style={[s.linkIcon, { backgroundColor: colors.fill }]}>
                       <ArrowUpRight size={18} color={colors.text} strokeWidth={2} />
                     </View>
-                    <Text style={[s.linkTitle, { flex: 1, color: colors.text }]} numberOfLines={1}>{item.link_label ?? "Läs mer"}</Text>
+                    <Text style={[s.linkTitle, { flex: 1, color: colors.text }]} numberOfLines={1}>{item.link_label ?? t("news.readMore")}</Text>
                     <ChevronRight size={18} color={colors.faint} strokeWidth={2} />
                   </TouchableOpacity>
                 )}

@@ -985,4 +985,9 @@ export const de: typeof sv = {
     continue: "Weiter", offersOne: "Der Ort hat 1 aktives Angebot", offersOther: "Der Ort hat {{count}} aktive Angebote",
     createMemory: "Erinnerung erstellen", done: "Fertig",
   },
+  news: {
+    title: "NEUIGKEIT", back: "Zurück", share: "Teilen",
+    missingTitle: "Wir finden diese Neuigkeit nicht", missingText: "Sie wurde vielleicht entfernt, oder du bist gerade offline.",
+    aboutPlace: "Mehr über den Ort", readMore: "Mehr lesen",
+  },
 };
