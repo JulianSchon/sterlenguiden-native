@@ -42,7 +42,9 @@ import {
   Store, Sun, Ticket, UtensilsCrossed, X, type LucideIcon,
 } from "lucide-react-native";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
-import { sv } from "date-fns/locale";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate } from "@/i18n/dates";
 import { fetchEvents, type Event } from "@/hooks/useEvents";
 import { saveEventFavorite } from "@/hooks/useFavorites";
 import { useEventSheetRequest, type EventSheetRequest } from "@/lib/eventSheet";
@@ -84,22 +86,22 @@ function dateLong(e: Event): string {
   if (e.end_date && e.end_date > e.date) {
     const end = parseISO(e.end_date);
     const sameMonth = start.getMonth() === end.getMonth();
-    return `${format(start, sameMonth ? "d" : "d MMMM", { locale: sv })} – ${format(end, "d MMMM yyyy", { locale: sv })}`;
+    return `${formatDate(start, sameMonth ? "d" : "d MMMM")}${sameMonth && i18n.language === "de" ? "." : ""} – ${formatDate(end, "d MMMM yyyy")}`;
   }
-  return cap(format(start, "EEEE d MMMM yyyy", { locale: sv }));
+  return cap(formatDate(start, i18n.language === "de" ? "EEEE, d MMMM yyyy" : "EEEE d MMMM yyyy"));
 }
 
-/** "I dag", "I morgon", "Om 4 dagar", "Pågår nu", "Har varit" */
-function relativeDay(e: Event): string | null {
+/** "I dag", "I morgon", "Om 4 dagar", "Pågår nu", "Har varit". live = i dag eller pågår (orange) */
+function relativeDay(e: Event): { text: string; live: boolean } | null {
   if (!e.date) return null;
   const now = new Date();
   const toStart = differenceInCalendarDays(parseISO(e.date), now);
   const toEnd = differenceInCalendarDays(parseISO(lastDay(e) ?? e.date), now);
-  if (toEnd < 0) return "Har varit";
-  if (toStart < 0) return "Pågår nu";
-  if (toStart === 0) return "I dag";
-  if (toStart === 1) return "I morgon";
-  if (toStart <= 13) return `Om ${toStart} dagar`;
+  if (toEnd < 0) return { text: i18n.t("calendar.sheet.past"), live: false };
+  if (toStart < 0) return { text: i18n.t("calendar.sheet.ongoing"), live: true };
+  if (toStart === 0) return { text: i18n.t("calendar.sheet.today"), live: true };
+  if (toStart === 1) return { text: i18n.t("calendar.sheet.tomorrow"), live: false };
+  if (toStart <= 13) return { text: i18n.t("calendar.sheet.inDays", { count: toStart }), live: false };
   return null;
 }
 
@@ -110,6 +112,7 @@ export function EventSheetHost() {
   const reduceMotion = useReducedMotion();
   const settled = useAppSettled();
   const request = useEventSheetRequest();
+  const { t } = useTranslation();
   const sheetH = Math.round(winH * 0.9);
   const heroH = Math.round(width * 0.78);
 
@@ -313,12 +316,12 @@ export function EventSheetHost() {
     if (!e) return;
     const link = e.ticket_url ?? e.website_url;
     const lines = [
-      "Följ med?",
+      i18n.t("calendar.sheet.shareInvite"),
       e.title,
       [eventWhen(e), e.location ?? e.place?.name].filter(Boolean).join(" · "),
       link,
       "",
-      "Hittat i Österlenappen",
+      i18n.t("calendar.sheet.shareFooter"),
     ].filter((l) => l !== null && l !== undefined) as string[];
     Share.share({ message: lines.join("\n") }).catch(() => {});
   }, []);
@@ -407,14 +410,14 @@ export function EventSheetHost() {
           <View style={{ flex: 1 }}>
             <PressableScale style={s.calBtn} scale={0.97} onPress={addToCalendar}>
               <CalendarPlus size={20} color={BG} strokeWidth={2} />
-              <Text style={s.calText}>Lägg till i kalender</Text>
+              <Text style={s.calText}>{t("calendar.sheet.addToCalendar")}</Text>
             </PressableScale>
           </View>
           <View style={s.roundBtn}>
             {/* Nytt hjärta för varje event, så det inte tonar från förra eventets läge */}
             <HeartButton key={shown?.request.key ?? 0} isFav={saved} onToggle={toggleSave} onBurst={showBurst} size={22} list="saved" />
           </View>
-          <Pressable onPress={pressX} hitSlop={6} accessibilityLabel="Stäng">
+          <Pressable onPress={pressX} hitSlop={6} accessibilityLabel={t("calendar.sheet.close")}>
             <Reanimated.View style={[s.roundBtn, xBtnStyle]}>
               <Reanimated.View style={xIconStyle}>
                 <X size={20} color={FG} strokeWidth={2} />
@@ -454,6 +457,7 @@ function HeroImage({ uri, onReady }: { uri: string | null; onReady: () => boolea
 }
 
 const HeroText = memo(function HeroText({ event, onShare }: { event: Event; onShare: () => void }) {
+  const { t } = useTranslation();
   return (
     <>
       <DateBox event={event} style={s.heroDate} />
@@ -461,12 +465,12 @@ const HeroText = memo(function HeroText({ event, onShare }: { event: Event; onSh
         <View style={{ flex: 1, gap: 10, alignItems: "flex-start" }}>
           {event.is_featured && (
             <View style={s.featured}>
-              <Text style={s.featuredText}>UTVALT</Text>
+              <Text style={s.featuredText}>{t("calendar.sheet.featured")}</Text>
             </View>
           )}
           <Text style={s.title} numberOfLines={3}>{event.title}</Text>
         </View>
-        <PressableScale style={s.shareBtn} scale={0.9} onPress={onShare} accessibilityLabel="Dela med en vän">
+        <PressableScale style={s.shareBtn} scale={0.9} onPress={onShare} accessibilityLabel={t("calendar.sheet.share")}>
           <ShareIcon size={19} color={FG} strokeWidth={2} />
         </PressableScale>
       </View>
@@ -483,6 +487,7 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
   onOpenMaps: () => void;
   onPartReady: (key: number) => boolean;
 }) {
+  const { t } = useTranslation();
   const place = event.place ?? null;
   const websiteHost = event.website_url
     ? event.website_url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0]
@@ -492,15 +497,15 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
   // Fyra snabba fakta, varje sak sagd i klartext. Det som saknas står kvar, nedtonat
   const facts: { Icon: LucideIcon; label: string; has: boolean }[] = [
     event.booking_required
-      ? { Icon: CalendarCheck, label: "Bokning krävs", has: true }
+      ? { Icon: CalendarCheck, label: t("calendar.sheet.booking"), has: true }
       : event.tickets_required
-        ? { Icon: Ticket, label: "Biljett krävs", has: true }
-        : { Icon: Ticket, label: "Fri entré", has: true },
+        ? { Icon: Ticket, label: t("calendar.sheet.ticket"), has: true }
+        : { Icon: Ticket, label: t("calendar.sheet.free"), has: true },
     event.is_indoor
-      ? { Icon: Home, label: "Inomhus", has: true }
-      : { Icon: Sun, label: "Utomhus", has: true },
-    { Icon: UtensilsCrossed, label: event.has_food_drink ? "Mat & dryck" : "Ingen servering", has: !!event.has_food_drink },
-    { Icon: Car, label: event.has_parking ? "Parkering" : "Ingen parkering", has: !!event.has_parking },
+      ? { Icon: Home, label: t("calendar.sheet.indoor"), has: true }
+      : { Icon: Sun, label: t("calendar.sheet.outdoor"), has: true },
+    { Icon: UtensilsCrossed, label: t(event.has_food_drink ? "calendar.sheet.food" : "calendar.sheet.noFood"), has: !!event.has_food_drink },
+    { Icon: Car, label: t(event.has_parking ? "calendar.sheet.parking" : "calendar.sheet.noParking"), has: !!event.has_parking },
   ];
   const releaseAt = event.tickets_release_at ? new Date(event.tickets_release_at) : null;
   const ticketState: "buy" | "soldOut" | "release" | null =
@@ -529,29 +534,29 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
               )
               : <Store size={20} color={FG} strokeWidth={2} />}
             title={place.name}
-            sub="Arrangör"
+            sub={t("calendar.sheet.organizer")}
             onPress={onGoToPlace}
           />
         ) : websiteHost ? (
           <InfoRow
             icon={<Globe size={20} color={FG} strokeWidth={2} />}
             title={websiteHost}
-            sub="Arrangörens webbplats"
+            sub={t("calendar.sheet.organizerSite")}
             onPress={() => Linking.openURL(event.website_url!).catch(() => {})}
           />
         ) : null}
         <InfoRow
           icon={<CalendarDays size={20} color={FG} strokeWidth={2} />}
           title={dateLong(event)}
-          sub={[event.time, relative].filter(Boolean).join("  ·  ") || null}
-          subLive={relative === "I dag" || relative === "Pågår nu"}
+          sub={[event.time, relative?.text].filter(Boolean).join("  ·  ") || null}
+          subLive={relative?.live}
           last={!hasAddress}
         />
         {hasAddress && (
           <InfoRow
             icon={<MapPin size={20} color={FG} strokeWidth={2} />}
             title={event.location ?? place!.name}
-            sub="Visa på kartan"
+            sub={t("calendar.sheet.showOnMap")}
             onPress={onOpenMaps}
             last
           />
@@ -577,16 +582,16 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
         >
           <Ticket size={18} color={ticketState === "buy" ? GOLD_LT : MUTED} strokeWidth={2.2} />
           <Text style={[s.ticketText, ticketState !== "buy" && { color: MUTED }]}>
-            {ticketState === "buy" ? "Köp biljett"
-              : ticketState === "soldOut" ? "Slutsålt"
-              : `Biljettsläpp ${format(releaseAt!, "d MMM 'kl.' HH:mm", { locale: sv }).replace(".", "")}`}
+            {ticketState === "buy" ? t("calendar.sheet.buy")
+              : ticketState === "soldOut" ? t("calendar.sheet.soldOut")
+              : t("calendar.sheet.release", { date: formatDate(releaseAt!, "d MMM").replace(/\./g, ""), time: format(releaseAt!, "HH:mm") })}
           </Text>
         </PressableScale>
       )}
 
       {!!event.description && (
         <View style={{ marginTop: 30 }}>
-          <Text style={s.sectionTitle}>Om evenemanget</Text>
+          <Text style={s.sectionTitle}>{t("calendar.sheet.about")}</Text>
           <Text style={s.aboutText}>{event.description.trim()}</Text>
         </View>
       )}

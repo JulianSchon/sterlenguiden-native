@@ -11,7 +11,8 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Reanimated, { ZoomIn, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { Heart } from "lucide-react-native";
-import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from "date-fns";
+import { addDays, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from "date-fns";
+import { formatDate } from "@/i18n/dates";
 import type { Event } from "@/hooks/useEvents";
 import { dayKey } from "@/lib/events";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
@@ -20,7 +21,9 @@ const BG = "#121212";
 const FG = "#F5F1E8";
 const GOLD = "#C5A059";
 const RED = "#EF4444";
-const WEEKDAYS = ["MÅN", "TIS", "ONS", "TOR", "FRE", "LÖR", "SÖN"];
+/** MÅN … SÖN / MON … SUN / MO … SO — från en måndag (5 jan 2026) och sex dagar fram */
+const weekdays = () => Array.from({ length: 7 }, (_, i) =>
+  formatDate(addDays(new Date(2026, 0, 5), i), "EEE").replace(/\./g, "").slice(0, 3).toUpperCase());
 /** Ringarna (idag, vald dag) ligger så här mycket utanför bildcirkeln */
 const RING_GAP = 3;
 
@@ -46,7 +49,7 @@ export function MonthCalendar({
   return (
     <View style={{ width: cell * 7, alignSelf: "center" }}>
       <View style={s.weekRow}>
-        {WEEKDAYS.map((w) => <Text key={w} style={[s.weekday, { width: cell }]}>{w}</Text>)}
+        {weekdays().map((w) => <Text key={w} style={[s.weekday, { width: cell }]}>{w}</Text>)}
       </View>
       <View style={s.grid}>
         {Array.from({ length: offset }, (_, i) => <View key={`blank-${i}`} style={{ width: cell, height: cell }} />)}

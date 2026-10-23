@@ -58,10 +58,17 @@ export function dateBadge(e: Pick<Event, "date" | "end_date">): { day: string; m
   };
 }
 
-/** Eventkategorierna företagen väljer bland */
+/** Eventkategorierna företagen väljer bland (värdet i databasen) */
 export const EVENT_CATEGORIES = [
   "Musik", "Matupplevelse", "Konst & Kultur", "Marknad", "Familj", "Natur", "Guidning", "Hälsa & Välmående", "Övrigt",
 ];
+const EVENT_CATEGORY_KEY: Record<string, string> = {
+  "Musik": "musik", "Matupplevelse": "mat", "Konst & Kultur": "konst", "Marknad": "marknad", "Familj": "familj",
+  "Natur": "natur", "Guidning": "guidning", "Hälsa & Välmående": "halsa", "Övrigt": "ovrigt",
+};
+/** Kategorins namn på appens språk */
+export const eventCategoryLabel = (category: string) =>
+  EVENT_CATEGORY_KEY[category] ? i18n.t(`calendar.cats.${EVENT_CATEGORY_KEY[category]}` as "calendar.cats.musik") : category;
 
 /** Vilka platskategorier ett event "hör ihop med" — så besök och favoriter säger vad man gillar */
 const EVENT_TO_PLACE: Record<string, CategoryId[]> = {

@@ -10,5 +10,8 @@ export const dateLocale = () => LOCALES[currentLanguage()];
 
 /** formatDate(new Date(), "d MMMM yyyy") → "24 september 2026" / "24 September 2026" / "24. September 2026" */
 export function formatDate(date: Date | string | number, pattern: string): string {
-  return format(new Date(date), pattern, { locale: LOCALES[currentLanguage()] });
+  const lang = currentLanguage();
+  // På tyska har dagen en punkt före månaden
+  const p = lang === "de" ? pattern.replace(/\bd (?=M)/g, "d. ") : pattern;
+  return format(new Date(date), p, { locale: LOCALES[lang] });
 }

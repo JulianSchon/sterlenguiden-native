@@ -24,7 +24,9 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { CalendarHeart, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { addMonths, format, max as maxDate, min as minDate, parseISO, startOfMonth } from "date-fns";
-import { sv } from "date-fns/locale";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate } from "@/i18n/dates";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { saveEventFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
@@ -33,7 +35,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useKnownLocation } from "@/hooks/useUserLocation";
 import { registerScrollCallback } from "@/lib/scrollRefs";
 import {
-  EVENT_CATEGORIES, dayKey, eventDays, lastDay, likedCategories, liveReason, recommendEvents, type EventPick,
+  EVENT_CATEGORIES, dayKey, eventCategoryLabel, eventDays, lastDay, likedCategories, liveReason, recommendEvents, type EventPick,
 } from "@/lib/events";
 import { openEvent } from "@/lib/eventSheet";
 import { EventHeroCard, EventRow } from "@/components/events/EventCards";
@@ -52,9 +54,9 @@ const GOLD = "#C5A059";
 const GOLD_LT = "#E8C674";
 
 type Mode = "foryou" | "all";
-const MODES: { id: Mode; label: string }[] = [
-  { id: "foryou", label: "För dig" },
-  { id: "all", label: "Alla" },
+const MODES: { id: Mode; readonly label: string }[] = [
+  { id: "foryou", get label() { return i18n.t("calendar.forYou"); } },
+  { id: "all", get label() { return i18n.t("calendar.all"); } },
 ];
 /** Så många visas på "För dig" — resten finns i kalendern */
 const FOR_YOU_MAX = 12;
@@ -65,6 +67,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
+  const { i18n: { language } } = useTranslation();
   const [mode, setMode] = useState<Mode>("foryou");
 
   const { data: events = [], isLoading } = useEvents();
@@ -121,7 +124,9 @@ export default function CalendarScreen() {
     categoryCounts: likedCategories(places, visitedPlaceIds, favoritePlaceIds, profile?.interests ?? []),
     location,
     ownPlaceIds,
-  }).slice(0, FOR_YOU_MAX), [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location, profile?.interests, ownPlaceIds]);
+  }).slice(0, FOR_YOU_MAX),
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- språket: skälen skrivs om på det nya språket
+  [events, places, favoritePlaceIds, serverSaved, visitedPlaceIds, location, profile?.interests, ownPlaceIds, language]);
 
   // Eventets panel: får eventet direkt (ingen väntan) och sidans eget sparat-läge
   const eventsRef = useRef(events);
@@ -312,12 +317,10 @@ function ForYouView({
         <View style={s.emptyIcon}>
           <CalendarHeart size={28} color={GOLD} strokeWidth={1.5} />
         </View>
-        <Text style={s.emptyTitle}>Lugnt på Österlen just nu</Text>
-        <Text style={s.emptyText}>
-          Inga kommande event än. När företagen lägger ut nya hamnar de som passar dig här.
-        </Text>
+        <Text style={s.emptyTitle}>{i18n.t("calendar.quietTitle")}</Text>
+        <Text style={s.emptyText}>{i18n.t("calendar.quietText")}</Text>
         <TouchableOpacity style={s.emptyBtn} onPress={onShowAll}>
-          <Text style={s.emptyBtnText}>Se kalendern</Text>
+          <Text style={s.emptyBtnText}>{i18n.t("calendar.seeCalendar")}</Text>
         </TouchableOpacity>
       </Reanimated.View>
     );
@@ -332,9 +335,9 @@ function ForYouView({
     >
       {/* Samma hälsning som Förmåner: namnet, och en rad i guld om vad som väntar */}
       <Reanimated.View entering={enterAt(0)}>
-        <Text style={s.greeting} numberOfLines={1}>{firstName ? `Hej ${firstName}` : "Hej"}</Text>
+        <Text style={s.greeting} numberOfLines={1}>{firstName ? i18n.t("calendar.hiName", { name: firstName }) : i18n.t("calendar.hi")}</Text>
         <Text style={s.greetingLine} numberOfLines={1} adjustsFontSizeToFit>
-          {picks.length === 1 ? "Det här tror vi du gillar" : `${picks.length} saker vi tror du gillar`}
+          {picks.length === 1 ? i18n.t("calendar.pickOne") : i18n.t("calendar.pickMany", { count: picks.length })}
         </Text>
       </Reanimated.View>
 
@@ -352,7 +355,7 @@ function ForYouView({
       {rest.length > 0 && (
         <>
           <Reanimated.View entering={enterAt(2)}>
-            <Text style={s.sectionTitle}>Mer för dig</Text>
+            <Text style={s.sectionTitle}>{i18n.t("calendar.more")}</Text>
           </Reanimated.View>
           <View style={{ gap: 12 }}>
             {rest.map((p, i) => (
@@ -391,16 +394,16 @@ function ForYouSkeleton() {
 
 // ─── Alla ─────────────────────────────────────────────────────────────────────
 
-const CATEGORY_LABELS = ["Alla kategorier", ...EVENT_CATEGORIES];
-
 function AllEventsView({
   scrollRef, loading, events, savedIds, bottomPad, onOpen, onToggleSave, onBurst,
 }: ListProps & { events: Event[] }) {
   const { width, height } = useWindowDimensions();
+  const { i18n: { language } } = useTranslation();
   const today = dayKey(new Date());
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<string | null>(null);
   const [catIndex, setCatIndex] = useState(0);
+  const categoryLabels = [i18n.t("calendar.allCategories"), ...EVENT_CATEGORIES.map(eventCategoryLabel)];
   const matches = useCallback(
     (e: Event) => catIndex === 0 || e.main_category === EVENT_CATEGORIES[catIndex - 1],
     [catIndex],
@@ -478,7 +481,7 @@ function AllEventsView({
     cur.showList();
   }, []);
 
-  const monthName = format(month, "LLLL", { locale: sv });
+  const monthName = formatDate(month, "LLLL");
   const isThisMonth = monthKey === format(thisMonth, "yyyy-MM");
 
   return (
@@ -500,7 +503,7 @@ function AllEventsView({
               style={s.todayBtn}
               onPress={() => { Haptics.selectionAsync().catch(() => {}); setMonth(thisMonth); setSelected(null); }}
             >
-              <Text style={s.todayText}>Idag</Text>
+              <Text style={s.todayText}>{i18n.t("calendar.today")}</Text>
             </TouchableOpacity>
           )}
           <ArrowButton dir={-1} disabled={!canStep(-1)} onPress={() => step(-1)} />
@@ -526,7 +529,7 @@ function AllEventsView({
       <View style={{ marginTop: 20 }}>
         <CategoryHeader
           index={catIndex}
-          labels={CATEGORY_LABELS}
+          labels={categoryLabels}
           onStep={(dir) => { Haptics.selectionAsync().catch(() => {}); setCatIndex((i) => i + dir); }}
           palette={darkColors}
         />
@@ -534,7 +537,7 @@ function AllEventsView({
 
       <View onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }} style={{ marginTop: 6 }}>
         <Text style={s.sectionTitle}>
-          {selected ? cap(format(parseISO(selected), "EEEE d MMMM", { locale: sv })) : `Hela ${monthName}`}
+          {selected ? cap(formatDate(parseISO(selected), i18n.t("calendar.dayTitle"))) : i18n.t("calendar.wholeMonth", { month: monthName })}
         </Text>
 
         {loading ? (
@@ -545,8 +548,11 @@ function AllEventsView({
           <Reanimated.View key={`none-${selected ?? monthKey}`} entering={FadeIn.duration(200)}>
             <Text style={s.none}>
               {selected
-                ? "Inget händer den här dagen."
-                : catIndex > 0 ? `Inga event inom ${CATEGORY_LABELS[catIndex].toLowerCase()} i ${monthName}.` : `Inga event i ${monthName} än.`}
+                ? i18n.t("calendar.nothingDay")
+                : catIndex > 0
+                  // Tyska substantiv har stor bokstav, så bara svenska och engelska skriver kategorin med liten
+                  ? i18n.t("calendar.nothingCat", { month: monthName, category: language === "de" ? categoryLabels[catIndex] : categoryLabels[catIndex].toLowerCase() })
+                  : i18n.t("calendar.nothingMonth", { month: monthName })}
             </Text>
           </Reanimated.View>
         ) : (
@@ -578,7 +584,7 @@ function ArrowButton({ dir, disabled, onPress }: { dir: 1 | -1; disabled: boolea
       disabled={disabled}
       onPress={onPress}
       hitSlop={6}
-      accessibilityLabel={dir === 1 ? "Nästa månad" : "Föregående månad"}
+      accessibilityLabel={i18n.t(dir === 1 ? "calendar.nextMonth" : "calendar.prevMonth")}
     >
       <Icon size={20} color={FG} strokeWidth={2} />
     </TouchableOpacity>

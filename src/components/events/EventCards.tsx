@@ -12,6 +12,7 @@
  * gör att "För dig" känns personlig.
  */
 import { memo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Reanimated, {
   Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
@@ -58,6 +59,7 @@ interface CardProps {
 const where = (e: Event) => e.location ?? e.place?.name ?? null;
 
 export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved, onOpen, onToggleSave, onBurst }: CardProps) {
+  useTranslation(); // datumen på appens språk
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(event.id)}>
       <View style={s.heroImage}>
@@ -79,6 +81,7 @@ export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved,
 });
 
 export const EventRow = memo(function EventRow({ event, reason, saved, past, onOpen, onToggleSave, onBurst }: CardProps) {
+  useTranslation(); // datumen på appens språk
   const place = where(event);
   return (
     <TouchableOpacity style={[s.row, past && { opacity: 0.55 }]} activeOpacity={0.9} onPress={() => onOpen(event.id)}>
