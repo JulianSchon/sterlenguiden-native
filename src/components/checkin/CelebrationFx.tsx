@@ -15,6 +15,7 @@ import Svg, { Circle, Defs, LinearGradient, Polygon, RadialGradient, Rect, Stop 
 import * as Haptics from "expo-haptics";
 import { PressableScale } from "@/components/PressableScale";
 import { playSound } from "@/lib/sounds";
+import i18n from "i18next";
 
 export const INK = "#EBC870";
 export const GOLD = "#E9C46A";
@@ -362,7 +363,7 @@ export function PassStamp({ size, date }: { size: number; date: string }) {
           style={{ width: size * 0.2, height: size * 0.23, tintColor: INK, marginBottom: 3 }}
           resizeMode="contain"
         />
-        <Text style={[s.stampTitle, { fontSize: size * 0.135 }]}>BESÖKT</Text>
+        <Text style={[s.stampTitle, { fontSize: size * 0.135 }]}>{i18n.t("checkin.stamp")}</Text>
         <Text style={[s.stampDate, { fontSize: size * 0.072 }]}>{date}</Text>
       </View>
     </View>

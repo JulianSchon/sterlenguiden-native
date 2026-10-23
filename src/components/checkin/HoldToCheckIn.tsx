@@ -17,6 +17,7 @@ import Reanimated, {
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { playSound } from "@/lib/sounds";
+import i18n from "i18next";
 
 const GOLD = "#C9A24C";
 const GOLD_LT = "#F0D48A";
@@ -27,7 +28,7 @@ const HOLD_MS = 1500;
 const TICKS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 
 export function HoldToCheckIn({
-  onStart, onComplete, disabled = false, label = "Håll inne — Jag är här!",
+  onStart, onComplete, disabled = false, label = i18n.t("checkin.hold"),
 }: { onStart?: () => void; onComplete: () => void; disabled?: boolean; label?: string }) {
   const progress = useSharedValue(0);
   const [width, setWidth] = useState(0);
@@ -62,7 +63,7 @@ export function HoldToCheckIn({
     shadowOpacity: interpolate(progress.value, [0, 1], [0.32, 0.7]),
     shadowRadius: interpolate(progress.value, [0, 1], [7, 15]),
   }));
-  const text = holding ? "Håll kvar…" : label;
+  const text = holding ? i18n.t("checkin.holding") : label;
 
   return (
     <Reanimated.View style={[s.glow, glowStyle, disabled && { opacity: 0.6 }]}>

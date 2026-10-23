@@ -24,8 +24,9 @@ import Reanimated, {
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
+import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
+import { findCategory } from "@/theme/categories";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { formatClock } from "@/lib/checkin";
 import { playSound } from "@/lib/sounds";
@@ -39,6 +40,11 @@ const ARRIVAL_MS = 1500;
 function ordinal(n: number): string {
   const last = n % 10;
   const lastTwo = n % 100;
+  if (i18n.language === "de") return `${n}.`;
+  if (i18n.language === "en") {
+    const suffix = lastTwo >= 11 && lastTwo <= 13 ? "th" : last === 1 ? "st" : last === 2 ? "nd" : last === 3 ? "rd" : "th";
+    return `${n}${suffix}`;
+  }
   return `${n}:${(last === 1 || last === 2) && lastTwo !== 11 && lastTwo !== 12 ? "a" : "e"}`;
 }
 
@@ -65,9 +71,9 @@ export function StampScene({
   const cardH = cardW * 1.32;
   const image = firstImageUrl(place.image_url);
   const logo = firstImageUrl(place.logo_url);
-  const meta = [place.nearest_town, place.category?.split(",")[0]?.trim()].filter(Boolean).join("  ·  ");
+  const meta = [place.nearest_town, findCategory(place.category)?.label ?? place.category?.split(",")[0]?.trim()].filter(Boolean).join("  ·  ");
   const [now] = useState(() => new Date());
-  const stampDate = format(now, "d MMM yyyy", { locale: sv }).toUpperCase();
+  const stampDate = formatDate(now, "d MMM yyyy").toUpperCase();
 
   // Ankomst
   const arrive = useSharedValue(0);
@@ -246,7 +252,7 @@ export function StampScene({
     transform: [{ translateY: interpolate(sub.value, [0, 1], [12, 0]) }],
   }));
 
-  const lastVisitText = lastVisitAt ? `Senast här ${format(new Date(lastVisitAt), "d MMM", { locale: sv })}` : null;
+  const lastVisitText = lastVisitAt ? i18n.t("checkin.lastHere", { date: formatDate(lastVisitAt, "d MMM") }) : null;
 
   return (
     <View style={s.root} pointerEvents="none">
@@ -298,12 +304,12 @@ export function StampScene({
 
       <View style={s.texts}>
         <Reanimated.Text style={[s.headline, headlineStyle]}>
-          {firstVisit ? "Första besöket!" : "Välkommen tillbaka"}
+          {i18n.t(firstVisit ? "checkin.firstVisit" : "checkin.welcomeBack")}
         </Reanimated.Text>
         <Reanimated.Text style={[s.sub, subStyle]}>
           {firstVisit
-            ? `Stämplad idag kl ${formatClock(now)}`
-            : [`Ditt ${ordinal(visitNumber)} besök här`, lastVisitText].filter(Boolean).join("  ·  ")}
+            ? i18n.t("checkin.stampedAt", { time: formatClock(now) })
+            : [i18n.t("checkin.nthVisit", { nth: ordinal(visitNumber) }), lastVisitText].filter(Boolean).join("  ·  ")}
         </Reanimated.Text>
       </View>
 

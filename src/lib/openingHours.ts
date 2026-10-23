@@ -213,7 +213,6 @@ export function upcomingExceptions(list: HoursException[] | null | undefined, da
     .sort((a, b) => a.from.localeCompare(b.from));
 }
 
-const MONTHS = ["januari", "februari", "mars", "april", "maj", "juni", "juli", "augusti", "september", "oktober", "november", "december"];
 const dayOfIso = (iso: string) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
 
 /** "i dag", "i morgon", "24 juni", "1–14 juli", "28 juni–3 juli" */
@@ -222,26 +221,27 @@ function exceptionDates(ex: HoursException, now = new Date()): string {
   const to = dayOfIso(ex.to);
   if (ex.from === ex.to && !ex.yearly) {
     const diff = Math.round((from.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86_400_000);
-    if (diff === 0) return "i dag";
-    if (diff === 1) return "i morgon";
-    return `${from.getDate()} ${MONTHS[from.getMonth()]}`;
+    if (diff === 0) return i18n.t("time.today");
+    if (diff === 1) return i18n.t("time.tomorrow");
+    return formatDate(from, "d MMMM");
   }
   return from.getMonth() === to.getMonth()
-    ? `${from.getDate()}–${to.getDate()} ${MONTHS[to.getMonth()]}`
-    : `${from.getDate()} ${MONTHS[from.getMonth()]}–${to.getDate()} ${MONTHS[to.getMonth()]}`;
+    ? `${from.getDate()}${i18n.language === "de" ? "." : ""}–${formatDate(to, "d MMMM")}`
+    : `${formatDate(from, "d MMMM")}–${formatDate(to, "d MMMM")}`;
 }
 
 /** Raden för platssidan: "Stängt i dag · Sjukdom", "Öppet 10–15 i morgon", "Sommartider 15 juni–15 augusti" */
 export function exceptionLine(ex: HoursException, now = new Date()): string {
   const when = exceptionDates(ex, now);
   const label = ex.label?.trim();
-  if (ex.closed) return `Stängt ${when}${label ? ` · ${label}` : ""}`;
+  const note = label ? ` · ${label}` : "";
+  if (ex.closed) return i18n.t("hours.exClosed", { when }) + note;
   if (ex.hours) {
     const d = parseDay(ex.hours);
     const text = Array.isArray(d) ? d.map((r) => `${clock(r.from)}–${clock(r.to)}`).join(", ") : ex.hours;
-    return `Öppet ${text} ${when}${label ? ` · ${label}` : ""}`;
+    return i18n.t("hours.exOpen", { hours: text, when }) + note;
   }
-  return `${label || "Andra tider"} ${when}`;
+  return `${label || i18n.t("hours.exOther")} ${when}`;
 }
 
 interface WeekRow {
@@ -253,6 +253,12 @@ interface WeekRow {
   today: boolean;
 }
 
+/** Veckodagens namn på appens språk (DAY_NAMES är nycklarna i databasen). 4 jan 2026 är en söndag */
+const dayName = (day: number) => {
+  const name = formatDate(new Date(2026, 0, 4 + day), "EEEE");
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
 /** Veckans rader, måndag först. Tomt om platsen inte angett några öppettider alls */
 export function weekRows(hours: Hours, now = new Date()): WeekRow[] {
   if (!hours || !DAY_NAMES.some((d) => hours[d]?.trim())) return [];
@@ -260,12 +266,12 @@ export function weekRows(hours: Hours, now = new Date()): WeekRow[] {
     const raw = hours[DAY_NAMES[day]]?.trim() ?? "";
     const parsed = parseDay(raw);
     const text = parsed === "closed"
-      ? "Stängt"
+      ? i18n.t("hours.closed")
       : parsed === null
         ? raw || "–"
         : parsed.length === 1 && parsed[0].from === 0 && parsed[0].to >= DAY
-          ? "Dygnet runt"
+          ? i18n.t("hours.roundClock")
           : parsed.map((r) => `${clock(r.from)}–${clock(r.to)}`).join(", ");
-    return { day, name: DAY_NAMES[day], text, today: day === now.getDay() };
+    return { day, name: dayName(day), text, today: day === now.getDay() };
   });
 }

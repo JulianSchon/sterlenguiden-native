@@ -28,6 +28,7 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { CheckInCelebration, type CelebrationExit, type CelebrationState } from "./CheckInCelebration";
 import { HoldToCheckIn } from "./HoldToCheckIn";
+import i18n from "i18next";
 
 export function CheckInSection({ place }: { place: Place }) {
   // Saknar platsen koordinater kan GPS inte avgöra något (QR-kod kommer senare)
@@ -81,13 +82,13 @@ export function CheckInSection({ place }: { place: Place }) {
       freshLocation.current = null;
       if (fresh.status !== "ready") {
         setCelebration(null);
-        setMessage("Kunde inte hämta din plats. Försök igen.");
+        setMessage(i18n.t("checkin.noLocation"));
         return;
       }
       const d = distanceMeters(fresh.lat, fresh.lng, place.lat!, place.lng!);
       if (d > CHECKIN_RADIUS_M) {
         setCelebration(null);
-        setMessage(`Du verkar vara ${formatDistance(d)} bort. Kom närmare och försök igen.`);
+        setMessage(i18n.t("checkin.tooFarDistance", { distance: formatDistance(d) }));
         return;
       }
       const visit = await checkIn.mutateAsync({ placeId: place.id, lat: fresh.lat, lng: fresh.lng });
@@ -96,12 +97,12 @@ export function CheckInSection({ place }: { place: Place }) {
       setCelebration(null);
       setMessage(
         e instanceof CheckInCooldownError
-          ? "Du har redan checkat in här nyligen."
+          ? i18n.t("checkin.cooldown")
           : e instanceof CheckInTooFarError
-            ? "Du verkar vara för långt bort. Kom närmare och försök igen."
+            ? i18n.t("checkin.tooFar")
           : __DEV__ && e instanceof Error
             ? `Något gick fel: ${e.message}` // tekniskt fel syns bara under utveckling
-            : "Något gick fel. Försök igen."
+            : i18n.t("checkin.failed")
       );
     } finally {
       setBusy(false);
@@ -112,7 +113,7 @@ export function CheckInSection({ place }: { place: Place }) {
   // skärmen, så man aldrig skymtar platssidan på vägen
   const handleCelebrationNavigate = (exit: CelebrationExit) => {
     if (exit === "offers") router.push("/offers");
-    else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: `Besök på ${place.name}` } });
+    else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: i18n.t("checkin.memoryTitle", { place: place.name }) } });
     else router.push(`/place/${exit.placeId}?from=checkin`);
   };
 
@@ -132,8 +133,8 @@ export function CheckInSection({ place }: { place: Place }) {
         <View style={s.row}>
           <View style={s.iconCircle}><CheckCircle2 size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Besök registrerat</Text>
-            <Text style={s.sub}>Du kan checka in här igen efter {formatClock(blockedUntil)}</Text>
+            <Text style={s.title}>{i18n.t("checkin.registered")}</Text>
+            <Text style={s.sub}>{i18n.t("checkin.againAfter", { time: formatClock(blockedUntil) })}</Text>
           </View>
         </View>
       </View>
@@ -146,12 +147,12 @@ export function CheckInSection({ place }: { place: Place }) {
         <View style={s.row}>
           <View style={s.iconCircle}><MapPin size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Slå på platstjänster</Text>
-            <Text style={s.sub}>Appen behöver veta var du är för att du ska kunna checka in.</Text>
+            <Text style={s.title}>{i18n.t("checkin.turnOn")}</Text>
+            <Text style={s.sub}>{i18n.t("checkin.turnOnText")}</Text>
           </View>
         </View>
         <TouchableOpacity style={s.buttonGrey} activeOpacity={0.8} onPress={() => Linking.openSettings()}>
-          <Text style={s.buttonGreyText}>Öppna inställningar</Text>
+          <Text style={s.buttonGreyText}>{i18n.t("checkin.openSettings")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -161,12 +162,12 @@ export function CheckInSection({ place }: { place: Place }) {
         <View style={s.row}>
           <View style={s.iconCircle}><MapPin size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Kunde inte hämta din plats</Text>
-            <Text style={s.sub}>Kontrollera att platstjänster är påslagna.</Text>
+            <Text style={s.title}>{i18n.t("checkin.noFix")}</Text>
+            <Text style={s.sub}>{i18n.t("checkin.noFixText")}</Text>
           </View>
         </View>
         <TouchableOpacity style={s.buttonGrey} activeOpacity={0.8} onPress={handleRecheck}>
-          <Text style={s.buttonGreyText}>{busy ? "Kollar…" : "Försök igen"}</Text>
+          <Text style={s.buttonGreyText}>{i18n.t(busy ? "checkin.checking" : "checkin.retry")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -176,8 +177,8 @@ export function CheckInSection({ place }: { place: Place }) {
         <View style={s.row}>
           <View style={s.iconCircle}><MapPin size={22} color={colors.goldText} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Du är på plats</Text>
-            <Text style={s.sub}>Registrera ditt besök här</Text>
+            <Text style={s.title}>{i18n.t("checkin.here")}</Text>
+            <Text style={s.sub}>{i18n.t("checkin.hereText")}</Text>
           </View>
         </View>
         <HoldToCheckIn
@@ -197,12 +198,12 @@ export function CheckInSection({ place }: { place: Place }) {
         <View style={s.row}>
           <View style={s.iconCircle}><MapPin size={22} color={colors.faint} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>Du är {formatDistance(distance)} bort</Text>
-            <Text style={s.sub}>Kom närmare för att kunna checka in</Text>
+            <Text style={s.title}>{i18n.t("checkin.distance", { distance: formatDistance(distance) })}</Text>
+            <Text style={s.sub}>{i18n.t("checkin.closer")}</Text>
           </View>
         </View>
         <TouchableOpacity style={s.buttonGrey} activeOpacity={0.8} onPress={handleRecheck}>
-          <Text style={s.buttonGreyText}>{busy ? "Kollar…" : "Jag är här!"}</Text>
+          <Text style={s.buttonGreyText}>{i18n.t(busy ? "checkin.checking" : "checkin.imHere")}</Text>
         </TouchableOpacity>
         {message && <Text style={s.message}>{message}</Text>}
       </View>

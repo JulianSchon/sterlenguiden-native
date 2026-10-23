@@ -29,6 +29,7 @@ import { trackDirections, trackPlaceLink } from "@/lib/placeTracking";
 import { ShareIcon } from "@/components/ShareIcon";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 import { GUTTER } from "./PlaceSections";
+import i18n from "i18next";
 
 export const TOP_BAR_H = 60;
 /** Glascirklarna i toppraden */
@@ -76,7 +77,7 @@ export function BackButton() {
   const router = useRouter();
   const dark = useTheme().scheme === "dark";
   return (
-    <RoundButton label="Tillbaka" onPress={() => router.back()}>
+    <RoundButton label={i18n.t("place.back")} onPress={() => router.back()}>
       <ArrowLeft size={24} color={glassFg(dark)} strokeWidth={2.2} />
     </RoundButton>
   );
@@ -110,10 +111,10 @@ export const TopBar = memo(function TopBar({ place, scrollY, collapseAt, onSave 
         {place.name.toUpperCase()}
       </Reanimated.Text>
       <View style={s.topRight}>
-        <RoundButton label="Dela" onPress={() => sharePlace(place)}>
+        <RoundButton label={i18n.t("place.share")} onPress={() => sharePlace(place)}>
           <ShareIcon size={21} color={glassFg(dark)} strokeWidth={2.2} />
         </RoundButton>
-        <RoundButton label="Spara i lista" onPress={onSave}>
+        <RoundButton label={i18n.t("place.saveToList")} onPress={onSave}>
           <Plus size={26} color={glassFg(dark)} strokeWidth={2.2} />
         </RoundButton>
       </View>
@@ -142,13 +143,13 @@ function primaryAction(place: Place): { label: string; Icon: LucideIcon; onPress
     const cat = findCategory(place.category)?.id;
     const url = place.book_url;
     return {
-      label: cat === "mat-dryck" ? "Boka bord" : cat === "hotell-bb" ? "Boka rum" : "Boka",
+      label: i18n.t(cat === "mat-dryck" ? "place.bookTable" : cat === "hotell-bb" ? "place.bookRoom" : "place.book"),
       Icon: CalendarCheck,
       onPress: () => { trackPlaceLink(place.id, "book"); openWebsite(url); },
     };
   }
   if (place.lat != null && place.lng != null) {
-    return { label: "Hitta hit", Icon: Navigation, onPress: () => { trackDirections(place.id); openDirections(place.lat, place.lng); } };
+    return { label: i18n.t("place.findHere"), Icon: Navigation, onPress: () => { trackDirections(place.id); openDirections(place.lat, place.lng); } };
   }
   return null;
 }
@@ -190,7 +191,7 @@ export const BottomBar = memo(function BottomBar({ place, onBurst }: { place: Pl
         onPress={primary?.onPress ?? (() => sharePlace(place))}
       >
         {primary ? <primary.Icon size={19} color={colors.onGold} strokeWidth={2.3} /> : <ShareIcon size={19} color={colors.onGold} strokeWidth={2.3} />}
-        <Text style={[s.primaryText, { color: colors.onGold }]}>{primary?.label ?? "Dela platsen"}</Text>
+        <Text style={[s.primaryText, { color: colors.onGold }]}>{primary?.label ?? i18n.t("place.sharePlace")}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -6,6 +6,7 @@
  *   skatten på kartan (där den ändå syns), så inget avslöjas som inte redan går att se.
  */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react-native";
 import { Sheet } from "@/components/Sheet";
@@ -24,9 +25,9 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] || name;
 function nameList(people: FriendAtPlace[]): string {
   const names = people.map((p) => firstName(p.name));
   if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} och ${names[1]}`;
+  if (names.length === 2) return i18n.t("place.and", { a: names[0], b: names[1] });
   const rest = names.length - 2;
-  return `${names[0]}, ${names[1]} och ${rest} ${rest === 1 ? "vän" : "vänner"} till`;
+  return i18n.t(rest === 1 ? "place.andMoreOne" : "place.andMoreOther", { a: names[0], b: names[1], count: rest });
 }
 
 /** "12 juni", eller "12 juni 2025" om det inte var i år */
@@ -40,10 +41,10 @@ export function FriendsHere({ friends, onPress }: { friends: FriendAtPlace[]; on
   if (friends.length === 0) return null;
   const visited = friends.filter((f) => f.lastVisit);
   const people = visited.length > 0 ? visited : friends;
-  const title = `${nameList(people)} ${visited.length > 0 ? "har varit här" : "har sparat platsen"}`;
+  const title = i18n.t(visited.length > 0 ? "place.beenHere" : "place.savedHere", { names: nameList(people) });
   const latest = visited[0];
   // Sparat men inte varit här: rubriken säger allt
-  const detail = latest?.lastVisit ? `${firstName(latest.name)} var här ${visitDate(latest.lastVisit)}` : null;
+  const detail = latest?.lastVisit ? i18n.t("place.wasHere", { name: firstName(latest.name), date: visitDate(latest.lastVisit) }) : null;
   return (
     <TouchableOpacity
       style={[s.friends, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -76,7 +77,7 @@ export function FriendsSheet({ visible, friends, onClose, onOpenFriend }: {
 }) {
   const { colors } = useTheme();
   return (
-    <Sheet visible={visible} onClose={onClose} title="Vänner här">
+    <Sheet visible={visible} onClose={onClose} title={i18n.t("place.friendsHere")}>
       <View style={{ gap: 4 }}>
         {friends.map((f) => (
           <TouchableOpacity key={f.userId} style={s.friendRow} activeOpacity={0.7} onPress={() => onOpenFriend(f.userId)}>
@@ -85,8 +86,8 @@ export function FriendsSheet({ visible, friends, onClose, onOpenFriend }: {
               <Text style={[s.friendName, { color: colors.text }]} numberOfLines={1}>{f.name}</Text>
               <Text style={[s.friendsDetail, { color: colors.muted }]} numberOfLines={1}>
                 {f.lastVisit
-                  ? `Var här ${visitDate(f.lastVisit)}${f.visits > 1 ? `  ·  ${f.visits} besök` : ""}`
-                  : "Har sparat platsen"}
+                  ? i18n.t("place.youWereHere", { date: visitDate(f.lastVisit) }) + (f.visits > 1 ? `  ·  ${i18n.t("place.visits", { count: f.visits })}` : "")
+                  : i18n.t("place.savedIt")}
               </Text>
             </View>
             <ChevronRight size={18} color={colors.faint} strokeWidth={2} />

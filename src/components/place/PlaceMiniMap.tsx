@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { useTheme } from "@/theme/ThemeProvider";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE, MAP_IS_STYLEABLE, MAP_PROVIDER } from "@/components/map/mapStyle";
 import { SELECTED_ANCHOR, SELECTED_SIZE, SelectedPin } from "@/components/map/MapPins";
+import i18n from "i18next";
 
 const MINI_MAP_H = 180;
 
@@ -54,7 +55,7 @@ export function PlaceMiniMap({ lat, lng, mount, onPress }: {
       onPress={onPress}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       style={s.wrap}
-      accessibilityLabel="Visa på kartan"
+      accessibilityLabel={i18n.t("place.showOnMap")}
     >
       {!shown && <Skeleton radius={0} style={StyleSheet.absoluteFill} />}
       {mount && (

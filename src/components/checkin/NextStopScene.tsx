@@ -15,6 +15,7 @@ import { formatDistance } from "@/lib/checkin";
 import { LoadingImage } from "@/components/Skeleton";
 import { PressableScale } from "@/components/PressableScale";
 import { GOLD } from "./CelebrationFx";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.6)";
@@ -57,9 +58,9 @@ export function NextStopScene({
   return (
     <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
       <Reanimated.View entering={FadeIn.duration(420)} style={s.header}>
-        <Text style={s.eyebrow}>NÄSTA STOPP</Text>
-        <Text style={s.title}>Vart härnäst?</Text>
-        <Text style={s.sub}>Nära dig, och inte besökta än</Text>
+        <Text style={s.eyebrow}>{i18n.t("checkin.nextStop")}</Text>
+        <Text style={s.title}>{i18n.t("checkin.whereNext")}</Text>
+        <Text style={s.sub}>{i18n.t("checkin.nearUnvisited")}</Text>
       </Reanimated.View>
       {first && (
         <Reanimated.View entering={enter(200)}>
@@ -76,7 +77,7 @@ export function NextStopScene({
 }
 
 function metaText(stop: NextStop) {
-  return [`${formatDistance(stop.distanceM)} härifrån`, stop.categoryLabel].filter(Boolean).join("  ·  ");
+  return [i18n.t("checkin.fromHere", { distance: formatDistance(stop.distanceM) }), stop.categoryLabel].filter(Boolean).join("  ·  ");
 }
 
 function Badges({ stop }: { stop: NextStop }) {
@@ -86,13 +87,13 @@ function Badges({ stop }: { stop: NextStop }) {
       {stop.hasOffer && (
         <View style={[s.badge, s.offerBadge]}>
           <Tag size={11} color="#16120A" strokeWidth={2.4} />
-          <Text style={s.offerText}>Erbjudande</Text>
+          <Text style={s.offerText}>{i18n.t("checkin.offer")}</Text>
         </View>
       )}
       {stop.openNow && (
         <View style={[s.badge, s.openBadge]}>
           <View style={s.openDot} />
-          <Text style={s.openText}>Öppet nu</Text>
+          <Text style={s.openText}>{i18n.t("checkin.openNow")}</Text>
         </View>
       )}
     </View>

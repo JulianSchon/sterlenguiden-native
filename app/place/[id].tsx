@@ -33,8 +33,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
-import { sv } from "date-fns/locale";
+import { parseISO } from "date-fns";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate } from "@/i18n/dates";
 import * as Haptics from "expo-haptics";
 import { ProblemScreen } from "@/components/ProblemScreen";
 import { Bus, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone } from "lucide-react-native";
@@ -286,6 +288,7 @@ const PlaceContent = memo(function PlaceContent({
 }) {
   const router = useRouter();
   const { colors, scheme } = useTheme();
+  const { t } = useTranslation();
   const hoursTint = useHoursColors();
 
   const { data: offers = NO_OFFERS } = useOffers(place.id);
@@ -351,30 +354,30 @@ const PlaceContent = memo(function PlaceContent({
   const copy = useCallback(async (text: string) => {
     const ok = await copyText(text);
     if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    showToast(ok ? "Kopierat" : "Det gick inte att kopiera");
+    showToast(ok ? i18n.t("place.copied") : i18n.t("place.copyFailed"));
   }, [showToast]);
 
   const actions = useMemo((): PlaceAction[] => {
     const out: PlaceAction[] = [];
-    if (place.phone) out.push({ key: "call", label: "Ring", Icon: Phone, onPress: () => { trackPlaceLink(place.id, "phone"); callPhone(place.phone!); } });
-    if (website) out.push({ key: "web", label: "Hemsida", Icon: Globe, onPress: () => { trackPlaceLink(place.id, "website"); openWebsite(website); } });
-    if (hasCoords) out.push({ key: "map", label: "Karta", Icon: MapIcon, onPress: showOnMap });
+    if (place.phone) out.push({ key: "call", label: t("place.call"), Icon: Phone, onPress: () => { trackPlaceLink(place.id, "phone"); callPhone(place.phone!); } });
+    if (website) out.push({ key: "web", label: t("place.website"), Icon: Globe, onPress: () => { trackPlaceLink(place.id, "website"); openWebsite(website); } });
+    if (hasCoords) out.push({ key: "map", label: t("place.map"), Icon: MapIcon, onPress: showOnMap });
     if (place.instagram_url) out.push({ key: "ig", label: "Instagram", Icon: InstagramIcon, onPress: () => { trackPlaceLink(place.id, "instagram"); openExternal(place.instagram_url!); } });
     if (place.facebook_url) out.push({ key: "fb", label: "Facebook", Icon: FacebookIcon, onPress: () => { trackPlaceLink(place.id, "facebook"); openExternal(place.facebook_url!); } });
-    if (place.email) out.push({ key: "mail", label: "E-post", Icon: Mail, onPress: () => { trackPlaceLink(place.id, "email"); sendEmail(place.email!); } });
+    if (place.email) out.push({ key: "mail", label: t("place.email"), Icon: Mail, onPress: () => { trackPlaceLink(place.id, "email"); sendEmail(place.email!); } });
     return out;
-  }, [place, website, hasCoords, showOnMap]);
+  }, [place, website, hasCoords, showOnMap, t]);
 
   // Telefon, e-post och hemsidans namn skrivs ut; Instagram och Facebook bara som namn
   const contact = useMemo((): ContactRow[] => {
     const out: ContactRow[] = [];
-    if (place.phone) out.push({ key: "phone", Icon: Phone, label: "Telefon", value: place.phone, onPress: () => { trackPlaceLink(place.id, "phone"); callPhone(place.phone!); }, onLongPress: () => copy(place.phone!) });
-    if (place.email) out.push({ key: "mail", Icon: Mail, label: "E-post", value: place.email, onPress: () => { trackPlaceLink(place.id, "email"); sendEmail(place.email!); }, onLongPress: () => copy(place.email!) });
-    if (website) out.push({ key: "web", Icon: Globe, label: "Hemsida", value: siteName(website), onPress: () => { trackPlaceLink(place.id, "website"); openWebsite(website); }, onLongPress: () => copy(withProtocol(website)) });
+    if (place.phone) out.push({ key: "phone", Icon: Phone, label: t("place.phone"), value: place.phone, onPress: () => { trackPlaceLink(place.id, "phone"); callPhone(place.phone!); }, onLongPress: () => copy(place.phone!) });
+    if (place.email) out.push({ key: "mail", Icon: Mail, label: t("place.email"), value: place.email, onPress: () => { trackPlaceLink(place.id, "email"); sendEmail(place.email!); }, onLongPress: () => copy(place.email!) });
+    if (website) out.push({ key: "web", Icon: Globe, label: t("place.website"), value: siteName(website), onPress: () => { trackPlaceLink(place.id, "website"); openWebsite(website); }, onLongPress: () => copy(withProtocol(website)) });
     if (place.instagram_url) out.push({ key: "ig", Icon: InstagramIcon, label: "Instagram", onPress: () => { trackPlaceLink(place.id, "instagram"); openExternal(place.instagram_url!); } });
     if (place.facebook_url) out.push({ key: "fb", Icon: FacebookIcon, label: "Facebook", onPress: () => { trackPlaceLink(place.id, "facebook"); openExternal(place.facebook_url!); } });
     return out;
-  }, [place, website, copy]);
+  }, [place, website, copy, t]);
 
   return (
     <View style={{ backgroundColor: colors.bg }}>
@@ -415,7 +418,7 @@ const PlaceContent = memo(function PlaceContent({
 
       {(place.short_description || place.description) && (
         <Rise index={2}>
-          <Section title="Om platsen">
+          <Section title={t("place.about")}>
             <AboutText
               lead={place.description && place.short_description !== place.description ? place.short_description : null}
               body={place.description ?? place.short_description}
@@ -425,7 +428,7 @@ const PlaceContent = memo(function PlaceContent({
       )}
 
       {ticketList.length > 0 && (
-        <Section title="Österlenpasset">
+        <Section title={t("pass.title")}>
           <View style={{ gap: 14 }}>
             {ticketList.map(({ offer, used }, i) => (later ? (
               <Reanimated.View key={offer.id} entering={RISE_IN(i)}>
@@ -445,7 +448,7 @@ const PlaceContent = memo(function PlaceContent({
       )}
 
       {friends.length > 0 && (
-        <Section title="Vänner">
+        <Section title={t("place.friends")}>
           <Reanimated.View entering={RISE_IN(0)}>
             <FriendsHere friends={friends} onPress={() => openSheet("friends")} />
           </Reanimated.View>
@@ -453,13 +456,13 @@ const PlaceContent = memo(function PlaceContent({
       )}
 
       {amenities.length > 0 && (
-        <Section title="Praktiskt">
+        <Section title={t("place.practical")}>
           <Amenities items={amenities} />
         </Section>
       )}
 
       {hasHours && (
-        <Section title="Öppettider">
+        <Section title={t("place.hours")}>
           <PlaceHours hours={hours} showStatus={!isHotel} exceptions={place.hours_exceptions} />
         </Section>
       )}
@@ -471,7 +474,7 @@ const PlaceContent = memo(function PlaceContent({
       )}
 
       {treasure && (
-        <Section title="Skatt i närheten">
+        <Section title={t("place.treasure")}>
           <TreasureHint
             meters={treasure.m}
             found={collected?.has(treasure.c.id) ?? false}
@@ -482,14 +485,14 @@ const PlaceContent = memo(function PlaceContent({
       )}
 
       {contact.length > 0 && (
-        <Section title="Kontakt">
+        <Section title={t("place.contact")}>
           <ContactList rows={contact} />
-          <Text style={[s.hint, { color: colors.faint }]}>Håll inne för att kopiera</Text>
+          <Text style={[s.hint, { color: colors.faint }]}>{t("place.holdToCopy")}</Text>
         </Section>
       )}
 
       {later && nearby.length > 0 && (
-        <Section title="I närheten">
+        <Section title={t("place.nearby")}>
           <NearbyRail items={nearby} onPress={(p) => pushOnce(router, `/place/${p.id}?from=place`)} />
         </Section>
       )}
@@ -497,12 +500,12 @@ const PlaceContent = memo(function PlaceContent({
       <TouchableOpacity style={[s.report, { borderColor: colors.border }]} activeOpacity={0.7} onPress={() => openSheet("report")}>
         <PenLine size={16} color={colors.muted} strokeWidth={2} />
         <Text style={[s.reportText, { color: colors.muted }]}>
-          Stämmer något inte? <Text style={{ color: colors.goldText }}>Tipsa oss</Text>
+          {t("place.reportAsk")} <Text style={{ color: colors.goldText }}>{t("place.reportCta")}</Text>
         </Text>
       </TouchableOpacity>
       {place.info_updated_at && (
         <Text style={[s.updated, { color: colors.faint }]}>
-          Senast uppdaterad {format(parseISO(place.info_updated_at), "d MMMM yyyy", { locale: sv })}
+          {t("place.updated", { date: formatDate(parseISO(place.info_updated_at), "d MMMM yyyy") })}
         </Text>
       )}
       <OwnerLink place={place} />
@@ -517,8 +520,8 @@ function EventsSection({ events }: { events: Event[] }) {
   const [all, setAll] = useState(false);
   return (
     <Section
-      title="Evenemang här"
-      action={events.length > EVENTS_SHOWN ? (all ? "Visa färre" : `Visa alla ${events.length}`) : undefined}
+      title={i18n.t("place.eventsHere")}
+      action={events.length > EVENTS_SHOWN ? (all ? i18n.t("place.showFewer") : i18n.t("place.showAll", { count: events.length })) : undefined}
       onAction={() => setAll((v) => !v)}
     >
       <EventsHere events={all ? events : events.slice(0, EVENTS_SHOWN)} onOpen={(e) => openEvent(e.id, { event: e })} />
@@ -551,20 +554,20 @@ function LocationSection({ place, myKm, mount, heroH, scrollY, onShowOnMap }: {
 
   return (
     <View onLayout={(e) => { y.value = heroH + e.nativeEvent.layout.y; }}>
-      <Section title="Hitta hit">
+      <Section title={i18n.t("place.findHere")}>
         <View style={[s.locCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <PlaceMiniMap lat={place.lat!} lng={place.lng!} mount={mount && near} onPress={onShowOnMap} />
           <View style={s.locInfo}>
             <View style={s.whereRow}>
               <MapPin size={17} color={colors.muted} strokeWidth={2} />
               <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>{place.nearest_town ?? "Österlen"}</Text>
-              {myKm != null && <Text style={[s.whereKm, { color: colors.muted }]}>{distanceLabel(myKm)} från dig</Text>}
+              {myKm != null && <Text style={[s.whereKm, { color: colors.muted }]}>{i18n.t("place.fromYou", { distance: distanceLabel(myKm) })}</Text>}
             </View>
             {!!transit && (
               <View style={s.whereRow}>
                 <Bus size={17} color={colors.muted} strokeWidth={2} />
                 <Text style={[s.whereText, { color: colors.text }]} numberOfLines={1}>
-                  <Text style={{ color: colors.muted }}>Hållplats  </Text>{transit}
+                  <Text style={{ color: colors.muted }}>{i18n.t("place.stop")}  </Text>{transit}
                 </Text>
               </View>
             )}
@@ -575,7 +578,7 @@ function LocationSection({ place, myKm, mount, heroH, scrollY, onShowOnMap }: {
             onPress={() => { trackDirections(place.id); openDirections(place.lat, place.lng); }}
           >
             <Navigation size={17} color={colors.goldText} strokeWidth={2.2} />
-            <Text style={[s.locButtonText, { color: colors.goldText }]}>Vägbeskrivning</Text>
+            <Text style={[s.locButtonText, { color: colors.goldText }]}>{i18n.t("place.directions")}</Text>
           </TouchableOpacity>
         </View>
       </Section>
@@ -600,7 +603,7 @@ function OwnerLink({ place }: { place: Place }) {
       onPress={() => pushOnce(router, mine ? `/business?place=${place.id}` : `/business/claim?place=${place.id}`)}
     >
       <Text style={[s.ownerText, { color: mine ? colors.goldText : colors.faint }]}>
-        {mine ? "Du sköter den här sidan · Mitt företag" : "Är det här ditt företag?"}
+        {i18n.t(mine ? "place.ownerMine" : "place.ownerAsk")}
       </Text>
     </TouchableOpacity>
   );
@@ -651,11 +654,11 @@ function NotFound() {
   return (
     <ProblemScreen
       icon={(color) => <MapPin size={36} color={color} strokeWidth={1.6} />}
-      title="Vi hittar inte den här platsen"
-      text="Den kan ha tagits bort, eller så är du utan nät just nu."
+      title={i18n.t("place.notFoundTitle")}
+      text={i18n.t("place.notFoundText")}
       primary={router.canGoBack()
-        ? { label: "Tillbaka", onPress: () => router.back() }
-        : { label: "Till startsidan", onPress: () => router.replace("/") }}
+        ? { label: i18n.t("place.back"), onPress: () => router.back() }
+        : { label: i18n.t("place.toStart"), onPress: () => router.replace("/") }}
     />
   );
 }

@@ -10,6 +10,7 @@ import { ArrowUpRight, type LucideIcon } from "lucide-react-native";
 import type { IconProps } from "@/components/BrandIcons";
 import { useTheme } from "@/theme/ThemeProvider";
 import { withAlpha } from "@/theme/categories";
+import i18n from "i18next";
 
 export const GUTTER = 16;
 
@@ -125,7 +126,7 @@ export function AboutText({ lead, body }: { lead: string | null; body: string | 
           </Reanimated.View>
           {long && (
             <TouchableOpacity onPress={() => setOpen((o) => !o)} hitSlop={10} style={s.more}>
-              <Text style={[s.moreText, { color: colors.goldText }]}>{open ? "Visa mindre" : "Läs mer"}</Text>
+              <Text style={[s.moreText, { color: colors.goldText }]}>{i18n.t(open ? "place.readLess" : "place.readMore")}</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -24,8 +24,6 @@ import Reanimated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react-native";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { isPlaceOpen, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useVisits } from "@/hooks/useVisits";
 import { useOffers } from "@/hooks/useOffers";
@@ -43,6 +41,8 @@ import { ClimbScene, MAX_PASSED, type ClimbData } from "./ClimbScene";
 import { NextStopScene, type NextStop } from "./NextStopScene";
 import { holdTrophyMoments, markTrophiesCelebrated } from "@/lib/trophyMoments";
 import { useOnModalShown } from "@/hooks/useOnModalShown";
+import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
 
 export interface CelebrationState {
   /** "pending" medan servern bekräftar — kortet hinner resa sig under tiden */
@@ -131,7 +131,7 @@ export function CheckInCelebration({
   const [month, setMonth] = useState<{ before: LeaderboardEntry | null; after: LeaderboardEntry | null; rows: LeaderboardEntry[] }>();
   const [advancing, setAdvancing] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const monthName = format(new Date(), "LLLL", { locale: sv });
+  const monthName = formatDate(new Date(), "LLLL");
 
   const backdrop = useSharedValue(0);
   const leave = useSharedValue(0);
@@ -301,7 +301,7 @@ export function CheckInCelebration({
     if (!isLast) {
       return (
         <Reveal show>
-          <GoldButton label="Fortsätt" onPress={goNext} />
+          <GoldButton label={i18n.t("checkin.continue")} onPress={goNext} />
         </Reveal>
       );
     }
@@ -311,17 +311,17 @@ export function CheckInCelebration({
           <Reveal show delay={0}>
             <PressableScale style={s.offer} scale={0.98} onPress={() => exitTo("offers")}>
               <Text style={s.offerText}>
-                {placeOffers.length === 1 ? "Platsen har 1 aktivt erbjudande" : `Platsen har ${placeOffers.length} aktiva erbjudanden`}
+                {placeOffers.length === 1 ? i18n.t("checkin.offersOne") : i18n.t("checkin.offersOther", { count: placeOffers.length })}
               </Text>
               <ChevronRight size={18} color={GOLD} strokeWidth={2} />
             </PressableScale>
           </Reveal>
         )}
         <Reveal show delay={80}>
-          <GoldButton label="Skapa minne" onPress={() => exitTo("memory")} />
+          <GoldButton label={i18n.t("checkin.createMemory")} onPress={() => exitTo("memory")} />
         </Reveal>
         <Reveal show delay={180}>
-          <GhostButton label="Klar" onPress={() => exitTo()} />
+          <GhostButton label={i18n.t("checkin.done")} onPress={() => exitTo()} />
         </Reveal>
       </>
     );

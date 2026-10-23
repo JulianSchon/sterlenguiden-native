@@ -24,6 +24,8 @@ import { RadialGlow, TrophyMedal } from "@/components/trophies/TrophyMedal";
 import type { Trophy } from "@/lib/achievements";
 import { playSound } from "@/lib/sounds";
 import { Confetti, FillBar, FlipNumber, GOLD, RollingNumber } from "./CelebrationFx";
+import i18n from "i18next";
+import { decimal } from "@/i18n/numbers";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.58)";
@@ -70,7 +72,18 @@ type Box = { y: number; h: number };
 
 const HERO_GLOW = 150;
 
-const formatTenths = (n: number) => `${(n / 10).toFixed(1).replace(".", ",")} %`;
+/** "5:e" / "5th" / "5." */
+function ordinalOf(n: number): string {
+  if (i18n.language === "de") return `${n}.`;
+  const last = n % 10;
+  const lastTwo = n % 100;
+  if (i18n.language === "en") {
+    return `${n}${lastTwo >= 11 && lastTwo <= 13 ? "th" : last === 1 ? "st" : last === 2 ? "nd" : last === 3 ? "rd" : "th"}`;
+  }
+  return `${n}:${(last === 1 || last === 2) && lastTwo !== 11 && lastTwo !== 12 ? "a" : "e"}`;
+}
+
+const formatTenths = (n: number) => `${decimal(n / 10)} %`;
 
 export function ProgressScene({
   hero, category, items, skip, onReady,
@@ -140,7 +153,7 @@ export function ProgressScene({
       onScroll={(e) => { view.current.scrollY = e.nativeEvent.contentOffset.y; }}
       scrollEventThrottle={32}
     >
-      <Text style={s.eyebrow}>DITT BESÖK</Text>
+      <Text style={s.eyebrow}>{i18n.t("checkin.yourVisit")}</Text>
       {hero && <HeroCounter hero={hero} rollAt={plan.heroRollAt} milestone={plan.milestone} skip={skip} />}
       <View style={s.rows} onLayout={(e) => { view.current.rowsY = e.nativeEvent.layout.y; }}>
         {category && (
@@ -226,7 +239,7 @@ function HeroCounter({ hero, rollAt, milestone, skip }: { hero: HeroProgress; ro
         </Reanimated.View>
         {milestone && <Confetti progress={burst} count={40} power={1.15} />}
       </View>
-      <Text style={s.heroLabel}>{hero.total > 0 ? `av ${hero.total} platser upptäckta` : "platser upptäckta"}</Text>
+      <Text style={s.heroLabel}>{hero.total > 0 ? i18n.t("checkin.discoveredOf", { total: hero.total }) : i18n.t("checkin.discovered")}</Text>
       {hero.total > 0 && (
         <View style={s.pctPill}>
           <RollingNumber
@@ -240,12 +253,12 @@ function HeroCounter({ hero, rollAt, milestone, skip }: { hero: HeroProgress; ro
             format={formatTenths}
             onStep={() => Haptics.selectionAsync().catch(() => {})}
           />
-          <Text style={s.pctLabel}> av Österlen utforskat</Text>
+          <Text style={s.pctLabel}>{i18n.t("checkin.explored")}</Text>
         </View>
       )}
       {milestone && (
         <Reanimated.View style={[s.milestoneChip, chipStyle]}>
-          <Text style={s.milestoneText}>Milstolpe — din {hero.to}:e plats!</Text>
+          <Text style={s.milestoneText}>{i18n.t("checkin.milestone", { nth: ordinalOf(hero.to) })}</Text>
         </Reanimated.View>
       )}
     </View>
@@ -263,13 +276,13 @@ function CategoryRow({ cat, timing, skip, onBox }: { cat: CategoryProgress; timi
         </View>
       )}
       title={cat.label}
-      subtitle="Platsens kategori"
+      subtitle={i18n.t("checkin.placeCategory")}
       from={cat.from}
       to={cat.to}
       target={cat.total}
       celebrate={left === 0}
-      chipText="Hela kategorin besökt!"
-      footer={left <= 2 ? `Bara ${left} kvar i kategorin!` : `${left} kvar att upptäcka`}
+      chipText={i18n.t("checkin.categoryDone")}
+      footer={i18n.t(left <= 2 ? "checkin.onlyLeftCategory" : "checkin.leftToDiscover", { count: left })}
       footerHot={left <= 2}
       afterUnlock={null}
       timing={timing}
@@ -292,10 +305,12 @@ function TrophyRow({ item, timing, skip, onBox }: { item: ProgressItem; timing: 
       to={item.to}
       target={item.target}
       celebrate={item.unlocked}
-      chipText={`${t.levelLabel} upplåst!`}
-      footer={left <= 2 ? `Bara ${left} kvar till ${t.levelLabel}!` : `${left} kvar till ${t.levelLabel} · ${t.requirementText}`}
+      chipText={i18n.t("checkin.unlocked", { level: t.levelLabel })}
+      footer={left <= 2
+        ? i18n.t("checkin.onlyLeftLevel", { count: left, level: t.levelLabel })
+        : i18n.t("checkin.leftToLevel", { count: left, level: t.levelLabel, requirement: t.requirementText })}
       footerHot={left <= 2}
-      afterUnlock={item.next ? `Nästa: ${item.next.levelLabel} · ${item.next.requirementText}` : null}
+      afterUnlock={item.next ? i18n.t("checkin.next", { level: item.next.levelLabel, requirement: item.next.requirementText }) : null}
       timing={timing}
       skip={skip}
       onBox={onBox}

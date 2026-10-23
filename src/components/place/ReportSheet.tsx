@@ -11,15 +11,9 @@ import { Check } from "lucide-react-native";
 import { PrimaryButton, SecondaryButton, Sheet, useSheetInput } from "@/components/Sheet";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useReportPlace, type ReportKind } from "@/hooks/useReportPlace";
+import i18n from "i18next";
 
-const KINDS: { id: ReportKind; label: string }[] = [
-  { id: "hours", label: "Öppettiderna" },
-  { id: "contact", label: "Telefon eller länkar" },
-  { id: "photos", label: "Bilderna" },
-  { id: "description", label: "Beskrivningen" },
-  { id: "closed", label: "Platsen har stängt" },
-  { id: "other", label: "Något annat" },
-];
+const KINDS: ReportKind[] = ["hours", "contact", "photos", "description", "closed", "other"];
 
 export function ReportSheet({ visible, placeId, onClose }: {
   visible: boolean; placeId: number; onClose: () => void;
@@ -42,42 +36,42 @@ export function ReportSheet({ visible, placeId, onClose }: {
         onSuccess: () => setSent(true),
         onError: (e) => setError(
           e instanceof Error && e.message === "report_limit"
-            ? "Du har skickat många tips i dag. Försök igen i morgon."
-            : "Det gick inte att skicka just nu. Försök igen om en stund.",
+            ? i18n.t("place.report.tooMany")
+            : i18n.t("place.report.failed"),
         ),
       },
     );
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title={sent ? "Tack!" : "Stämmer något inte?"}>
+    <Sheet visible={visible} onClose={onClose} title={i18n.t(sent ? "place.report.thanks" : "place.report.title")}>
       {sent ? (
         <View style={s.done}>
           <View style={[s.doneIcon, { backgroundColor: colors.goldSoft }]}>
             <Check size={26} color={colors.goldText} strokeWidth={2.4} />
           </View>
           <Text style={[s.text, { color: colors.text, textAlign: "center" }]}>
-            Vi kollar på det och rättar sidan om något är fel.
+            {i18n.t("place.report.thanksText")}
           </Text>
           <View style={{ alignSelf: "stretch" }}>
-            <SecondaryButton label="Stäng" onPress={onClose} />
+            <SecondaryButton label={i18n.t("place.report.close")} onPress={onClose} />
           </View>
         </View>
       ) : (
         <Pressable onPress={Keyboard.dismiss} accessible={false}>
-          <Text style={[s.text, { color: colors.muted }]}>Tipsa oss, så rättar vi det. Vad gäller det?</Text>
+          <Text style={[s.text, { color: colors.muted }]}>{i18n.t("place.report.intro")}</Text>
           <View style={s.kinds}>
             {KINDS.map((k) => {
-              const on = kind === k.id;
+              const on = kind === k;
               return (
                 <TouchableOpacity
-                  key={k.id}
+                  key={k}
                   style={[s.kind, { backgroundColor: on ? colors.goldSoft : colors.fill, borderColor: on ? colors.gold : colors.border }]}
                   activeOpacity={0.75}
-                  onPress={() => { Keyboard.dismiss(); setKind(k.id); }}
+                  onPress={() => { Keyboard.dismiss(); setKind(k); }}
                   accessibilityState={{ selected: on }}
                 >
-                  <Text style={[s.kindText, { color: on ? colors.goldText : colors.text }]}>{k.label}</Text>
+                  <Text style={[s.kindText, { color: on ? colors.goldText : colors.text }]}>{i18n.t(`place.report.${k}`)}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -86,13 +80,13 @@ export function ReportSheet({ visible, placeId, onClose }: {
             style={[input, s.message]}
             value={message}
             onChangeText={setMessage}
-            placeholder="Berätta gärna mer (valfritt)"
+            placeholder={i18n.t("place.report.placeholder")}
             placeholderTextColor={colors.faint}
             multiline
             maxLength={1000}
           />
           {!!error && <Text style={[s.error, { color: colors.danger }]}>{error}</Text>}
-          <PrimaryButton label="Skicka" onPress={send} disabled={!kind} loading={report.isPending} />
+          <PrimaryButton label={i18n.t("place.report.send")} onPress={send} disabled={!kind} loading={report.isPending} />
         </Pressable>
       )}
     </Sheet>

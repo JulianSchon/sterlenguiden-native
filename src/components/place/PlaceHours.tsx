@@ -13,6 +13,7 @@ import { useOpenColors } from "@/components/search/SearchParts";
 import {
   exceptionLine, hoursStatus, upcomingExceptions, weekRows, type HoursException, type HoursState, type Hours,
 } from "@/lib/openingHours";
+import i18n from "i18next";
 
 const ROW_H = 34;
 const EASE = { duration: 260, easing: Easing.out(Easing.cubic) };
@@ -55,14 +56,14 @@ export function PlaceHours({ hours, showStatus, exceptions }: {
     <Pressable
       onPress={() => setOpen((o) => !o)}
       style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-      accessibilityLabel={open ? "Fäll ihop öppettiderna" : "Visa hela veckans öppettider"}
+      accessibilityLabel={i18n.t(open ? "place.hoursCollapse" : "place.hoursExpand")}
     >
       <View style={s.head}>
         <View style={[s.icon, { backgroundColor: colors.fill }]}>
           <Clock size={18} color={status ? tint[status.state] : colors.muted} strokeWidth={2.2} />
         </View>
         <Text style={[s.status, { color: status ? tint[status.state] : colors.text }]} numberOfLines={1}>
-          {status?.label ?? "Öppettider"}
+          {status?.label ?? i18n.t("place.hours")}
         </Text>
         <Reanimated.View style={chevronStyle}>
           <ChevronDown size={20} color={colors.muted} strokeWidth={2.2} />
@@ -75,7 +76,7 @@ export function PlaceHours({ hours, showStatus, exceptions }: {
         {/* Hopfällt: bara i dag */}
         {today && (
           <Reanimated.View style={[s.row, s.todayOnly, todayStyle]} pointerEvents="none">
-            <Text style={[s.day, s.bold, { color: colors.text }]}>I dag, {today.name.toLowerCase()}</Text>
+            <Text style={[s.day, s.bold, { color: colors.text }]}>{i18n.t("place.todayDay", { day: i18n.language === "sv" ? today.name.toLowerCase() : today.name })}</Text>
             <Text style={[s.time, s.bold, { color: todayColor }]} numberOfLines={1}>{today.text}</Text>
           </Reanimated.View>
         )}
@@ -87,7 +88,7 @@ export function PlaceHours({ hours, showStatus, exceptions }: {
                 <Text style={[s.day, { color: r.today ? colors.text : colors.muted }, r.today && s.bold]}>{r.name}</Text>
                 {r.today && (
                   <View style={[s.todayTag, { backgroundColor: colors.fill }]}>
-                    <Text style={[s.todayTagText, { color: colors.muted }]}>I DAG</Text>
+                    <Text style={[s.todayTagText, { color: colors.muted }]}>{i18n.t("place.todayTag")}</Text>
                   </View>
                 )}
               </View>

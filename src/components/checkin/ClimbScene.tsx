@@ -19,6 +19,7 @@ import type { LeaderboardEntry } from "@/hooks/useLeaderboard";
 import { LeaderboardRow, ROW_H } from "@/components/leaderboard/LeaderboardRow";
 import { playSound } from "@/lib/sounds";
 import { GOLD, RollingNumber } from "./CelebrationFx";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.58)";
@@ -46,8 +47,8 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0];
 function daysLeftText(monthName: string): string {
   const now = new Date();
   const left = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
-  if (left === 0) return `Sista dagen i ${monthName}!`;
-  return `${left} ${left === 1 ? "dag" : "dagar"} kvar av ${monthName}`;
+  if (left === 0) return i18n.t("checkin.lastDay", { month: monthName });
+  return i18n.t(left === 1 ? "checkin.daysLeftOne" : "checkin.daysLeftOther", { count: left, month: monthName });
 }
 
 export function ClimbScene({
@@ -75,21 +76,21 @@ export function ClimbScene({
     const gained = wasOn && before.placement != null ? before.placement - after.placement! : 0;
 
     let chip: string | null = null;
-    if (!wasOn) chip = "Ny på topplistan!";
-    else if (gained > 0) chip = `↑ ${gained} ${gained === 1 ? "placering" : "placeringar"}`;
-    else if (passedTotal === 1 && passed[0]) chip = `Du gick om ${firstName(passed[0].name)}!`;
-    else if (passedTotal > 1) chip = `Du gick om ${passedTotal} personer!`;
+    if (!wasOn) chip = i18n.t("checkin.newOnBoard");
+    else if (gained > 0) chip = gained === 1 ? i18n.t("checkin.upOne") : i18n.t("checkin.upMany", { count: gained });
+    else if (passedTotal === 1 && passed[0]) chip = i18n.t("checkin.passedName", { name: firstName(passed[0].name) });
+    else if (passedTotal > 1) chip = i18n.t("checkin.passedMany", { count: passedTotal });
 
     // Vad nästa besök gör
     let gap: string | null = null;
     if (after.placement === 1) {
       const shared = above?.placement === 1 || [...passed, ...tail].some((r) => r.placement === 1);
-      gap = shared ? "Du delar förstaplatsen — 1 besök till så leder du ensam" : `Du leder ${monthName}!`;
+      gap = shared ? i18n.t("checkin.sharedFirst") : i18n.t("checkin.leading", { month: monthName });
     } else if (above) {
       const need = above.value - after.value;
       gap = need > 0
-        ? `${need} besök till så når du plats ${above.placement}`
-        : `1 besök till så går du om ${firstName(above.name)}`;
+        ? i18n.t("checkin.toPlace", { count: need, place: above.placement })
+        : i18n.t("checkin.passNext", { name: firstName(above.name) });
     }
     return { above, passed, tail, wasOn, chip, gap };
   }, [data, before, after, monthName]);
@@ -174,9 +175,9 @@ export function ClimbScene({
   return (
     <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
       <View style={s.header}>
-        <Text style={s.eyebrow}>TOPPLISTAN · {monthName.toUpperCase()}</Text>
+        <Text style={s.eyebrow}>{i18n.t("checkin.board", { month: monthName.toUpperCase() })}</Text>
         <View style={s.placeRow}>
-          <Text style={s.placeLabel}>Plats </Text>
+          <Text style={s.placeLabel}>{i18n.t("checkin.place")}</Text>
           <RollingNumber
             from={before.placement ?? after.placement!}
             to={after.placement!}
@@ -187,7 +188,7 @@ export function ClimbScene({
             align="left"
           />
         </View>
-        <Text style={s.scope}>Hela appen</Text>
+        <Text style={s.scope}>{i18n.t("checkin.wholeApp")}</Text>
         {view.chip && (
           <Reanimated.View style={[s.chip, chipStyle]}>
             <Text style={s.chipText}>{view.chip}</Text>

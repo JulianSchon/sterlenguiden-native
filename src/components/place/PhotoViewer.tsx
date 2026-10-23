@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as ExpoImage } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { X } from "lucide-react-native";
+import i18n from "i18next";
 
 const MAX_ZOOM = 4;
 const TAP_ZOOM = 2.5;
@@ -137,7 +138,7 @@ export function PhotoViewer({ images, start, visible, onClose }: {
               <Text style={s.counterText}>{index + 1} / {images.length}</Text>
             </View>
           ) : <View />}
-          <TouchableOpacity style={s.close} onPress={close} hitSlop={10} accessibilityLabel="Stäng bilderna">
+          <TouchableOpacity style={s.close} onPress={close} hitSlop={10} accessibilityLabel={i18n.t("place.closePhotos")}>
             <X size={22} color="#FFFFFF" strokeWidth={2.2} />
           </TouchableOpacity>
         </Reanimated.View>

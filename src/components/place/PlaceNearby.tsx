@@ -12,6 +12,7 @@ import { distanceLabel } from "@/lib/mapFilters";
 import type { OpenInfo } from "@/lib/search";
 import { CategoryLine, EventResultRow, useOpenColors } from "@/components/search/SearchParts";
 import { GUTTER } from "./PlaceSections";
+import i18n from "i18next";
 
 const NO_TOKENS: string[] = [];
 
@@ -52,7 +53,7 @@ const NearbyCard = memo(function NearbyCard({ item, onPress }: { item: NearbyIte
       <CategoryLine place={item.place} />
       <Text style={s.meta} numberOfLines={1}>
         {item.open && <Text style={{ color: item.open.open ? c.open : c.closed }}>{`${item.open.label}  ·  `}</Text>}
-        <Text style={{ color: colors.faint }}>{`${distanceLabel(item.km)} bort`}</Text>
+        <Text style={{ color: colors.faint }}>{i18n.t("place.away", { distance: distanceLabel(item.km) })}</Text>
       </Text>
     </TouchableOpacity>
   );

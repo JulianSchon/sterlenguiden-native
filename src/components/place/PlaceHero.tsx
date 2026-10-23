@@ -23,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import type { LucideIcon } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import { withAlpha } from "@/theme/categories";
+import i18n from "i18next";
 
 /** Hur hög toningen ner mot bakgrunden är */
 const FADE_H = 130;
@@ -144,7 +145,7 @@ const HeroImage = memo(function HeroImage({ uri, width, height, first, onPress }
 }) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={{ width, height, backgroundColor: colors.fill }} accessibilityLabel="Visa bilden i helskärm">
+    <Pressable onPress={onPress} style={{ width, height, backgroundColor: colors.fill }} accessibilityLabel={i18n.t("place.fullscreen")}>
       <ExpoImage
         source={{ uri }}
         style={StyleSheet.absoluteFill}
