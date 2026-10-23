@@ -19,6 +19,7 @@ import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from "react-na
 import { HeartPulse, MapPin, Plug, Store, Toilet, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import type { CategoryId } from "@/theme/categories";
+import i18n from "i18next";
 
 const GOLD = "#D9A441";
 
@@ -49,11 +50,18 @@ export const PIN_COLORS: Record<CategoryId | "other", string> = {
 };
 
 /** Servicepunkternas typer (type i databasen), i den ordning de visas i filtret */
-export const SERVICE_TYPES: { type: string; key: ServiceKey; label: string; one: string; many: string; Icon: LucideIcon }[] = [
-  { type: "Toalett", key: "toalett", label: "Toaletter", one: "toalett", many: "toaletter", Icon: Toilet },
-  { type: "Laddning", key: "laddning", label: "Laddning", one: "laddstation", many: "laddstationer", Icon: Plug },
-  { type: "AutoMat", key: "automat", label: "AutoMat", one: "AutoMat", many: "AutoMat", Icon: Store },
-  { type: "Vård", key: "vard", label: "Vård", one: "vårdställe", many: "vårdställen", Icon: HeartPulse },
+/** type = värdet i databasen; namnen på appens språk (map.services.*) */
+const service = (type: string, key: ServiceKey, Icon: LucideIcon) => ({
+  type, key, Icon,
+  get label() { return i18n.t(`map.services.${key}.label`); },
+  get one() { return i18n.t(`map.services.${key}.one`); },
+  get many() { return i18n.t(`map.services.${key}.many`); },
+});
+export const SERVICE_TYPES: { type: string; key: ServiceKey; readonly label: string; readonly one: string; readonly many: string; Icon: LucideIcon }[] = [
+  service("Toalett", "toalett", Toilet),
+  service("Laddning", "laddning", Plug),
+  service("AutoMat", "automat", Store),
+  service("Vård", "vard", HeartPulse),
 ];
 type ServiceKey = "toalett" | "laddning" | "automat" | "vard";
 export const serviceType = (type: string) => SERVICE_TYPES.find((t) => t.type.toLowerCase() === type.trim().toLowerCase());

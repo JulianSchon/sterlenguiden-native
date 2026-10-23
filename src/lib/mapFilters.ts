@@ -15,40 +15,29 @@ import {
   Leaf, Palette, ParkingSquare, ShoppingBag, Sun, Trees, UtensilsCrossed, Wifi, Zap,
 } from "lucide-react-native";
 import { isPlaceOpen, type Place } from "@/hooks/usePlaces";
+import i18n from "i18next";
 
 /** Kategorierna i kartans filter — id:na är de svenska namnen som matchas mot platsens categories */
-export const MAP_CATEGORIES: { id: string; label: string; Icon: LucideIcon }[] = [
-  { id: "Mat & Dryck", label: "Mat & Dryck", Icon: UtensilsCrossed },
-  { id: "Café & Bageri", label: "Café & Bageri", Icon: Coffee },
-  { id: "Natur", label: "Natur & Upplevelser", Icon: Trees },
-  { id: "Sevärdhet", label: "Sevärdheter", Icon: Landmark },
-  { id: "Hotell", label: "Hotell & B&B", Icon: BedDouble },
-  { id: "Aktiviteter", label: "Aktiviteter", Icon: Zap },
-  { id: "Butiker", label: "Butiker", Icon: ShoppingBag },
-  { id: "Design", label: "Design & Hantverk", Icon: Palette },
+// Namnet är samma som appens kategori (categories.*), på appens språk
+const mapCat = (id: string, cat: string, Icon: LucideIcon) => ({ id, Icon, get label() { return i18n.t(`categories.${cat}` as "categories.place"); } });
+export const MAP_CATEGORIES: { id: string; readonly label: string; Icon: LucideIcon }[] = [
+  mapCat("Mat & Dryck", "mat-dryck", UtensilsCrossed),
+  mapCat("Café & Bageri", "cafe-bageri", Coffee),
+  mapCat("Natur", "natur-upplevelser", Trees),
+  mapCat("Sevärdhet", "sevardheter", Landmark),
+  mapCat("Hotell", "hotell-bb", BedDouble),
+  mapCat("Aktiviteter", "aktiviteter", Zap),
+  mapCat("Butiker", "butiker", ShoppingBag),
+  mapCat("Design", "hantverk-service", Palette),
 ];
 export const ALL_CATEGORIES_ICON = Layers;
 
 /** Underkategorier för de kategorier som har sådana (visas när exakt den kategorin är vald) */
-export const SUBCATEGORIES: Record<string, { id: string; label: string }[]> = {
-  Aktiviteter: [
-    { id: "barn-familj", label: "Barn & Familj" },
-    { id: "aventyr-sport", label: "Äventyr & Sport" },
-    { id: "kultur-workshop", label: "Kultur & Workshop" },
-    { id: "relax-wellness", label: "Relax & Wellness" },
-  ],
-  Butiker: [
-    { id: "livsmedel-dagligvaror", label: "Livsmedel & Dagligvaror" },
-    { id: "klader-mode", label: "Kläder & Mode" },
-    { id: "hem-inredning", label: "Hem & Inredning" },
-    { id: "sport-fritid", label: "Sport & Fritid" },
-  ],
-  Design: [
-    { id: "ateljeer", label: "Ateljéer" },
-    { id: "gallerier", label: "Gallerier" },
-    { id: "verkstader", label: "Verkstäder" },
-    { id: "inredning-livsstil", label: "Inredning & Livsstil" },
-  ],
+const sub = (id: string) => ({ id, get label() { return i18n.t(`map.sub.${id}` as "map.sub.barn-familj"); } });
+export const SUBCATEGORIES: Record<string, { id: string; readonly label: string }[]> = {
+  Aktiviteter: [sub("barn-familj"), sub("aventyr-sport"), sub("kultur-workshop"), sub("relax-wellness")],
+  Butiker: [sub("livsmedel-dagligvaror"), sub("klader-mode"), sub("hem-inredning"), sub("sport-fritid")],
+  Design: [sub("ateljeer"), sub("gallerier"), sub("verkstader"), sub("inredning-livsstil")],
 };
 
 /** Vad underkategorin matchas mot i platsens categories (gemener, delsträng) */
@@ -68,31 +57,29 @@ const SUB_LABELS: Record<string, string> = {
 };
 
 /** Praktiskt: "öppet nu" räknas ur öppettiderna, resten är platsens egenskaper (kolumnen amenities) */
-export const PRACTICAL: { id: string; label: string; Icon: LucideIcon }[] = [
-  { id: "openNow", label: "Öppet nu", Icon: Clock },
-  { id: "parking", label: "Parkering", Icon: ParkingSquare },
-  { id: "wifi", label: "Wifi", Icon: Wifi },
-  { id: "pets", label: "Hundvänligt", Icon: Dog },
-  { id: "outdoor", label: "Uteservering", Icon: Sun },
-  { id: "accessible", label: "Tillgänglighet", Icon: Accessibility },
-  { id: "family", label: "Barnvänligt", Icon: Baby },
-  { id: "vegetarian", label: "Vegetariskt", Icon: Leaf },
-  { id: "ev", label: "Laddstolpe", Icon: Zap },
-  { id: "booking", label: "Bokning krävs", Icon: CalendarCheck },
+// Samma namn som Söks egenskaper (search.practical.*); "öppet nu" och "bokning" är kartans egna
+const practical = (id: string, Icon: LucideIcon, key: string) => ({ id, Icon, get label() { return i18n.t(key as "map.practical.openNow"); } });
+export const PRACTICAL: { id: string; readonly label: string; Icon: LucideIcon }[] = [
+  practical("openNow", Clock, "map.practical.openNow"),
+  practical("parking", ParkingSquare, "search.practical.parking"),
+  practical("wifi", Wifi, "search.practical.wifi"),
+  practical("pets", Dog, "search.practical.pets"),
+  practical("outdoor", Sun, "search.practical.outdoor"),
+  practical("accessible", Accessibility, "search.practical.accessible"),
+  practical("family", Baby, "search.practical.family"),
+  practical("vegetarian", Leaf, "search.practical.vegetarian"),
+  practical("ev", Zap, "search.practical.ev"),
+  practical("booking", CalendarCheck, "map.practical.booking"),
 ];
 
-export const MINE: { id: "favorites" | "visited"; label: string; Icon: LucideIcon }[] = [
-  { id: "favorites", label: "Favoriter", Icon: Heart },
-  { id: "visited", label: "Besökta platser", Icon: CheckCircle2 },
+export const MINE: { id: "favorites" | "visited"; readonly label: string; Icon: LucideIcon }[] = [
+  { id: "favorites", Icon: Heart, get label() { return i18n.t("map.mine.favorites"); } },
+  { id: "visited", Icon: CheckCircle2, get label() { return i18n.t("map.mine.visited"); } },
 ];
 
 export type TreasureMode = "all" | "unfound" | "only" | "none";
-export const TREASURE_MODES: { id: TreasureMode; label: string }[] = [
-  { id: "all", label: "Alla skatter" },
-  { id: "unfound", label: "Ej hittade" },
-  { id: "only", label: "Bara skatter" },
-  { id: "none", label: "Inga skatter" },
-];
+const mode = (id: TreasureMode) => ({ id, get label() { return i18n.t(`map.treasureModes.${id}`); } });
+export const TREASURE_MODES: { id: TreasureMode; readonly label: string }[] = [mode("all"), mode("unfound"), mode("only"), mode("none")];
 
 export interface MapFilters {
   cats: Set<string>;

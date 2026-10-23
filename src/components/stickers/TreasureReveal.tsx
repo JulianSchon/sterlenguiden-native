@@ -47,11 +47,12 @@ import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } from "@/components/checkin/CelebrationFx";
 import { ChestBase, ChestLid, CHEST_H, CHEST_SEAM_Y, CHEST_W } from "./TreasureChest";
 import { StickerArt } from "./StickerArt";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
 const TAPS = 4;
-const HINTS = ["Tryck på kistan!", "Igen!", "Mer!", "Nästan…!"];
+const hints = () => [i18n.t("treasure.hints.tap"), i18n.t("treasure.hints.again"), i18n.t("treasure.hints.more"), i18n.t("treasure.hints.almost")];
 const SPARKS = ["#FFF1C1", "#F5D88A", "#E9C46A", "#FFFFFF"];
 const DUST = ["#C9B38A", "#A88E62", "#E2D3B0"];
 const BOOM_DELAY = 300;
@@ -228,9 +229,7 @@ export function TreasureReveal({
       })
       .catch((e: Error) => {
         afterLanding(() => {
-          setError(e.message === "too_far"
-            ? "Du är för långt bort. Gå lite närmare och försök igen."
-            : "Det gick inte att öppna kistan. Försök igen.");
+          setError(i18n.t(e.message === "too_far" ? "treasure.tooFar" : "treasure.failed"));
           setTremble(0);
           seam.value = withTiming(0, { duration: 300 });
           glow.value = withTiming(0, { duration: 300 });
@@ -478,7 +477,7 @@ export function TreasureReveal({
 
             {!error && (
               <View style={[s.below, { top: chestY + chestH / 2 + 18 }]} pointerEvents="none">
-                <Reanimated.Text style={[s.hint, hintStyle]}>{HINTS[Math.min(taps, TAPS - 1)]}</Reanimated.Text>
+                <Reanimated.Text style={[s.hint, hintStyle]}>{hints()[Math.min(taps, TAPS - 1)]}</Reanimated.Text>
               </View>
             )}
             {error && (
@@ -488,13 +487,13 @@ export function TreasureReveal({
             )}
             <View style={[s.below, { top: finalY + STICKER / 2 + 12 }]} pointerEvents="none">
               <Reanimated.View style={[s.titleBlock, textStyle]}>
-                <Text style={s.eyebrow}>DU HITTADE EN SKATT!</Text>
+                <Text style={s.eyebrow}>{i18n.t("treasure.youFound")}</Text>
                 <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
               </Reanimated.View>
               <Reanimated.View style={[s.progress, collectionStyle]}>
                 <View style={s.progressTop}>
-                  <Text style={s.progressLabel}>Österlens skatter</Text>
-                  <Text style={s.progressCount}>{haveBefore + 1} av {total}</Text>
+                  <Text style={s.progressLabel}>{i18n.t("treasure.collection")}</Text>
+                  <Text style={s.progressCount}>{i18n.t("treasure.ofTotal", { count: haveBefore + 1, total })}</Text>
                 </View>
                 <FillBar
                   from={haveBefore / Math.max(1, total)}
@@ -513,13 +512,13 @@ export function TreasureReveal({
           <View style={[s.buttons, { height: 118 + bottomPad, paddingBottom: bottomPad }]}>
             {!error && (
               <Reanimated.View style={[s.buttonStack, buttonsStyle]} pointerEvents={ready ? "auto" : "none"}>
-                <GoldButton label="Se i samlingen" onPress={() => exitTo(true)} />
-                <GhostButton label="Fortsätt" onPress={() => exitTo(false)} />
+                <GoldButton label={i18n.t("treasure.seeCollection")} onPress={() => exitTo(true)} />
+                <GhostButton label={i18n.t("treasure.continue")} onPress={() => exitTo(false)} />
               </Reanimated.View>
             )}
             {error && (
               <Reveal show>
-                <GhostButton label="Stäng" onPress={() => exitTo(false)} />
+                <GhostButton label={i18n.t("treasure.close")} onPress={() => exitTo(false)} />
               </Reveal>
             )}
           </View>
@@ -555,14 +554,15 @@ function LeaderRow({ data, opened, skip }: { data: LeaderData | null; opened: bo
   const samePlace = fromPlace === toPlace;
   const isNew = !!data && before?.placement == null;
   const gained = data && !isNew ? fromPlace - toPlace : 0;
-  const chipText = isNew ? "Ny på topplistan!" : gained > 0 ? `↑ ${gained} ${gained === 1 ? "placering" : "placeringar"}` : null;
+  const chipText = isNew ? i18n.t("treasure.newOnBoard")
+    : gained > 0 ? (gained === 1 ? i18n.t("treasure.upOne") : i18n.t("treasure.upMany", { count: gained })) : null;
   let gap: string | null = null;
-  if (after?.placement === 1) gap = "Du leder topplistan!";
+  if (after?.placement === 1) gap = i18n.t("treasure.leading");
   else if (above && after) {
     const need = above.value - after.value;
     gap = need > 0
-      ? `${need} ${need === 1 ? "skatt" : "skatter"} till så når du plats ${above.placement}`
-      : `1 skatt till så går du om ${firstName(above.name)}`;
+      ? i18n.t(need === 1 ? "treasure.toPlaceOne" : "treasure.toPlaceMany", { count: need, place: above.placement })
+      : i18n.t("treasure.passName", { name: firstName(above.name) });
   }
 
   useEffect(() => {
@@ -602,11 +602,11 @@ function LeaderRow({ data, opened, skip }: { data: LeaderData | null; opened: bo
   return (
     <Reanimated.View style={[s.progress, rowStyle]}>
       <View style={s.progressTop}>
-        <Text style={s.progressLabel}>Topplistan · Flest skatter</Text>
-        <Text style={s.progressCount}>{after ? `${after.value} ${after.value === 1 ? "skatt" : "skatter"}` : ""}</Text>
+        <Text style={s.progressLabel}>{i18n.t("treasure.board")}</Text>
+        <Text style={s.progressCount}>{after ? (after.value === 1 ? i18n.t("treasure.countOne") : i18n.t("treasure.countMany", { count: after.value })) : ""}</Text>
       </View>
       <View style={s.placeRow}>
-        <Text style={s.placeLabel}>Plats </Text>
+        <Text style={s.placeLabel}>{i18n.t("treasure.place")}</Text>
         <View>
           {/* Osynlig breddhållare: den bredaste av siffrorna */}
           <Text style={[s.placeValue, { opacity: 0 }]}>{String(Math.max(fromPlace, toPlace))}</Text>

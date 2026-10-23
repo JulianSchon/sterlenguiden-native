@@ -27,6 +27,7 @@ import { findCategory } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { distanceLabel } from "@/lib/mapFilters";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
+import i18n from "i18next";
 
 const GOLD = "#C5A059";
 const IMAGE_H = 230;
@@ -251,12 +252,12 @@ const PlaceCardView = memo(function PlaceCardView({
             <View style={s.meta}>
               <View style={s.metaItem}>
                 <CatIcon size={12} color={GOLD} strokeWidth={2.2} />
-                <Text style={[s.metaText, s.metaCat]} numberOfLines={1}>{category?.label ?? "Plats"}</Text>
+                <Text style={[s.metaText, s.metaCat]} numberOfLines={1}>{category?.label ?? i18n.t("categories.place")}</Text>
               </View>
               {open !== null && (
                 <View style={s.metaItem}>
                   <Clock size={12} color={open ? "#4ADE80" : "#F87171"} strokeWidth={2.2} />
-                  <Text style={[s.metaText, { color: open ? "#4ADE80" : "#F87171" }]}>{open ? "Öppet" : "Stängt"}</Text>
+                  <Text style={[s.metaText, { color: open ? "#4ADE80" : "#F87171" }]}>{i18n.t(open ? "map.open" : "map.closed")}</Text>
                 </View>
               )}
               {birdKm != null && (
@@ -284,11 +285,11 @@ const PlaceCardView = memo(function PlaceCardView({
             disabled={!interactive}
           >
             <Navigation size={16} color={colors.text} strokeWidth={2.2} />
-            <Text style={[s.navText, { color: colors.text }]}>Navigera</Text>
+            <Text style={[s.navText, { color: colors.text }]}>{i18n.t("map.navigate")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.viewBtn} activeOpacity={0.85} onPress={() => onOpen(place)} disabled={!interactive}>
             <LinearGradient colors={["#C5A059", "#B08A3E"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />
-            <Text style={s.viewText}>Visa plats</Text>
+            <Text style={s.viewText}>{i18n.t("map.viewPlace")}</Text>
             <ArrowRight size={16} color="#121212" strokeWidth={2.4} />
           </TouchableOpacity>
         </View>

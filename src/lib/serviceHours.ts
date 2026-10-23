@@ -5,6 +5,8 @@
  * - Vård: "vardagar, lördag, (söndag)", t.ex. "08-15, stängt, (Stängt)".
  */
 
+import i18n from "i18next";
+
 /** "08-15", "8.30–17", "07:00-22:00" */
 const RANGE = /(\d{1,2})(?:[:.](\d{2}))?\s*[-–]\s*(\d{1,2})(?:[:.](\d{2}))?/;
 
@@ -41,9 +43,9 @@ export function careHours(text: string, now = new Date()): DayHours[] | null {
   const todayIndex = day === 0 ? 2 : day === 6 ? 1 : 0;
   const tidy = (s: string) => (/stängt/i.test(s) ? "stängt" : s.replace(/\s*[-–]\s*/, "–"));
   return [
-    { label: "Vardagar", raw: m[1] },
-    { label: "Lördag", raw: m[2] },
-    { label: "Söndag", raw: m[3] },
+    { label: i18n.t("map.weekdays"), raw: m[1] },
+    { label: i18n.t("map.saturday"), raw: m[2] },
+    { label: i18n.t("map.sunday"), raw: m[3] },
   ].map((d, i) => ({
     label: d.label,
     text: tidy(d.raw),

@@ -73,6 +73,8 @@ import { NUMBER_ANCHOR, clusterIcon, numberPinIcon, shuffleDotIcon, systemBoldTy
 import { PlaceCarousel, PLACE_CARD_H, cardIn, cardOut } from "@/components/map/PlaceCard";
 import { MapFilterSheet, activeFilters } from "@/components/map/MapFilterSheet";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE, MAP_IS_STYLEABLE, MAP_PROVIDER } from "@/components/map/mapStyle";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 
 const GOLD = "#C5A059";
 /** Startläge innan positionen är känd: Österlen */
@@ -122,6 +124,7 @@ const pillOut: EntryExitAnimationFunction = () => {
 };
 
 export default function MapScreen() {
+  useTranslation(); // ritas om när språket byts
   const router = useRouter();
   const queryClient = useQueryClient();
   const { sticker: stickerParam, place: placeParam, from: fromMemoryParam } =
@@ -848,8 +851,8 @@ export default function MapScreen() {
   // Filterarkets knapp: det som syns just nu
   const chosenService = filters.service ? serviceType(filters.service) : undefined;
   const applyLabel = chosenService
-    ? `Visa ${shownServices.length} ${shownServices.length === 1 ? chosenService.one : chosenService.many}`
-    : filtered.length === 1 ? "Visa 1 plats" : `Visa ${filtered.length} platser`;
+    ? i18n.t("map.showServices", { count: shownServices.length, what: shownServices.length === 1 ? chosenService.one : chosenService.many })
+    : i18n.t(filtered.length === 1 ? "map.showPlacesOne" : "map.showPlacesOther", { count: filtered.length });
   const pills = activeFilters(filters, lists);
 
   // Ensam vald kategori med underkategorier: dropdown under pillerna
@@ -899,7 +902,7 @@ export default function MapScreen() {
         <View style={s.headerRow} pointerEvents="box-none">
           <FilterButton count={filterCount} dark={dark} onPress={() => { Haptics.selectionAsync().catch(() => {}); setFilterOpen(true); }} />
           <View style={s.titleWrap} pointerEvents="none">
-            <Text style={[s.title, { color: dark ? "#FFFFFF" : "#1A1A1A" }]}>KARTA</Text>
+            <Text style={[s.title, { color: dark ? "#FFFFFF" : "#1A1A1A" }]}>{i18n.t("map.title")}</Text>
             <View style={[s.titleLine, { backgroundColor: dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.25)" }]} />
           </View>
         </View>
@@ -956,7 +959,7 @@ export default function MapScreen() {
               }}
             >
               <ArrowLeft size={14} color={colors.text} strokeWidth={2.2} />
-              <Text style={[s.backToMemoryText, { color: colors.text }]}>Tillbaka till minnet</Text>
+              <Text style={[s.backToMemoryText, { color: colors.text }]}>{i18n.t("map.backToMemory")}</Text>
             </TouchableOpacity>
           )}
           <PlaceCarousel
@@ -1059,7 +1062,7 @@ function FilterButton({ count, dark, onPress }: { count: number; dark: boolean; 
       onPress={onPress}
       onPressIn={() => { press.value = withTiming(0.95, { duration: 90 }); }}
       onPressOut={() => { press.value = withSpring(1, { damping: 14, stiffness: 300 }); }}
-      accessibilityLabel="Filter"
+      accessibilityLabel={i18n.t("map.filter")}
     >
       <Reanimated.View style={[s.filterBtn, pressStyle]}>
         <BlurView
@@ -1124,7 +1127,7 @@ function MapButtons({
           disabled={shuffling}
           onPressIn={() => { press.value = withTiming(0.9, { duration: 90 }); }}
           onPressOut={() => { press.value = withSpring(1, { damping: 12, stiffness: 260 }); }}
-          accessibilityLabel="Visa mig något"
+          accessibilityLabel={i18n.t("map.surprise")}
         >
           <Reanimated.View style={[s.dice, diceStyle]}>
             <LinearGradient colors={["#C5A059", "#A97D33"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 28 }]} />
@@ -1136,7 +1139,7 @@ function MapButtons({
         onPress={onLocate}
         onPressIn={() => { locatePress.value = withTiming(0.95, { duration: 90 }); }}
         onPressOut={() => { locatePress.value = withSpring(1, { damping: 14, stiffness: 300 }); }}
-        accessibilityLabel="Hitta min position"
+        accessibilityLabel={i18n.t("map.locate")}
       >
         <Reanimated.View style={[s.locate, locateStyle, { borderColor: dark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.07)" }]}>
           <BlurView intensity={20} tint={dark ? "dark" : "light"} style={[StyleSheet.absoluteFill, { borderRadius: 28, backgroundColor: dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.75)" }]} />
@@ -1167,8 +1170,8 @@ function SubcategoryDropdown({
     opacity: shown.value,
     transform: [{ translateY: (1 - shown.value) * -6 }, { scale: 0.97 + shown.value * 0.03 }],
   }));
-  const current = options.find((o) => o.id === value)?.label ?? "Alla";
-  const all = [{ id: null as string | null, label: "Alla" }, ...options];
+  const current = options.find((o) => o.id === value)?.label ?? i18n.t("map.all");
+  const all = [{ id: null as string | null, label: i18n.t("map.all") }, ...options];
   const fg = dark ? "rgba(255,255,255,0.85)" : "#1A1A1A";
 
   const choose = (id: string | null) => {
@@ -1258,7 +1261,7 @@ function ServiceCard({
           <Text style={[s.serviceName, { color: colors.text }]} numberOfLines={2}>{point.name}</Text>
           {!!point.address && <Text style={[s.serviceAddr, { color: colors.muted }]} numberOfLines={1}>{point.address}</Text>}
         </View>
-        <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel="Stäng">
+        <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel={i18n.t("map.close")}>
           <X size={18} color={colors.muted} strokeWidth={2} />
         </TouchableOpacity>
       </View>
@@ -1271,13 +1274,13 @@ function ServiceCard({
             onPress={() => Linking.openURL(`tel:${phone.replace(/\s/g, "")}`).catch(() => {})}
           >
             <Phone size={16} color={colors.text} strokeWidth={2.2} />
-            <Text style={[s.serviceBtnText, { color: colors.text }]}>Ring</Text>
+            <Text style={[s.serviceBtnText, { color: colors.text }]}>{i18n.t("map.call")}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={[s.serviceBtn, s.serviceGo]} activeOpacity={0.85} onPress={onNavigate}>
           <LinearGradient colors={["#C5A059", "#B08A3E"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />
           <Navigation size={16} color="#121212" strokeWidth={2.4} />
-          <Text style={[s.serviceBtnText, { color: "#121212", fontFamily: "Inter_700Bold" }]}>Navigera</Text>
+          <Text style={[s.serviceBtnText, { color: "#121212", fontFamily: "Inter_700Bold" }]}>{i18n.t("map.navigate")}</Text>
         </TouchableOpacity>
       </View>
     </Reanimated.View>
@@ -1304,10 +1307,10 @@ function ServiceText({ typeKey, text }: { typeKey: string | undefined; text: str
             return (
               <View key={d.label} style={s.hoursRow}>
                 <Text style={[s.hoursDay, { color: d.today ? colors.text : colors.muted }, d.today && s.hoursToday]}>
-                  {d.label}{d.today ? " (idag)" : ""}
+                  {d.label}{d.today ? ` ${i18n.t("map.today")}` : ""}
                 </Text>
                 <Text style={[s.hoursTime, { color: tint }, d.today && s.hoursToday]}>
-                  {d.text === "stängt" ? "Stängt" : d.text}
+                  {d.text === "stängt" ? i18n.t("map.closed") : d.text}
                 </Text>
               </View>
             );
@@ -1324,7 +1327,7 @@ function ServiceText({ typeKey, text }: { typeKey: string | undefined; text: str
           {parts.before}
           <Text style={[s.hoursToday, { color: parts.open ? OPEN : CLOSED }]}>{parts.range}</Text>
           {parts.after}
-          <Text style={[s.hoursToday, { color: parts.open ? OPEN : CLOSED }]}>{parts.open ? "  · Öppet nu" : "  · Stängt nu"}</Text>
+          <Text style={[s.hoursToday, { color: parts.open ? OPEN : CLOSED }]}>{`  · ${i18n.t(parts.open ? "map.openNow" : "map.closedNow")}`}</Text>
         </Text>
       );
     }

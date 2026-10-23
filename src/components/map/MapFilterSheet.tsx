@@ -24,6 +24,8 @@ import {
   type MapFilters,
 } from "@/lib/mapFilters";
 import { SERVICE_TYPES, serviceType } from "./MapPins";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 
 const GOLD = "#C5A059";
 /** Greppet och rubriken överst i arket (därifrån går arket alltid att dra ner) */
@@ -62,16 +64,16 @@ export function activeFilters(f: MapFilters, lists: ListSummary[]): ActiveFilter
     remove: (x) => ({ ...x, practical: toggled(x.practical, id) }),
   }));
   f.mine.forEach((id) => out.push({
-    key: `m-${id}`, label: id === "favorites" ? "Dina favoriter" : "Besökta platser",
+    key: `m-${id}`, label: id === "favorites" ? i18n.t("map.sheet.yourFavorites") : i18n.t("map.mine.visited"),
     remove: (x) => ({ ...x, mine: toggled(x.mine, id) }),
   }));
   f.listIds.forEach((id) => out.push({
-    key: `l-${id}`, label: lists.find((l) => l.id === id)?.name ?? "Lista",
+    key: `l-${id}`, label: lists.find((l) => l.id === id)?.name ?? i18n.t("map.sheet.list"),
     remove: (x) => ({ ...x, listIds: toggled(x.listIds, id) }),
   }));
   if (f.treasures !== "all") {
     out.push({
-      key: "t", label: TREASURE_MODES.find((t) => t.id === f.treasures)?.label ?? "Skatter",
+      key: "t", label: TREASURE_MODES.find((t) => t.id === f.treasures)?.label ?? i18n.t("map.sheet.treasures"),
       remove: (x) => ({ ...x, treasures: "all" }),
     });
   }
@@ -89,6 +91,7 @@ export function MapFilterSheet({
   applyLabel: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { colors, scheme } = useTheme();
@@ -176,8 +179,8 @@ export function MapFilterSheet({
           <View style={{ flex: 1 }}>
             <View style={[s.grip, { backgroundColor: dark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }]} />
             <View style={s.head}>
-              <Text style={[s.title, { color: colors.text }]}>Filter</Text>
-              <TouchableOpacity style={[s.close, { backgroundColor: colors.fill }]} onPress={onClose} hitSlop={8} accessibilityLabel="Stäng">
+              <Text style={[s.title, { color: colors.text }]}>{t("map.filter")}</Text>
+              <TouchableOpacity style={[s.close, { backgroundColor: colors.fill }]} onPress={onClose} hitSlop={8} accessibilityLabel={t("map.close")}>
                 <X size={16} color={colors.muted} strokeWidth={2.2} />
               </TouchableOpacity>
             </View>
@@ -191,7 +194,7 @@ export function MapFilterSheet({
                 contentContainerStyle={s.body}
               >
                 {active.length > 0 && (
-                  <Section title="Aktiva filter">
+                  <Section title={t("map.sheet.active")}>
                     {active.map((a) => (
                       <Chip key={a.key} label={a.label} on onPress={() => set(a.remove(filters))} />
                     ))}
@@ -199,9 +202,9 @@ export function MapFilterSheet({
                 )}
 
                 <View style={[s.group, serviceOn && s.dim]}>
-                <Section title="Kategorier">
+                <Section title={t("map.sheet.categories")}>
                   <Chip
-                    label="Alla"
+                    label={t("map.all")}
                     Icon={ALL_CATEGORIES_ICON}
                     on={filters.cats.size === 0}
                     onPress={() => setPlaces({ ...filters, cats: new Set(), sub: null })}
@@ -217,7 +220,7 @@ export function MapFilterSheet({
                   ))}
                 </Section>
 
-                <Section title="Praktiskt">
+                <Section title={t("map.sheet.practical")}>
                   {PRACTICAL.map((p) => (
                     <Chip
                       key={p.id}
@@ -229,7 +232,7 @@ export function MapFilterSheet({
                   ))}
                 </Section>
 
-                <Section title="Mina">
+                <Section title={t("map.sheet.mine")}>
                   {MINE.map((m) => (
                     <Chip
                       key={m.id}
@@ -243,7 +246,7 @@ export function MapFilterSheet({
 
                 {lists.length > 0 && (
                   <View style={s.section}>
-                    <Text style={[s.sectionTitle, { color: colors.faint }]}>MINA LISTOR</Text>
+                    <Text style={[s.sectionTitle, { color: colors.faint }]}>{t("map.sheet.myLists")}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 20 }}>
                       {lists.map((l) => (
                         <ListCard
@@ -255,7 +258,7 @@ export function MapFilterSheet({
                       ))}
                     </ScrollView>
                     {filters.listIds.size === 1 && (
-                      <Text style={[s.hint, { color: colors.muted }]}>En lista: platserna numreras i listans ordning, med rutten emellan.</Text>
+                      <Text style={[s.hint, { color: colors.muted }]}>{t("map.sheet.listHint")}</Text>
                     )}
                   </View>
                 )}
@@ -263,7 +266,7 @@ export function MapFilterSheet({
                 </View>
 
                 <View style={s.section}>
-                  <Text style={[s.sectionTitle, { color: colors.faint }]}>SERVICE</Text>
+                  <Text style={[s.sectionTitle, { color: colors.faint }]}>{t("map.sheet.service")}</Text>
                   <View style={s.wrap}>
                     {SERVICE_TYPES.map((t) => (
                       <Chip
@@ -277,13 +280,13 @@ export function MapFilterSheet({
                   </View>
                   <Text style={[s.hint, { color: colors.muted }]}>
                     {chosenService
-                      ? `Kartan visar bara ${chosenService.many}. Tryck igen, eller välj ett annat filter, för att se platserna.`
-                      : "Välj en typ, så visar kartan bara den."}
+                      ? t("map.sheet.serviceOnly", { what: chosenService.many })
+                      : t("map.sheet.serviceHint")}
                   </Text>
                 </View>
 
                 <View style={[s.group, serviceOn && s.dim]}>
-                <Section title="Skatter">
+                <Section title={t("map.sheet.treasures")}>
                   {TREASURE_MODES.map((t) => (
                     <Chip key={t.id} label={t.label} on={!serviceOn && filters.treasures === t.id} onPress={() => setPlaces({ ...filters, treasures: t.id })} />
                   ))}
@@ -296,7 +299,7 @@ export function MapFilterSheet({
 
         <View style={[s.foot, { paddingBottom: Math.max(insets.bottom, 16), borderTopColor: colors.border }]}>
           <TouchableOpacity onPress={() => set({ ...EMPTY_FILTERS })} hitSlop={8}>
-            <Text style={[s.reset, { color: colors.muted }]}>Återställ</Text>
+            <Text style={[s.reset, { color: colors.muted }]}>{t("map.sheet.reset")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.apply} activeOpacity={0.85} onPress={onClose}>
             <LinearGradient colors={["#C5A059", "#B48A3B"]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />

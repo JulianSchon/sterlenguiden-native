@@ -19,8 +19,6 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { useCollectibles, useCollected, type Collectible } from "@/hooks/useCollectibles";
 import { fetchMyStanding, type LeaderboardEntry } from "@/hooks/useLeaderboard";
 import { distanceMeters, formatDistance } from "@/lib/checkin";
@@ -29,6 +27,8 @@ import { HoldToCheckIn } from "@/components/checkin/HoldToCheckIn";
 import { StickerArt } from "./StickerArt";
 import { TreasureReveal } from "./TreasureReveal";
 import { cardIn, cardOut } from "@/components/map/PlaceCard";
+import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.62)";
@@ -39,11 +39,11 @@ const FAR_M = 1000;
 
 /** "Varmare, kallare" i ord */
 function warmth(d: number): string {
-  if (d <= STICKER_RADIUS_M) return "Du är framme!";
-  if (d <= 150) return "Varmt! Nästan framme";
-  if (d <= 300) return "Varmare…";
-  if (d <= FAR_M) return "Kallt — fortsätt mot nålen";
-  return "Iskallt — skatten är långt bort";
+  if (d <= STICKER_RADIUS_M) return i18n.t("treasure.here");
+  if (d <= 150) return i18n.t("treasure.warm");
+  if (d <= 300) return i18n.t("treasure.warmer");
+  if (d <= FAR_M) return i18n.t("treasure.cold");
+  return i18n.t("treasure.iceCold");
 }
 
 function StickerCard({
@@ -104,12 +104,12 @@ function StickerCard({
           <StickerArt imagePath={collectible.imagePath} size={96} silhouette={!found} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.eyebrow}>{found ? "DIN SKATT" : "SKATT"}</Text>
+          <Text style={s.eyebrow}>{i18n.t(found ? "treasure.yours" : "treasure.treasure")}</Text>
           <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
           {collectible.town ? <Text style={s.town}>{collectible.town}</Text> : null}
           {collectible.placeId != null && (
             <TouchableOpacity onPress={() => router.push(`/place/${collectible.placeId}?from=map`)} hitSlop={8}>
-              <Text style={s.placeLink}>Visa platsen</Text>
+              <Text style={s.placeLink}>{i18n.t("treasure.viewPlace")}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -117,7 +117,7 @@ function StickerCard({
 
       {found && (
         <View style={s.body}>
-          <Text style={s.foundAt}>Hittad {format(new Date(collectedAt!), "d MMMM yyyy", { locale: sv })}</Text>
+          <Text style={s.foundAt}>{i18n.t("treasure.found", { date: formatDate(collectedAt!, "d MMMM yyyy") })}</Text>
           {collectible.description ? <Text style={s.description}>{collectible.description}</Text> : null}
         </View>
       )}
@@ -125,7 +125,7 @@ function StickerCard({
       {!found && (
         <View style={s.body}>
           {distance == null ? (
-            <Text style={s.hint}>Slå på platsåtkomst för att kunna hitta skatten.</Text>
+            <Text style={s.hint}>{i18n.t("treasure.needLocation")}</Text>
           ) : (
             <>
               <View style={s.warmRow}>
@@ -137,16 +137,16 @@ function StickerCard({
               </View>
             </>
           )}
-          <Text style={s.safety}>Var uppmärksam på omgivningen och respektera privat mark.</Text>
+          <Text style={s.safety}>{i18n.t("treasure.safety")}</Text>
           {near && userLoc ? (
             <HoldToCheckIn
-              label="Håll in för att öppna"
+              label={i18n.t("treasure.hold")}
               onStart={() => { standingBefore.current = fetchMyStanding("stickers").catch(() => null); }}
               onComplete={() => setRevealing({ haveBefore: collected.size, loc: userLoc })}
             />
           ) : (
             <View style={s.buttonOff}>
-              <Text style={s.buttonOffText}>Gå inom {STICKER_RADIUS_M} m för att öppna</Text>
+              <Text style={s.buttonOffText}>{i18n.t("treasure.goWithin", { meters: STICKER_RADIUS_M })}</Text>
             </View>
           )}
         </View>
