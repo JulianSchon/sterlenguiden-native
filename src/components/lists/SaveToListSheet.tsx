@@ -12,6 +12,7 @@ import { ListCover } from "./ListCover";
 import { Sheet } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 export function SaveToListSheet({
   visible, onClose, placeId, onOpenList,
@@ -47,9 +48,9 @@ export function SaveToListSheet({
   }, [add, remove, placeId]);
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Spara i lista">
+    <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.saveSheet.title")}>
       {lists.length === 0 ? (
-        <Text style={s.empty}>Du har inga listor än. Skapa en under Mitt Österlen i din profil.</Text>
+        <Text style={s.empty}>{i18n.t("lists.saveSheet.empty")}</Text>
       ) : (
         <FlatList
           data={lists}
@@ -72,13 +73,13 @@ export function SaveToListSheet({
                   hitSlop={6}
                   style={({ pressed }) => pressed && { opacity: 0.7 }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Öppna ${l.name}`}
+                  accessibilityLabel={i18n.t("lists.saveSheet.open", { name: l.name })}
                 >
                   <ListCover coverImageUrl={l.coverImageUrl} images={l.images} size={52} radius={10} />
                 </Pressable>
                 <View style={{ flex: 1 }}>
                   <Text style={s.name} numberOfLines={1}>{l.name}</Text>
-                  <Text style={s.sub}>{count} {count === 1 ? "plats" : "platser"}</Text>
+                  <Text style={s.sub}>{count === 1 ? i18n.t("lists.placesOne") : i18n.t("lists.placesOther", { count })}</Text>
                 </View>
                 <View style={[s.check, saved ? { backgroundColor: colors.goldText, borderColor: colors.goldText } : { borderColor: colors.border }]}>
                   {saved && <Check size={16} color={colors.bg} strokeWidth={3} />}

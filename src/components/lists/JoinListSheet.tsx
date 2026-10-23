@@ -3,6 +3,7 @@ import { View, Text, TextInput } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useJoinList } from "@/hooks/useLists";
 import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
+import i18n from "i18next";
 
 export function JoinListSheet({
   visible, onClose, onJoined,
@@ -24,10 +25,10 @@ export function JoinListSheet({
   const tooMany = join.isError && join.error.message === "too_many_attempts";
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Gå med i lista" centered onShow={() => inputRef.current?.focus()}>
+    <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.joinSheet.title")} centered onShow={() => inputRef.current?.focus()}>
       <View style={{ gap: 12 }}>
         <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.6)" }}>
-          Skriv in koden du fått av listans ägare.
+          {i18n.t("lists.joinSheet.intro")}
         </Text>
         <TextInput
           ref={inputRef}
@@ -40,19 +41,19 @@ export function JoinListSheet({
           maxLength={8}
           autoCapitalize="characters"
           autoCorrect={false}
-          placeholder="KOD"
+          placeholder={i18n.t("lists.joinSheet.placeholder")}
           placeholderTextColor="rgba(255,255,255,0.35)"
         />
         {join.isError && (
           <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: "#E57373" }}>
             {notFound
-              ? "Hittar ingen lista med den koden."
+              ? i18n.t("lists.joinSheet.notFound")
               : tooMany
-                ? "Du har provat många koder. Vänta en stund och försök igen."
-                : "Det gick inte att gå med. Försök igen."}
+                ? i18n.t("lists.joinSheet.tooMany")
+                : i18n.t("lists.joinSheet.failed")}
           </Text>
         )}
-        <PrimaryButton label="Gå med" onPress={submit} disabled={code.trim().length < 4} loading={join.isPending} />
+        <PrimaryButton label={i18n.t("lists.joinSheet.submit")} onPress={submit} disabled={code.trim().length < 4} loading={join.isPending} />
       </View>
     </Sheet>
   );

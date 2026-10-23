@@ -5,6 +5,7 @@ import { View, Text, TextInput } from "react-native";
 import * as Haptics from "expo-haptics";
 import { useUpdateList, type ListDetail } from "@/hooks/useLists";
 import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
+import i18n from "i18next";
 
 const MUTED = "rgba(245,241,232,0.55)";
 
@@ -33,30 +34,30 @@ export function EditListSheet({
   }
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Redigera lista" centered onShow={() => nameInputRef.current?.focus()}>
+    <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.edit.title")} centered onShow={() => nameInputRef.current?.focus()}>
       <View style={{ gap: 14 }}>
         <View style={{ gap: 6 }}>
-          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED }}>Namn</Text>
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED }}>{i18n.t("lists.create.name")}</Text>
           <TextInput ref={nameInputRef} style={sheetInput} value={name} onChangeText={setName} maxLength={60} placeholderTextColor="rgba(255,255,255,0.35)" />
         </View>
         <View style={{ gap: 6 }}>
-          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED }}>Beskrivning</Text>
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED }}>{i18n.t("lists.create.description")}</Text>
           <TextInput
             style={[sheetInput, { minHeight: 80, textAlignVertical: "top" }]}
             value={description}
             onChangeText={setDescription}
             maxLength={180}
             multiline
-            placeholder="Valfritt"
+            placeholder={i18n.t("lists.create.optional")}
             placeholderTextColor="rgba(255,255,255,0.35)"
           />
         </View>
         {update.isError && (
           <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: "#E57373" }}>
-            Det gick inte att spara. Försök igen.
+            {i18n.t("lists.edit.failed")}
           </Text>
         )}
-        <PrimaryButton label="Spara" onPress={submit} disabled={!name.trim()} loading={update.isPending} />
+        <PrimaryButton label={i18n.t("lists.edit.save")} onPress={submit} disabled={!name.trim()} loading={update.isPending} />
       </View>
     </Sheet>
   );

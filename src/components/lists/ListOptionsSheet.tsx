@@ -8,6 +8,7 @@ import { Image as ImageIcon, Pencil, Share2, Copy, Trash2, Users } from "lucide-
 import { Sheet } from "@/components/Sheet";
 import { PressableScale } from "@/components/PressableScale";
 import { IconSwitch } from "@/components/IconSwitch";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.6)";
@@ -26,22 +27,22 @@ export function ListOptionsSheet({
   onDelete: () => void;
 }) {
   return (
-    <Sheet visible={visible} onClose={onClose} title="Alternativ">
+    <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.options")}>
       <View style={{ gap: 8 }}>
         <View style={s.row}>
           <View style={s.iconWrap}><Users size={18} color={FG} strokeWidth={2} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.label}>Synlig för vänner</Text>
-            <Text style={s.hint}>Dina vänner ser listan på din profil men kan inte ändra den</Text>
+            <Text style={s.label}>{i18n.t("lists.optionsSheet.visible")}</Text>
+            <Text style={s.hint}>{i18n.t("lists.optionsSheet.visibleHint")}</Text>
           </View>
           {/* Samma reglage som på Notiser (grön bock / rött kryss) */}
           <IconSwitch value={visibleToFriends} onChange={onToggleVisibleToFriends} />
         </View>
-        <OptionRow icon={<ImageIcon size={18} color={FG} strokeWidth={2} />} label="Byt omslagsbild" onPress={onChangeCover} />
-        <OptionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label="Redigera lista" onPress={onEdit} />
-        <OptionRow icon={<Share2 size={18} color={FG} strokeWidth={2} />} label="Dela lista" onPress={onShare} />
-        <OptionRow icon={<Copy size={18} color={FG} strokeWidth={2} />} label="Duplicera lista" onPress={onDuplicate} />
-        <OptionRow icon={<Trash2 size={18} color="#E57373" strokeWidth={2} />} label="Radera lista" danger onPress={onDelete} />
+        <OptionRow icon={<ImageIcon size={18} color={FG} strokeWidth={2} />} label={i18n.t("lists.optionsSheet.cover")} onPress={onChangeCover} />
+        <OptionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label={i18n.t("lists.optionsSheet.edit")} onPress={onEdit} />
+        <OptionRow icon={<Share2 size={18} color={FG} strokeWidth={2} />} label={i18n.t("lists.optionsSheet.share")} onPress={onShare} />
+        <OptionRow icon={<Copy size={18} color={FG} strokeWidth={2} />} label={i18n.t("lists.optionsSheet.duplicate")} onPress={onDuplicate} />
+        <OptionRow icon={<Trash2 size={18} color="#E57373" strokeWidth={2} />} label={i18n.t("lists.optionsSheet.delete")} danger onPress={onDelete} />
       </View>
     </Sheet>
   );

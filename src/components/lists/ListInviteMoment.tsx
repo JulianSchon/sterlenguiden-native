@@ -24,6 +24,7 @@ import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { Avatar } from "@/components/profile/Avatar";
 import { ListCover } from "@/components/lists/ListCover";
 import { Confetti, GOLD, GhostButton, GoldButton } from "@/components/checkin/CelebrationFx";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
@@ -85,7 +86,7 @@ export function ListInviteMoment({ invite, onOpenList, onClose }: {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setJoined(true);
     } catch {
-      Alert.alert("Något gick fel", "Det gick inte att gå med i listan. Försök igen.");
+      Alert.alert(i18n.t("lists.errorTitle"), i18n.t("lists.invite.joinFailed"));
     } finally {
       busy.current = false;
     }
@@ -129,7 +130,7 @@ export function ListInviteMoment({ invite, onOpenList, onClose }: {
   const afterStyle = useAnimatedStyle(() => ({ opacity: joinedV.value }));
 
   const bottomPad = Math.max(insets.bottom, 16) + 8;
-  const places_ = invite.placeCount === 1 ? "1 plats" : `${invite.placeCount} platser`;
+  const places_ = invite.placeCount === 1 ? i18n.t("lists.placesOne") : i18n.t("lists.placesOther", { count: invite.placeCount });
 
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={() => exit(false)}>
@@ -143,12 +144,12 @@ export function ListInviteMoment({ invite, onOpenList, onClose }: {
 
             <Reanimated.View style={[s.texts, textStyle]}>
               <Reanimated.View style={inviteTextStyle}>
-                <Text style={s.eyebrow}>NY INBJUDAN</Text>
-                <Text style={s.lead}>{invite.ownerName} har bjudit in dig!</Text>
+                <Text style={s.eyebrow}>{i18n.t("lists.invite.eyebrow")}</Text>
+                <Text style={s.lead}>{i18n.t("lists.invite.lead", { name: invite.ownerName })}</Text>
               </Reanimated.View>
               <Reanimated.View style={[StyleSheet.absoluteFill, joinedTextStyle]}>
-                <Text style={s.eyebrow}>KLART</Text>
-                <Text style={s.lead}>Du är med i listan!</Text>
+                <Text style={s.eyebrow}>{i18n.t("lists.invite.doneEyebrow")}</Text>
+                <Text style={s.lead}>{i18n.t("lists.invite.doneLead")}</Text>
               </Reanimated.View>
             </Reanimated.View>
 
@@ -166,12 +167,12 @@ export function ListInviteMoment({ invite, onOpenList, onClose }: {
 
           <Reanimated.View style={[s.buttons, { paddingBottom: bottomPad }, buttonsStyle]}>
             <Reanimated.View style={[s.buttonStack, answerStyle]} pointerEvents={joined ? "none" : "auto"}>
-              <GoldButton label="Acceptera" onPress={respondAccept} />
-              <GhostButton label="Avböj" onPress={respondDecline} />
+              <GoldButton label={i18n.t("lists.invite.accept")} onPress={respondAccept} />
+              <GhostButton label={i18n.t("lists.invite.decline")} onPress={respondDecline} />
             </Reanimated.View>
             <Reanimated.View style={[StyleSheet.absoluteFill, s.buttonStack, { paddingBottom: bottomPad, paddingHorizontal: 20, justifyContent: "flex-end" }, afterStyle]} pointerEvents={joined ? "auto" : "none"}>
-              <GoldButton label="Öppna listan" onPress={() => exit(true)} />
-              <GhostButton label="Stäng" onPress={() => exit(false)} />
+              <GoldButton label={i18n.t("lists.invite.openList")} onPress={() => exit(true)} />
+              <GhostButton label={i18n.t("lists.invite.close")} onPress={() => exit(false)} />
             </Reanimated.View>
           </Reanimated.View>
         </Reanimated.View>

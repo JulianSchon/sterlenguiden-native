@@ -8,6 +8,8 @@ import { ListCover } from "./ListCover";
 import { Skeleton } from "@/components/Skeleton";
 import { CreateListSheet } from "./CreateListSheet";
 import { JoinListSheet } from "./JoinListSheet";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -18,19 +20,20 @@ export function ListsSection() {
   const { data: lists = [], isLoading } = useLists();
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
+  useTranslation(); // ritas om när språket byts
 
   const openList = (id: string) => router.push(`/lists/${id}`);
 
   return (
     <View style={s.section}>
       <View style={s.head}>
-        <Text style={s.title}>Dina listor</Text>
+        <Text style={s.title}>{i18n.t("lists.yours")}</Text>
         <View style={s.actions}>
           <TouchableOpacity onPress={() => setJoinOpen(true)} hitSlop={8}>
-            <Text style={s.action}>Gå med</Text>
+            <Text style={s.action}>{i18n.t("lists.join")}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setCreateOpen(true)} hitSlop={8}>
-            <Text style={s.action}>+ Ny lista</Text>
+            <Text style={s.action}>{i18n.t("lists.new")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -47,7 +50,7 @@ export function ListsSection() {
           ))}
         </View>
       ) : lists.length === 0 ? (
-        <Text style={s.empty}>Samla caféer, havsutsikter eller en bucket list, ensam eller tillsammans med andra.</Text>
+        <Text style={s.empty}>{i18n.t("lists.yoursEmpty")}</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
           {lists.map((l) => (
@@ -63,7 +66,8 @@ export function ListsSection() {
               <ListCover coverImageUrl={l.coverImageUrl} images={l.images} size={140} />
               <Text style={s.name} numberOfLines={1}>{l.name}</Text>
               <Text style={s.sub}>
-                {l.placeIds.length} platser{l.memberCount > 1 ? ` · ${l.memberCount} medlemmar` : ""}
+                {l.placeIds.length === 1 ? i18n.t("lists.placesOne") : i18n.t("lists.placesOther", { count: l.placeIds.length })}
+                {l.memberCount > 1 ? ` · ${i18n.t("lists.membersCount", { count: l.memberCount })}` : ""}
               </Text>
             </TouchableOpacity>
           ))}

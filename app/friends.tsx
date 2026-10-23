@@ -1,8 +1,7 @@
 /**
  * Vänner — sök på användarnamn, hantera förfrågningar och se sin vänlista.
  *
- * Samma hårdkodat mörka, osvenskaspråkiga stil som resten av Mitt Österlen (inte migrerad till
- * tema/i18n än — det görs tillsammans med resten av sidan i en senare polerings-omgång).
+ * Samma alltid mörka stil som resten av Mitt Österlen.
  *
  * Ingen pushnotis finns ännu: en ny förfrågan syns bara som en räknare (badge på Mitt Österlen)
  * tills mottagaren själv öppnar appen och kommer hit.
@@ -22,6 +21,8 @@ import {
   useSearchUsers, useFriendships, useSendFriendRequest, useAcceptFriendRequest, useRemoveFriendship,
   type FriendResult,
 } from "@/hooks/useFriends";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
 
 const BG     = "#121212";
 const FG     = "#F5F1E8";
@@ -34,6 +35,7 @@ export default function FriendsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: profile } = useProfile();
+  const { t } = useTranslation();
 
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
@@ -55,10 +57,10 @@ export default function FriendsScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()} accessibilityLabel={t("friends.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.title} numberOfLines={1}>VÄNNER</Text>
+          <Text style={s.title} numberOfLines={1}>{t("friends.title")}</Text>
         </View>
       </View>
 
@@ -73,7 +75,7 @@ export default function FriendsScreen() {
             style={s.searchInput}
             value={searchInput}
             onChangeText={setSearchInput}
-            placeholder="Sök på användarnamn"
+            placeholder={t("friends.search")}
             placeholderTextColor={MUTED}
             autoCapitalize="none"
             autoCorrect={false}
@@ -82,9 +84,7 @@ export default function FriendsScreen() {
 
         {!profile?.username && (
           <PressableScale style={s.usernameHint} scale={0.98} onPress={() => router.push("/settings/account")}>
-            <Text style={s.usernameHintText}>
-              Du har inget användarnamn än — andra kan inte hitta dig förrän du väljer ett i Konto.
-            </Text>
+            <Text style={s.usernameHintText}>{t("friends.noUsername")}</Text>
           </PressableScale>
         )}
 
@@ -98,11 +98,11 @@ export default function FriendsScreen() {
                 </View>
               </>
             ) : results.length === 0 ? (
-              <Text style={s.empty}>Ingen med det användarnamnet.</Text>
+              <Text style={s.empty}>{t("friends.noMatch")}</Text>
             ) : (
               <>
                 <Text style={s.resultCount}>
-                  {results.length === 1 ? "1 resultat" : `${results.length} resultat`}
+                  {results.length === 1 ? t("friends.resultOne") : t("friends.resultOther", { count: results.length })}
                 </Text>
                 <View style={{ gap: 10, marginTop: 12 }}>
                   {results.map((r) => <FriendRow key={r.userId} friend={r} />)}
@@ -114,7 +114,7 @@ export default function FriendsScreen() {
           <>
             {incoming.length > 0 && (
               <View style={s.section}>
-                <Text style={s.sectionTitle}>Väntande förfrågningar</Text>
+                <Text style={s.sectionTitle}>{t("friends.incoming")}</Text>
                 <View style={{ gap: 10, marginTop: 14 }}>
                   {incoming.map((r) => <FriendRow key={r.userId} friend={r} />)}
                 </View>
@@ -123,7 +123,7 @@ export default function FriendsScreen() {
 
             {outgoing.length > 0 && (
               <View style={s.section}>
-                <Text style={s.sectionTitle}>Skickade förfrågningar</Text>
+                <Text style={s.sectionTitle}>{t("friends.outgoing")}</Text>
                 <View style={{ gap: 10, marginTop: 14 }}>
                   {outgoing.map((r) => <FriendRow key={r.userId} friend={r} />)}
                 </View>
@@ -141,15 +141,12 @@ export default function FriendsScreen() {
             ) : (
             <View style={s.section}>
               <Text style={s.sectionTitle}>
-                {accepted.length === 1 ? "1 vän" : `${accepted.length} vänner`}
+                {accepted.length === 1 ? t("friends.countOne") : t("friends.countOther", { count: accepted.length })}
               </Text>
               {accepted.length === 0 ? (
                 <View style={s.emptyState}>
                   <Users size={26} color={GOLD} strokeWidth={1.5} />
-                  <Text style={s.empty}>
-                    Sök på ett användarnamn för att lägga till din första vän. Ni ser sedan varandras
-                    statistik och kan bjuda in varandra i listor.
-                  </Text>
+                  <Text style={s.empty}>{t("friends.empty")}</Text>
                 </View>
               ) : (
                 <View style={{ gap: 10, marginTop: 14 }}>
@@ -203,6 +200,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
       {friend.friendStatus === "none" && (
         <RowButton
           icon={<UserPlus size={16} color={GOLD} strokeWidth={2.2} />}
+          label={i18n.t("friends.add")}
           gold
           disabled={busy}
           onPress={(e) => {
@@ -219,7 +217,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
           disabled={busy}
           onPress={(e) => { e.stopPropagation(); remove.mutate(friend.friendshipId!); }}
         >
-          <Text style={s.cancelBtnText}>Avbryt</Text>
+          <Text style={s.cancelBtnText}>{i18n.t("friends.cancel")}</Text>
         </PressableScale>
       )}
 
@@ -227,11 +225,13 @@ function FriendRow({ friend }: { friend: FriendResult }) {
         <View style={{ flexDirection: "row", gap: 8 }}>
           <RowButton
             icon={<X size={16} color={MUTED} strokeWidth={2.2} />}
+            label={i18n.t("friends.decline")}
             disabled={busy}
             onPress={(e) => { e.stopPropagation(); remove.mutate(friend.friendshipId!); }}
           />
           <RowButton
             icon={<Check size={16} color={GOLD} strokeWidth={2.4} />}
+            label={i18n.t("friends.accept")}
             gold
             disabled={busy}
             onPress={(e) => {
@@ -245,7 +245,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
 
       {friend.friendStatus === "accepted" && (
         <View style={s.friendsLabelRow}>
-          <Text style={s.friendsLabel}>Vänner</Text>
+          <Text style={s.friendsLabel}>{i18n.t("friends.friends")}</Text>
           <ChevronRight size={20} color={MUTED} strokeWidth={2} />
         </View>
       )}
@@ -253,7 +253,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
   );
 }
 
-function RowButton({ icon, gold, disabled, onPress }: { icon: React.ReactNode; gold?: boolean; disabled?: boolean; onPress: (e: any) => void }) {
+function RowButton({ icon, label, gold, disabled, onPress }: { icon: React.ReactNode; label: string; gold?: boolean; disabled?: boolean; onPress: (e: any) => void }) {
   return (
     <View style={{ width: 34, height: 34 }}>
       {gold && <RadialGlow size={34} color={GOLD} opacity={0.12} radiusRatio={1.1} />}
@@ -262,6 +262,7 @@ function RowButton({ icon, gold, disabled, onPress }: { icon: React.ReactNode; g
         onPress={onPress}
         disabled={disabled}
         hitSlop={6}
+        accessibilityLabel={label}
       >
         {icon}
       </PressableScale>

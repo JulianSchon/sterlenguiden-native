@@ -9,6 +9,7 @@ import { useLists } from "@/hooks/useLists";
 import { useMemories } from "@/hooks/useMemories";
 import { useAchievements, useGrantAchievement } from "@/hooks/useAchievements";
 import { buildTrophies, computeUserStats, type Trophy } from "@/lib/achievements";
+import { useTranslation } from "react-i18next";
 
 /**
  * Användarens siffror och alla 21 troféer, uträknade ur riktig data.
@@ -48,7 +49,10 @@ export function useTrophies() {
     () => computeUserStats(visits, places, favorites.length, redemptions, swipedIds, listsCreated, memories.length),
     [visits, places, favorites.length, redemptions, swipedIds, listsCreated, memories.length]
   );
-  const trophies = useMemo(() => buildTrophies(stats, achievements), [stats, achievements]);
+  // Texterna (namn, krav) skrivs om när språket byts
+  const { i18n: { language } } = useTranslation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const trophies = useMemo(() => buildTrophies(stats, achievements), [stats, achievements, language]);
 
   // Sidor som VISAR troféerna väntar tills allt de räknas ur hämtats (och vem man är är känt) —
   // annars syntes t.ex. "Första listan" först som låst och låste sedan upp sig när listorna kom

@@ -19,6 +19,7 @@ import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
 import { FriendPickerRow, RING_ROOM } from "@/components/lists/FriendPickerRow";
 import { Sheet, PrimaryButton } from "@/components/Sheet";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -54,13 +55,13 @@ export function MembersSheet({
     };
     if (isOwner) {
       Alert.alert(member.name, undefined, [
-        { text: "Visa profil", onPress: viewProfile },
+        { text: i18n.t("lists.membersSheet.viewProfile"), onPress: viewProfile },
         {
-          text: member.pending ? "Dra tillbaka inbjudan" : "Ta bort från lista",
+          text: i18n.t(member.pending ? "lists.membersSheet.withdraw" : "lists.membersSheet.removeMember"),
           style: "destructive",
           onPress: () => removeMember.mutate({ listId, userId: member.userId }),
         },
-        { text: "Avbryt", style: "cancel" },
+        { text: i18n.t("lists.cancel"), style: "cancel" },
       ]);
     } else {
       viewProfile();
@@ -75,7 +76,7 @@ export function MembersSheet({
   }
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Medlemmar" centered>
+    <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.membersSheet.title")} centered>
       <ScrollView
         style={{ maxHeight: 400, marginHorizontal: -RING_ROOM, marginTop: -RING_ROOM }}
         contentContainerStyle={{ paddingHorizontal: RING_ROOM, paddingTop: RING_ROOM }}
@@ -88,16 +89,16 @@ export function MembersSheet({
                 <Avatar size={36} path={m.avatarPath} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
               </View>
               <Text style={[s.memberName, m.pending && { color: MUTED }]} numberOfLines={1}>{m.name}</Text>
-              {m.pending && <Text style={s.pendingPill}>Väntar</Text>}
+              {m.pending && <Text style={s.pendingPill}>{i18n.t("lists.membersSheet.pending")}</Text>}
               {m.userId !== user?.id && <ChevronRight size={18} color={MUTED} strokeWidth={2} />}
             </PressableScale>
           ))}
         </View>
 
         {isOwner && (<>
-          <Text style={s.sectionLabel}>Bjud in</Text>
+          <Text style={s.sectionLabel}>{i18n.t("lists.membersSheet.invite")}</Text>
           {invitable.length === 0 ? (
-            <Text style={s.emptyText}>Alla dina vänner är redan med i listan.</Text>
+            <Text style={s.emptyText}>{i18n.t("lists.membersSheet.allIn")}</Text>
           ) : (
             <View style={{ gap: 4 }}>
               {invitable.map((f) => (
@@ -109,7 +110,7 @@ export function MembersSheet({
       </ScrollView>
       {isOwner && (
         <View style={{ marginTop: 14 }}>
-          <PrimaryButton label="Bjud in" onPress={submit} disabled={friendIds.size === 0} loading={addMembers.isPending} />
+          <PrimaryButton label={i18n.t("lists.membersSheet.invite")} onPress={submit} disabled={friendIds.size === 0} loading={addMembers.isPending} />
         </View>
       )}
     </Sheet>

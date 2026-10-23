@@ -28,8 +28,6 @@ import { BlurView } from "expo-blur";
 import {
   ArrowLeft, MapPin, Heart, Compass, Trash2, UserPlus, Check, X,
 } from "lucide-react-native";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { StickerArt } from "@/components/stickers/StickerArt";
 import { useCollectibles } from "@/hooks/useCollectibles";
@@ -52,6 +50,9 @@ import { useOtherAvatarUrl } from "@/hooks/useAvatarUrl";
 import { useFriendLists, type FriendList } from "@/hooks/useLists";
 import { ListCover } from "@/components/lists/ListCover";
 import { computeStreak, swedishDay } from "@/lib/streak";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate } from "@/i18n/dates";
 
 const BG    = "#121212";
 const FG    = "#F5F1E8";
@@ -96,6 +97,7 @@ export default function FriendProfileScreen() {
   const accept = useAcceptFriendRequest();
   const remove = useRemoveFriendship();
   const busy = send.isPending || accept.isPending || remove.isPending;
+  useTranslation(); // ritas om när språket byts
 
   const who = friend?.displayName || friend?.username || "";
   const streak = useMemo(
@@ -115,11 +117,11 @@ export default function FriendProfileScreen() {
   const confirmRemove = () => {
     if (!friend?.friendshipId) return;
     Alert.alert(
-      "Ta bort vän?",
-      `Du och ${who} kommer inte längre se varandras statistik.`,
+      i18n.t("friends.removeTitle"),
+      i18n.t("friends.removeText", { name: who }),
       [
-        { text: "Avbryt", style: "cancel" },
-        { text: "Ta bort", style: "destructive", onPress: () => { remove.mutate(friend.friendshipId!); router.back(); } },
+        { text: i18n.t("friends.cancel"), style: "cancel" },
+        { text: i18n.t("friends.remove"), style: "destructive", onPress: () => { remove.mutate(friend.friendshipId!); router.back(); } },
       ],
     );
   };
@@ -132,7 +134,7 @@ export default function FriendProfileScreen() {
           "MITT ÖSTERLEN", i stället för centrerat. */}
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("friends.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{who}</Text>
@@ -153,7 +155,7 @@ export default function FriendProfileScreen() {
               disableFlip
               displayName={who}
               isMember={friend.isMember}
-              memberSince={friend.memberSince ? format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv }) : null}
+              memberSince={friend.memberSince ? formatDate(friend.memberSince, "MMMM yyyy") : null}
               cardColor={friend.cardColor}
               avatarUrl={avatarUrl}
               circleColor={friend.circleColor}
@@ -188,19 +190,19 @@ export default function FriendProfileScreen() {
               <IdentityStat
                 icon={<StreakFlame compact size={19} />}
                 value={isFriend && streak ? (streak.current > 0 ? streak.current : "–") : null}
-                label="Streak"
+                label={i18n.t("friends.streak")}
               />
               <View style={s.identityColDivider} />
               <IdentityStat
                 icon={<PlacePin height={21} />}
                 value={isFriend && stats ? stats.visitsTotal : null}
-                label="Besök"
+                label={i18n.t("friends.visits")}
               />
               <View style={s.identityColDivider} />
               <IdentityStat
                 icon={<Heart size={19} color={RED} fill={RED} strokeWidth={1.5} />}
                 value={isFriend && stats ? stats.favoritesTotal : null}
-                label="Favoriter"
+                label={i18n.t("friends.favorites")}
               />
             </View>
           </View>
@@ -224,7 +226,7 @@ export default function FriendProfileScreen() {
                 </View>
               </View>
             )}
-            {isError && <Text style={s.errorText}>Kunde inte hämta statistik just nu.</Text>}
+            {isError && <Text style={s.errorText}>{i18n.t("friends.statsError")}</Text>}
             {stats && streak && (
               <RealContent
                 who={who} stats={stats} topCategory={topCategory} totalPlaces={places.length}
@@ -246,13 +248,13 @@ export default function FriendProfileScreen() {
         {/* Bara innan ni är vänner är det här okänt terräng — inget skäl att visa det datumet förrän ni faktiskt är vänner */}
         {isFriend && friend?.memberSince && (
           <Text style={s.memberSince}>
-            Medlem sedan {format(new Date(friend.memberSince), "MMMM yyyy", { locale: sv })}
+            {i18n.t("friends.memberSince", { date: formatDate(friend.memberSince, "MMMM yyyy") })}
           </Text>
         )}
         {/* Bara satt när ni faktiskt är vänner (rpc_get_profile), se friendsSince i useFriends.ts */}
         {isFriend && friend?.friendsSince && (
           <Text style={[s.memberSince, { marginTop: 4 }]}>
-            Vänner sedan {format(new Date(friend.friendsSince), "MMMM yyyy", { locale: sv })}
+            {i18n.t("friends.friendsSince", { date: formatDate(friend.friendsSince, "MMMM yyyy") })}
           </Text>
         )}
 
@@ -262,7 +264,7 @@ export default function FriendProfileScreen() {
         {isFriend && (
           <TouchableOpacity style={s.deleteBtn} onPress={confirmRemove} hitSlop={8}>
             <Trash2 size={16} color="#E57373" strokeWidth={2} />
-            <Text style={s.deleteText}>Ta bort vän</Text>
+            <Text style={s.deleteText}>{i18n.t("friends.removeFriend")}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -284,7 +286,7 @@ function RealContent({
     <>
       {stats.activity.length > 0 && (
         <View style={[s.section, { marginTop: 32 }]}>
-          <Text style={s.sectionTitle}>Senaste aktivitet</Text>
+          <Text style={s.sectionTitle}>{i18n.t("friends.activity")}</Text>
           <View style={s.card}>
             {stats.activity.map((a, i) => (
               <ActivityRow key={i} who={who} activity={a} bordered={i > 0} />
@@ -298,7 +300,7 @@ function RealContent({
       {stats.collectibles.length > 0 && <CollectiblesSection collectibles={stats.collectibles} />}
 
       <View style={s.section}>
-        <Text style={s.sectionTitle}>Statistik</Text>
+        <Text style={s.sectionTitle}>{i18n.t("friends.stats")}</Text>
         <View style={s.statBoxRow}>
           <TopCategoryBox topCategory={topCategory} />
           <VisitedRingBox visitsTotal={stats.visitsTotal} totalPlaces={totalPlaces} />
@@ -320,7 +322,7 @@ function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }
 
   return (
     <View style={[s.section, { paddingHorizontal: 0 }]}>
-      <Text style={[s.sectionTitle, { paddingHorizontal: 16 }]}>Listor</Text>
+      <Text style={[s.sectionTitle, { paddingHorizontal: 16 }]}>{i18n.t("friends.lists")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
         {lists.map((l) => (
           <TouchableOpacity
@@ -331,7 +333,7 @@ function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }
           >
             <ListCover coverImageUrl={l.coverImageUrl} images={imageOf(l.placeIds)} size={140} />
             <Text style={s.listName} numberOfLines={1}>{l.name}</Text>
-            <Text style={s.listSub}>{l.placeIds.length} {l.placeIds.length === 1 ? "plats" : "platser"}</Text>
+            <Text style={s.listSub}>{l.placeIds.length === 1 ? i18n.t("friends.placesOne") : i18n.t("friends.placesOther", { count: l.placeIds.length })}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -364,7 +366,7 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
 
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>Troféer</Text>
+      <Text style={s.sectionTitle}>{i18n.t("friends.trophies")}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -426,7 +428,7 @@ function CollectiblesSection({ collectibles }: { collectibles: FriendStats["coll
 
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>Skatter</Text>
+      <Text style={s.sectionTitle}>{i18n.t("friends.treasures")}</Text>
       <View style={[s.card, { padding: 16 }]}>
         <ScrollView
           horizontal
@@ -476,8 +478,8 @@ function TopCategoryBox({ topCategory }: { topCategory: ReturnType<typeof comput
           )}
         </View>
       </View>
-      <Text style={s.statBoxLabel} numberOfLines={1}>{topCategory ? topCategory.label : "Inga besök än"}</Text>
-      <Text style={s.statBoxCaption}>Mest besökta kategori</Text>
+      <Text style={s.statBoxLabel} numberOfLines={1}>{topCategory ? topCategory.label : i18n.t("friends.noVisits")}</Text>
+      <Text style={s.statBoxCaption}>{i18n.t("friends.topCategory")}</Text>
     </View>
   );
 }
@@ -490,8 +492,8 @@ function VisitedRingBox({ visitsTotal, totalPlaces }: { visitsTotal: number; tot
         <RadialGlow size={RING_SIZE} color={GOLD} opacity={0.3} radiusRatio={1.3} />
         <ProgressRing percent={percent} centerValue={visitsTotal} />
       </View>
-      <Text style={s.statBoxLabel}>{visitsTotal} av {totalPlaces}</Text>
-      <Text style={s.statBoxCaption}>Besökta platser</Text>
+      <Text style={s.statBoxLabel}>{i18n.t("friends.ofTotal", { count: visitsTotal, total: totalPlaces })}</Text>
+      <Text style={s.statBoxCaption}>{i18n.t("friends.visited")}</Text>
     </View>
   );
 }
@@ -531,14 +533,13 @@ function ProgressRing({ percent, centerValue }: { percent: number; centerValue: 
 
 function ActivityRow({ who, activity, bordered }: { who: string; activity: FriendActivity; bordered: boolean }) {
   const router = useRouter();
-  const date = format(new Date(activity.happenedAt), "HH:mm, d MMM", { locale: sv });
+  const date = formatDate(activity.happenedAt, "HH:mm, d MMM");
   // Platsen/saken är fetstilt, inte namnet — det är den man faktiskt bryr sig om i en aktivitetslogg
   // (vilken plats, inte vem). Byggd som flera Text-delar (RN slår ihop dem till en rad ändå).
-  const verb =
-    activity.kind === "visit" ? "besökte" :
-    activity.kind === "favorite" ? "lade till" :
-    "samlade in";
-  const suffix = activity.kind === "favorite" ? " i favoriter" : "";
+  // Ordföljden skiljer sig mellan språken ("Anna besökte X" / "Anna hat X besucht"): text före och efter
+  const kind = activity.kind === "visit" || activity.kind === "favorite" ? activity.kind : "sticker";
+  const before = i18n.t(`friends.did.${kind}.before`, { who });
+  const after = i18n.t(`friends.did.${kind}.after`);
 
   // Platsens/eventets image_url är redan en öppen adress och används som den är. Saknas en bild
   // visas kategorins egen ikon. Stickers använder alltid StickerArt — samma lila/guldstjärna-
@@ -568,7 +569,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
       )}
       <View style={s.activityBody}>
         <Text style={s.activityText} numberOfLines={2}>
-          {who} {verb} <Text style={s.activityStrong}>{activity.label}</Text>{suffix}
+          {before}<Text style={s.activityStrong}>{activity.label}</Text>{after}
         </Text>
         <Text style={s.activityDate}>{date}</Text>
       </View>
@@ -640,31 +641,31 @@ function LockedContent({
         {friend.friendStatus === "none" && (
           <GoldButton
             icon={<UserPlus size={17} color={GOLD} strokeWidth={2.2} />}
-            label="Lägg till vän"
+            label={i18n.t("friends.add")}
             disabled={busy}
             onPress={onAdd}
           />
         )}
         {friend.friendStatus === "outgoing" && friend.friendshipId && (
           <>
-            <Text style={s.actionHint}>Vänförfrågan skickad</Text>
+            <Text style={s.actionHint}>{i18n.t("friends.requestSent")}</Text>
             <PressableScale style={s.ghostBtn} disabled={busy} onPress={onCancel}>
-              <Text style={s.ghostBtnText}>Avbryt förfrågan</Text>
+              <Text style={s.ghostBtnText}>{i18n.t("friends.cancelRequest")}</Text>
             </PressableScale>
           </>
         )}
         {friend.friendStatus === "incoming" && friend.friendshipId && (
           <>
-            <Text style={s.actionHint}>Vill bli vän med dig</Text>
+            <Text style={s.actionHint}>{i18n.t("friends.wantsToBeFriend")}</Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <PressableScale style={[s.ghostBtn, { flex: 1 }]} disabled={busy} onPress={onDecline}>
                 <X size={16} color={MUTED} strokeWidth={2.2} />
-                <Text style={s.ghostBtnText}>Neka</Text>
+                <Text style={s.ghostBtnText}>{i18n.t("friends.decline")}</Text>
               </PressableScale>
               <GoldButton
                 style={{ flex: 1 }}
                 icon={<Check size={16} color={GOLD} strokeWidth={2.4} />}
-                label="Acceptera"
+                label={i18n.t("friends.accept")}
                 disabled={busy}
                 onPress={onAccept}
               />

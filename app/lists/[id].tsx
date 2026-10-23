@@ -42,6 +42,9 @@ import { MembersSheet } from "@/components/lists/MembersSheet";
 import { ListOptionsSheet } from "@/components/lists/ListOptionsSheet";
 import { EditListSheet } from "@/components/lists/EditListSheet";
 import { MemberAvatarStack } from "@/components/lists/MemberAvatarStack";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate } from "@/i18n/dates";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -73,6 +76,7 @@ export default function ListDetailScreen() {
   const copyFriendList = useCopyFriendList();
   const reorderPlaces = useReorderListPlaces();
   const markOpened = useMarkListOpened();
+  useTranslation(); // ritas om när språket byts
 
   // Styr bara ordningen i Mitt Österlens listrad (senast öppnad längst till vänster) — inget i
   // den här vyn beror på det.
@@ -101,12 +105,13 @@ export default function ListDetailScreen() {
     } catch (e) {
       const message = e instanceof Error ? e.message : "";
       if (message === "camera_denied") {
-        Alert.alert("Kameran är avstängd", "Tillåt kameran för appen i telefonens inställningar för att kunna ta ett foto.", [
-          { text: "Avbryt", style: "cancel" },
-          { text: "Öppna inställningar", onPress: () => Linking.openSettings() },
+        Alert.alert(i18n.t("lists.cameraOffTitle"), i18n.t("lists.cameraOffText"), [
+          { text: i18n.t("lists.cancel"), style: "cancel" },
+          { text: i18n.t("lists.openSettings"), onPress: () => Linking.openSettings() },
         ]);
       } else {
-        Alert.alert("Något gick fel", __DEV__ && message ? `Det gick inte att byta omslagsbild.\n\n${message}` : "Det gick inte att byta omslagsbild.");
+        const text = i18n.t("lists.coverFailed");
+        Alert.alert(i18n.t("lists.errorTitle"), __DEV__ && message ? `${text}\n\n${message}` : text);
       }
     }
   }
@@ -114,9 +119,11 @@ export default function ListDetailScreen() {
   function openCoverMenu() {
     if (!list) return;
     const hasCustomCover = !!list.coverImageUrl;
-    const options = hasCustomCover
-      ? ["Välj bild", "Ta foto", "Återställ collage", "Avbryt"]
-      : ["Välj bild", "Ta foto", "Avbryt"];
+    const pick = i18n.t("lists.pickImage");
+    const photo = i18n.t("lists.takePhoto");
+    const reset = i18n.t("lists.resetCollage");
+    const cancel = i18n.t("lists.cancel");
+    const options = hasCustomCover ? [pick, photo, reset, cancel] : [pick, photo, cancel];
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (index) => {
         if (index === 0) runCoverPick("library");
@@ -124,11 +131,11 @@ export default function ListDetailScreen() {
         if (hasCustomCover && index === 2) resetCover.mutate(list.id);
       });
     } else {
-      Alert.alert("Byt omslagsbild", undefined, [
-        { text: "Välj bild", onPress: () => runCoverPick("library") },
-        { text: "Ta foto", onPress: () => runCoverPick("camera") },
-        ...(hasCustomCover ? [{ text: "Återställ collage", onPress: () => resetCover.mutate(list.id) }] : []),
-        { text: "Avbryt", style: "cancel" as const },
+      Alert.alert(i18n.t("lists.changeCover"), undefined, [
+        { text: pick, onPress: () => runCoverPick("library") },
+        { text: photo, onPress: () => runCoverPick("camera") },
+        ...(hasCustomCover ? [{ text: reset, onPress: () => resetCover.mutate(list.id) }] : []),
+        { text: cancel, style: "cancel" as const },
       ]);
     }
   }
@@ -144,7 +151,7 @@ export default function ListDetailScreen() {
 
   function confirm(title: string, message: string, action: string, onConfirm: () => void) {
     Alert.alert(title, message, [
-      { text: "Avbryt", style: "cancel" },
+      { text: i18n.t("lists.cancel"), style: "cancel" },
       { text: action, style: "destructive", onPress: onConfirm },
     ]);
   }
@@ -152,7 +159,7 @@ export default function ListDetailScreen() {
   function shareList() {
     if (!list) return;
     Share.share({
-      message: `Gå med i min lista "${list.name}" i Österlenappen. Öppna Mitt Österlen, tryck "Gå med" och skriv in koden ${list.inviteCode}`,
+      message: i18n.t("lists.shareMessage", { name: list.name, code: list.inviteCode }),
     });
   }
 
@@ -163,7 +170,7 @@ export default function ListDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.replace(`/lists/${newId}`);
     } catch {
-      Alert.alert("Något gick fel", "Det gick inte att spara en kopia av listan. Försök igen.");
+      Alert.alert(i18n.t("lists.errorTitle"), i18n.t("lists.copyFailed"));
     }
   }
 
@@ -176,12 +183,12 @@ export default function ListDetailScreen() {
   function handleDeleteOrLeave() {
     if (!list) return;
     if (isOwner) {
-      confirm("Ta bort listan", "Listan och alla platser försvinner för alla medlemmar.", "Ta bort listan", async () => {
+      confirm(i18n.t("lists.deleteTitle"), i18n.t("lists.deleteText"), i18n.t("lists.deleteTitle"), async () => {
         await deleteList.mutateAsync(list.id);
         router.back();
       });
     } else {
-      confirm("Lämna listan", "Du kan gå med igen om du får koden.", "Lämna", async () => {
+      confirm(i18n.t("lists.leave"), i18n.t("lists.leaveText"), i18n.t("lists.leaveAction"), async () => {
         await removeMember.mutateAsync({ listId: list.id, userId: user!.id });
         router.back();
       });
@@ -192,20 +199,20 @@ export default function ListDetailScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("lists.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{list?.name ?? ""}</Text>
           {list && !viewOnly && (
             isOwner ? (
-              <TouchableOpacity style={s.headerBtn} onPress={() => setOptionsOpen(true)}>
+              <TouchableOpacity style={s.headerBtn} onPress={() => setOptionsOpen(true)} accessibilityLabel={i18n.t("lists.options")}>
                 <MoreHorizontal size={22} color={FG} strokeWidth={2} />
               </TouchableOpacity>
             ) : (
               // Inbjuden medlem, inte ägare: ⋮-menyns enda alternativ som gällde dem var ändå
               // bara "Lämna listan" (Byt omslag/Redigera är redan ägar-låsta) — en direktknapp
               // i stället för att gömma den enda relevanta handlingen bakom en meny.
-              <TouchableOpacity style={s.headerBtn} onPress={handleDeleteOrLeave}>
+              <TouchableOpacity style={s.headerBtn} onPress={handleDeleteOrLeave} accessibilityLabel={i18n.t("lists.leave")}>
                 <LogOut size={20} color={FG} strokeWidth={2} />
               </TouchableOpacity>
             )
@@ -238,7 +245,7 @@ export default function ListDetailScreen() {
           ))}
         </View>
       ) : !list ? (
-        <Text style={s.notFound}>Listan finns inte längre.</Text>
+        <Text style={s.notFound}>{i18n.t("lists.notFound")}</Text>
       ) : (
         <DraggableFlatList
           containerStyle={{ flex: 1 }}
@@ -288,27 +295,27 @@ export default function ListDetailScreen() {
                     {copyFriendList.isPending
                       ? <ActivityIndicator color={GOLD} size="small" />
                       : <Copy size={16} color={GOLD} strokeWidth={2.2} />}
-                    <Text style={s.copyText}>Spara en kopia</Text>
+                    <Text style={s.copyText}>{i18n.t("lists.saveCopy")}</Text>
                   </TouchableOpacity>
                 )}
 
                 <Text style={s.meta}>
-                  Senast uppdaterad {formatShortDate(list.lastUpdatedAt)} · {list.places.length} {list.places.length === 1 ? "plats" : "platser"}
+                  {i18n.t("lists.updated", { date: formatDate(list.lastUpdatedAt, "d MMMM") })} · {list.places.length === 1 ? i18n.t("lists.placesOne") : i18n.t("lists.placesOther", { count: list.places.length })}
                 </Text>
               </View>
 
               <View style={s.sectionHead}>
-                <Text style={s.sectionTitle}>Platser · {list.places.length}</Text>
+                <Text style={s.sectionTitle}>{i18n.t("lists.placesTitle", { count: list.places.length })}</Text>
                 {!viewOnly && (
                   <TouchableOpacity style={s.addBtn} onPress={() => setAddOpen(true)}>
                     <Plus size={16} color={GOLD} strokeWidth={2.5} />
-                    <Text style={s.addText}>Lägg till plats</Text>
+                    <Text style={s.addText}>{i18n.t("lists.addPlace")}</Text>
                   </TouchableOpacity>
                 )}
               </View>
             </>
           }
-          ListEmptyComponent={<Text style={s.empty}>{viewOnly ? "Inga platser än." : "Inga platser än. Lägg till den första!"}</Text>}
+          ListEmptyComponent={<Text style={s.empty}>{i18n.t(viewOnly ? "lists.emptyView" : "lists.empty")}</Text>}
           renderItem={({ item, drag, isActive }: RenderItemParams<ListPlace>) => (
             <ScaleDecorator>
               <PlaceRow
@@ -319,7 +326,7 @@ export default function ListDetailScreen() {
                 onPress={() => router.push(`/place/${item.place.id}?from=lists`)}
                 onDrag={drag}
                 onRemove={() =>
-                  confirm("Ta bort plats", `Ta bort ${item.place.name} från listan? Det gäller alla medlemmar.`, "Ta bort", () =>
+                  confirm(i18n.t("lists.removePlaceTitle"), i18n.t("lists.removePlaceText", { name: item.place.name }), i18n.t("lists.remove"), () =>
                     removePlace.mutate(item.rowId)
                   )
                 }
@@ -363,11 +370,6 @@ export default function ListDetailScreen() {
   );
 }
 
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("sv-SE", { day: "numeric", month: "long" });
-}
-
 function PlaceRow({
   listPlace, hasOffer, isActive, viewOnly, onPress, onDrag, onRemove,
 }: {
@@ -402,7 +404,7 @@ function PlaceRow({
           {hasOffer && (
             <View style={s.offerBadge}>
               <Crown size={11} color={GOLD} strokeWidth={2.2} />
-              <Text style={s.offerText}>Österlenpasset</Text>
+              <Text style={s.offerText}>{i18n.t("pass.title")}</Text>
             </View>
           )}
         </View>
@@ -412,17 +414,17 @@ function PlaceRow({
           {place.opening_hours && (
             <View style={s.statusBadge}>
               <View style={[s.statusDot, { backgroundColor: open ? "#4ADE80" : "#E57373" }]} />
-              <Text style={s.statusText}>{open ? "Öppet" : "Stängt"}</Text>
+              <Text style={s.statusText}>{i18n.t(open ? "lists.open" : "lists.closed")}</Text>
             </View>
           )}
         </View>
       </View>
       {!viewOnly && (<>
-        <TouchableOpacity hitSlop={12} onLongPress={onDrag} delayLongPress={150} style={s.dragHandle}>
+        <TouchableOpacity hitSlop={12} onLongPress={onDrag} delayLongPress={150} style={s.dragHandle} accessibilityLabel={i18n.t("lists.move")}>
           <GripVertical size={20} color={MUTED} strokeWidth={2} />
         </TouchableOpacity>
 
-        <TouchableOpacity hitSlop={10} onPress={onRemove} style={s.removeBadge}>
+        <TouchableOpacity hitSlop={10} onPress={onRemove} style={s.removeBadge} accessibilityLabel={i18n.t("lists.removeA11y", { name: place.name })}>
           <Minus size={14} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
       </>)}

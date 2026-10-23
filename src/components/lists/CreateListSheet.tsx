@@ -9,6 +9,7 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 import { MemberAvatarStack } from "@/components/lists/MemberAvatarStack";
 import { FriendPickerRow, RING_ROOM } from "@/components/lists/FriendPickerRow";
 import { Sheet, PrimaryButton, SecondaryButton, useSheetInput } from "@/components/Sheet";
+import i18n from "i18next";
 
 const MUTED = "rgba(245,241,232,0.55)";
 const CARD = "#1A1A1D";
@@ -63,38 +64,38 @@ export function CreateListSheet({
     <Sheet
       visible={visible}
       onClose={handleClose}
-      title={step === "picker" ? "Medlemmar" : "Ny lista"}
+      title={i18n.t(step === "picker" ? "lists.create.members" : "lists.create.title")}
       centered
       onShow={() => { if (step === "form") nameInputRef.current?.focus(); }}
     >
       {step === "form" ? (
         <Reanimated.View entering={SlideInRight.duration(220)} exiting={SlideOutLeft.duration(160)} style={{ gap: 14 }}>
           <View style={{ gap: 6 }}>
-            <Text style={s.label}>Namn</Text>
+            <Text style={s.label}>{i18n.t("lists.create.name")}</Text>
             <TextInput
               ref={nameInputRef}
               style={sheetInput}
               value={name}
               onChangeText={setName}
               maxLength={60}
-              placeholder="T.ex. Bästa caféerna"
+              placeholder={i18n.t("lists.create.namePlaceholder")}
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
           </View>
           <View style={{ gap: 6 }}>
-            <Text style={s.label}>Beskrivning</Text>
+            <Text style={s.label}>{i18n.t("lists.create.description")}</Text>
             <TextInput
               style={[sheetInput, { minHeight: 80, textAlignVertical: "top" }]}
               value={description}
               onChangeText={setDescription}
               maxLength={180}
               multiline
-              placeholder="Valfritt"
+              placeholder={i18n.t("lists.create.optional")}
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
           </View>
           <View style={{ gap: 6 }}>
-            <Text style={s.label}>Medlemmar</Text>
+            <Text style={s.label}>{i18n.t("lists.create.members")}</Text>
             <MemberAvatarStack
               ringColor={CARD}
               onAddPress={() => setStep("picker")}
@@ -106,16 +107,16 @@ export function CreateListSheet({
           </View>
           {create.isError && (
             <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: "#E57373" }}>
-              Det gick inte att skapa listan. Försök igen.
+              {i18n.t("lists.create.failed")}
             </Text>
           )}
-          <PrimaryButton label="Skapa lista" onPress={submit} disabled={!name.trim()} loading={create.isPending} />
+          <PrimaryButton label={i18n.t("lists.create.submit")} onPress={submit} disabled={!name.trim()} loading={create.isPending} />
         </Reanimated.View>
       ) : (
         <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={{ gap: 12 }}>
           {friends.length === 0 ? (
             <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, paddingVertical: 12 }}>
-              Inga vänner att bjuda in än.
+              {i18n.t("lists.create.noFriends")}
             </Text>
           ) : (
             <ScrollView
@@ -130,7 +131,7 @@ export function CreateListSheet({
               </View>
             </ScrollView>
           )}
-          <SecondaryButton label="Klar" onPress={() => setStep("form")} />
+          <SecondaryButton label={i18n.t("lists.create.done")} onPress={() => setStep("form")} />
         </Reanimated.View>
       )}
     </Sheet>

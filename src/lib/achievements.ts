@@ -24,10 +24,10 @@ import type { Place } from "@/hooks/usePlaces";
 import type { Achievement } from "@/hooks/useAchievements";
 import type { Visit } from "@/hooks/useVisits";
 import type { RedemptionRow } from "@/lib/offers";
+import i18n from "i18next";
 
 export type Tier = "bronze" | "silver" | "gold";
 
-const TIER_LABEL: Record<Tier, string> = { bronze: "Brons", silver: "Silver", gold: "Guld" };
 const TIER_ORDER: Tier[] = ["bronze", "silver", "gold"];
 
 export const TIER_PALETTE: Record<Tier, { rim: string; field: [string, string, string]; ink: string; glow: string }> = {
@@ -106,137 +106,94 @@ export function computeUserStats(
 }
 
 // ─── De 7 grupperna ─────────────────────────────────────────────────────────────
+// Namn, krav och enheter finns i språkfilerna (trophies.<grupp>.<nivå>), här bara målen
 interface TierSpec {
   target: number;
   progress: (s: UserStats) => number;
-  requirementText: string;
-  levelName: string;
-  /** Vad som räknas, för framsteget "17 av 30 favoriter sparade": [ental, flertal] */
-  unit: [string, string];
   /** Österlenlegend: delmålen var för sig (visas med bock i stället för "x av 3") */
-  parts?: (s: UserStats) => { label: string; done: boolean }[];
+  parts?: (s: UserStats) => [boolean, boolean, boolean];
 }
 
 interface GroupDef {
   id: string;
-  theme: string;
-  tagline: string;
   Icon: React.ComponentType<any>;
   tiers: [TierSpec, TierSpec, TierSpec];
 }
 
+const legend = (visits: number, favorites: number, redemptions: number): TierSpec => {
+  const parts = (s: UserStats): [boolean, boolean, boolean] =>
+    [s.uniqueVisits >= visits, s.favoritesCount >= favorites, s.redemptionsDistinct >= redemptions];
+  return { target: 3, progress: (s) => parts(s).filter(Boolean).length, parts };
+};
+
 const GROUPS: GroupDef[] = [
   {
     id: "kom-igang",
-    theme: "Kom igång",
-    tagline: "De första stegen på Österlen",
     Icon: Footprints,
     tiers: [
-      { target: 1, progress: (s) => Math.min(s.uniqueVisits, 1), requirementText: "Besök en plats", levelName: "Första besöket", unit: ["plats besökt", "platser besökta"] },
-      { target: 1, progress: (s) => Math.min(s.listsCreated, 1), requirementText: "Skapa en lista", levelName: "Första listan", unit: ["lista skapad", "listor skapade"] },
-      { target: 1, progress: (s) => Math.min(s.memoriesCount, 1), requirementText: "Spara ett minne", levelName: "Första minnet", unit: ["minne sparat", "minnen sparade"] },
+      { target: 1, progress: (s) => Math.min(s.uniqueVisits, 1) },
+      { target: 1, progress: (s) => Math.min(s.listsCreated, 1) },
+      { target: 1, progress: (s) => Math.min(s.memoriesCount, 1) },
     ],
   },
   {
     id: "utforskaren",
-    theme: "Utforskaren",
-    tagline: "Ju fler platser, desto bättre",
     Icon: Compass,
     tiers: [
-      { target: 5,  progress: (s) => s.uniqueVisits, requirementText: "Besök 5 platser",  levelName: "Nykomling", unit: ["plats besökt", "platser besökta"] },
-      { target: 20, progress: (s) => s.uniqueVisits, requirementText: "Besök 20 platser", levelName: "Reserutinerad", unit: ["plats besökt", "platser besökta"] },
-      { target: 50, progress: (s) => s.uniqueVisits, requirementText: "Besök 50 platser", levelName: "Österlenkännare", unit: ["plats besökt", "platser besökta"] },
+      { target: 5, progress: (s) => s.uniqueVisits },
+      { target: 20, progress: (s) => s.uniqueVisits },
+      { target: 50, progress: (s) => s.uniqueVisits },
     ],
   },
   {
     id: "samlaren",
-    theme: "Samlaren",
-    tagline: "Bygg din egen guldgruva",
     Icon: Heart,
     tiers: [
-      { target: 5,  progress: (s) => s.favoritesCount, requirementText: "Spara 5 favoriter",  levelName: "Samlarsugen", unit: ["favorit sparad", "favoriter sparade"] },
-      { target: 15, progress: (s) => s.favoritesCount, requirementText: "Spara 15 favoriter", levelName: "Listbyggare", unit: ["favorit sparad", "favoriter sparade"] },
-      { target: 30, progress: (s) => s.favoritesCount, requirementText: "Spara 30 favoriter", levelName: "Kurator", unit: ["favorit sparad", "favoriter sparade"] },
+      { target: 5, progress: (s) => s.favoritesCount },
+      { target: 15, progress: (s) => s.favoritesCount },
+      { target: 30, progress: (s) => s.favoritesCount },
     ],
   },
   {
     id: "formansjagaren",
-    theme: "Förmånsjägaren",
-    tagline: "Österlenpasset i praktiken",
     Icon: Tag,
     tiers: [
-      { target: 1, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 1 erbjudande",  levelName: "Fyndaren", unit: ["erbjudande inlöst", "erbjudanden inlösta"] },
-      { target: 3, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 3 erbjudanden", levelName: "Förmånsjägare", unit: ["erbjudande inlöst", "erbjudanden inlösta"] },
-      { target: 6, progress: (s) => s.redemptionsDistinct, requirementText: "Lös in 6 erbjudanden", levelName: "Rabattkung", unit: ["erbjudande inlöst", "erbjudanden inlösta"] },
+      { target: 1, progress: (s) => s.redemptionsDistinct },
+      { target: 3, progress: (s) => s.redemptionsDistinct },
+      { target: 6, progress: (s) => s.redemptionsDistinct },
     ],
   },
   {
     id: "mangsidig",
-    theme: "Mångsidig",
-    tagline: "Bredd, inte bara djup",
     Icon: Shuffle,
     tiers: [
-      { target: 3, progress: (s) => s.categoriesVisited, requirementText: "Besök platser i 3 olika kategorier",     levelName: "Nyfiken", unit: ["kategori besökt", "kategorier besökta"] },
-      { target: 5, progress: (s) => s.categoriesVisited, requirementText: "Besök platser i 5 olika kategorier",     levelName: "Allätare", unit: ["kategori besökt", "kategorier besökta"] },
-      { target: TOTAL_CATEGORY_COUNT, progress: (s) => s.categoriesVisited, requirementText: `Besök platser i alla ${TOTAL_CATEGORY_COUNT} kategorier`, levelName: "Mångsidig mästare", unit: ["kategori besökt", "kategorier besökta"] },
+      { target: 3, progress: (s) => s.categoriesVisited },
+      { target: 5, progress: (s) => s.categoriesVisited },
+      { target: TOTAL_CATEGORY_COUNT, progress: (s) => s.categoriesVisited },
     ],
   },
   {
     id: "bladdraren",
-    theme: "Bläddraren",
-    tagline: "Svep dig igenom hela katalogen",
     Icon: Layers,
     tiers: [
-      { target: 15,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 15 platser i Upptäck",  levelName: "Bläddrare", unit: ["plats svept", "platser svepta"] },
-      { target: 60,  progress: (s) => s.swipedCount, requirementText: "Svep igenom 60 platser i Upptäck",  levelName: "Katalogkännare", unit: ["plats svept", "platser svepta"] },
-      { target: 150, progress: (s) => s.swipedCount, requirementText: "Svep igenom 150 platser i Upptäck", levelName: "Hela högen", unit: ["plats svept", "platser svepta"] },
+      { target: 15, progress: (s) => s.swipedCount },
+      { target: 60, progress: (s) => s.swipedCount },
+      { target: 150, progress: (s) => s.swipedCount },
     ],
   },
   {
     id: "osterlenlegend",
-    theme: "Österlenlegend",
-    tagline: "Lite av allt, inte bara mycket av en sak",
     Icon: TrophyIcon,
-    tiers: [
-      {
-        target: 3,
-        progress: (s) => [s.uniqueVisits >= 1, s.favoritesCount >= 1, s.redemptionsDistinct >= 1].filter(Boolean).length,
-        requirementText: "1 besök, 1 favorit, 1 inlöst förmån",
-        levelName: "Nyfrälst",
-        parts: (s) => [
-          { label: "1 besök", done: s.uniqueVisits >= 1 },
-          { label: "1 favorit", done: s.favoritesCount >= 1 },
-          { label: "1 inlöst förmån", done: s.redemptionsDistinct >= 1 },
-        ],
-        unit: ["delmål klart", "delmål klara"],
-      },
-      {
-        target: 3,
-        progress: (s) => [s.uniqueVisits >= 10, s.favoritesCount >= 5, s.redemptionsDistinct >= 2].filter(Boolean).length,
-        requirementText: "10 besök, 5 favoriter, 2 inlösta förmåner",
-        levelName: "Helhjärtad",
-        parts: (s) => [
-          { label: "10 besök", done: s.uniqueVisits >= 10 },
-          { label: "5 favoriter", done: s.favoritesCount >= 5 },
-          { label: "2 inlösta förmåner", done: s.redemptionsDistinct >= 2 },
-        ],
-        unit: ["delmål klart", "delmål klara"],
-      },
-      {
-        target: 3,
-        progress: (s) => [s.uniqueVisits >= 30, s.favoritesCount >= 15, s.redemptionsDistinct >= 5].filter(Boolean).length,
-        requirementText: "30 besök, 15 favoriter, 5 inlösta förmåner",
-        levelName: "Österlenlegend",
-        parts: (s) => [
-          { label: "30 besök", done: s.uniqueVisits >= 30 },
-          { label: "15 favoriter", done: s.favoritesCount >= 15 },
-          { label: "5 inlösta förmåner", done: s.redemptionsDistinct >= 5 },
-        ],
-        unit: ["delmål klart", "delmål klara"],
-      },
-    ],
+    tiers: [legend(1, 1, 1), legend(10, 5, 2), legend(30, 15, 5)],
   },
 ];
+
+/** En text om gruppen eller nivån, på appens språk */
+const groupText = (groupId: string, field: "theme" | "tagline") =>
+  i18n.t(`trophies.${groupId}.${field}` as "trophies.kom-igang.theme");
+const tierText = (groupId: string, tier: Tier, field: "requirement" | "name" | "unitOne" | "unitOther" | "part1" | "part2" | "part3") =>
+  i18n.t(`trophies.${groupId}.${tier}.${field}` as "trophies.kom-igang.bronze.name", { total: TOTAL_CATEGORY_COUNT });
+const tierLabel = (tier: Tier) => i18n.t(`trophies.tiers.${tier}`);
 
 export const GROUP_ORDER = GROUPS.map((g) => g.id);
 
@@ -255,12 +212,13 @@ export function getTrophyMeta(groupId: string, tier: Tier): TrophyMeta | null {
   const group = GROUPS.find((g) => g.id === groupId);
   if (!group) return null;
   const spec = group.tiers[TIER_ORDER.indexOf(tier)];
+  if (!spec) return null;
   return {
-    identity: group.theme,
-    levelName: spec.levelName,
-    levelLabel: TIER_LABEL[tier],
-    tagline: group.tagline,
-    requirementText: spec.requirementText,
+    identity: groupText(group.id, "theme"),
+    levelName: tierText(group.id, tier, "name"),
+    levelLabel: tierLabel(tier),
+    tagline: groupText(group.id, "tagline"),
+    requirementText: tierText(group.id, tier, "requirement"),
     Icon: group.Icon,
   };
 }
@@ -304,13 +262,13 @@ export function buildTrophies(stats: UserStats, achievements: Achievement[]): Tr
         groupId: group.id,
         tier,
         Icon: group.Icon,
-        identity: group.theme,
-        levelName: spec.levelName,
-        levelLabel: TIER_LABEL[tier],
-        tagline: group.tagline,
-        requirementText: spec.requirementText,
-        progressUnit: spec.target === 1 ? spec.unit[0] : spec.unit[1],
-        parts: spec.parts?.(stats) ?? null,
+        identity: groupText(group.id, "theme"),
+        levelName: tierText(group.id, tier, "name"),
+        levelLabel: tierLabel(tier),
+        tagline: groupText(group.id, "tagline"),
+        requirementText: tierText(group.id, tier, "requirement"),
+        progressUnit: tierText(group.id, tier, spec.target === 1 ? "unitOne" : "unitOther"),
+        parts: spec.parts?.(stats).map((done, i) => ({ label: tierText(group.id, tier, `part${i + 1}` as "part1"), done })) ?? null,
         done,
         percent,
         progress,
