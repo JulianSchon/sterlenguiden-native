@@ -16,7 +16,7 @@ import { Platform, StyleSheet, View, type ImageRequireSource, type ImageURISourc
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { Image as ExpoImage } from "expo-image";
 import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from "react-native-svg";
-import { HeartPulse, MapPin, Plug, Store, Toilet, type LucideIcon } from "lucide-react-native";
+import { HeartPulse, MapPin, Plug, Store, Toilet, ToyBrick, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import type { CategoryId } from "@/theme/categories";
 import i18n from "i18next";
@@ -62,8 +62,9 @@ export const SERVICE_TYPES: { type: string; key: ServiceKey; readonly label: str
   service("Laddning", "laddning", Plug),
   service("AutoMat", "automat", Store),
   service("Vård", "vard", HeartPulse),
+  service("Lekplats", "lekplats", ToyBrick),
 ];
-type ServiceKey = "toalett" | "laddning" | "automat" | "vard";
+type ServiceKey = "toalett" | "laddning" | "automat" | "vard" | "lekplats";
 export const serviceType = (type: string) => SERVICE_TYPES.find((t) => t.type.toLowerCase() === type.trim().toLowerCase());
 export const serviceIcon = (type: string): LucideIcon => serviceType(type)?.Icon ?? MapPin;
 
@@ -98,12 +99,14 @@ const SERVICE_PINS: Record<"dark" | "light", Record<ServiceKey, ImageRequireSour
     laddning: require("../../../assets/map-pins/pin-svc-laddning-dark.png"),
     automat: require("../../../assets/map-pins/pin-svc-automat-dark.png"),
     vard: require("../../../assets/map-pins/pin-svc-vard-dark.png"),
+    lekplats: require("../../../assets/map-pins/pin-svc-lekplats-dark.png"),
   },
   light: {
     toalett: require("../../../assets/map-pins/pin-svc-toalett-light.png"),
     laddning: require("../../../assets/map-pins/pin-svc-laddning-light.png"),
     automat: require("../../../assets/map-pins/pin-svc-automat-light.png"),
     vard: require("../../../assets/map-pins/pin-svc-vard-light.png"),
+    lekplats: require("../../../assets/map-pins/pin-svc-lekplats-light.png"),
   },
 };
 const TREASURE_PINS = {

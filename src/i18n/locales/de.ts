@@ -867,6 +867,7 @@ export const de: typeof sv = {
       laddning: { label: "Laden", one: "Ladestation", many: "Ladestationen" },
       automat: { label: "AutoMat", one: "AutoMat", many: "AutoMat" },
       vard: { label: "Gesundheit", one: "Arztpraxis", many: "Arztpraxen" },
+      lekplats: { label: "Spielplätze", one: "Spielplatz", many: "Spielplätze" },
     },
   },
   treasure: {

@@ -870,6 +870,7 @@ export const sv = {
       laddning: { label: "Laddning", one: "laddstation", many: "laddstationer" },
       automat: { label: "AutoMat", one: "AutoMat", many: "AutoMat" },
       vard: { label: "Vård", one: "vårdställe", many: "vårdställen" },
+      lekplats: { label: "Lekplatser", one: "lekplats", many: "lekplatser" },
     },
   },
   treasure: {
