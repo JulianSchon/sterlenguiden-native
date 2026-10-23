@@ -277,6 +277,7 @@ export const en: typeof sv = {
     contact: "Contact us",
     version: "Version {{version}}",
     rights: "© {{year}} Österlenappen",
+    osmCredit: "Playgrounds on the map: © OpenStreetMap contributors",
   },
   suggestForm: {
     title: "Suggest a place",

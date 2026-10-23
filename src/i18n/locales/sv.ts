@@ -280,6 +280,7 @@ export const sv = {
     contact: "Kontakta oss",
     version: "Version {{version}}",
     rights: "© {{year}} Österlenappen",
+    osmCredit: "Lekplatserna på kartan: © OpenStreetMap-bidragsgivare",
   },
   suggestForm: {
     title: "Tipsa oss",

@@ -277,6 +277,7 @@ export const de: typeof sv = {
     contact: "Kontakt",
     version: "Version {{version}}",
     rights: "© {{year}} Österlenappen",
+    osmCredit: "Spielplätze auf der Karte: © OpenStreetMap-Mitwirkende",
   },
   suggestForm: {
     title: "Ort vorschlagen",

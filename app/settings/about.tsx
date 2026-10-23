@@ -48,6 +48,7 @@ export default function AboutSettings() {
       <View style={s.footer}>
         {APP_VERSION !== "" && <Text style={s.footerText}>{t("about.version", { version: APP_VERSION })}</Text>}
         <Text style={s.footerText}>{t("about.rights", { year: new Date().getFullYear() })}</Text>
+        <Text style={s.footerText}>{t("about.osmCredit")}</Text>
       </View>
     </SettingsScreen>
   );
