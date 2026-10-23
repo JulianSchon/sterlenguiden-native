@@ -4,11 +4,10 @@
  * Varje variant definierar bakgrundsfärger och om kortet är ljust eller mörkt.
  * cardColors() returnerar rätt text- och accentfärger automatiskt.
  *
- * Arbetsflöde för att lägga till PNG-bakgrund:
- *   1. Skapa design i Figma (utan rundade hörn)
- *   2. Exportera som PNG card-<id>.png + card-<id>@2x.png + card-<id>@3x.png
- *      till assets/cards/ (samma mapp, inte undermappar per id)
- *   3. Sätt bgImage: require("../../assets/cards/card-<id>.png") på varianten
+ * Arbetsflöde för att lägga till en bakgrundsbild:
+ *   1. Skapa designen i Figma (utan rundade hörn) och exportera den stort, minst 1260 punkter bred
+ *   2. Kör scripts/resize-card-images.js: den gör card-<id>.jpg, @2x och @3x i assets/cards/
+ *   3. Sätt bgImage: require("../../assets/cards/card-<id>.jpg") på varianten
  *      — RN hittar @2x/@3x-filerna automatiskt och väljer rätt upplösning
  *      efter skärmens pixeltäthet.
  */
@@ -19,7 +18,7 @@ export type CardVariant = {
   bg: string;        // Primär bakgrundsfärg (alltid solid fallback)
   bg2: string;       // Sekundär färg (gradient-ände)
   glow?: string;     // Radial-glow, rgba-sträng
-  bgImage?: any;     // require()'d PNG – sätts när Figma-bild finns
+  bgImage?: any;     // require()'d bild – sätts när Figma-bild finns
   light: boolean;    // true = ljust kort → mörk text
 };
 
@@ -72,7 +71,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     bg:  "#2A3F29",
     bg2: "#1B3120",
     glow: "rgba(50,160,70,0.16)",
-    bgImage: require("../../assets/cards/card-forest.png"),
+    bgImage: require("../../assets/cards/card-forest.jpg"),
     light: false,
   },
   {
@@ -80,7 +79,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Rapsfält",
     bg:  "#CB9E26",
     bg2: "#C59720",
-    bgImage: require("../../assets/cards/card-rapeseed.png"),
+    bgImage: require("../../assets/cards/card-rapeseed.jpg"),
     light: true,
   },
   {
@@ -88,7 +87,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Hav",
     bg:  "#2E526A",
     bg2: "#1E4159",
-    bgImage: require("../../assets/cards/card-ocean.png"),
+    bgImage: require("../../assets/cards/card-ocean.jpg"),
     light: false,
   },
   {
@@ -96,7 +95,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Druvor",
     bg:  "#48141C",
     bg2: "#3D0E16",
-    bgImage: require("../../assets/cards/card-grapes.png"),
+    bgImage: require("../../assets/cards/card-grapes.jpg"),
     light: false,
   },
   {
@@ -104,7 +103,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Obsidian",
     bg:  "#191918",
     bg2: "#111111",
-    bgImage: require("../../assets/cards/card-obsidian.png"),
+    bgImage: require("../../assets/cards/card-obsidian.jpg"),
     light: false,
   },
   {
@@ -112,7 +111,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Koppar",
     bg:  "#532A16",
     bg2: "#4D2613",
-    bgImage: require("../../assets/cards/card-copper.png"),
+    bgImage: require("../../assets/cards/card-copper.jpg"),
     light: false,
   },
   {
@@ -120,7 +119,7 @@ export const CARD_VARIANTS: CardVariant[] = [
     name: "Sand",
     bg:  "#CCB69B",
     bg2: "#C5AD91",
-    bgImage: require("../../assets/cards/card-sand.png"),
+    bgImage: require("../../assets/cards/card-sand.jpg"),
     light: true,
   },
 ];
