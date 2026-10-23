@@ -11,8 +11,8 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Reanimated, { ZoomIn, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { Heart } from "lucide-react-native";
-import { addDays, eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from "date-fns";
-import { formatDate } from "@/i18n/dates";
+import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from "date-fns";
+import { weekdayShort } from "@/i18n/dates";
 import type { Event } from "@/hooks/useEvents";
 import { dayKey } from "@/lib/events";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
@@ -21,9 +21,8 @@ const BG = "#121212";
 const FG = "#F5F1E8";
 const GOLD = "#C5A059";
 const RED = "#EF4444";
-/** MÅN … SÖN / MON … SUN / MO … SO — från en måndag (5 jan 2026) och sex dagar fram */
-const weekdays = () => Array.from({ length: 7 }, (_, i) =>
-  formatDate(addDays(new Date(2026, 0, 5), i), "EEE").replace(/\./g, "").slice(0, 3).toUpperCase());
+/** MÅN … SÖN / MON … SUN / MO … SO */
+const weekdays = () => Array.from({ length: 7 }, (_, i) => weekdayShort(i).toUpperCase());
 /** Ringarna (idag, vald dag) ligger så här mycket utanför bildcirkeln */
 const RING_GAP = 3;
 

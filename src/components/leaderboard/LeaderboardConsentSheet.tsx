@@ -9,6 +9,7 @@ import { Trophy } from "lucide-react-native";
 import { Sheet, PrimaryButton, SecondaryButton } from "@/components/Sheet";
 import { PressableScale } from "@/components/PressableScale";
 import { useSetLeaderboardVisibility } from "@/hooks/useLeaderboard";
+import i18n from "i18next";
 
 const MUTED = "rgba(245,241,232,0.7)";
 const GOLD = "#C5A059";
@@ -18,7 +19,7 @@ export function JoinLeaderboardButton({ onPress }: { onPress: () => void }) {
   return (
     <PressableScale style={s.join} scale={0.98} onPress={onPress}>
       <Trophy size={16} color={GOLD} strokeWidth={2} />
-      <Text style={s.joinText}>Dela med dig av din statistik för att delta i topplistorna</Text>
+      <Text style={s.joinText}>{i18n.t("leaderboard.join")}</Text>
     </PressableScale>
   );
 }
@@ -34,7 +35,7 @@ export function LeaderboardConsentSheet({
       onClose();
     } catch {
       onClose();
-      Alert.alert("Det gick inte att spara", "Kontrollera anslutningen och försök igen.");
+      Alert.alert(i18n.t("leaderboard.saveFailedTitle"), i18n.t("leaderboard.saveFailedText"));
     }
   }
 
@@ -42,19 +43,14 @@ export function LeaderboardConsentSheet({
     <Sheet
       visible={visible}
       onClose={() => (declineOnDismiss ? choose(false) : onClose())}
-      title="Vill du synas i topplistorna?"
+      title={i18n.t("leaderboard.consentTitle")}
       centered
     >
-      <Text style={s.body}>
-        Ditt namn, användarnamn, ort och din statistik — antal besök, din streak och hur många skatter du
-        hittat — visas då
-        för andra i appen: i hela appen, i ditt område och bland dina vänner. Profilbilden visas bara om du
-        själv slår på det.
-      </Text>
-      <Text style={s.body}>Du kan ändra dig när som helst.</Text>
+      <Text style={s.body}>{i18n.t("leaderboard.consentText")}</Text>
+      <Text style={s.body}>{i18n.t("leaderboard.changeAnytime")}</Text>
       <View style={s.buttons}>
-        <PrimaryButton label="Ja, visa mig" onPress={() => choose(true)} loading={setVisibility.isPending} />
-        <SecondaryButton label="Inte nu" onPress={() => choose(false)} />
+        <PrimaryButton label={i18n.t("leaderboard.yes")} onPress={() => choose(true)} loading={setVisibility.isPending} />
+        <SecondaryButton label={i18n.t("leaderboard.notNow")} onPress={() => choose(false)} />
       </View>
     </Sheet>
   );

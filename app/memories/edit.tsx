@@ -18,6 +18,7 @@ import { useMemory, useSignedUrls, useCreateMemory, useUpdateMemory } from "@/ho
 import { MAX_MEMORY_PHOTOS, pickPhotos, type PickedPhoto } from "@/lib/photos";
 import { isValidDay } from "@/lib/memories";
 import { swedishDay } from "@/lib/streak";
+import i18n from "i18next";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -87,7 +88,7 @@ export default function EditMemoryScreen() {
         router.replace(`/memories/${newId}`);
       }
     } catch {
-      Alert.alert("Det gick inte att spara", "Kontrollera anslutningen och försök igen.");
+      Alert.alert(i18n.t("memories.saveFailedTitle"), i18n.t("memories.saveFailedText"));
     }
   }
 
@@ -95,10 +96,10 @@ export default function EditMemoryScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("memories.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>{id ? "Redigera minne" : "Nytt minne"}</Text>
+          <Text style={s.headerTitle}>{i18n.t(id ? "memories.editTitle" : "memories.newTitle")}</Text>
         </View>
       </View>
 
@@ -128,7 +129,7 @@ export default function EditMemoryScreen() {
                 />
               ))}
               {photoCount < MAX_MEMORY_PHOTOS && (
-                <TouchableOpacity style={[s.addTile, { width: thumb, height: thumb }]} onPress={addPhotos}>
+                <TouchableOpacity style={[s.addTile, { width: thumb, height: thumb }]} onPress={addPhotos} accessibilityLabel={i18n.t("memories.addPhotos")}>
                   <Plus size={28} color={GOLD} strokeWidth={1.8} />
                 </TouchableOpacity>
               )}
@@ -136,19 +137,19 @@ export default function EditMemoryScreen() {
           </View>
 
           <View>
-            <Text style={s.label}>TITEL</Text>
+            <Text style={s.label}>{i18n.t("memories.titleLabel")}</Text>
             <TextInput
               style={sheetInput}
               value={title}
               onChangeText={setTitle}
               maxLength={80}
-              placeholder="T.ex. Sommardag i Kivik"
+              placeholder={i18n.t("memories.titlePlaceholder")}
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
           </View>
 
           <View>
-            <Text style={s.label}>DATUM</Text>
+            <Text style={s.label}>{i18n.t("memories.date")}</Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TextInput
                 style={[sheetInput, { flex: 1 }, !dayOk && { borderColor: "#E57373" }]}
@@ -156,35 +157,35 @@ export default function EditMemoryScreen() {
                 onChangeText={setDay}
                 maxLength={10}
                 keyboardType="numbers-and-punctuation"
-                placeholder="ÅÅÅÅ-MM-DD"
+                placeholder={i18n.t("memories.datePlaceholder")}
                 placeholderTextColor="rgba(255,255,255,0.35)"
               />
               <TouchableOpacity style={s.todayBtn} onPress={() => setDay(swedishDay())}>
-                <Text style={s.todayText}>Idag</Text>
+                <Text style={s.todayText}>{i18n.t("memories.today")}</Text>
               </TouchableOpacity>
             </View>
-            {!dayOk && <Text style={s.error}>Skriv datumet som ÅÅÅÅ-MM-DD, till exempel 2026-07-14.</Text>}
+            {!dayOk && <Text style={s.error}>{i18n.t("memories.dateError")}</Text>}
           </View>
 
           <View>
-            <Text style={s.label}>BERÄTTA LITE</Text>
+            <Text style={s.label}>{i18n.t("memories.story")}</Text>
             <TextInput
               style={[sheetInput, { minHeight: 120, textAlignVertical: "top" }]}
               value={story}
               onChangeText={setStory}
               maxLength={3000}
               multiline
-              placeholder="Vad hände? Vad vill du minnas?"
+              placeholder={i18n.t("memories.storyPlaceholder")}
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
           </View>
 
           <View>
-            <Text style={s.label}>PLATSER</Text>
+            <Text style={s.label}>{i18n.t("memories.places")}</Text>
             <View style={s.chips}>
               {placeIds.map((pid) => (
                 <View key={pid} style={s.chip}>
-                  <Text style={s.chipText} numberOfLines={1}>{placesById.get(pid)?.name ?? "Plats"}</Text>
+                  <Text style={s.chipText} numberOfLines={1}>{placesById.get(pid)?.name ?? i18n.t("memories.place")}</Text>
                   <TouchableOpacity hitSlop={8} onPress={() => setPlaceIds((prev) => prev.filter((p) => p !== pid))}>
                     <X size={14} color={MUTED} strokeWidth={2.5} />
                   </TouchableOpacity>
@@ -192,24 +193,24 @@ export default function EditMemoryScreen() {
               ))}
               <TouchableOpacity style={s.chipAdd} onPress={() => setPickerOpen(true)}>
                 <Plus size={14} color={GOLD} strokeWidth={2.5} />
-                <Text style={s.chipAddText}>Lägg till plats</Text>
+                <Text style={s.chipAddText}>{i18n.t("memories.addPlace")}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View>
-            <Text style={s.label}>VILKA VAR MED?</Text>
+            <Text style={s.label}>{i18n.t("memories.whoLabel")}</Text>
             <TextInput
               style={sheetInput}
               value={peopleText}
               onChangeText={setPeopleText}
-              placeholder="Namn, skilda med komma"
+              placeholder={i18n.t("memories.whoPlaceholder")}
               placeholderTextColor="rgba(255,255,255,0.35)"
             />
           </View>
 
           <PrimaryButton
-            label={saving ? "Sparar…" : "Spara minne"}
+            label={i18n.t(saving ? "memories.saving" : "memories.save")}
             onPress={save}
             disabled={!canSave}
             loading={saving}
@@ -220,7 +221,7 @@ export default function EditMemoryScreen() {
       <PlacePickerSheet
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        title="Lägg till plats"
+        title={i18n.t("memories.addPlace")}
         selectedIds={placeIds}
         onPick={(place) => setPlaceIds((prev) => (prev.includes(place.id) ? prev : [...prev, place.id]))}
       />
@@ -236,7 +237,7 @@ function PhotoTile({ uri, size, onRemove }: { uri: string | undefined; size: num
       ) : (
         <View style={[s.photo, { backgroundColor: "rgba(255,255,255,0.06)" }]} />
       )}
-      <TouchableOpacity style={s.remove} hitSlop={6} onPress={onRemove}>
+      <TouchableOpacity style={s.remove} hitSlop={6} onPress={onRemove} accessibilityLabel={i18n.t("memories.removePhoto")}>
         <X size={14} color="#fff" strokeWidth={2.5} />
       </TouchableOpacity>
     </View>

@@ -37,6 +37,9 @@ import { pushOnce } from "@/lib/navigateOnce";
 import { openEvent } from "@/lib/eventSheet";
 import { DateBox } from "@/components/events/EventCards";
 import { HeartButton, LikeBurst, useLikeBurst, type BurstFn } from "@/components/LikeHeart";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { findCategory } from "@/theme/categories";
 
 const BG     = "#121212";
 const CARD   = "#1C1C1C";
@@ -82,15 +85,21 @@ function matchesDbValues(categories: string | null, dbValues: string[]): boolean
 }
 
 // Sök-sidans kategorier ihopslagna till fyra grupper + Evenemang
-interface FavFilter { id: string; label: string; dbValues?: string[]; isEvent?: boolean }
+interface FavFilter { id: string; readonly label: string; dbValues?: string[]; isEvent?: boolean }
+const favFilter = (id: string, key: string, rest: Omit<FavFilter, "id" | "label"> = {}): FavFilter =>
+  ({ id, ...rest, get label() { return i18n.t(`favoritesPage.filters.${key}` as "favoritesPage.filters.all"); } });
 const FAV_FILTERS: FavFilter[] = [
-  { id: "alla",      label: "Alla" },
-  { id: "ata",       label: "Mat",         dbValues: ["Mat", "Mat & Dryck", "Café & Bageri", "Cafe & Bageri"] },
-  { id: "sova",      label: "Boende",      dbValues: ["Hotell & B&B", "Boende"] },
-  { id: "gora",      label: "Upplevelser", dbValues: ["Aktiviteter", "Sevärdheter", "Konst", "Natur", "Natur & Upplevelser"] },
-  { id: "handla",    label: "Shopping",    dbValues: ["Butiker", "Hantverk & Service", "Hantverk"] },
-  { id: "evenemang", label: "Evenemang",   isEvent: true },
+  favFilter("alla", "all"),
+  favFilter("ata", "eat", { dbValues: ["Mat", "Mat & Dryck", "Café & Bageri", "Cafe & Bageri"] }),
+  favFilter("sova", "sleep", { dbValues: ["Hotell & B&B", "Boende"] }),
+  favFilter("gora", "do", { dbValues: ["Aktiviteter", "Sevärdheter", "Konst", "Natur", "Natur & Upplevelser"] }),
+  favFilter("handla", "shop", { dbValues: ["Butiker", "Hantverk & Service", "Hantverk"] }),
+  favFilter("evenemang", "events", { isEvent: true }),
 ];
+
+/** Kategorin som visas på kortet, på appens språk (category är databasens värde) */
+const shownCategory = (item: FavItem) =>
+  item.kind === "event" ? i18n.t("favoritesPage.event") : findCategory(item.category)?.label ?? item.category;
 
 function useFavoritesDetailed() {
   return useQuery<FavItem[]>({
@@ -132,7 +141,7 @@ function useFavoritesDetailed() {
             kind: "event",
             id: row.events.id,
             title: row.events.title,
-            category: "Evenemang",
+            category: "",
             subtitle: row.events.location ?? "",
             description: row.events.location ?? "",
             categories: null,
@@ -149,6 +158,7 @@ function useFavoritesDetailed() {
 
 export default function FavoritesScreen() {
   const insets = useSafeAreaInsets();
+  useTranslation(); // ritas om när språket byts
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: items = [], isLoading } = useFavoritesDetailed();
@@ -245,22 +255,22 @@ export default function FavoritesScreen() {
   const handleShare = () => {
     if (items.length === 0) return;
     const names = items.map((i) => i.title).join(", ");
-    Share.share({ message: `Kolla in mina favoritplatser på Österlen: ${names} 🌾 via Österlenappen` }).catch(() => {});
+    Share.share({ message: i18n.t("favoritesPage.shareMessage", { names }) }).catch(() => {});
   };
 
-  const countLabel = visible.length === 1 ? "1 favorit" : `${visible.length} favoriter`;
+  const countLabel = visible.length === 1 ? i18n.t("favoritesPage.countOne") : i18n.t("favoritesPage.countOther", { count: visible.length });
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       {/* Fast header, samma som Mitt Österlen */}
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("favoritesPage.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.headerTitle} numberOfLines={1}>FAVORITER</Text>
+          <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("favoritesPage.title")}</Text>
           {items.length > 0 && (
-            <TouchableOpacity style={s.headerBtn} onPress={handleShare}>
+            <TouchableOpacity style={s.headerBtn} onPress={handleShare} accessibilityLabel={i18n.t("favoritesPage.share")}>
               <ShareIcon size={20} color={FG} strokeWidth={2} />
             </TouchableOpacity>
           )}
@@ -310,12 +320,12 @@ export default function FavoritesScreen() {
           <View style={s.emptyIcon}>
             <Heart size={28} color={GOLD} strokeWidth={1.5} />
           </View>
-          <Text style={s.emptyTitle}>Inga favoriter ännu</Text>
+          <Text style={s.emptyTitle}>{i18n.t("favoritesPage.emptyTitle")}</Text>
           <Text style={[s.muted, { textAlign: "center", lineHeight: 21 }]}>
-            Tryck på hjärtat på en plats eller ett event för att spara det här.
+            {i18n.t("favoritesPage.emptyText")}
           </Text>
           <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore")}>
-            <Text style={s.emptyBtnText}>Utforska platser</Text>
+            <Text style={s.emptyBtnText}>{i18n.t("favoritesPage.explore")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -328,17 +338,17 @@ export default function FavoritesScreen() {
           <View style={s.toolbar}>
             <Text style={s.count}>{countLabel}</Text>
             <View style={s.toggle}>
-              <Pressable style={[s.toggleBtn, mode === "cards" && s.toggleBtnOn]} onPress={() => chooseMode("cards")} hitSlop={6} accessibilityLabel="Visa som kort">
+              <Pressable style={[s.toggleBtn, mode === "cards" && s.toggleBtnOn]} onPress={() => chooseMode("cards")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asCards")}>
                 <Square size={16} color={mode === "cards" ? FG : MUTED} strokeWidth={2.2} />
               </Pressable>
-              <Pressable style={[s.toggleBtn, mode === "list" && s.toggleBtnOn]} onPress={() => chooseMode("list")} hitSlop={6} accessibilityLabel="Visa som lista">
+              <Pressable style={[s.toggleBtn, mode === "list" && s.toggleBtnOn]} onPress={() => chooseMode("list")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asList")}>
                 <AlignJustify size={16} color={mode === "list" ? FG : MUTED} strokeWidth={2.2} />
               </Pressable>
             </View>
           </View>
 
           {visible.length === 0 && (
-            <Text style={[s.muted, s.noneInFilter]}>Inga favoriter i {filter.label.toLowerCase()} än.</Text>
+            <Text style={[s.muted, s.noneInFilter]}>{i18n.t("favoritesPage.noneInFilter", { filter: i18n.language === "de" ? filter.label : filter.label.toLowerCase() })}</Text>
           )}
 
           <View style={mode === "cards" ? s.cards : s.rows}>
@@ -382,7 +392,7 @@ const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, on
       <View style={s.cardInfo}>
         <View style={{ flex: 1 }}>
           <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
-          {!!item.category && <Text style={s.cardCategory} numberOfLines={1}>{item.category}</Text>}
+          {!!shownCategory(item) && <Text style={s.cardCategory} numberOfLines={1}>{shownCategory(item)}</Text>}
           {!!item.description && <Text style={s.cardDesc} numberOfLines={2}>{item.description}</Text>}
         </View>
         <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} />
@@ -403,7 +413,7 @@ const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onTo
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={s.rowTitle} numberOfLines={1}>{item.title}</Text>
-        {!!item.category && <Text style={s.rowCategory} numberOfLines={1}>{item.category}</Text>}
+        {!!shownCategory(item) && <Text style={s.rowCategory} numberOfLines={1}>{shownCategory(item)}</Text>}
         {!!item.description && <Text style={s.rowDesc} numberOfLines={1}>{item.description}</Text>}
       </View>
       <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} size={24} />

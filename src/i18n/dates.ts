@@ -8,6 +8,11 @@ const LOCALES = { sv, en: enGB, de };
 /** date-fns-språket som gäller just nu (för egna format) */
 export const dateLocale = () => LOCALES[currentLanguage()];
 
+/** Veckodagens korta namn, måndag först (0 = måndag): "mån" / "Mon" / "Mo". 5 jan 2026 är en måndag */
+export function weekdayShort(mondayIndex: number): string {
+  return formatDate(new Date(2026, 0, 5 + mondayIndex), "EEE").replace(/\./g, "").slice(0, 3);
+}
+
 /** formatDate(new Date(), "d MMMM yyyy") → "24 september 2026" / "24 September 2026" / "24. September 2026" */
 export function formatDate(date: Date | string | number, pattern: string): string {
   const lang = currentLanguage();

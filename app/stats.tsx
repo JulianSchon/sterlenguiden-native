@@ -29,8 +29,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { ArrowLeft, Heart } from "lucide-react-native";
 import { Skeleton } from "@/components/Skeleton";
-import { format, subMonths } from "date-fns";
-import { sv } from "date-fns/locale";
+import { subMonths } from "date-fns";
 import { useVisits } from "@/hooks/useVisits";
 import { usePlaces, firstImageUrl } from "@/hooks/usePlaces";
 import { useFavorites } from "@/hooks/useFavorites";
@@ -45,6 +44,10 @@ import { POLAROID_PAPER, POLAROID_TAPE } from "@/lib/polaroid";
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { PlacePin } from "@/components/PlacePin";
 import { TreasurePin } from "@/components/stickers/TreasurePin";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate, weekdayShort } from "@/i18n/dates";
+import { decimal } from "@/i18n/numbers";
 
 // Österlenlegendens guldtrofé — den man får för att klara allt
 const TROPHY_ART = require("../assets/badges/osterlenlegend-gold.png");
@@ -59,9 +62,6 @@ const BORDER = "rgba(255,255,255,0.08)";
 const TRACK  = "rgba(255,255,255,0.08)";
 // Samma röda som hjärtat på Favoriter
 const HEART_RED = "#EF4444";
-
-const WEEKDAYS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
-const WEEKDAY_NAMES = ["måndagar", "tisdagar", "onsdagar", "torsdagar", "fredagar", "lördagar", "söndagar"];
 
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
@@ -78,6 +78,7 @@ export default function StatsScreen() {
   const { data: collected } = useCollected();
   const { data: collectibles = [] } = useCollectibles();
   const { data: days = [] } = useAppDays();
+  const { i18n: { language } } = useTranslation();
   const isLoading = visitsLoading || placesLoading;
   // Medan man håller in på kurvan ska sidan inte scrolla
   const [scrubbing, setScrubbing] = useState(false);
@@ -96,8 +97,8 @@ export default function StatsScreen() {
         return vd.getFullYear() === d.getFullYear() && vd.getMonth() === d.getMonth();
       }).length;
       return {
-        label: format(d, "MMM", { locale: sv }).replace(".", ""),
-        name: capitalize(format(d, "LLLL", { locale: sv })),
+        label: formatDate(d, "LLL").replace(".", ""),
+        name: capitalize(formatDate(d, "LLLL")),
         count,
       };
     });
@@ -120,7 +121,8 @@ export default function StatsScreen() {
       categories: computeCategoryStats(places, unique),
       topPlace: top ? { place: byId.get(top.id)!, count: top.count } : null,
     };
-  }, [visits, places]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- språket: månadernas namn
+  }, [visits, places, language]);
 
   const percent = places.length > 0 ? Math.round((stats.uniqueCount / places.length) * 100) : 0;
   const trophiesDone = trophies.filter((t) => t.done).length;
@@ -131,10 +133,10 @@ export default function StatsScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("statsPage.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.headerTitle} numberOfLines={1}>STATISTIK</Text>
+          <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("statsPage.title")}</Text>
         </View>
       </View>
 
@@ -167,27 +169,27 @@ export default function StatsScreen() {
         >
           {/* 1. Hur mycket av Österlen */}
           <View style={s.hero}>
-            <Text style={s.eyebrow}>UPPTÄCKT AV ÖSTERLEN</Text>
+            <Text style={s.eyebrow}>{i18n.t("statsPage.discovered")}</Text>
             <View style={s.heroRow}>
               <Text style={s.heroValue}>{stats.uniqueCount}</Text>
-              <Text style={s.heroOf}>av {places.length} platser</Text>
+              <Text style={s.heroOf}>{i18n.t("statsPage.ofPlaces", { count: places.length })}</Text>
             </View>
             <Bar fraction={places.length > 0 ? stats.uniqueCount / places.length : 0} color={GOLD} height={10} delay={60} />
-            <Text style={s.heroPercent}>{percent} % av Österlen</Text>
+            <Text style={s.heroPercent}>{i18n.t("statsPage.percent", { percent })}</Text>
           </View>
 
           {/* 2. Rutorna */}
           <View style={s.tiles}>
-            <Tile index={0} icon={<PlacePin height={25} />} value={stats.visitCount} label="Besök" />
-            <Tile index={1} icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label="Favoriter" />
-            <Tile index={2} icon={<MiniPolaroid />} value={memories.length} label="Minnen" />
-            <Tile index={3} icon={<TreasurePin height={25} />} value={`${treasures}/${collectibles.length || 24}`} label="Skatter" />
-            <Tile index={4} icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label="Utmaningar" />
-            <Tile index={5} icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label="Längsta streak" />
+            <Tile index={0} icon={<PlacePin height={25} />} value={stats.visitCount} label={i18n.t("statsPage.visits")} />
+            <Tile index={1} icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label={i18n.t("statsPage.favorites")} />
+            <Tile index={2} icon={<MiniPolaroid />} value={memories.length} label={i18n.t("statsPage.memories")} />
+            <Tile index={3} icon={<TreasurePin height={25} />} value={`${treasures}/${collectibles.length || 24}`} label={i18n.t("statsPage.treasures")} />
+            <Tile index={4} icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label={i18n.t("statsPage.challenges")} />
+            <Tile index={5} icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label={i18n.t("statsPage.longestStreak")} />
           </View>
 
           {/* 3. Besök per månad */}
-          <Text style={s.sectionTitle}>Besök per månad</Text>
+          <Text style={s.sectionTitle}>{i18n.t("statsPage.perMonth")}</Text>
           <View style={s.card}>
             <MonthChart months={stats.months} onScrubbing={setScrubbing} />
           </View>
@@ -195,7 +197,7 @@ export default function StatsScreen() {
           {/* 4. Dina dagar */}
           {stats.visitCount > 0 && (
             <>
-              <Text style={s.sectionTitle}>Dina dagar</Text>
+              <Text style={s.sectionTitle}>{i18n.t("statsPage.yourDays")}</Text>
               <View style={s.card}>
                 <WeekdayBars counts={stats.weekdays} />
               </View>
@@ -203,7 +205,7 @@ export default function StatsScreen() {
           )}
 
           {/* 5. Kategorierna */}
-          <Text style={s.sectionTitle}>Kategorier</Text>
+          <Text style={s.sectionTitle}>{i18n.t("statsPage.categories")}</Text>
           <View style={[s.card, { gap: 16 }]}>
             {stats.categories.map((c, i) => <CategoryRow key={c.id} cat={c} delay={200 + i * 60} />)}
           </View>
@@ -211,7 +213,7 @@ export default function StatsScreen() {
           {/* 6. Mest besökta platsen */}
           {stats.topPlace && (
             <>
-              <Text style={s.sectionTitle}>Mest besökta platsen</Text>
+              <Text style={s.sectionTitle}>{i18n.t("statsPage.topPlace")}</Text>
               <TouchableOpacity style={[s.card, s.topPlace]} activeOpacity={0.8} onPress={() => pushOnce(router, `/place/${stats.topPlace!.place.id}?from=profile`)}>
                 <View style={s.topThumb}>
                   {firstImageUrl(stats.topPlace.place.image_url)
@@ -221,7 +223,7 @@ export default function StatsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.topName} numberOfLines={2}>{stats.topPlace.place.name}</Text>
                   <Text style={s.topCount}>
-                    {stats.topPlace.count === 1 ? "Besökt 1 gång" : `Besökt ${stats.topPlace.count} gånger`}
+                    {stats.topPlace.count === 1 ? i18n.t("statsPage.timesOne") : i18n.t("statsPage.timesOther", { count: stats.topPlace.count })}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -466,13 +468,13 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
       <View style={s.chartHead}>
         <View>
           <Text style={s.legendLabel}>
-            <Text style={{ color: GOLD }}>●</Text> {selected === null ? "Den här månaden" : months[selected].name}
+            <Text style={{ color: GOLD }}>●</Text> {selected === null ? i18n.t("statsPage.thisMonth") : months[selected].name}
           </Text>
-          <Text style={s.legendValue}>{months[shown].count} besök</Text>
+          <Text style={s.legendValue}>{months[shown].count === 1 ? i18n.t("statsPage.visitsOne") : i18n.t("statsPage.visitsOther", { count: months[shown].count })}</Text>
         </View>
         <View>
-          <Text style={s.legendLabel}><Text style={{ color: MUTED }}>●</Text> Snitt</Text>
-          <Text style={[s.legendValue, { color: MUTED }]}>{avg.toFixed(1).replace(".", ",")} besök</Text>
+          <Text style={s.legendLabel}><Text style={{ color: MUTED }}>●</Text> {i18n.t("statsPage.average")}</Text>
+          <Text style={[s.legendValue, { color: MUTED }]}>{i18n.t("statsPage.averageValue", { value: decimal(avg) })}</Text>
         </View>
       </View>
 
@@ -526,18 +528,19 @@ function WeekdayBars({ counts }: { counts: number[] }) {
   const best = top > 0 ? counts.flatMap((c, i) => (c === top ? [i] : [])) : [];
   const isBest = (i: number) => best.includes(i);
   const weekend = best.length === 2 && best[0] === 5 && best[1] === 6;
-  const names = best.map((i) => WEEKDAY_NAMES[i]);
-  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} och ${names[names.length - 1]}` : names[0];
+  const plural = i18n.t("statsPage.weekdayPlural").split("|");
+  const names = best.map((i) => plural[i]);
+  const list = names.length > 1 ? i18n.t("place.and", { a: names.slice(0, -1).join(", "), b: names[names.length - 1] }) : names[0];
+  // "Du är mest ute på <dagarna>" / "Du bist am meisten <montags> unterwegs": text före och efter
+  const [before, after] = best.length > 1 && !weekend
+    ? [i18n.t("statsPage.equallyBefore"), i18n.t("statsPage.equallyAfter")]
+    : [i18n.t("statsPage.mostlyBefore"), i18n.t("statsPage.mostlyAfter")];
   return (
     <View>
       {best.length === 0 ? (
-        <Text style={s.weekText}>Inga besök än</Text>
-      ) : weekend ? (
-        <Text style={s.weekText}>Du är mest ute på <Text style={{ color: GOLD }}>helgerna</Text></Text>
-      ) : best.length > 1 ? (
-        <Text style={s.weekText}>Du är lika mycket ute på <Text style={{ color: GOLD }}>{list}</Text></Text>
+        <Text style={s.weekText}>{i18n.t("statsPage.noVisits")}</Text>
       ) : (
-        <Text style={s.weekText}>Du är mest ute på <Text style={{ color: GOLD }}>{list}</Text></Text>
+        <Text style={s.weekText}>{before}<Text style={{ color: GOLD }}>{weekend ? i18n.t("statsPage.weekends") : list}</Text>{after}</Text>
       )}
       <View style={s.weekRow}>
         {counts.map((c, i) => (
@@ -546,7 +549,7 @@ function WeekdayBars({ counts }: { counts: number[] }) {
             <View style={s.weekArea}>
               <WeekBar fraction={c / max} highlight={isBest(i)} delay={150 + i * 50} />
             </View>
-            <Text style={[s.weekLabel, isBest(i) && { color: FG }]}>{WEEKDAYS[i]}</Text>
+            <Text style={[s.weekLabel, isBest(i) && { color: FG }]}>{capitalize(weekdayShort(i))}</Text>
           </View>
         ))}
       </View>

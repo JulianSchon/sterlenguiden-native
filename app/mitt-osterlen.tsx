@@ -15,8 +15,6 @@ import Reanimated, {
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { ArrowLeft } from "lucide-react-native";
 import { Canvas, Circle, Group, LinearGradient, RadialGradient, vec } from "@shopify/react-native-skia";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { Users, ChevronRight, X } from "lucide-react-native";
 import { StreakFlame, stage } from "@/components/streak/StreakFlame";
 import { useFriendRequestCount } from "@/hooks/useFriends";
@@ -28,12 +26,14 @@ import { MemoriesSection } from "@/components/memories/MemoriesSection";
 import { LeaderboardSection } from "@/components/leaderboard/LeaderboardSection";
 import { useAppDays } from "@/hooks/useAppDays";
 import { computeStreak, swedishDay, weekDays } from "@/lib/streak";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate, weekdayShort } from "@/i18n/dates";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
 const CARD = "#1A1A1D";
-const WEEKDAY_LABELS = ["MÅN", "TIS", "ONS", "TOR", "FRE", "LÖR", "SÖN"];
 // Gradientringen runt Vänner-ikonen — se friendsIconWrap
 const FRIENDS_RING_SIZE = 56;
 const FRIENDS_RING_R = 25;
@@ -44,6 +44,7 @@ const IGNITE_FALLBACK_MS = 650;
 export default function MittOsterlenScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  useTranslation(); // ritas om när språket byts
   const { data: days = [] } = useAppDays();
   const pendingFriendRequests = useFriendRequestCount();
 
@@ -90,10 +91,10 @@ export default function MittOsterlenScreen() {
       {/* Fast header — ligger utanför ScrollView så den stannar kvar vid scroll */}
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("osterlen.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.title} numberOfLines={1}>MITT ÖSTERLEN</Text>
+          <Text style={s.title} numberOfLines={1}>{i18n.t("osterlen.title")}</Text>
         </View>
       </View>
 
@@ -140,24 +141,24 @@ export default function MittOsterlenScreen() {
             </Canvas>
             <Text style={s.number}>{streak.current}</Text>
           </View>
-          <Text style={s.label}>Streak</Text>
-          <Text style={s.hint}>Öppna appen varje dag</Text>
+          <Text style={s.label}>{i18n.t("osterlen.streak")}</Text>
+          <Text style={s.hint}>{i18n.t("osterlen.hint")}</Text>
           </Reanimated.View>
         </View>
 
         {/* Nyckeltal */}
         <Reanimated.View entering={enterAt(1)} style={s.stats}>
           <Stat
-            value={streak.startedOn ? format(new Date(streak.startedOn), "d MMM yyyy", { locale: sv }) : "–"}
-            label="Streak startade"
+            value={streak.startedOn ? formatDate(streak.startedOn, "d MMM yyyy") : "–"}
+            label={i18n.t("osterlen.started")}
           />
           <View style={s.statDivider} />
-          <Stat value={String(streak.longest)} label="Längsta streak" />
+          <Stat value={String(streak.longest)} label={i18n.t("osterlen.longest")} />
         </Reanimated.View>
 
         {/* Veckan */}
         <Reanimated.View entering={enterAt(2)} style={s.card}>
-          <Text style={s.cardTitle}>DEN HÄR VECKAN</Text>
+          <Text style={s.cardTitle}>{i18n.t("osterlen.thisWeek")}</Text>
           <View style={s.weekRow}>
             {week.map((d, i) => {
               const done = daySet.has(d);
@@ -168,7 +169,7 @@ export default function MittOsterlenScreen() {
               const missed = !done && d < today;
               return (
                 <View key={d} style={s.weekDay}>
-                  <Text style={[s.weekLabel, isToday && { color: FG }]}>{WEEKDAY_LABELS[i]}</Text>
+                  <Text style={[s.weekLabel, isToday && { color: FG }]}>{weekdayShort(i).toUpperCase()}</Text>
                   <View style={s.weekSlot}>
                     {done ? (
                       <StreakFlame compact size={30} timeOffset={i * 700} />
@@ -212,11 +213,11 @@ export default function MittOsterlenScreen() {
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.friendsTitle}>Vänner</Text>
+            <Text style={s.friendsTitle}>{i18n.t("osterlen.friends")}</Text>
             <Text style={s.friendsSub}>
               {pendingFriendRequests > 0
-                ? pendingFriendRequests === 1 ? "1 väntande förfrågan" : `${pendingFriendRequests} väntande förfrågningar`
-                : "Lägg till vänner och se deras aktivitet"}
+                ? pendingFriendRequests === 1 ? i18n.t("osterlen.pendingOne") : i18n.t("osterlen.pendingOther", { count: pendingFriendRequests })
+                : i18n.t("osterlen.friendsHint")}
             </Text>
           </View>
           {/* Utan den här kunde ringen längst till vänster lätt läsas som "dina vänners avatarer

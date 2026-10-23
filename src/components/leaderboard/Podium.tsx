@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { TIER_PALETTE } from "@/lib/achievements";
 import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric } from "@/hooks/useLeaderboard";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -113,7 +114,7 @@ function PodiumColumn({
 
       {/* Hela namnet ska alltid synas — två rader och hellre lite mindre text än avklippt */}
       <Text style={[s.name, !entry && { color: MUTED }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75}>
-        {entry ? entry.name : "Ledig plats"}
+        {entry ? entry.name : i18n.t("leaderboard.freeSpot")}
       </Text>
       <View style={[s.chip, !entry && { opacity: 0 }]}>
         <Text style={s.chipText}>{entry ? formatLeaderboardValue(metric, entry.value) : "–"}</Text>

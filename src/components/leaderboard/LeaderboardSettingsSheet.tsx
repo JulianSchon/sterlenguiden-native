@@ -11,6 +11,7 @@ import { Sheet } from "@/components/Sheet";
 import { IconSwitch } from "@/components/IconSwitch";
 import { useProfile } from "@/hooks/useProfile";
 import { useSetLeaderboardAvatar, useSetLeaderboardVisibility } from "@/hooks/useLeaderboard";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.6)";
@@ -22,7 +23,7 @@ export function LeaderboardSettingsSheet({ visible, onClose }: { visible: boolea
   const showing = profile?.show_in_leaderboard === true;
   const showingAvatar = showing && profile?.show_leaderboard_avatar === true;
 
-  const fail = () => Alert.alert("Det gick inte att spara", "Kontrollera anslutningen och försök igen.");
+  const fail = () => Alert.alert(i18n.t("leaderboard.saveFailedTitle"), i18n.t("leaderboard.saveFailedText"));
 
   async function toggleVisible(on: boolean) {
     try {
@@ -34,14 +35,11 @@ export function LeaderboardSettingsSheet({ visible, onClose }: { visible: boolea
   }
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Synlighet i topplistorna">
+    <Sheet visible={visible} onClose={onClose} title={i18n.t("leaderboard.settingsTitle")}>
       <View style={s.row}>
         <View style={s.texts}>
-          <Text style={s.label}>Synas i topplistorna</Text>
-          <Text style={s.help}>
-            Ditt namn, användarnamn, ort och din statistik — besök, streak och skatter — visas för andra
-            i appen: i hela appen, i ditt område och bland dina vänner.
-          </Text>
+          <Text style={s.label}>{i18n.t("leaderboard.appear")}</Text>
+          <Text style={s.help}>{i18n.t("leaderboard.appearHelp")}</Text>
         </View>
         <IconSwitch value={showing} onChange={toggleVisible} />
       </View>
@@ -50,11 +48,11 @@ export function LeaderboardSettingsSheet({ visible, onClose }: { visible: boolea
 
       <View style={[s.row, !showing && s.disabled]} pointerEvents={showing ? "auto" : "none"}>
         <View style={s.texts}>
-          <Text style={s.label}>Visa profilbild</Text>
+          <Text style={s.label}>{i18n.t("leaderboard.showPhoto")}</Text>
           <Text style={s.help}>
             {showing
-              ? "Din profilbild visas i stället för en cirkel med dina initialer."
-              : "Slå på \"Synas i topplistorna\" först."}
+              ? i18n.t("leaderboard.showPhotoOn")
+              : i18n.t("leaderboard.showPhotoOff")}
           </Text>
         </View>
         <IconSwitch value={showingAvatar} onChange={(on) => setAvatar.mutate(on, { onError: fail })} />

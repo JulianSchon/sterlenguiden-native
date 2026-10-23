@@ -45,6 +45,7 @@ import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { formatMemoryDate } from "@/lib/memories";
 import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
 import { LoadingImage, Skeleton } from "@/components/Skeleton";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -83,15 +84,15 @@ export function MemoriesSection() {
   return (
     <View style={s.section}>
       <View style={s.head}>
-        <Text style={s.title}>Dina minnen</Text>
+        <Text style={s.title}>{i18n.t("memories.yours")}</Text>
         <View style={s.actions}>
           {memories.length > 0 && (
             <TouchableOpacity onPress={() => router.push("/memories")} hitSlop={8}>
-              <Text style={s.action}>Alla</Text>
+              <Text style={s.action}>{i18n.t("memories.all")}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => router.push("/memories/edit")} hitSlop={8}>
-            <Text style={s.action}>+ Skapa minne</Text>
+            <Text style={s.action}>{i18n.t("memories.create")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -111,7 +112,7 @@ export function MemoriesSection() {
           ))}
         </View>
       ) : recent.length === 0 ? (
-        <Text style={s.empty}>Varje plats du besöker kan bli en del av din egen berättelse.</Text>
+        <Text style={s.empty}>{i18n.t("memories.yoursEmpty")}</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
           {recent.map((m, i) => (

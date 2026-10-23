@@ -25,6 +25,7 @@ import { formatMemoryDate } from "@/lib/memories";
 import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
 import { PressableScale } from "@/components/PressableScale";
 import { LoadingImage, Skeleton } from "@/components/Skeleton";
+import i18n from "i18next";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -80,10 +81,10 @@ export default function MemoryDetailScreen() {
 
   function confirmDelete() {
     if (!memory) return;
-    Alert.alert("Ta bort minnet", "Minnet och dess foton tas bort för gott.", [
-      { text: "Avbryt", style: "cancel" },
+    Alert.alert(i18n.t("memories.deleteTitle"), i18n.t("memories.deleteText"), [
+      { text: i18n.t("memories.cancel"), style: "cancel" },
       {
-        text: "Ta bort", style: "destructive",
+        text: i18n.t("memories.delete"), style: "destructive",
         onPress: async () => {
           await deleteMemory.mutateAsync(memory);
           router.back();
@@ -132,7 +133,7 @@ export default function MemoryDetailScreen() {
           </View>
         </View>
       ) : !memory ? (
-        <Text style={s.notFound}>Minnet finns inte längre.</Text>
+        <Text style={s.notFound}>{i18n.t("memories.notFound")}</Text>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 32 }}>
           {!photos[0] && (
@@ -173,7 +174,7 @@ export default function MemoryDetailScreen() {
               <View>
                 {/* "Om dagen" hade varit naturligt, men ett minne kan spänna över mer än en
                     enskild dag — en mer generell rubrik i stället. */}
-                <Text style={s.sectionLabel}>OM MINNET</Text>
+                <Text style={s.sectionLabel}>{i18n.t("memories.about")}</Text>
                 <Text style={s.story}>{memory.story}</Text>
               </View>
             ) : null}
@@ -182,7 +183,7 @@ export default function MemoryDetailScreen() {
                 ska få sin egen visuella tyngd i stället för att läsas som en lång uppräkning. */}
             {peopleNames.length > 0 && (
               <View style={{ marginTop: memory.story ? 24 : 0 }}>
-                <Text style={s.sectionLabel}>VILKA VAR MED</Text>
+                <Text style={s.sectionLabel}>{i18n.t("memories.who")}</Text>
                 <View style={s.peopleRow}>
                   {peopleNames.map((name, i) => (
                     <View key={`${name}-${i}`} style={s.personPill}>
@@ -199,7 +200,7 @@ export default function MemoryDetailScreen() {
               {/* Samma 24px som ovanför VILKA VAR MED (beskrivning -> VILKA VAR MED) —
                   symmetriskt i stället för att råka bli mer luft hitåt än ditåt. */}
               <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
-                <Text style={s.sectionLabel}>BILDER</Text>
+                <Text style={s.sectionLabel}>{i18n.t("memories.photos")}</Text>
               </View>
               <View style={s.gallery}>
                 {photos.slice(1).map((uri, i) => (
@@ -216,7 +217,7 @@ export default function MemoryDetailScreen() {
               oavsett hur ljust fotot är), i stället för en liten textpill ovanför bilderna. */}
           {memoryPlaces.length > 0 && (
             <View style={{ paddingHorizontal: 16, marginTop: 28 }}>
-              <Text style={s.sectionLabel}>PLATSER</Text>
+              <Text style={s.sectionLabel}>{i18n.t("memories.places")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.placesRow}>
                 {memoryPlaces.map((p) => (
                   <MemoryPlaceCard key={p.id} place={p} onPress={() => router.push(`/place/${p.id}?from=profile`)} />
@@ -228,13 +229,13 @@ export default function MemoryDetailScreen() {
           {/* Mer att göra härifrån, i stället för en ensam "Ta bort"-rad längst ner — samma
               rad-stil som listornas ⋮-meny (ikon i en cirkel + etikett). */}
           <View style={s.actions}>
-            <Text style={s.sectionLabel}>MER</Text>
+            <Text style={s.sectionLabel}>{i18n.t("memories.more")}</Text>
             <View style={{ gap: 8 }}>
               <ActionRow icon={<Plus size={18} color={FG} strokeWidth={2} />} label="Skapa nytt minne" onPress={() => router.push("/memories/edit")} />
               {memoryPlaces.length > 0 && (
                 <ActionRow
                   icon={<MapPin size={18} color={FG} strokeWidth={2} />}
-                  label="Visa plats på kartan"
+                  label={i18n.t("memories.showOnMap")}
                   onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } })}
                 />
               )}
@@ -245,7 +246,7 @@ export default function MemoryDetailScreen() {
 
           <View style={s.footer}>
             <Image source={require("../../assets/Osterlenappen-logo.png")} style={s.footerLogo} resizeMode="contain" accessibilityIgnoresInvertColors />
-            <Text style={s.footerTagline}>Dina minnen finns alltid kvar här.</Text>
+            <Text style={s.footerTagline}>{i18n.t("memories.footer")}</Text>
           </View>
         </ScrollView>
       )}
@@ -267,7 +268,7 @@ export default function MemoryDetailScreen() {
               )}
             />
           )}
-          <TouchableOpacity style={[s.close, { top: insets.top + 12 }]} onPress={() => setLightbox(null)}>
+          <TouchableOpacity style={[s.close, { top: insets.top + 12 }]} onPress={() => setLightbox(null)} accessibilityLabel={i18n.t("memories.close")}>
             <X size={26} color="#fff" strokeWidth={2} />
           </TouchableOpacity>
         </View>

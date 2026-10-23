@@ -8,6 +8,7 @@ import { useRef } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
+import i18n from "i18next";
 
 const LEADERBOARD_PAGE = 50;
 
@@ -185,7 +186,6 @@ export function useSetLeaderboardAvatar() {
 
 /** "4 besök", "12 dagar", "7 skatter" — samma enhet överallt där ett värde visas. */
 export function formatLeaderboardValue(metric: LeaderboardMetric, value: number): string {
-  if (metric === "visits") return `${value} besök`;
-  if (metric === "streak") return `${value} ${value === 1 ? "dag" : "dagar"}`;
-  return `${value} ${value === 1 ? "skatt" : "skatter"}`;
+  const unit = metric === "visits" ? "visits" : metric === "streak" ? "days" : "treasures";
+  return value === 1 ? i18n.t(`leaderboard.${unit}One`) : i18n.t(`leaderboard.${unit}Other`, { count: value });
 }

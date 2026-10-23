@@ -35,6 +35,7 @@ import { useCardVariant } from "@/hooks/useRewardCards";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { LoadingImage, Skeleton } from "@/components/Skeleton";
 import { PressableScale } from "@/components/PressableScale";
+import i18n from "i18next";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -144,7 +145,7 @@ export default function MemoriesBookScreen() {
           })}
         </View>
       ) : memories.length === 0 ? (
-        <Text style={s.empty}>Inga minnen än. Tryck på + för att skapa det första.</Text>
+        <Text style={s.empty}>{i18n.t("memories.empty")}</Text>
       ) : (
         <Animated.ScrollView
           style={{ flex: 1, paddingTop: insets.top }}
@@ -304,7 +305,7 @@ function MemoryBead({
         <Text style={[s.beadTitle, { textAlign: onRight ? "right" : "left" }]} numberOfLines={2}>{memory.title}</Text>
         <Text style={[s.beadDate, { textAlign: onRight ? "right" : "left" }]}>{formatMemoryDate(memory.memoryDate)}</Text>
         <Text style={[s.beadMeta, { textAlign: onRight ? "right" : "left" }]}>
-          {photoCount} {photoCount === 1 ? "foto" : "foton"}
+          {photoCount === 1 ? i18n.t("memories.photoOne") : i18n.t("memories.photoOther", { count: photoCount })}
           {placeCount > 0 ? ` · ${placeCount} ${placeCount === 1 ? "plats" : "platser"}` : ""}
         </Text>
       </Animated.View>

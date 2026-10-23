@@ -41,8 +41,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { getTrophiesToPlace, removeTrophyToPlace } from "@/lib/trophyMoments";
 import { TrophyMedal, GlowCanvas, prefetchBadgeImages } from "@/components/trophies/TrophyMedal";
 import { TIER_PALETTE, GROUP_ORDER, type Trophy } from "@/lib/achievements";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
+import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
 
 const BG    = "#121212";
 const FG    = "#F5F1E8";
@@ -78,7 +78,7 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
       <View style={feat.eyebrowRow}>
         {/* En traktor på var sida i berättelsernas gradient, vända mot texten */}
         <GradientTractor size={18} />
-        <Text style={feat.eyebrow}>{unlocked ? "SENASTE UTMÄRKELSEN" : "NÄRMAST ATT LÅSA UPP"}</Text>
+        <Text style={feat.eyebrow}>{i18n.t(unlocked ? "challengesPage.latest" : "challengesPage.closest")}</Text>
         <GradientTractor size={18} flip />
       </View>
       <View style={{ marginTop: 28, width: medalSize, height: medalSize, alignItems: "center", justifyContent: "center" }}>
@@ -352,7 +352,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
         <Pressable style={dm.card} onPress={(e) => e.stopPropagation()}>
           {trophy && (
             <>
-              <TouchableOpacity style={dm.closeBtn} onPress={onClose}>
+              <TouchableOpacity style={dm.closeBtn} onPress={onClose} accessibilityLabel={i18n.t("challengesPage.close")}>
                 <X size={22} color={MUTED} strokeWidth={2} />
               </TouchableOpacity>
 
@@ -372,7 +372,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
 
               {trophy.done ? (
                 <Text style={[dm.progressText, { color: DONE_GREEN, fontFamily: "Inter_600SemiBold" }]}>
-                  Klar{trophy.doneAt ? ` ${format(new Date(trophy.doneAt), "d MMMM yyyy", { locale: sv })}` : ""}
+                  {trophy.doneAt ? i18n.t("challengesPage.completedOn", { date: formatDate(trophy.doneAt, "d MMMM yyyy") }) : i18n.t("challengesPage.completed")}
                 </Text>
               ) : (
                 trophy.parts ? (
@@ -393,7 +393,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
                     {/* Siffrorna i en färg efter hur nära man är: röd, orange, gul */}
                     <Text style={dm.progressLine}>
                       <Text style={[dm.progressNumbers, { color: progressColor(trophy.progress / trophy.target) }]}>
-                        {trophy.progress} av {trophy.target}
+                        {i18n.t("challengesPage.ofTarget", { progress: trophy.progress, target: trophy.target })}
                       </Text>
                       {" "}{trophy.progressUnit}
                     </Text>
@@ -650,10 +650,10 @@ function ChallengesHeader({ safeTop, onBack }: { safeTop: number; onBack: () => 
   return (
     <View style={{ paddingTop: safeTop }}>
       <View style={hd.row}>
-        <TouchableOpacity style={hd.iconBtn} onPress={onBack}>
+        <TouchableOpacity style={hd.iconBtn} onPress={onBack} accessibilityLabel={i18n.t("challengesPage.back")}>
           <ArrowLeft size={24} color={FG} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={hd.title}>UTMANINGAR</Text>
+        <Text style={hd.title}>{i18n.t("challengesPage.title")}</Text>
       </View>
     </View>
   );

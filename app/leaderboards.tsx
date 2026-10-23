@@ -23,8 +23,6 @@ import Reanimated, { FadeInDown, useReducedMotion } from "react-native-reanimate
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react-native";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { useProfile } from "@/hooks/useProfile";
 import {
   useLeaderboardList,
@@ -36,6 +34,9 @@ import { LeaderboardRow, LeaderboardRowSkeleton, ROW_H } from "@/components/lead
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "@/components/leaderboard/LeaderboardConsentSheet";
 import { LeaderboardSettingsSheet } from "@/components/leaderboard/LeaderboardSettingsSheet";
 import { PressableScale } from "@/components/PressableScale";
+import i18n from "i18next";
+import { useTranslation } from "react-i18next";
+import { formatDate } from "@/i18n/dates";
 
 const BG = "#121212";
 const FG = "#F5F1E8";
@@ -50,19 +51,15 @@ const STICKY_FROM = 11;
 const LIST_PAD = 16;
 const HEADER_GAP = 24;
 
-const METRICS: { id: LeaderboardMetric; label: string }[] = [
-  { id: "visits", label: "Besök" },
-  { id: "streak", label: "Streak" },
-  { id: "stickers", label: "Skatter" },
+const option = <T,>(id: T, key: string) => ({ id, get label() { return i18n.t(`leaderboard.${key}` as "leaderboard.visits"); } });
+const METRICS: { id: LeaderboardMetric; readonly label: string }[] = [
+  option<LeaderboardMetric>("visits", "visits"), option<LeaderboardMetric>("streak", "streak"), option<LeaderboardMetric>("stickers", "treasures"),
 ];
-const STREAK_PERIODS: { id: LeaderboardPeriod; label: string }[] = [
-  { id: "all", label: "Just nu" },
-  { id: "best", label: "Någonsin" },
+const STREAK_PERIODS: { id: LeaderboardPeriod; readonly label: string }[] = [
+  option<LeaderboardPeriod>("all", "now"), option<LeaderboardPeriod>("best", "ever"),
 ];
-const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
-  { id: "month", label: "Denna månad" },
-  { id: "year", label: "I år" },
-  { id: "all", label: "Sedan start" },
+const PERIODS: { id: LeaderboardPeriod; readonly label: string }[] = [
+  option<LeaderboardPeriod>("month", "month"), option<LeaderboardPeriod>("year", "year"), option<LeaderboardPeriod>("all", "sinceStart"),
 ];
 
 export default function LeaderboardsScreen() {
@@ -71,6 +68,7 @@ export default function LeaderboardsScreen() {
   const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const { data: profile } = useProfile();
+  useTranslation(); // ritas om när språket byts
 
   const [metric, setMetric] = useState<LeaderboardMetric>("visits");
   const [scope, setScope] = useState<LeaderboardScope>("all");
@@ -119,22 +117,26 @@ export default function LeaderboardsScreen() {
   const participating = profile?.show_in_leaderboard === true;
   const city = profile?.city?.trim() || null;
   const noCity = scope === "area" && !city;
-  const month = format(new Date(), "LLLL", { locale: sv });
+  const month = formatDate(new Date(), "LLLL");
   const boardKey = `${metric}-${scope}-${activePeriod}`;
   const showSticky = !!me && !(me.rowPos && me.rowPos < STICKY_FROM);
   const showFooter = showSticky || !participating;
 
   const scopes: { id: LeaderboardScope; label: string }[] = [
-    { id: "all", label: "Hela appen" },
-    { id: "area", label: city ?? "Mitt område" },
-    { id: "friends", label: "Vänner" },
+    { id: "all", label: i18n.t("leaderboard.wholeApp") },
+    { id: "area", label: city ?? i18n.t("leaderboard.myArea") },
+    { id: "friends", label: i18n.t("leaderboard.friends") },
   ];
 
   // Rubriken säger VAD som räknas; raden under säger NÄR och VAR
   const title =
-    metric === "visits" ? "Flest besökta platser" : metric === "streak" ? (streakPeriod === "best" ? "Längsta streak någonsin" : "Längst streak just nu") : "Flest skatter";
+    i18n.t(metric === "visits" ? "leaderboard.titleVisits"
+      : metric === "streak" ? (streakPeriod === "best" ? "leaderboard.titleStreakBest" : "leaderboard.titleStreakNow")
+      : "leaderboard.titleTreasures");
   const when =
-    metric === "streak" ? null : period === "month" ? `i ${month}` : period === "year" ? "i år" : "sedan start";
+    metric === "streak" ? null
+      : period === "month" ? i18n.t("leaderboard.inMonth", { month })
+      : i18n.t(period === "year" ? "leaderboard.inYear" : "leaderboard.sinceStartLower");
   const where = scopes.find((sc) => sc.id === scope)?.label ?? "";
   const context = when ? `${when.charAt(0).toUpperCase()}${when.slice(1)} · ${where}` : where;
 
@@ -155,15 +157,15 @@ export default function LeaderboardsScreen() {
         {isLoading ? (
           <PodiumSkeleton width={width - 32} />
         ) : isError ? (
-          <Text style={s.empty}>Topplistan kunde inte hämtas just nu.</Text>
+          <Text style={s.empty}>{i18n.t("leaderboard.error")}</Text>
         ) : noCity ? (
-          <Text style={s.empty}>Vi har ingen ort sparad på din profil, så det finns inget område att jämföra med.</Text>
+          <Text style={s.empty}>{i18n.t("leaderboard.noCity")}</Text>
         ) : (
           <View key={boardKey}>
             <Podium entries={entries.slice(0, 3)} metric={metric} width={width - 32} onSelect={openProfile} />
             {entries.length === 0 && (
               <Text style={s.empty}>
-                {scope === "friends" ? "Ingen av dina vänner deltar i topplistorna än." : "Ingen deltar i den här topplistan än."}
+                {i18n.t(scope === "friends" ? "leaderboard.noFriends" : "leaderboard.nobody")}
               </Text>
             )}
           </View>
@@ -184,14 +186,14 @@ export default function LeaderboardsScreen() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <View style={{ paddingTop: insets.top }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("leaderboard.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>Topplistor</Text>
+          <Text style={s.headerTitle}>{i18n.t("leaderboard.title")}</Text>
           {/* Synlighet: tydlig status (Synlig/Dold), ett tryck öppnar reglagen för att synas och visa profilbild */}
           <PressableScale style={[s.visibility, participating && s.visibilityOn]} scale={0.95} onPress={() => setSettingsOpen(true)}>
             {participating ? <Eye size={16} color={ON} strokeWidth={2.2} /> : <EyeOff size={16} color={MUTED} strokeWidth={2.2} />}
-            <Text style={[s.visibilityText, participating && { color: ON }]}>{participating ? "Synlig" : "Dold"}</Text>
+            <Text style={[s.visibilityText, participating && { color: ON }]}>{i18n.t(participating ? "leaderboard.visible" : "leaderboard.hidden")}</Text>
           </PressableScale>
         </View>
       </View>

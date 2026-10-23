@@ -21,6 +21,7 @@ import { formatDate } from "@/i18n/dates";
 import { useOnModalShown } from "@/hooks/useOnModalShown";
 import type { MonthReset, PeriodResult } from "@/hooks/useMonthReset";
 import { Confetti, GOLD, GhostButton, GoldButton, GoldRays } from "@/components/checkin/CelebrationFx";
+import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
@@ -118,14 +119,16 @@ export function MonthResetMoment({ reset, onOpenLeaderboard, onClose }: {
         <Reanimated.View style={[s.root, contentStyle]}>
           <View style={s.center}>
             <Reanimated.View style={[s.texts, cardStyle]}>
-              <Text style={s.eyebrow}>TOPPLISTAN · FLEST BESÖK</Text>
+              <Text style={s.eyebrow}>{i18n.t("leaderboard.reset.eyebrow")}</Text>
               <Text style={s.title}>
-                {won ? `Du vann ${periodLabel}!` : `${capital(periodLabel)} är slut!`}
+                {won
+                  ? i18n.t(isYearOnly ? "leaderboard.reset.wonYear" : "leaderboard.reset.wonMonth", { period: periodLabel })
+                  : capital(i18n.t(isYearOnly ? "leaderboard.reset.overYear" : "leaderboard.reset.overMonth", { period: periodLabel }))}
               </Text>
             </Reanimated.View>
 
             <Reanimated.View style={[s.placeBox, placeStyle]}>
-              <Text style={[s.placeLabel, { color: placeColor }]}>PLATS</Text>
+              <Text style={[s.placeLabel, { color: placeColor }]}>{i18n.t("leaderboard.reset.place")}</Text>
               <Text style={[s.placeValue, { color: placeColor }]}>{main.placement}</Text>
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <View style={s.confettiOrigin}><Confetti progress={burst} count={50} power={1.4} /></View>
@@ -134,23 +137,24 @@ export function MonthResetMoment({ reset, onOpenLeaderboard, onClose }: {
 
             <Reanimated.View style={[s.texts, restStyle]}>
               <Text style={s.stats}>
-                {main.visits} besök · {main.participants} deltagare
+                {i18n.t("leaderboard.reset.stats", { visits: main.visits, participants: main.participants })}
               </Text>
-              {won && <Text style={s.cardNote}>Ditt kort kommer snart.</Text>}
+              {won && <Text style={s.cardNote}>{i18n.t("leaderboard.reset.cardSoon")}</Text>}
               {year && (
                 <Text style={s.yearLine}>
-                  Hela {year.periodStart.slice(0, 4)}: plats {year.placement} med {year.visits} besök{year.placement === 1 ? " — du vann året!" : ""}
+                  {i18n.t("leaderboard.reset.year", { year: year.periodStart.slice(0, 4), place: year.placement, visits: year.visits })}
+                  {year.placement === 1 ? i18n.t("leaderboard.reset.wonYearSuffix") : ""}
                 </Text>
               )}
               <View style={s.divider} />
-              <Text style={s.next}>{newMonth} har börjat — alla börjar om från noll.</Text>
-              <Text style={s.nextStrong}>{won ? "Kan du ta förstaplatsen igen?" : "Kan du ta förstaplatsen?"}</Text>
+              <Text style={s.next}>{i18n.t("leaderboard.reset.newMonth", { month: newMonth })}</Text>
+              <Text style={s.nextStrong}>{i18n.t(won ? "leaderboard.reset.again" : "leaderboard.reset.first")}</Text>
             </Reanimated.View>
           </View>
 
           <Reanimated.View style={[s.buttons, { paddingBottom: bottomPad }, buttonsStyle]}>
-            <GoldButton label="Till topplistan" onPress={() => exit(true)} />
-            <GhostButton label="Stäng" onPress={() => exit(false)} />
+            <GoldButton label={i18n.t("leaderboard.reset.toBoard")} onPress={() => exit(true)} />
+            <GhostButton label={i18n.t("leaderboard.reset.close")} onPress={() => exit(false)} />
           </Reanimated.View>
         </Reanimated.View>
       </View>

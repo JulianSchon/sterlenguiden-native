@@ -8,8 +8,6 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { useProfile } from "@/hooks/useProfile";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { devShowMonthResetAgain } from "@/hooks/useMonthReset";
@@ -18,6 +16,8 @@ import { PressableScale } from "@/components/PressableScale";
 import { Podium, PodiumSkeleton } from "./Podium";
 import { LeaderboardRow, LeaderboardRowSkeleton } from "./LeaderboardRow";
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "./LeaderboardConsentSheet";
+import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.55)";
@@ -35,7 +35,7 @@ export function LeaderboardSection() {
   const me = data?.me ?? null;
   const meInTop = !!me && top.some((e) => e.userId === me.userId);
   const participating = profile?.show_in_leaderboard === true;
-  const month = format(new Date(), "LLLL", { locale: sv });
+  const month = formatDate(new Date(), "LLLL");
   const open = () => router.push("/leaderboards");
 
   return (
@@ -49,13 +49,13 @@ export function LeaderboardSection() {
             devShowMonthResetAgain(profile.user_id);
           } : undefined}
         >
-          Topplistor
+          {i18n.t("leaderboard.title")}
         </Text>
         <TouchableOpacity onPress={open} hitSlop={8}>
-          <Text style={s.action}>Visa alla</Text>
+          <Text style={s.action}>{i18n.t("leaderboard.showAll")}</Text>
         </TouchableOpacity>
       </View>
-      <Text style={s.sub}>Flest besökta platser i {month} · hela appen</Text>
+      <Text style={s.sub}>{i18n.t("leaderboard.sectionSub", { month })}</Text>
 
       {isLoading ? (
         <View style={s.board}>
@@ -65,7 +65,7 @@ export function LeaderboardSection() {
           </View>
         </View>
       ) : isError ? (
-        <Text style={s.error}>Topplistan kunde inte hämtas just nu.</Text>
+        <Text style={s.error}>{i18n.t("leaderboard.error")}</Text>
       ) : (
         <>
           <PressableScale style={s.board} scale={0.98} onPress={open}>

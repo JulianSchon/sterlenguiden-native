@@ -1,10 +1,9 @@
 /** Hjälpfunktioner för minnen: datum. */
-import { format } from "date-fns";
-import { sv } from "date-fns/locale";
+import { formatDate } from "@/i18n/dates";
 
 /** "14 jul 2026" ur "2026-07-14". */
 export function formatMemoryDate(day: string): string {
-  return format(new Date(day), "d MMM yyyy", { locale: sv });
+  return formatDate(day, "d MMM yyyy");
 }
 
 /** Är texten ett riktigt datum på formen ÅÅÅÅ-MM-DD? */

@@ -23,11 +23,12 @@ import { useRouter } from "expo-router";
 import { ArrowLeft, Compass, MapPin } from "lucide-react-native";
 import { Skeleton } from "@/components/Skeleton";
 import { format } from "date-fns";
-import { sv } from "date-fns/locale";
 import { useVisits, type Visit } from "@/hooks/useVisits";
 import { usePlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { findCategory } from "@/theme/categories";
 import { pushOnce } from "@/lib/navigateOnce";
+import i18n from "i18next";
+import { formatDate } from "@/i18n/dates";
 
 const BG    = "#121212";
 const FG    = "#F5F1E8";
@@ -95,10 +96,10 @@ export default function VisitsScreen() {
       {/* Fast header, samma som Mitt Österlen */}
       <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
         <View style={s.header}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("historyPage.back")}>
             <ArrowLeft size={24} color={FG} strokeWidth={2} />
           </TouchableOpacity>
-          <Text style={s.headerTitle} numberOfLines={1}>HISTORIK</Text>
+          <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("historyPage.title")}</Text>
         </View>
       </View>
 
@@ -137,10 +138,10 @@ export default function VisitsScreen() {
           <View style={s.emptyIcon}>
             <Compass size={26} color={GOLD} strokeWidth={1.5} />
           </View>
-          <Text style={s.emptyTitle}>Din Österlenresa börjar här</Text>
-          <Text style={s.emptyText}>När du checkar in på platser dyker de upp här, i din egen tidslinje.</Text>
+          <Text style={s.emptyTitle}>{i18n.t("historyPage.emptyTitle")}</Text>
+          <Text style={s.emptyText}>{i18n.t("historyPage.emptyText")}</Text>
           <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore")}>
-            <Text style={s.emptyBtnText}>Utforska platser</Text>
+            <Text style={s.emptyBtnText}>{i18n.t("historyPage.explore")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -154,7 +155,7 @@ export default function VisitsScreen() {
           contentContainerStyle={{ paddingTop: 8, paddingBottom: Math.max(insets.bottom + 40, height * 0.62) }}
         >
           <Text style={s.summary}>
-            {visitCount} besök · {uniqueCount} av {places.length} platser upptäckta
+            {i18n.t("historyPage.summary", { visits: visitCount, unique: uniqueCount, total: places.length })}
           </Text>
           {entries.map((e, i) =>
             e.kind === "year" ? (
@@ -222,7 +223,7 @@ function VisitRow({ visit, index, last, scrollY, focusY, onPress }: {
       <View style={[s.line, { top: 0, bottom: last ? "50%" : 0 }]} />
       <Reanimated.View style={[s.dateCol, dateStyle]}>
         <Text style={s.day}>{format(when, "d")}</Text>
-        <Text style={s.month}>{format(when, "MMM", { locale: sv }).replace(".", "")}</Text>
+        <Text style={s.month}>{formatDate(when, "LLL").replace(".", "")}</Text>
       </Reanimated.View>
       <Reanimated.View style={[s.dot, { backgroundColor: category?.screen ?? GOLD }, dotStyle]}>
         <Icon size={18} color="#FFFFFF" strokeWidth={2.2} />
@@ -235,7 +236,7 @@ function VisitRow({ visit, index, last, scrollY, focusY, onPress }: {
         <View style={{ flex: 1 }}>
           <Text style={s.name} numberOfLines={2}>{visit.place.name}</Text>
           <Text style={s.time} numberOfLines={1}>
-            {capitalize(format(when, "EEEE", { locale: sv }))} kl. {format(when, "HH:mm")}
+            {i18n.t("historyPage.at", { day: capitalize(formatDate(when, "EEEE")), time: format(when, "HH:mm") })}
           </Text>
         </View>
       </Reanimated.View>
