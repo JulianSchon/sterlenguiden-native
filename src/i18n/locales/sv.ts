@@ -923,6 +923,7 @@ export const sv = {
     },
   },
   place: {
+    openStory: "Öppna berättelsen från {{name}}",
     copied: "Kopierat", copyFailed: "Det gick inte att kopiera",
     call: "Ring", website: "Hemsida", map: "Karta", email: "E-post", phone: "Telefon",
     about: "Om platsen", friends: "Vänner", practical: "Praktiskt", hours: "Öppettider",

@@ -920,6 +920,7 @@ export const en: typeof sv = {
     },
   },
   place: {
+    openStory: "Open the story from {{name}}",
     copied: "Copied", copyFailed: "Couldn't copy",
     call: "Call", website: "Website", map: "Map", email: "Email", phone: "Phone",
     about: "About", friends: "Friends", practical: "Good to know", hours: "Opening hours",

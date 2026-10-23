@@ -79,6 +79,11 @@ import {
   AboutText, ActionRow, Amenities, ContactList, GUTTER, Section, type ContactRow, type PlaceAction,
 } from "@/components/place/PlaceSections";
 import { FriendsHere, TreasureHint } from "@/components/place/PlaceSocial";
+import { useBusinessStories } from "@/hooks/useBusinessStories";
+import { useStoryViews } from "@/hooks/useStoryViews";
+import { StoryRing, storyRingSize, useStoryTap } from "@/components/stories/StoryRing";
+import { groupSeen, storyGroups, useStoryModal } from "@/components/stories/StoryModal";
+import type { StoryGroupData, StoryLinkTarget, StoryOrigin } from "@/components/stories/StoryViewer";
 import {
   BackButton, BOTTOM_BAR_H, BottomBar, PlaceStatusBar, Toast, TOP_BAR_H, TopBar, type ToastHandle,
 } from "@/components/place/PlaceChrome";
@@ -383,7 +388,7 @@ const PlaceContent = memo(function PlaceContent({
     <View style={{ backgroundColor: colors.bg }}>
       <Rise index={0}>
         <View style={s.identity}>
-          <Logo place={place} catId={mainCat?.id} />
+          <Logo place={place} catId={mainCat?.id} offers={offers} onOpenOffer={onOpenOffer} />
           <Text style={[s.name, { color: colors.text }]}>{place.name}</Text>
           <View style={s.meta}>
             {catIds.map((c) => (
@@ -609,22 +614,82 @@ function OwnerLink({ place }: { place: Place }) {
   );
 }
 
-/** Platsens logga i en vit cirkel som sticker upp över bildens nederkant (kategorins ikon om loggan saknas) */
-function Logo({ place, catId }: { place: Place; catId: CategoryId | undefined }) {
+/** Ringen runt loggan när platsen har en berättelse (samma som på Hem, lite tunnare) */
+const LOGO_RING_GAP = 2.5;
+const LOGO_RING_STROKE = 3;
+
+/**
+ * Platsens logga i en cirkel som sticker upp över bildens nederkant (kategorins ikon om loggan
+ * saknas). Har platsen en berättelse har loggan berättelsernas ring — gul-orange om man inte sett
+ * den, grå om man sett den — och ett tryck öppnar den, precis som på Hem.
+ */
+function Logo({ place, catId, offers, onOpenOffer }: {
+  place: Place;
+  catId: CategoryId | undefined;
+  offers: Offer[];
+  onOpenOffer: (offer: Offer, origin: OriginRect | null) => void;
+}) {
   const { colors, scheme } = useTheme();
   const Icon = CATEGORIES.find((c) => c.id === catId)?.icon ?? MapPin;
-  return (
-    <View style={[s.logoRing, { backgroundColor: colors.bg }]}>
-      <View style={[s.logo, { backgroundColor: place.logo_url ? "#FFFFFF" : colors.card, borderColor: colors.border }]}>
-        {place.logo_url ? (
-          <ExpoImage source={{ uri: place.logo_url }} style={s.logoImage} contentFit="contain" cachePolicy="memory-disk" transition={120} />
-        ) : (
-          <Icon size={30} color={catId ? CATEGORY_DOT[scheme][catId] : colors.muted} strokeWidth={1.8} />
-        )}
-      </View>
+  const { data: stories = [] } = useBusinessStories();
+  const { data: views = [] } = useStoryViews();
+  const viewedIds = useMemo(() => new Set(views.map((v) => v.story_id)), [views]);
+  const group = useMemo(
+    () => storyGroups(stories.filter((st) => st.place_id === place.id), new Set())[0] ?? null,
+    [stories, place.id],
+  );
+
+  // Vi står redan på platsen: "till platsen" i berättelsen stänger den bara. Ett erbjudande rivs
+  // fram här när berättelsen hunnit stänga (två lager ovanpå varandra samtidigt kan låsa sig)
+  const offersRef = useRef(offers);
+  offersRef.current = offers;
+  const onOpenLink = useCallback((link: StoryLinkTarget) => {
+    if (link.kind === "event") return openEvent(Number(link.id));
+    const offer = offersRef.current.find((o) => o.id === link.id);
+    if (offer) setTimeout(() => onOpenOffer(offer, null), 300);
+  }, [onOpenOffer]);
+  const viewer = useStoryModal({ onOpenPlace: () => {}, onOpenLink });
+  const openViewer = viewer.open;
+  const viewedRef = useRef(viewedIds);
+  viewedRef.current = viewedIds;
+  const onOpen = useCallback((g: StoryGroupData, origin: StoryOrigin | null) => openViewer([g], 0, viewedRef.current, origin), [openViewer]);
+  const imageRef = useRef<View>(null);
+  const { loading, tap } = useStoryTap(group, imageRef, onOpen);
+
+  const logo = (
+    <View ref={imageRef} collapsable={false} style={[s.logo, { backgroundColor: place.logo_url ? "#FFFFFF" : colors.card, borderColor: colors.border }]}>
+      {place.logo_url ? (
+        <ExpoImage source={{ uri: place.logo_url }} style={s.logoImage} contentFit="contain" cachePolicy="memory-disk" transition={120} />
+      ) : (
+        <Icon size={30} color={catId ? CATEGORY_DOT[scheme][catId] : colors.muted} strokeWidth={1.8} />
+      )}
     </View>
   );
+  if (!group) {
+    return <View style={[s.logoRing, ringBox(LOGO + 8), { backgroundColor: colors.bg }]}>{logo}</View>;
+  }
+  return (
+    <>
+      <TouchableOpacity
+        style={[s.logoRing, ringBox(storyRingSize(LOGO, LOGO_RING_GAP, LOGO_RING_STROKE) + 4), { backgroundColor: colors.bg }]}
+        activeOpacity={0.85}
+        onPress={tap}
+        accessibilityRole="button"
+        accessibilityLabel={i18n.t("place.openStory", { name: place.name })}
+      >
+        <StoryRing id={`place-${place.id}`} inner={LOGO} gap={LOGO_RING_GAP} stroke={LOGO_RING_STROKE} seen={groupSeen(group, viewedIds)} loading={loading}>
+          {logo}
+        </StoryRing>
+      </TouchableOpacity>
+      {viewer.element}
+    </>
+  );
 }
+
+/** Cirkeln bakom loggan: lika stor runt loggans mitt, som sitter på bildens nederkant */
+const ringBox = (size: number) => ({
+  width: size, height: size, borderRadius: size / 2, left: GUTTER + LOGO / 2 - size / 2, top: -size / 2,
+});
 
 /** Platsen finns inte i telefonen än (öppnad från en länk direkt efter start): sidans form i grått */
 function PlaceSkeleton() {
@@ -667,10 +732,7 @@ const s = StyleSheet.create({
   screen: { flex: 1 },
 
   identity: { paddingHorizontal: GUTTER, paddingTop: LOGO / 2 + 14 },
-  logoRing: {
-    position: "absolute", left: GUTTER - 4, top: -LOGO / 2 - 4,
-    width: LOGO + 8, height: LOGO + 8, borderRadius: (LOGO + 8) / 2, alignItems: "center", justifyContent: "center",
-  },
+  logoRing: { position: "absolute", alignItems: "center", justifyContent: "center" },
   logo: {
     width: LOGO, height: LOGO, borderRadius: LOGO / 2, overflow: "hidden", alignItems: "center", justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,

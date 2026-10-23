@@ -920,6 +920,7 @@ export const de: typeof sv = {
     },
   },
   place: {
+    openStory: "Geschichte von {{name}} öffnen",
     copied: "Kopiert", copyFailed: "Kopieren hat nicht geklappt",
     call: "Anrufen", website: "Website", map: "Karte", email: "E-Mail", phone: "Telefon",
     about: "Über den Ort", friends: "Freunde", practical: "Praktisches", hours: "Öffnungszeiten",
