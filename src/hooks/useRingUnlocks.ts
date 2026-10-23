@@ -6,11 +6,15 @@
 import { useCallback } from "react";
 import { useCollected } from "@/hooks/useCollectibles";
 import { useTrophies } from "@/hooks/useTrophies";
+import { isFreshSinceStart } from "@/lib/queryClient";
 import { AVATAR_RINGS, type AvatarRingDef } from "@/lib/avatarRings";
 import i18n from "i18next";
 
 export function useRingUnlocks() {
-  const { data: collected, isSuccess: collectedLoaded } = useCollected();
+  const collectedQ = useCollected();
+  const collected = collectedQ.data;
+  // Sparad data från förra gången räknas först när den hämtats på nytt (se isFreshSinceStart)
+  const collectedLoaded = isFreshSinceStart(collectedQ);
   const { trophies, allLoaded } = useTrophies();
   const treasures = collected?.size ?? 0;
   const allChallenges = trophies.length > 0 && trophies.every((t) => t.done);

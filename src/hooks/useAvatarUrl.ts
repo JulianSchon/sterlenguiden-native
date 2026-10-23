@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 
 export const AVATAR_BUCKET = "profile-images";
+const SIGNED_URL_SECONDS = 24 * 60 * 60;
 
 /**
  * Sökvägen i den privata bildmappen för ett värde ur profiles (avatar_url eller
@@ -20,8 +21,10 @@ export function storagePath(value: string | null | undefined): string | null {
 /**
  * Adressen att visa en bild i den privata mappen med. Profilen innehåller en
  * sökväg (eller en äldre öppen adress till samma mapp), som byts mot en
- * tillfällig länk (giltig 1 timme). Returnerar null om det inte finns någon bild
- * (eller medan länken hämtas).
+ * tillfällig länk (giltig ett dygn). Länken sparas med resten av datan, så samma
+ * länk — och därmed bilden telefonen redan har — används igen vid nästa start i
+ * stället för att bilden laddas ner på nytt. Returnerar null om det inte finns
+ * någon bild (eller medan länken hämtas).
  */
 function useSignedImageUrl(kind: string, entry: string | null): string | null {
   const path = storagePath(entry);
@@ -29,9 +32,10 @@ function useSignedImageUrl(kind: string, entry: string | null): string | null {
   const { data: signed } = useQuery({
     queryKey: [kind, entry],
     enabled: !!path,
-    staleTime: 50 * 60 * 1000,
+    // En ny länk hämtas en timme innan den gamla slutar gälla
+    staleTime: 23 * 60 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrl(path!, 3600);
+      const { data, error } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrl(path!, SIGNED_URL_SECONDS);
       if (error) throw error;
       return data.signedUrl;
     },

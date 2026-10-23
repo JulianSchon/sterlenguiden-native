@@ -9,7 +9,11 @@ import { useLists } from "@/hooks/useLists";
 import { useMemories } from "@/hooks/useMemories";
 import { useAchievements, useGrantAchievement } from "@/hooks/useAchievements";
 import { buildTrophies, computeUserStats, type Trophy } from "@/lib/achievements";
+import { isFreshSinceStart } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
+
+/** Kontot vars data hämtats på nytt sedan appen startade (se allLoaded) */
+let freshFor: string | null = null;
 
 /**
  * Användarens siffror och alla 21 troféer, uträknade ur riktig data.
@@ -41,7 +45,12 @@ export function useTrophies() {
   // Allt som troféerna räknas ur har hämtats minst en gång. Loggen över klarade troféer måste ha
   // LYCKATS — misslyckas den ser alla klara troféer ut som nya. Misslyckas något annat räknas det
   // bara som tomt, vilket aldrig får något att se klart ut som inte är det.
-  const allLoaded = achievementsQ.isSuccess
+  // Vid start kan datan vara sparad från förra gången: då räknas den först när den hämtats på nytt
+  // (loggen måste vara ny, resten ny eller misslyckad), och sen gäller det resten av körningen
+  const freshNow = !!user && isFreshSinceStart(achievementsQ)
+    && [visitsQ, placesQ, favoritesQ, redemptionsQ, dismissalsQ, likesQ, listsQ, memoriesQ].every((q) => q.isError || isFreshSinceStart(q));
+  if (freshNow) freshFor = user.id;
+  const allLoaded = !!user && freshFor === user.id
     && [visitsQ, placesQ, favoritesQ, redemptionsQ, dismissalsQ, likesQ, listsQ, memoriesQ].every((q) => q.isFetched);
   const listsCreated = lists.filter((l) => l.ownerId === user?.id).length;
 

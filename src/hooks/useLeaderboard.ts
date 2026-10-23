@@ -50,7 +50,7 @@ async function fetchPage(metric: LeaderboardMetric, scope: LeaderboardScope, per
   const paths = [...new Set(rows.map((r) => storagePath(r.avatar_path)).filter((p): p is string => !!p))];
   const signed = new Map<string, string>();
   if (paths.length > 0) {
-    const { data: urls } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrls(paths, 3600);
+    const { data: urls } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrls(paths, 24 * 60 * 60); // ett dygn: listan sparas mellan starterna
     for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
   }
 

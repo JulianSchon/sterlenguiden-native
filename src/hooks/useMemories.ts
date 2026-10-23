@@ -81,16 +81,17 @@ export function useMemory(id: string | undefined) {
 }
 
 /**
- * Tillfälliga länkar (giltiga 1 timme, hämtas om efter 50 minuter) till fotona
- * i den privata mappen. Returnerar en karta från sökväg till länk.
+ * Tillfälliga länkar (giltiga ett dygn, hämtas om en timme innan) till fotona
+ * i den privata mappen. De sparas med resten av datan, så fotona telefonen redan
+ * har används igen vid nästa start. Returnerar en karta från sökväg till länk.
  */
 export function useSignedUrls(paths: string[]) {
   return useQuery({
     queryKey: ["memories", "urls", ...paths],
     enabled: paths.length > 0,
-    staleTime: 50 * 60 * 1000,
+    staleTime: 23 * 60 * 60 * 1000,
     queryFn: async (): Promise<Record<string, string>> => {
-      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 3600);
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 24 * 60 * 60);
       if (error) throw error;
       const urls: Record<string, string> = {};
       for (const item of data ?? []) {

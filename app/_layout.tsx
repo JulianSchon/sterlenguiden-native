@@ -6,8 +6,8 @@ import { TrophyHost } from "@/components/trophies/TrophyHost";
 import { EventSheetHost } from "@/components/events/EventSheet";
 import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { PersistQueryClientProvider, type PersistQueryClientOptions } from "@tanstack/react-query-persist-client";
+import { PERSIST_MAX_AGE, queryClient, queryPersister, shouldPersistQuery } from "@/lib/queryClient";
 import { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
@@ -73,6 +73,8 @@ export default function RootLayout() {
   // Vi renderar ingenting förrän det eventet har skjutits – annars
   // kör queries utan token och RLS (authenticated) blockerar dem.
   const [authReady, setAuthReady] = useState(false);
+  // Kontot som är inloggat: den sparade datan hör till det, och visas aldrig för ett annat konto
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     // Kontot som datan i appen hör till (null = utloggad)
@@ -80,6 +82,7 @@ export default function RootLayout() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "INITIAL_SESSION") {
         currentUser = session?.user?.id ?? null;
+        setUserId(currentUser);
         // Vart man skickas vid start avgör app/index.tsx, när navigeringen finns. Att navigera härifrån
         // (innan något ritats) byter ut hela rotlayouten — den prenumererar då på nytt, får ett nytt
         // INITIAL_SESSION och navigerar igen: en oändlig loop och vit skärm när man startar utloggad.
@@ -89,12 +92,16 @@ export default function RootLayout() {
         // hann hämta på nytt medan man var utloggad och fick tomma svar. Allt hämtas om med det nya
         // kontot — annars såg kontot oanvänt ut och allt firades som nytt, tills man laddade om appen.
         currentUser = session.user.id;
+        setUserId(currentUser);
         queryClient.resetQueries();
       } else if (event === "SIGNED_OUT") {
         currentUser = null;
+        setUserId(null);
         // Utan detta visades förra kontots cachade data (favoriter, listor, profil...) tills
         // en manuell refetch hann hämta det nya kontots — queries är inte user-id-namngivna.
+        // Den sparade kopian i telefonen tas bort också.
         queryClient.clear();
+        queryPersister.removeClient();
         forgetGoogleAccount();
         // Allt som var öppet stängs först, så man inte kan svepa tillbaka in i appen utloggad
         if (router.canDismiss()) router.dismissAll();
@@ -111,14 +118,22 @@ export default function RootLayout() {
     loadSavedLanguage().finally(() => setLanguageReady(true));
   }, []);
 
+  // Sparad data läses in vid start; buster = kontot, så ett annat kontos sparade data kastas
+  const persistOptions = useMemo<Omit<PersistQueryClientOptions, "queryClient">>(() => ({
+    persister: queryPersister,
+    maxAge: PERSIST_MAX_AGE,
+    buster: userId ?? "signed-out",
+    dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+  }), [userId]);
+
   // Vänta på typsnitt, auth och språk innan appen visas
   if (!fontsLoaded || !authReady || !languageReady) return null;
 
   return (
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
         <AppStack />
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </ThemeProvider>
   );
 }
