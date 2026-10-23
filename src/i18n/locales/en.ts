@@ -859,12 +859,6 @@ export const en: typeof sv = {
       serviceHint: "Pick a type and the map shows only that.", treasures: "Treasures", reset: "Reset",
       yourFavorites: "Your favourites", list: "List",
     },
-    sub: {
-      "barn-familj": "Kids & Family", "aventyr-sport": "Adventure & Sport", "kultur-workshop": "Culture & Workshops",
-      "relax-wellness": "Relax & Wellness", "livsmedel-dagligvaror": "Groceries", "klader-mode": "Clothes & Fashion",
-      "hem-inredning": "Home & Interiors", "sport-fritid": "Sport & Leisure", "ateljeer": "Studios", "gallerier": "Galleries",
-      "verkstader": "Workshops", "inredning-livsstil": "Interiors & Lifestyle",
-    },
     practical: { openNow: "Open now", booking: "Booking required" },
     mine: { favorites: "Favourites", visited: "Visited places" },
     treasureModes: { all: "All treasures", unfound: "Not found yet", only: "Only treasures", none: "No treasures" },
@@ -1205,5 +1199,15 @@ export const en: typeof sv = {
     crashTitle: "Something went wrong", crashText: "Sorry – the app ran into a problem. Try again. If that doesn't help, close the app completely and open it again.",
     searchPlace: "Search for a place", friend: "Friend",
     createMemory: "Create a new memory", editMemory: "Edit memory", deleteMemory: "Delete memory",
+  },
+  subcategories: {
+    "fine-dining": "Fine dining", "casual": "Casual", "pizza": "Pizza", "streetfood": "Street food",
+    "pub-bar": "Pub & bar", "hotell": "Hotel", "b-b": "B&B", "spa": "Spa",
+    "cafe": "Café", "bageri": "Bakery", "glass": "Ice cream", "tradgard": "Garden café",
+    "snabbt": "Quick bite", "livsmedel-dagligvaror": "Groceries", "klader-mode": "Clothes & fashion", "hem-inredning": "Home & interiors",
+    "sport-fritid": "Sport & leisure", "strander": "Beaches", "vandring": "Hiking", "utsikt": "Viewpoints",
+    "djur": "Animals", "sport": "Sport", "barn": "Kids", "halsa": "Health",
+    "historia": "History", "museum": "Museums", "konst": "Art", "kyrkor": "Churches",
+    "ateljeer": "Studios", "gallerier": "Galleries", "verkstader": "Workshops", "inredning-livsstil": "Interiors & lifestyle",
   },
 };

@@ -859,12 +859,6 @@ export const de: typeof sv = {
       serviceHint: "Wähle eine Art, dann zeigt die Karte nur diese.", treasures: "Schätze", reset: "Zurücksetzen",
       yourFavorites: "Deine Favoriten", list: "Liste",
     },
-    sub: {
-      "barn-familj": "Kinder & Familie", "aventyr-sport": "Abenteuer & Sport", "kultur-workshop": "Kultur & Workshops",
-      "relax-wellness": "Entspannung & Wellness", "livsmedel-dagligvaror": "Lebensmittel", "klader-mode": "Kleidung & Mode",
-      "hem-inredning": "Wohnen & Einrichtung", "sport-fritid": "Sport & Freizeit", "ateljeer": "Ateliers", "gallerier": "Galerien",
-      "verkstader": "Werkstätten", "inredning-livsstil": "Einrichtung & Lifestyle",
-    },
     practical: { openNow: "Jetzt geöffnet", booking: "Buchung erforderlich" },
     mine: { favorites: "Favoriten", visited: "Besuchte Orte" },
     treasureModes: { all: "Alle Schätze", unfound: "Noch nicht gefunden", only: "Nur Schätze", none: "Keine Schätze" },
@@ -1205,5 +1199,15 @@ export const de: typeof sv = {
     crashTitle: "Etwas ist schiefgelaufen", crashText: "Entschuldigung – die App hatte ein Problem. Versuche es erneut. Hilft das nicht, schließe die App ganz und öffne sie wieder.",
     searchPlace: "Ort suchen", friend: "Freund",
     createMemory: "Neue Erinnerung erstellen", editMemory: "Erinnerung bearbeiten", deleteMemory: "Erinnerung löschen",
+  },
+  subcategories: {
+    "fine-dining": "Gehobene Küche", "casual": "Ungezwungen", "pizza": "Pizza", "streetfood": "Streetfood",
+    "pub-bar": "Pub & Bar", "hotell": "Hotel", "b-b": "B&B", "spa": "Spa",
+    "cafe": "Café", "bageri": "Bäckerei", "glass": "Eis", "tradgard": "Gartencafé",
+    "snabbt": "Schnell", "livsmedel-dagligvaror": "Lebensmittel", "klader-mode": "Kleidung & Mode", "hem-inredning": "Wohnen & Einrichtung",
+    "sport-fritid": "Sport & Freizeit", "strander": "Strände", "vandring": "Wandern", "utsikt": "Aussicht",
+    "djur": "Tiere", "sport": "Sport", "barn": "Kinder", "halsa": "Gesundheit",
+    "historia": "Geschichte", "museum": "Museen", "konst": "Kunst", "kyrkor": "Kirchen",
+    "ateljeer": "Ateliers", "gallerier": "Galerien", "verkstader": "Werkstätten", "inredning-livsstil": "Einrichtung & Lifestyle",
   },
 };

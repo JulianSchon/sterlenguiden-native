@@ -20,12 +20,13 @@ import { Bookmark, X, type LucideIcon } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import type { ListSummary } from "@/hooks/useLists";
 import {
-  ALL_CATEGORIES_ICON, EMPTY_FILTERS, MAP_CATEGORIES, MINE, PRACTICAL, SUBCATEGORIES, TREASURE_MODES,
+  ALL_CATEGORIES_ICON, EMPTY_FILTERS, MAP_CATEGORIES, MINE, PRACTICAL, TREASURE_MODES,
   type MapFilters,
 } from "@/lib/mapFilters";
 import { SERVICE_TYPES, serviceType } from "./MapPins";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
+import { subcategoryLabel } from "@/theme/categories";
 
 const GOLD = "#C5A059";
 /** Greppet och rubriken överst i arket (därifrån går arket alltid att dra ner) */
@@ -55,7 +56,7 @@ export function activeFilters(f: MapFilters, lists: ListSummary[]): ActiveFilter
     remove: (x) => ({ ...x, cats: toggled(x.cats, id), sub: null }),
   }));
   if (f.sub) {
-    const label = Object.values(SUBCATEGORIES).flat().find((sc) => sc.id === f.sub)?.label ?? f.sub;
+    const label = subcategoryLabel(f.sub);
     out.push({ key: "sub", label, remove: (x) => ({ ...x, sub: null }) });
   }
   // Öppet nu först bland de praktiska

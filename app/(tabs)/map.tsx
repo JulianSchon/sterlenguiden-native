@@ -54,14 +54,13 @@ import { useAllServicePoints, type ServicePoint } from "@/hooks/useServicePoints
 import { useLists, useList } from "@/hooks/useLists";
 import { useVisits } from "@/hooks/useVisits";
 import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
-import { findCategory } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { distanceMeters } from "@/lib/checkin";
 import { setNavHidden } from "@/lib/navVisibility";
 import { careHours, splitRange } from "@/lib/serviceHours";
 import { pushOnce } from "@/lib/navigateOnce";
 import {
-  CLUSTER, EMPTY_FILTERS, SUBCATEGORIES, countFilters, distanceLabel, filterPlaces, type MapFilters,
+  CLUSTER, EMPTY_FILTERS, countFilters, distanceLabel, filterPlaces, type MapFilters,
 } from "@/lib/mapFilters";
 import { TreasureCards } from "@/components/stickers/StickerCard";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
@@ -75,6 +74,7 @@ import { MapFilterSheet, activeFilters } from "@/components/map/MapFilterSheet";
 import { DARK_MAP_STYLE, LIGHT_MAP_STYLE, MAP_IS_STYLEABLE, MAP_PROVIDER } from "@/components/map/mapStyle";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
+import { SUBCATEGORIES, findCategory, subcategoryLabel } from "@/theme/categories";
 
 const GOLD = "#C5A059";
 /** Startläge innan positionen är känd: Österlen */
@@ -857,7 +857,7 @@ export default function MapScreen() {
 
   // Ensam vald kategori med underkategorier: dropdown under pillerna
   const onlyCat = filters.cats.size === 1 && !serviceMode ? [...filters.cats][0] : null;
-  const subs = onlyCat ? SUBCATEGORIES[onlyCat] : undefined;
+  const subs = onlyCat ? SUBCATEGORIES[onlyCat].map((v) => ({ id: v, label: subcategoryLabel(v) })) : undefined;
 
   return (
     <View style={[s.root, { backgroundColor: colors.bg }]}>

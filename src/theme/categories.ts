@@ -63,6 +63,12 @@ export const CATEGORY_DB_VALUE: Record<CategoryId, string> = {
  * Underkategorierna, som de skrivs i databasen (places.sub_category, flera med komma). Det är
  * dem företagen väljer bland i Mitt företag.
  */
+/** Underkategorins namn på appens språk (värdet i databasen är svenskt) */
+export const subcategoryLabel = (value: string) => {
+  const key = value.toLowerCase().replace(/[åä]/g, "a").replace(/ö/g, "o").replace(/é/g, "e").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return i18n.exists(`subcategories.${key}`) ? i18n.t(`subcategories.${key}` as "subcategories.casual") : value;
+};
+
 export const SUBCATEGORIES: Record<CategoryId, string[]> = {
   "mat-dryck": ["Fine Dining", "Casual", "Pizza", "Streetfood", "Pub & Bar"],
   "hotell-bb": ["Hotell", "B&B", "Spa"],

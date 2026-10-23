@@ -862,12 +862,6 @@ export const sv = {
       serviceHint: "Välj en typ, så visar kartan bara den.", treasures: "Skatter", reset: "Återställ",
       yourFavorites: "Dina favoriter", list: "Lista",
     },
-    sub: {
-      "barn-familj": "Barn & Familj", "aventyr-sport": "Äventyr & Sport", "kultur-workshop": "Kultur & Workshop",
-      "relax-wellness": "Relax & Wellness", "livsmedel-dagligvaror": "Livsmedel & Dagligvaror", "klader-mode": "Kläder & Mode",
-      "hem-inredning": "Hem & Inredning", "sport-fritid": "Sport & Fritid", "ateljeer": "Ateljéer", "gallerier": "Gallerier",
-      "verkstader": "Verkstäder", "inredning-livsstil": "Inredning & Livsstil",
-    },
     practical: { openNow: "Öppet nu", booking: "Bokning krävs" },
     mine: { favorites: "Favoriter", visited: "Besökta platser" },
     treasureModes: { all: "Alla skatter", unfound: "Ej hittade", only: "Bara skatter", none: "Inga skatter" },
@@ -1208,5 +1202,15 @@ export const sv = {
     crashTitle: "Något gick fel", crashText: "Vi ber om ursäkt – appen stötte på ett problem. Försök igen. Hjälper det inte, stäng appen helt och öppna den på nytt.",
     searchPlace: "Sök plats", friend: "Vän",
     createMemory: "Skapa nytt minne", editMemory: "Redigera minne", deleteMemory: "Radera minne",
+  },
+  subcategories: {
+    "fine-dining": "Fine Dining", "casual": "Casual", "pizza": "Pizza", "streetfood": "Streetfood",
+    "pub-bar": "Pub & Bar", "hotell": "Hotell", "b-b": "B&B", "spa": "Spa",
+    "cafe": "Café", "bageri": "Bageri", "glass": "Glass", "tradgard": "Trädgård",
+    "snabbt": "Snabbt", "livsmedel-dagligvaror": "Livsmedel & Dagligvaror", "klader-mode": "Kläder & Mode", "hem-inredning": "Hem & Inredning",
+    "sport-fritid": "Sport & Fritid", "strander": "Stränder", "vandring": "Vandring", "utsikt": "Utsikt",
+    "djur": "Djur", "sport": "Sport", "barn": "Barn", "halsa": "Hälsa",
+    "historia": "Historia", "museum": "Museum", "konst": "Konst", "kyrkor": "Kyrkor",
+    "ateljeer": "Ateljéer", "gallerier": "Gallerier", "verkstader": "Verkstäder", "inredning-livsstil": "Inredning & Livsstil",
   },
 };
