@@ -10,6 +10,7 @@
 import i18n from "i18next";
 import { addDays } from "date-fns";
 import { formatDate } from "@/i18n/dates";
+import type { LanguageCode } from "@/i18n";
 
 /** Veckodagarna som de heter i databasen, söndag först (som Date.getDay()) */
 export const DAY_NAMES = ["Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag"];
@@ -98,27 +99,27 @@ const SOON_MIN = 60;
 /**
  * Det platssidan säger om läget: "Öppet · stänger 17", "Öppet dygnet runt", "Stänger snart · 17",
  * "Stängt · öppnar 10", "Stängt · öppnar i morgon 10", "Stängt · öppnar tis 10" eller "Stängt".
- * null om dagens öppettider inte är kända.
+ * null om dagens öppettider inte är kända. lng: ett bestämt språk (Mitt företag är alltid svenska)
  */
-export function hoursStatus(hours: Hours, now = new Date()): HoursStatus | null {
+export function hoursStatus(hours: Hours, now = new Date(), lng?: LanguageCode): HoursStatus | null {
   const today = todayHours(hours, now);
   if (!today) return null;
   if (today.open) {
-    if (today.allDay) return { state: "open", label: i18n.t("hours.allDay") };
+    if (today.allDay) return { state: "open", label: i18n.t("hours.allDay", { lng }) };
     const left = today.closes! - minutesOf(now);
     const time = String(clock(today.closes!));
     return left <= SOON_MIN
-      ? { state: "closingSoon", label: i18n.t("hours.closingSoon", { time }) }
-      : { state: "open", label: i18n.t("hours.openCloses", { time }) };
+      ? { state: "closingSoon", label: i18n.t("hours.closingSoon", { time, lng }) }
+      : { state: "open", label: i18n.t("hours.openCloses", { time, lng }) };
   }
-  if (today.opens != null) return { state: "closed", label: i18n.t("hours.closedOpens", { time: String(clock(today.opens)) }) };
+  if (today.opens != null) return { state: "closed", label: i18n.t("hours.closedOpens", { time: String(clock(today.opens)), lng }) };
   for (let i = 1; i <= 7; i++) {
     const first = ranges(dayOf(hours, now.getDay() + i))[0];
     if (!first) continue;
-    const day = i === 1 ? i18n.t("time.tomorrow") : formatDate(addDays(now, i), "EEE").replace(".", "");
-    return { state: "closed", label: i18n.t("hours.closedOpensDay", { day, time: String(clock(first.from)) }) };
+    const day = i === 1 ? i18n.t("time.tomorrow", { lng }) : formatDate(addDays(now, i), "EEE", lng).replace(".", "");
+    return { state: "closed", label: i18n.t("hours.closedOpensDay", { day, time: String(clock(first.from)), lng }) };
   }
-  return { state: "closed", label: i18n.t("hours.closed") };
+  return { state: "closed", label: i18n.t("hours.closed", { lng }) };
 }
 
 // ── Undantag: stängt idag, semester, helgdagar, sommartider ──────────────────
@@ -216,32 +217,32 @@ export function upcomingExceptions(list: HoursException[] | null | undefined, da
 const dayOfIso = (iso: string) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
 
 /** "i dag", "i morgon", "24 juni", "1–14 juli", "28 juni–3 juli" */
-function exceptionDates(ex: HoursException, now = new Date()): string {
+function exceptionDates(ex: HoursException, now = new Date(), lng?: LanguageCode): string {
   const from = dayOfIso(ex.from);
   const to = dayOfIso(ex.to);
   if (ex.from === ex.to && !ex.yearly) {
     const diff = Math.round((from.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86_400_000);
-    if (diff === 0) return i18n.t("time.today");
-    if (diff === 1) return i18n.t("time.tomorrow");
-    return formatDate(from, "d MMMM");
+    if (diff === 0) return i18n.t("time.today", { lng });
+    if (diff === 1) return i18n.t("time.tomorrow", { lng });
+    return formatDate(from, "d MMMM", lng);
   }
   return from.getMonth() === to.getMonth()
-    ? `${from.getDate()}${i18n.language === "de" ? "." : ""}–${formatDate(to, "d MMMM")}`
-    : `${formatDate(from, "d MMMM")}–${formatDate(to, "d MMMM")}`;
+    ? `${from.getDate()}${(lng ?? i18n.language) === "de" ? "." : ""}–${formatDate(to, "d MMMM", lng)}`
+    : `${formatDate(from, "d MMMM", lng)}–${formatDate(to, "d MMMM", lng)}`;
 }
 
 /** Raden för platssidan: "Stängt i dag · Sjukdom", "Öppet 10–15 i morgon", "Sommartider 15 juni–15 augusti" */
-export function exceptionLine(ex: HoursException, now = new Date()): string {
-  const when = exceptionDates(ex, now);
+export function exceptionLine(ex: HoursException, now = new Date(), lng?: LanguageCode): string {
+  const when = exceptionDates(ex, now, lng);
   const label = ex.label?.trim();
   const note = label ? ` · ${label}` : "";
-  if (ex.closed) return i18n.t("hours.exClosed", { when }) + note;
+  if (ex.closed) return i18n.t("hours.exClosed", { when, lng }) + note;
   if (ex.hours) {
     const d = parseDay(ex.hours);
     const text = Array.isArray(d) ? d.map((r) => `${clock(r.from)}–${clock(r.to)}`).join(", ") : ex.hours;
-    return i18n.t("hours.exOpen", { hours: text, when }) + note;
+    return i18n.t("hours.exOpen", { hours: text, when, lng }) + note;
   }
-  return `${label || i18n.t("hours.exOther")} ${when}`;
+  return `${label || i18n.t("hours.exOther", { lng })} ${when}`;
 }
 
 interface WeekRow {

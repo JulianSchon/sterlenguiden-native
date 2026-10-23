@@ -273,7 +273,7 @@ export default function OfferComposer() {
             <AuthButton label={editingId ? "Spara ändringarna" : "Publicera"} onPress={publish} loading={busy} />
           </>}>
           <View pointerEvents="none">
-            <OfferTicket offer={preview} used={false} torn={false} edge={edge} linkPlace={false} onOpen={() => {}} />
+            <OfferTicket offer={preview} used={false} torn={false} edge={edge} linkPlace={false} onOpen={() => {}} lng="sv" />
           </View>
           <View style={s.summary}>
             <SummaryRow label="Gäller" value={expiresIso ? `till ${rangeText(expiresIso)}` : "tills vidare"} />

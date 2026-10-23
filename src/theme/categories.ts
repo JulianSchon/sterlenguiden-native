@@ -11,6 +11,7 @@
  * är silver.
  */
 import i18n from "i18next";
+import type { LanguageCode } from "@/i18n";
 import {
   UtensilsCrossed, Hotel, Coffee, ShoppingBag, TreePine, Target, Landmark, Palette, type LucideIcon,
 } from "lucide-react-native";
@@ -42,6 +43,9 @@ export const CATEGORIES: CategoryDef[] = [
   { id: "sevardheter",       dbValues: ["Sevärdheter", "Konst"],                get label() { return i18n.t("categories.sevardheter"); },screen: "#581C87", stats: "#765F95", icon: Landmark },
   { id: "hantverk-service",  dbValues: ["Hantverk & Service", "Hantverk"],      get label() { return i18n.t("categories.hantverk-service"); },screen: "#6B7280", stats: "#8A8F98", icon: Palette },
 ];
+
+/** Kategorins namn på ett bestämt språk (Mitt företag är alltid svenska); utan språk = appens */
+export const categoryLabel = (id: CategoryId, lng?: LanguageCode) => i18n.t(`categories.${id}`, { lng });
 
 /** Hur kategorin skrivs i databasen (places.categories) när ett företag själv väljer den */
 export const CATEGORY_DB_VALUE: Record<CategoryId, string> = {

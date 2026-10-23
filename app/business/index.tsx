@@ -327,7 +327,7 @@ function TodayCard({ place, onCloseToday, onChange, onUndo, onHours }: {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const tint = useHoursColors();
-  const status = hoursStatus(effectiveHours(place.opening_hours, place.hours_exceptions));
+  const status = hoursStatus(effectiveHours(place.opening_hours, place.hours_exceptions), undefined, "sv");
   const own = todayOnly(place.hours_exceptions);
   const closedToday = own?.closed === true;
 

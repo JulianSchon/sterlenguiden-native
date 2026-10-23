@@ -10,6 +10,7 @@
 import { addDays, differenceInCalendarDays, eachDayOfInterval, format, getDay, parseISO } from "date-fns";
 import i18n from "i18next";
 import { dateLocale } from "@/i18n/dates";
+import type { LanguageCode } from "@/i18n";
 import type { Event } from "@/hooks/useEvents";
 import type { Place } from "@/hooks/usePlaces";
 import { findCategory, CATEGORIES, type CategoryId } from "@/theme/categories";
@@ -29,27 +30,27 @@ export const lastDay = (e: Pick<Event, "date" | "end_date">) =>
   e.end_date && e.date && e.end_date > e.date ? e.end_date : e.date;
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const short = (d: Date, pattern: string) => format(d, pattern, { locale: dateLocale() }).replace(/\./g, "");
+const short = (d: Date, pattern: string, lng?: LanguageCode) => format(d, pattern, { locale: dateLocale(lng) }).replace(/\./g, "");
 
-/** "Fre 30 okt · 15:00", eller "14–16 maj" för ett event som pågår flera dagar */
-export function eventWhen(e: Pick<Event, "date" | "end_date" | "time">): string {
+/** "Fre 30 okt · 15:00", eller "14–16 maj" för ett event som pågår flera dagar. lng: ett bestämt språk */
+export function eventWhen(e: Pick<Event, "date" | "end_date" | "time">, lng?: LanguageCode): string {
   if (!e.date) return "";
   const start = parseISO(e.date);
   if (e.end_date && e.end_date > e.date) {
     const end = parseISO(e.end_date);
     return start.getMonth() === end.getMonth()
-      ? `${format(start, "d")}–${short(end, "d MMM")}`
-      : `${short(start, "d MMM")} – ${short(end, "d MMM")}`;
+      ? `${format(start, "d")}–${short(end, "d MMM", lng)}`
+      : `${short(start, "d MMM", lng)} – ${short(end, "d MMM", lng)}`;
   }
-  const day = cap(short(start, "EEE d MMM"));
+  const day = cap(short(start, "EEE d MMM", lng));
   return e.time ? `${day} · ${e.time}` : day;
 }
 
 /** Datumrutan på eventets bild: "30" över "OKT" (flera dagar: "14–16" över "MAJ") */
-export function dateBadge(e: Pick<Event, "date" | "end_date">): { day: string; month: string } | null {
+export function dateBadge(e: Pick<Event, "date" | "end_date">, lng?: LanguageCode): { day: string; month: string } | null {
   if (!e.date) return null;
   const start = parseISO(e.date);
-  const month = (d: Date) => short(d, "MMM").toUpperCase();
+  const month = (d: Date) => short(d, "MMM", lng).toUpperCase();
   if (!e.end_date || e.end_date <= e.date) return { day: format(start, "d"), month: month(start) };
   const end = parseISO(e.end_date);
   return {

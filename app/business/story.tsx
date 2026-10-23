@@ -143,7 +143,7 @@ function StoryEditor() {
   const eventLink = useCallback((id: string) => {
     const e = events?.find((x) => String(x.id) === id);
     if (!e) return null;
-    return { id: newId(), kind: "link" as const, link: { kind: "event" as const, id: String(e.id) }, title: e.title, sub: eventWhen(e) };
+    return { id: newId(), kind: "link" as const, link: { kind: "event" as const, id: String(e.id) }, title: e.title, sub: eventWhen(e, "sv") };
   }, [events]);
 
   // Öppnad från "Berätta om det i en berättelse": länken ligger på plats direkt
@@ -430,7 +430,7 @@ function StoryEditor() {
               <CalendarDays size={20} color={GOLD} strokeWidth={2.2} />
               <View style={{ flex: 1 }}>
                 <Text style={s.stickerRowText} numberOfLines={1}>Evenemang · {e.title}</Text>
-                <Text style={s.stickerRowSub}>{eventWhen(e)}</Text>
+                <Text style={s.stickerRowSub}>{eventWhen(e, "sv")}</Text>
               </View>
             </TouchableOpacity>
           ))}

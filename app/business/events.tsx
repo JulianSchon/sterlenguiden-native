@@ -101,11 +101,11 @@ export default function BusinessEvents() {
               <Pressable onPress={() => menu(e)} style={({ pressed }) => [s.card, tab === "past" && { opacity: 0.6 }, pressed && { opacity: 0.8 }]}>
                 <View style={s.image}>
                   {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
-                  <DateBox event={e} small style={s.date} />
+                  <DateBox event={e} small style={s.date} lng="sv" />
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={s.title} numberOfLines={2}>{e.title}</Text>
-                  <Text style={s.meta} numberOfLines={1}>{eventWhen(e)}</Text>
+                  <Text style={s.meta} numberOfLines={1}>{eventWhen(e, "sv")}</Text>
                   {e.series_id && (
                     <View style={s.series}>
                       <Repeat size={12} color={colors.goldText} strokeWidth={2.2} />

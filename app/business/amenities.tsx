@@ -14,6 +14,7 @@ import { useBusinessPlace, usePlaceAutosave, usePortalPlace } from "@/hooks/useB
 import { PRACTICAL, parseAmenities } from "@/lib/mapFilters";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 const ITEMS = PRACTICAL.filter((p) => p.id !== "openNow");
 const HELP: Record<string, string> = {
@@ -57,7 +58,7 @@ export default function BusinessAmenities() {
               <SettingsRow
                 key={item.id}
                 icon={item.Icon}
-                label={item.label}
+                label={i18n.t(item.labelKey as "map.practical.openNow", { lng: "sv" })}
                 subtitle={HELP[item.id]}
                 right={<IconSwitch value={!!on[item.id]} onChange={(v) => toggle(item.id, v)} />}
               />

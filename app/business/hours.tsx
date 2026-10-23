@@ -187,7 +187,7 @@ export default function BusinessHours() {
                   <View key={ex.id} style={[s.exRow, i > 0 && s.dayBorder]}>
                     <CalendarClock size={18} color={colors.goldText} strokeWidth={2} />
                     <View style={{ flex: 1 }}>
-                      <Text style={s.exText}>{exceptionLine(ex)}</Text>
+                      <Text style={s.exText}>{exceptionLine(ex, undefined, "sv")}</Text>
                       {ex.yearly && <Text style={s.exSub}>Varje år</Text>}
                     </View>
                     <TouchableOpacity

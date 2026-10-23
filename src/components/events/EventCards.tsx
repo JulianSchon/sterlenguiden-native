@@ -22,6 +22,7 @@ import {
 } from "lucide-react-native";
 import type { Event } from "@/hooks/useEvents";
 import { dateBadge, eventWhen, type Reason, type ReasonKind } from "@/lib/events";
+import type { LanguageCode } from "@/i18n";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 
 const CARD = "#1A1A1D";
@@ -107,8 +108,12 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
 });
 
 /** Datumrutan i bildens hörn: dagen stort, månaden i guld under. Solid, så den syns mot alla bilder */
-export function DateBox({ event, small, style }: { event: Pick<Event, "date" | "end_date">; small?: boolean; style: object }) {
-  const badge = dateBadge(event);
+export function DateBox({ event, small, style, lng }: {
+  event: Pick<Event, "date" | "end_date">; small?: boolean; style: object;
+  /** Ett bestämt språk (Mitt företag är alltid svenska) */
+  lng?: LanguageCode;
+}) {
+  const badge = dateBadge(event, lng);
   if (!badge) return null;
   return (
     <View style={[s.date, small && s.dateSmall, style]}>

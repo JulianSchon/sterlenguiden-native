@@ -16,7 +16,7 @@ import { applyNewPlace } from "@/hooks/useBusiness";
 import { businessError, cleanUrl } from "@/lib/business";
 import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
-import { CATEGORIES, CATEGORY_DB_VALUE, type CategoryId } from "@/theme/categories";
+import { CATEGORIES, CATEGORY_DB_VALUE, categoryLabel, type CategoryId } from "@/theme/categories";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -96,7 +96,7 @@ export default function ApplyScreen() {
           {town === "other" && <PortalField label="Ort" value={otherTown} onChangeText={setOtherTown} maxLength={60} placeholder="T.ex. Vitemölla" />}
           <Text style={s.small}>Vad är det för företag?</Text>
           <View style={s.chips}>
-            {CATEGORIES.map((c) => <Chip key={c.id} label={c.label} dot={c.screen} selected={cat === c.id} onPress={() => setCat(cat === c.id ? null : c.id)} />)}
+            {CATEGORIES.map((c) => <Chip key={c.id} label={categoryLabel(c.id, "sv")} dot={c.screen} selected={cat === c.id} onPress={() => setCat(cat === c.id ? null : c.id)} />)}
           </View>
           <PortalField label="Hemsida eller Instagram (valfritt)" icon={Globe} value={web} onChangeText={(v) => { setWeb(v); if (webError) setWebError(null); }}
             onBlur={() => setWebError(cleanUrl(web) === false ? "Länken ser inte rätt ut." : null)} error={webError}

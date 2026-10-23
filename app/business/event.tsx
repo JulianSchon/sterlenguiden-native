@@ -335,11 +335,11 @@ export default function EventComposer() {
           <View style={s.preview}>
             <View style={s.previewImage}>
               {payload.image_url && <ExpoImage source={{ uri: payload.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
-              <DateBox event={preview} style={s.previewDate} />
+              <DateBox event={preview} style={s.previewDate} lng="sv" />
             </View>
             <View style={{ padding: 14, gap: 4 }}>
               <Text style={s.previewTitle} numberOfLines={2}>{payload.title}</Text>
-              <Text style={s.previewMeta} numberOfLines={1}>{[eventWhen(preview), payload.location ?? place.name].join("  ·  ")}</Text>
+              <Text style={s.previewMeta} numberOfLines={1}>{[eventWhen(preview, "sv"), payload.location ?? place.name].join("  ·  ")}</Text>
             </View>
           </View>
           <Note text="Evenemanget syns i Kalendern, på er sida och för dem som sparat er som favorit." />

@@ -58,8 +58,8 @@ const SUB_LABELS: Record<string, string> = {
 
 /** Praktiskt: "öppet nu" räknas ur öppettiderna, resten är platsens egenskaper (kolumnen amenities) */
 // Samma namn som Söks egenskaper (search.practical.*); "öppet nu" och "bokning" är kartans egna
-const practical = (id: string, Icon: LucideIcon, key: string) => ({ id, Icon, get label() { return i18n.t(key as "map.practical.openNow"); } });
-export const PRACTICAL: { id: string; readonly label: string; Icon: LucideIcon }[] = [
+const practical = (id: string, Icon: LucideIcon, labelKey: string) => ({ id, Icon, labelKey, get label() { return i18n.t(labelKey as "map.practical.openNow"); } });
+export const PRACTICAL: { id: string; readonly label: string; labelKey: string; Icon: LucideIcon }[] = [
   practical("openNow", Clock, "map.practical.openNow"),
   practical("parking", ParkingSquare, "search.practical.parking"),
   practical("wifi", Wifi, "search.practical.wifi"),

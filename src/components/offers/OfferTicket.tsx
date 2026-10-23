@@ -21,7 +21,8 @@ import { Canvas, Fill, LinearGradient, Line, Path, DashPathEffect, vec } from "@
 import { offerSavingsLabel, splitSavings, type Offer } from "@/lib/offers";
 import type { OriginRect, TearEdge } from "./OfferDrawer";
 import { tornEdgeLine, tornCutRegion, TEAR_DEPTH, EDGE_STROKE } from "./tear";
-import { findCategory, ticketColors } from "@/theme/categories";
+import { categoryLabel, findCategory, ticketColors } from "@/theme/categories";
+import type { LanguageCode } from "@/i18n";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -99,7 +100,7 @@ function Perforation() {
 
 /** Ritas bara om när den egna biljetten ändras (inte när sidan runt den gör det) */
 export const OfferTicket = memo(function OfferTicket({
-  offer, used, torn, edge, scrollAt, linkPlace = true, onOpen,
+  offer, used, torn, edge, scrollAt, linkPlace = true, onOpen, lng,
 }: {
   offer: Offer;
   used: boolean;
@@ -111,8 +112,10 @@ export const OfferTicket = memo(function OfferTicket({
   /** Loggan öppnar platssidan — av när man redan står på den */
   linkPlace?: boolean;
   onOpen: (offer: Offer, origin: OriginRect | null) => void;
+  /** Ett bestämt språk (förhandsvisningen i Mitt företag är svenska) */
+  lng?: LanguageCode;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(undefined, { lng });
   const router = useRouter();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
@@ -181,7 +184,7 @@ export const OfferTicket = memo(function OfferTicket({
           </View>
           <View style={s.stubTextZone}>
             <Text style={s.stubText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-              {findCategory(offer.category)?.label ?? offer.category ?? "Österlen"}
+              {category ? categoryLabel(category.id, lng) : offer.category ?? "Österlen"}
             </Text>
           </View>
         </Reanimated.View>
@@ -222,7 +225,7 @@ export const OfferTicket = memo(function OfferTicket({
                 <Text style={s.until}>
                   {new Date(offer.expires_at).getTime() < Date.now()
                     ? t("offers.expired")
-                    : t("offers.until", { date: formatDate(offer.expires_at, "d MMM") })}
+                    : t("offers.until", { date: formatDate(offer.expires_at, "d MMM", lng) })}
                 </Text>
               )}
             </View>

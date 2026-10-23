@@ -14,9 +14,10 @@ import { Chip, PortalToast, SaveIndicator, SectionHeader, type PortalToastHandle
 import { useBusinessPlace, usePlaceAutosave, usePortalPlace } from "@/hooks/useBusiness";
 import { SUB_LABELS } from "@/lib/business";
 import { TASTES } from "@/lib/search";
-import { CATEGORIES, CATEGORY_DB_VALUE, SUBCATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
+import { CATEGORIES, CATEGORY_DB_VALUE, SUBCATEGORIES, categoryLabel, findCategory, type CategoryId } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 const MAX_CATS = 3;
 const TASTE_CATS: CategoryId[] = ["mat-dryck", "cafe-bageri", "butiker"];
@@ -61,7 +62,7 @@ export default function BusinessCategories() {
     });
   };
 
-  const tasteOptions = useMemo(() => Object.entries(TASTES).map(([key, t]) => ({ key, label: t.label })), []);
+  const tasteOptions = useMemo(() => Object.keys(TASTES).map((key) => ({ key, label: i18n.t(`search.tastes.${key}` as "search.tastes.fish", { lng: "sv" }) })), []);
 
   if (!state) {
     return (
@@ -108,7 +109,7 @@ export default function BusinessCategories() {
                     <View style={[s.catIcon, { backgroundColor: cat.screen }]}>
                       <cat.icon size={19} color="#FFFFFF" strokeWidth={1.9} />
                     </View>
-                    <Text style={s.catLabel} numberOfLines={2}>{cat.label}</Text>
+                    <Text style={s.catLabel} numberOfLines={2}>{categoryLabel(cat.id, "sv")}</Text>
                     {on && (
                       <View style={s.catCheck}>
                         {i === 0 ? <Text style={s.catMain}>1</Text> : <Check size={13} color={colors.onGold} strokeWidth={3} />}
@@ -124,7 +125,7 @@ export default function BusinessCategories() {
         {state.cats.map((cat, i) => (
           <Rise key={cat} index={i + 1}>
             <View>
-              <SectionHeader title={`${CATEGORIES.find((c) => c.id === cat)?.label} – vilken sort?`} />
+              <SectionHeader title={`${categoryLabel(cat, "sv")} – vilken sort?`} />
               <View style={s.chips}>
                 {SUBCATEGORIES[cat].map((sub) => (
                   <Chip key={sub} label={SUB_LABELS[sub] ?? sub} selected={state.subs.includes(sub)} onPress={() => toggle("subs", sub)} />
