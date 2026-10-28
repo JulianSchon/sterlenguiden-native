@@ -1,5 +1,6 @@
 /**
- * Statistik. Först en mening ("23 personer tittade på er sida") och kurvan över tid, sedan rutorna
+ * Statistik. Först en mening ("23 personer tittade på er sida") och kurvan över tid (samma som
+ * användarnas egen statistik: ritas fram, och man drar fingret längs den för varje dag), sedan rutorna
  * (visningar, klick, vägbeskrivningar, nya favoriter, incheckningar, använda erbjudanden,
  * berättelsevisningar — alla jämförda med perioden innan), vilka knappar gästerna trycker på, hur
  * de hittade er och vilka som tittar.
@@ -7,14 +8,14 @@
  * Inget visar vem: bara antal. Ålder och hemort syns först när minst 20 personer tittat, och
  * grupper med färre än 5 personer visas inte alls (databasen räknar så, business_stats).
  */
-import { useState } from "react";
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import Svg, { Defs, LinearGradient, Path, Stop, Circle } from "react-native-svg";
+import { useMemo, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import { ShieldCheck } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
+import { ScrubChart, type ChartPoint } from "@/components/ScrubChart";
 import { Note, PortalSegmented, SectionHeader } from "@/components/business/PortalParts";
 import { useBusinessStats, usePortalPlace } from "@/hooks/useBusiness";
 import { businessError, type BusinessStats } from "@/lib/business";
@@ -37,6 +38,7 @@ const AGES: { key: string; label: string }[] = [
   { key: "45-54", label: "45–54" }, { key: "55-64", label: "55–64" }, { key: "65plus", label: "65+" },
 ];
 const MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+const MONTHS_LONG = ["Januari", "Februari", "Mars", "April", "Maj", "Juni", "Juli", "Augusti", "September", "Oktober", "November", "December"];
 
 const PERIOD: Record<Days, string> = { 7: "veckan", 30: "månaden", 365: "året" };
 const PREV: Record<Days, string> = { 7: "veckan innan", 30: "månaden innan", 365: "året innan" };
@@ -46,9 +48,11 @@ export default function BusinessStatsPage() {
   const { placeId } = usePortalPlace();
   const [days, setDays] = useState<Days>(30);
   const { data, error, isLoading } = useBusinessStats(placeId, days);
+  // Sidan står still medan man drar fingret längs kurvan
+  const [scrubbing, setScrubbing] = useState(false);
 
   return (
-    <SettingsScreen title="Statistik">
+    <SettingsScreen title="Statistik" scrollEnabled={!scrubbing}>
       <Rise index={0}>
         <PortalSegmented options={[{ id: 7, label: "7 dagar" }, { id: 30, label: "30 dagar" }, { id: 365, label: "12 månader" }]} value={days} onChange={setDays} />
       </Rise>
@@ -61,13 +65,13 @@ export default function BusinessStatsPage() {
           <Skeleton height={180} radius={22} />
         </>
       ) : (
-        <Content stats={data} days={days} />
+        <Content stats={data} days={days} onScrubbing={setScrubbing} />
       )}
     </SettingsScreen>
   );
 }
 
-function Content({ stats, days }: { stats: BusinessStats; days: Days }) {
+function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Days; onScrubbing: (on: boolean) => void }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const diff = stats.visitors - stats.visitors_prev;
@@ -75,6 +79,8 @@ function Content({ stats, days }: { stats: BusinessStats; days: Days }) {
   // Övrigt sist, oavsett hur stort
   const sources = Object.entries(stats.sources).sort((a, b) => (a[0] === "other" ? 1 : b[0] === "other" ? -1 : b[1] - a[1]));
   const sourceTotal = sources.reduce((n, [, v]) => n + v, 0);
+  const points = useMemo(() => chartPoints(stats.series, days), [stats.series, days]);
+  const per = days === 365 ? "månad" : "dag";
 
   return (
     <>
@@ -90,7 +96,17 @@ function Content({ stats, days }: { stats: BusinessStats; days: Days }) {
                 {diff > 0 ? `${diff} fler` : `${-diff} färre`} än {PREV[days]}
               </Text>
             )}
-            <Chart series={stats.series} days={days} />
+            <View style={{ marginTop: 18 }}>
+              <ScrubChart
+                points={points}
+                everyLabel={points.length <= 12}
+                latestTitle={days === 365 ? "Den här månaden" : "I dag"}
+                valueText={(n) => `${n} ${n === 1 ? "visning" : "visningar"}`}
+                averageTitle={`Snitt per ${per}`}
+                averageText={(avg) => `${avg.toLocaleString("sv-SE", { maximumFractionDigits: 1 })} visningar`}
+                onScrubbing={onScrubbing}
+              />
+            </View>
           </View>
         </GradientCard>
       </Rise>
@@ -204,46 +220,15 @@ function Bar({ label, n, max, suffix }: { label: string; n: number; max: number;
   );
 }
 
-/** Kurvan: visningar per dag (per månad för ett år), med den senaste punkten markerad */
-function Chart({ series, days }: { series: BusinessStats["series"]; days: Days }) {
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
-  const { width } = useWindowDimensions();
-  const W = width - 32 - 32;
-  const H = 120;
-  const pad = 6;
-  if (series.length < 2) return null;
-  const max = Math.max(1, ...series.map((p) => p.views));
-  const x = (i: number) => pad + (i / (series.length - 1)) * (W - pad * 2);
-  const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
-  const line = series.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.views).toFixed(1)}`).join(" ");
-  const area = `${line} L${x(series.length - 1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
-  const label = (d: string) => (days === 365 ? MONTHS[Number(d.slice(5, 7)) - 1] : `${Number(d.slice(8))}/${Number(d.slice(5, 7))}`);
-  const last = series[series.length - 1];
-  return (
-    <View style={{ marginTop: 18 }}>
-      <View style={s.chartTop}>
-        <Text style={s.chartMax}>{max}</Text>
-        <Text style={s.chartCaption}>visningar per {days === 365 ? "månad" : "dag"}</Text>
-      </View>
-      <Svg width={W} height={H}>
-        <Defs>
-          <LinearGradient id="stats-area" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colors.gold} stopOpacity={0.35} />
-            <Stop offset="1" stopColor={colors.gold} stopOpacity={0} />
-          </LinearGradient>
-        </Defs>
-        <Path d={area} fill="url(#stats-area)" />
-        <Path d={line} stroke={colors.gold} strokeWidth={2.2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-        <Circle cx={x(series.length - 1)} cy={y(last.views)} r={4} fill={colors.gold} />
-      </Svg>
-      <View style={s.chartAxis}>
-        <Text style={s.axisText}>{label(series[0].d)}</Text>
-        <Text style={s.axisText}>{label(series[Math.floor(series.length / 2)].d)}</Text>
-        <Text style={s.axisText}>{label(last.d)}</Text>
-      </View>
-    </View>
-  );
+/** Visningar per dag (per månad för ett år) som punkter för kurvan */
+function chartPoints(series: BusinessStats["series"], days: Days): ChartPoint[] {
+  return series.map((p) => {
+    const month = Number(p.d.slice(5, 7)) - 1;
+    const day = Number(p.d.slice(8, 10));
+    return days === 365
+      ? { label: MONTHS[month], name: `${MONTHS_LONG[month]} ${p.d.slice(0, 4)}`, count: p.views }
+      : { label: `${day}/${month + 1}`, name: `${day} ${MONTHS_LONG[month].toLowerCase()}`, count: p.views };
+  });
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
@@ -252,11 +237,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   heroN: { fontFamily: "Montserrat_700Bold", fontSize: 40, letterSpacing: -1, color: c.text, fontVariant: ["tabular-nums"] },
   heroText: { fontFamily: "Inter_500Medium", fontSize: 15, lineHeight: 21, color: c.muted, marginTop: 2 },
   heroDiff: { fontFamily: "Inter_600SemiBold", fontSize: 14, marginTop: 6 },
-  chartTop: { flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 6 },
-  chartMax: { fontFamily: "Inter_700Bold", fontSize: 12, color: c.muted, fontVariant: ["tabular-nums"] },
-  chartCaption: { fontFamily: "Inter_400Regular", fontSize: 12, color: c.faint },
-  chartAxis: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
-  axisText: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: c.faint, fontVariant: ["tabular-nums"] },
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tile: {
     width: "48.4%", padding: 14, borderRadius: 18, backgroundColor: c.card,
