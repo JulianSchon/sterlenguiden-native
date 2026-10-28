@@ -18,6 +18,7 @@ import { CATEGORIES, CATEGORY_DB_VALUE, SUBCATEGORIES, categoryLabel, findCatego
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import i18n from "i18next";
+import { tb } from "@/i18n/business";
 
 const MAX_CATS = 3;
 const TASTE_CATS: CategoryId[] = ["mat-dryck", "cafe-bageri", "butiker"];
@@ -54,11 +55,11 @@ export default function BusinessCategories() {
     });
   };
 
-  const tasteOptions = useMemo(() => Object.keys(TASTES).map((key) => ({ key, label: i18n.t(`search.tastes.${key}` as "search.tastes.fish", { lng: "sv" }) })), []);
+  const tasteOptions = useMemo(() => Object.keys(TASTES).map((key) => ({ key, label: i18n.t(`search.tastes.${key}` as "search.tastes.fish") })), []);
 
   if (!state) {
     return (
-      <SettingsScreen title="Kategori och meny">
+      <SettingsScreen title={tb("Kategori och meny")}>
         <Skeleton height={240} radius={18} />
         <Skeleton height={120} radius={18} />
       </SettingsScreen>
@@ -69,7 +70,7 @@ export default function BusinessCategories() {
     if (state.cats.includes(id)) {
       save({ ...state, cats: state.cats.filter((c) => c !== id) });
     } else if (state.cats.length >= MAX_CATS) {
-      toast.current?.show("Välj högst tre – ta bort en först");
+      toast.current?.show(tb("Välj högst tre – ta bort en först"));
     } else {
       save({ ...state, cats: [...state.cats, id] });
     }
@@ -81,11 +82,11 @@ export default function BusinessCategories() {
 
   return (
     <>
-      <SettingsScreen title="Kategori och meny" right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
+      <SettingsScreen title={tb("Kategori och meny")} right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
         <Rise index={0}>
           <View>
-            <SectionHeader title="Vad är ni?" />
-            <Text style={s.lead}>Välj upp till tre. Den första blir er huvudkategori – den syns först och styr färgen på er sida.</Text>
+            <SectionHeader title={tb("Vad är ni?")} />
+            <Text style={s.lead}>{tb("Välj upp till tre. Den första blir er huvudkategori – den syns först och styr färgen på er sida.")}</Text>
             <View style={s.grid}>
               {CATEGORIES.map((cat) => {
                 const i = state.cats.indexOf(cat.id);
@@ -101,7 +102,7 @@ export default function BusinessCategories() {
                     <View style={[s.catIcon, { backgroundColor: cat.screen }]}>
                       <cat.icon size={19} color="#FFFFFF" strokeWidth={1.9} />
                     </View>
-                    <Text style={s.catLabel} numberOfLines={2}>{categoryLabel(cat.id, "sv")}</Text>
+                    <Text style={s.catLabel} numberOfLines={2}>{categoryLabel(cat.id)}</Text>
                     {on && (
                       <View style={s.catCheck}>
                         {i === 0 ? <Text style={s.catMain}>1</Text> : <Check size={13} color={colors.onGold} strokeWidth={3} />}
@@ -117,10 +118,10 @@ export default function BusinessCategories() {
         {state.cats.map((cat, i) => (
           <Rise key={cat} index={i + 1}>
             <View>
-              <SectionHeader title={`${categoryLabel(cat, "sv")} – vilken sort?`} />
+              <SectionHeader title={tb("{{0}} – vilken sort?", { 0: categoryLabel(cat) })} />
               <View style={s.chips}>
                 {SUBCATEGORIES[cat].map((sub) => (
-                  <Chip key={sub} label={SUB_LABELS[sub] ?? sub} selected={state.subs.includes(sub)} onPress={() => toggle("subs", sub)} />
+                  <Chip key={sub} label={tb(SUB_LABELS[sub] ?? sub)} selected={state.subs.includes(sub)} onPress={() => toggle("subs", sub)} />
                 ))}
               </View>
             </View>
@@ -130,8 +131,8 @@ export default function BusinessCategories() {
         {state.cats.some((c) => TASTE_CATS.includes(c)) && (
           <Rise index={4}>
             <View>
-              <SectionHeader title="Vad serverar eller säljer ni?" />
-              <Text style={s.lead}>Då hittar gästerna er när de söker på t.ex. "fisk", "husmanskost" eller "ost".</Text>
+              <SectionHeader title={tb("Vad serverar eller säljer ni?")} />
+              <Text style={s.lead}>{tb("Då hittar gästerna er när de söker på t.ex. \"fisk\", \"husmanskost\" eller \"ost\".")}</Text>
               <View style={s.chips}>
                 {tasteOptions.map((t) => (
                   <Chip key={t.key} label={t.label} selected={state.tastes.includes(t.key)} onPress={() => toggle("tastes", t.key)} />

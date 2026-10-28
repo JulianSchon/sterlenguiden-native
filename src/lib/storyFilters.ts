@@ -55,7 +55,7 @@ interface StoryFilter { id: string; name: string; matrix: Matrix | null }
 export const STORY_FILTERS: StoryFilter[] = [
   { id: "none", name: "Original", matrix: null },
   { id: "warm", name: "Varm", matrix: concat(tint(1.08, 1.02, 0.88), saturation(1.1)) },
-  { id: "vivid", name: "Klar", matrix: concat(contrast(1.12), saturation(1.35)) },
+  { id: "vivid", name: "Livfull", matrix: concat(contrast(1.12), saturation(1.35)) },
   { id: "osterlen", name: "Österlen", matrix: concat(fade(0.07), concat(tint(1.05, 1.01, 0.93), saturation(0.9))) },
   { id: "evening", name: "Kväll", matrix: concat(brightness(-0.03), concat(tint(0.92, 0.97, 1.1), contrast(1.08))) },
   { id: "bw", name: "Svartvit", matrix: concat(contrast(1.15), saturation(0)) },

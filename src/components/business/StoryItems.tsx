@@ -13,6 +13,7 @@ import Reanimated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, type
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { CalendarDays, ChevronRight, MapPin, Ticket } from "lucide-react-native";
+import { tb } from "@/i18n/business";
 
 export type FontId = "classic" | "modern" | "elegant" | "hand" | "type";
 export type TextBg = "none" | "solid" | "soft";
@@ -113,7 +114,7 @@ function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
     <View style={[s.link, box, { gap: 10 * k, paddingLeft: 8 * k, paddingRight: 12 * k, paddingVertical: 8 * k, borderRadius: 16 * k, maxWidth: 300 * k }]}>
       <View style={[s.linkIcon, { width: 40 * k, height: 40 * k, borderRadius: 12 * k }]}><Icon size={20 * k} color="#1A1408" strokeWidth={2.2} /></View>
       <View style={{ flexShrink: 1 }}>
-        <Text style={[s.linkKicker, { fontSize: 10.5 * k }, dark && { color: "#E4C67A" }]}>{item.link.kind === "offer" ? "Erbjudande" : "Evenemang"}</Text>
+        <Text style={[s.linkKicker, { fontSize: 10.5 * k }, dark && { color: "#E4C67A" }]}>{item.link.kind === "offer" ? tb("Erbjudande") : tb("Evenemang")}</Text>
         <Text style={[s.linkTitle, { color: ink, fontSize: 16 * k }]} numberOfLines={1}>{item.title}</Text>
         {!!item.sub && <Text style={[s.linkSub, { fontSize: 12.5 * k }, dark && { color: "rgba(255,255,255,0.7)" }]} numberOfLines={1}>{item.sub}</Text>}
       </View>

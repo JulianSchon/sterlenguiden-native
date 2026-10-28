@@ -19,6 +19,7 @@ import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
 import { CATEGORIES, CATEGORY_DB_VALUE, categoryLabel, type CategoryId } from "@/theme/categories";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 
 export default function ApplyScreen() {
@@ -49,7 +50,7 @@ export default function ApplyScreen() {
         website: website || null, message: message.trim() || null,
       });
       if (!r.ok) {
-        setError(r.reason === "already_pending" ? "Du har redan en ansökan som väntar." : r.reason === "not_adult" ? "Du behöver vara 18 år." : r.reason === "too_many" ? "Du har skickat många förfrågningar i dag. Försök i morgon." : "Kolla att allt är ifyllt.");
+        setError(r.reason === "already_pending" ? tb("Du har redan en ansökan som väntar.") : r.reason === "not_adult" ? tb("Du behöver vara 18 år.") : r.reason === "too_many" ? tb("Du har skickat många förfrågningar i dag. Försök i morgon.") : tb("Kolla att allt är ifyllt."));
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
@@ -65,43 +66,43 @@ export default function ApplyScreen() {
     <WizardFrame stepKey={sent ? "sent" : "form"} progress={sent ? 1 : 0.5} forward onBack={() => router.back()} hideBar={sent}>
       {sent ? (
         <DoneMoment
-          title="Sista steget"
-          text={`Mejla oss från ${name.trim()}s egen e-post, så vet vi att det är ni. Sedan lägger vi till företaget och du hittar det under Inställningar.`}
+          title={tb("Sista steget")}
+          text={tb("Mejla oss från {{0}}s egen e-post, så vet vi att det är ni. Sedan lägger vi till företaget och du hittar det under Inställningar.", { 0: name.trim() })}
           primary={{
-            label: "Mejla oss nu",
+            label: tb("Mejla oss nu"),
             onPress: () => {
               const subject = encodeURIComponent(`${name.trim()} vill finnas i Österlenappen`);
               Linking.openURL(`mailto:${HELP_EMAIL}?subject=${subject}`).catch(() => {});
               router.back();
             },
           }}
-          secondary={{ label: "Jag gör det sen", onPress: () => router.back() }}
+          secondary={{ label: tb("Jag gör det sen"), onPress: () => router.back() }}
         />
       ) : (
         <StepLayout
-          title="Berätta om företaget"
-          subtitle="Vi lägger till det i appen. Sedan mejlar du oss från företagets e-post, så vet vi att det är ni."
+          title={tb("Berätta om företaget")}
+          subtitle={tb("Vi lägger till det i appen. Sedan mejlar du oss från företagets e-post, så vet vi att det är ni.")}
           scroll
           footer={<>
             {error && <FieldNote tone="danger" text={error} />}
-            <AuthButton label="Skicka" onPress={send} loading={busy} disabled={!ok} />
+            <AuthButton label={tb("Skicka")} onPress={send} loading={busy} disabled={!ok} />
           </>}
         >
-          <PortalField label="Företagets namn" icon={Store} value={name} onChangeText={setName} maxLength={80} placeholder="T.ex. Kiviks Gårdsbutik" />
-          <Text style={s.small}>Var ligger det?</Text>
+          <PortalField label={tb("Företagets namn")} icon={Store} value={name} onChangeText={setName} maxLength={80} placeholder={tb("T.ex. Kiviks Gårdsbutik")} />
+          <Text style={s.small}>{tb("Var ligger det?")}</Text>
           <View style={s.chips}>
             {OSTERLEN_TOWNS.map((t) => <Chip key={t.name} label={t.name} selected={town === t.name} onPress={() => setTown(t.name)} />)}
-            <Chip label="Annan ort" selected={town === "other"} onPress={() => setTown("other")} />
+            <Chip label={tb("Annan ort")} selected={town === "other"} onPress={() => setTown("other")} />
           </View>
-          {town === "other" && <PortalField label="Ort" value={otherTown} onChangeText={setOtherTown} maxLength={60} placeholder="T.ex. Vitemölla" />}
-          <Text style={s.small}>Vad är det för företag?</Text>
+          {town === "other" && <PortalField label={tb("Ort")} value={otherTown} onChangeText={setOtherTown} maxLength={60} placeholder={tb("T.ex. Vitemölla")} />}
+          <Text style={s.small}>{tb("Vad är det för företag?")}</Text>
           <View style={s.chips}>
-            {CATEGORIES.map((c) => <Chip key={c.id} label={categoryLabel(c.id, "sv")} dot={c.screen} selected={cat === c.id} onPress={() => setCat(cat === c.id ? null : c.id)} />)}
+            {CATEGORIES.map((c) => <Chip key={c.id} label={categoryLabel(c.id)} dot={c.screen} selected={cat === c.id} onPress={() => setCat(cat === c.id ? null : c.id)} />)}
           </View>
-          <PortalField label="Hemsida eller Instagram (valfritt)" icon={Globe} value={web} onChangeText={(v) => { setWeb(v); if (webError) setWebError(null); }}
-            onBlur={() => setWebError(cleanUrl(web) === false ? "Länken ser inte rätt ut." : null)} error={webError}
+          <PortalField label={tb("Hemsida eller Instagram (valfritt)")} icon={Globe} value={web} onChangeText={(v) => { setWeb(v); if (webError) setWebError(null); }}
+            onBlur={() => setWebError(cleanUrl(web) === false ? tb("Länken ser inte rätt ut.") : null)} error={webError}
             keyboardType="url" autoCapitalize="none" autoCorrect={false} placeholder="ertforetag.se" />
-          <PortalField label="Något mer? (valfritt)" value={message} onChangeText={setMessage} multiline maxLength={600} style={{ minHeight: 70 }} />
+          <PortalField label={tb("Något mer? (valfritt)")} value={message} onChangeText={setMessage} multiline maxLength={600} style={{ minHeight: 70 }} />
         </StepLayout>
       )}
     </WizardFrame>

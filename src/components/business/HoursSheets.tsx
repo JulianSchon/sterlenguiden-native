@@ -18,6 +18,7 @@ import {
 import { DAY_NAMES, type HoursException } from "@/lib/openingHours";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 // ── Tiderna (delas av båda panelerna) ───────────────────────────────────────
 
@@ -34,7 +35,7 @@ function RangesEditor({ ranges, onChange, allowPause = true }: { ranges: TimeRan
     <View>
       {ranges.map((r, i) => (
         <View key={i} style={s.rangeRow}>
-          {ranges.length > 1 && <Text style={s.rangeIndex}>{i === 0 ? "Först" : "Sedan"}</Text>}
+          {ranges.length > 1 && <Text style={s.rangeIndex}>{i === 0 ? tb("Först") : tb("Sedan")}</Text>}
           {(["from", "to"] as const).map((end) => {
             const on = sel.i === i && sel.end === end;
             return (
@@ -46,7 +47,7 @@ function RangesEditor({ ranges, onChange, allowPause = true }: { ranges: TimeRan
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
               >
-                <Text style={s.timeBtnLabel}>{end === "from" ? "Öppnar" : "Stänger"}</Text>
+                <Text style={s.timeBtnLabel}>{end === "from" ? tb("Öppnar") : tb("Stänger")}</Text>
                 <Text style={[s.timeBtnValue, on && { color: colors.goldText }]}>{r[end]}</Text>
               </TouchableOpacity>
             );
@@ -54,7 +55,7 @@ function RangesEditor({ ranges, onChange, allowPause = true }: { ranges: TimeRan
         </View>
       ))}
       {current && <TimeWheel value={current[sel.end]} onChange={set} />}
-      {ranges.some(pastMidnight) && <Text style={s.hint}>Stänger efter midnatt – det räknas till natten efter.</Text>}
+      {ranges.some(pastMidnight) && <Text style={s.hint}>{tb("Stänger efter midnatt – det räknas till natten efter.")}</Text>}
       {problem && <Text style={[s.hint, { color: colors.danger }]}>{problem}</Text>}
       {allowPause && (
         ranges.length === 1 ? (
@@ -67,7 +68,7 @@ function RangesEditor({ ranges, onChange, allowPause = true }: { ranges: TimeRan
             }}
           >
             <Plus size={16} color={colors.goldText} strokeWidth={2.4} />
-            <Text style={s.pauseText}>Lägg till paus (t.ex. lunchstängt)</Text>
+            <Text style={s.pauseText}>{tb("Lägg till paus (t.ex. lunchstängt)")}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -75,7 +76,7 @@ function RangesEditor({ ranges, onChange, allowPause = true }: { ranges: TimeRan
             onPress={() => { onChange([{ from: ranges[0].from, to: ranges[ranges.length - 1].to }]); setSel({ i: 0, end: "from" }); }}
           >
             <Minus size={16} color={colors.goldText} strokeWidth={2.4} />
-            <Text style={s.pauseText}>Ta bort pausen</Text>
+            <Text style={s.pauseText}>{tb("Ta bort pausen")}</Text>
           </TouchableOpacity>
         )
       )}
@@ -119,15 +120,15 @@ export function DaySheet({ day, week, onClose, onSave }: {
     <Sheet visible={day !== null} onClose={onClose} title={name} tall>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 8 }}>
         {cur?.kind === "text" && (
-          <Text style={s.hint}>Just nu står det "{cur.text}". Välj tider nedan för att byta ut texten.</Text>
+          <Text style={s.hint}>{tb("Just nu står det \"")}{cur.text}{tb("\". Välj tider nedan för att byta ut texten.")}</Text>
         )}
-        <PortalSegmented options={[{ id: "open", label: "Öppet" }, { id: "closed", label: "Stängt" }]} value={open ? "open" : "closed"} onChange={(v) => setOpen(v === "open")} />
+        <PortalSegmented options={[{ id: "open", label: tb("Öppet") }, { id: "closed", label: tb("Stängt") }]} value={open ? "open" : "closed"} onChange={(v) => setOpen(v === "open")} />
         {open && (
           <View style={{ marginTop: 16 }}>
             <RangesEditor ranges={ranges} onChange={setRanges} />
           </View>
         )}
-        <Text style={s.sameLabel}>Samma för</Text>
+        <Text style={s.sameLabel}>{tb("Samma för")}</Text>
         <View style={s.chips}>
           {WEEK_ORDER.map((d) => (
             <Chip
@@ -139,13 +140,13 @@ export function DaySheet({ day, week, onClose, onSave }: {
           ))}
         </View>
         <View style={s.quick}>
-          <Text style={s.quickLink} onPress={() => setDays([1, 2, 3, 4, 5])}>Vardagar</Text>
-          <Text style={s.quickLink} onPress={() => setDays([6, 0])}>Helg</Text>
-          <Text style={s.quickLink} onPress={() => setDays(WEEK_ORDER)}>Alla dagar</Text>
+          <Text style={s.quickLink} onPress={() => setDays([1, 2, 3, 4, 5])}>{tb("Vardagar")}</Text>
+          <Text style={s.quickLink} onPress={() => setDays([6, 0])}>{tb("Helg")}</Text>
+          <Text style={s.quickLink} onPress={() => setDays(WEEK_ORDER)}>{tb("Alla dagar")}</Text>
         </View>
       </ScrollView>
       <PrimaryButton
-        label={days.length > 1 ? `Spara för ${days.length} dagar` : "Spara"}
+        label={days.length > 1 ? tb("Spara för {{0}} dagar", { 0: days.length }) : tb("Spara")}
         disabled={problem}
         onPress={() => onSave(days, open ? { kind: "open", ranges } : { kind: "closed" })}
       />
@@ -181,7 +182,7 @@ export function ExceptionSheet({ kind, editing, onClose, onSave }: {
     setShownKind(kind);
     const e = editing;
     setRange({ from: e?.from ?? null, to: e && e.to !== e.from ? e.to : kind === "day" ? e?.from ?? null : null });
-    setLabel(e?.label ?? (kind === "period" ? "Sommartider" : ""));
+    setLabel(e?.label ?? (kind === "period" ? tb("Sommartider") : ""));
     setYearly(e?.yearly ?? false);
     if (e?.week) {
       const days = WEEK_ORDER.filter((d) => !!e.week?.[DAY_NAMES[d]] && !/st[aä]ngt/i.test(e.week[DAY_NAMES[d]]));
@@ -198,7 +199,7 @@ export function ExceptionSheet({ kind, editing, onClose, onSave }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, editing]);
 
-  const title = shownKind === "closed" ? "Stängt några dagar" : shownKind === "period" ? "Andra tider en period" : "En enskild dag";
+  const title = shownKind === "closed" ? tb("Stängt några dagar") : shownKind === "period" ? tb("Andra tider en period") : tb("En enskild dag");
   const value: CalendarValue = shownKind === "day"
     ? { mode: "single", date: range.from }
     : { mode: "range", from: range.from, to: range.to };
@@ -214,7 +215,7 @@ export function ExceptionSheet({ kind, editing, onClose, onSave }: {
       onSave({ id, from, to, closed: true, label: label.trim() || null, yearly });
     } else if (shownKind === "period") {
       const week: Record<string, string> = {};
-      for (const d of WEEK_ORDER) week[DAY_NAMES[d]] = openDays.includes(d) ? hours : "Stängt";
+      for (const d of WEEK_ORDER) week[DAY_NAMES[d]] = openDays.includes(d) ? hours : tb("Stängt");
       onSave({ id, from, to, closed: false, week, label: label.trim() || null, yearly });
     } else {
       onSave({ id, from, to, closed: dayClosed, hours: dayClosed ? null : hours, label: label.trim() || null });
@@ -225,7 +226,7 @@ export function ExceptionSheet({ kind, editing, onClose, onSave }: {
     <Sheet visible={kind !== null} onClose={onClose} title={title} tall>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 8, gap: 16 }}>
         <View>
-          <Text style={s.step}>{shownKind === "day" ? "Vilken dag?" : "Vilka datum? Tryck på första och sista dagen."}</Text>
+          <Text style={s.step}>{shownKind === "day" ? tb("Vilken dag?") : tb("Vilka datum? Tryck på första och sista dagen.")}</Text>
           <DateCalendar
             value={value}
             min={todayIso()}
@@ -241,7 +242,7 @@ export function ExceptionSheet({ kind, editing, onClose, onSave }: {
 
         {shownKind === "period" && (
           <View>
-            <Text style={s.step}>Vilka dagar har ni öppet då?</Text>
+            <Text style={s.step}>{tb("Vilka dagar har ni öppet då?")}</Text>
             <View style={s.chips}>
               {WEEK_ORDER.map((d) => (
                 <Chip key={d} label={SHORT_DAYS[d]} selected={openDays.includes(d)} onPress={() => setOpenDays(openDays.includes(d) ? openDays.filter((x) => x !== d) : [...openDays, d])} />
@@ -251,12 +252,12 @@ export function ExceptionSheet({ kind, editing, onClose, onSave }: {
         )}
 
         {shownKind === "day" && (
-          <PortalSegmented options={[{ id: "open", label: "Öppet" }, { id: "closed", label: "Stängt" }]} value={dayClosed ? "closed" : "open"} onChange={(v) => setDayClosed(v === "closed")} />
+          <PortalSegmented options={[{ id: "open", label: tb("Öppet") }, { id: "closed", label: tb("Stängt") }]} value={dayClosed ? "closed" : "open"} onChange={(v) => setDayClosed(v === "closed")} />
         )}
 
         {(shownKind === "period" || (shownKind === "day" && !dayClosed)) && (
           <View>
-            <Text style={s.step}>Vilka tider?</Text>
+            <Text style={s.step}>{tb("Vilka tider?")}</Text>
             <RangesEditor ranges={ranges} onChange={setRanges} allowPause={shownKind === "day"} />
           </View>
         )}
@@ -264,29 +265,29 @@ export function ExceptionSheet({ kind, editing, onClose, onSave }: {
         <View style={{ gap: 10 }}>
           {shownKind === "closed" && (
             <View style={s.chips}>
-              {CLOSED_LABELS.map((l) => <Chip key={l} label={l} selected={label === l} onPress={() => setLabel(label === l ? "" : l)} />)}
+              {CLOSED_LABELS.map((sv) => tb(sv)).map((l) => <Chip key={l} label={l} selected={label === l} onPress={() => setLabel(label === l ? "" : l)} />)}
             </View>
           )}
           <PortalField
-            label={shownKind === "closed" ? "Varför? (valfritt, syns för gästerna)" : "Namn (valfritt, syns för gästerna)"}
+            label={shownKind === "closed" ? tb("Varför? (valfritt, syns för gästerna)") : tb("Namn (valfritt, syns för gästerna)")}
             value={label}
             maxLength={40}
             onChangeText={setLabel}
-            placeholder={shownKind === "period" ? "Sommartider" : shownKind === "closed" ? "T.ex. Semester" : "T.ex. Julmarknad"}
+            placeholder={shownKind === "period" ? tb("Sommartider") : shownKind === "closed" ? tb("T.ex. Semester") : tb("T.ex. Julmarknad")}
           />
         </View>
 
         {shownKind !== "day" && (
           <View style={s.yearly}>
             <View style={{ flex: 1 }}>
-              <Text style={s.yearlyTitle}>Samma datum varje år</Text>
-              <Text style={s.yearlyText}>Då behöver ni inte lägga in det igen nästa år.</Text>
+              <Text style={s.yearlyTitle}>{tb("Samma datum varje år")}</Text>
+              <Text style={s.yearlyText}>{tb("Då behöver ni inte lägga in det igen nästa år.")}</Text>
             </View>
             <IconSwitch value={yearly} onChange={setYearly} />
           </View>
         )}
       </ScrollView>
-      <PrimaryButton label="Spara" disabled={!ready || ranges.some((r) => !!rangeProblem(r))} onPress={save} />
+      <PrimaryButton label={tb("Spara")} disabled={!ready || ranges.some((r) => !!rangeProblem(r))} onPress={save} />
     </Sheet>
   );
 }

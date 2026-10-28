@@ -17,6 +17,7 @@ import { firstImageUrl, usePlaces } from "@/hooks/usePlaces";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 const STEPS = [
   "Sök fram ert företag här nedanför.",
@@ -45,11 +46,11 @@ export default function BusinessStart() {
   }, [places, query]);
 
   return (
-    <SettingsScreen title="För företag">
+    <SettingsScreen title={tb("För företag")}>
       <Rise index={0}>
         <View style={s.hero}>
-          <Text style={s.title}>Har ni ett företag på Österlen?</Text>
-          <Text style={s.lead}>Ta hand om er sida i Österlenappen – öppettider, bilder, erbjudanden i Österlenpasset och evenemang. Det kostar ingenting.</Text>
+          <Text style={s.title}>{tb("Har ni ett företag på Österlen?")}</Text>
+          <Text style={s.lead}>{tb("Ta hand om er sida i Österlenappen – öppettider, bilder, erbjudanden i Österlenpasset och evenemang. Det kostar ingenting.")}</Text>
         </View>
       </Rise>
 
@@ -60,7 +61,7 @@ export default function BusinessStart() {
               <View key={r.id} style={s.pending}>
                 <Clock size={18} color={colors.goldText} strokeWidth={2} />
                 <Text style={s.pendingText}>
-                  {r.kind === "new_place" ? `Er ansökan om ${r.place_name ?? "ert företag"} väntar på svar.` : `Er förfrågan om ${r.place_name ?? "platsen"} väntar på svar.`}
+                  {r.kind === "new_place" ? tb("Er ansökan om {{0}} väntar på svar.", { 0: r.place_name ?? "ert företag" }) : tb("Er förfrågan om {{0}} väntar på svar.", { 0: r.place_name ?? "platsen" })}
                 </Text>
               </View>
             ))}
@@ -73,7 +74,7 @@ export default function BusinessStart() {
           {STEPS.map((t, i) => (
             <View key={t} style={s.step}>
               <View style={s.stepN}><Text style={s.stepNText}>{i + 1}</Text></View>
-              <Text style={s.stepText}>{t}</Text>
+              <Text style={s.stepText}>{tb(t)}</Text>
             </View>
           ))}
         </View>
@@ -81,7 +82,7 @@ export default function BusinessStart() {
 
       <Rise index={3}>
         <View style={{ gap: 12 }}>
-          <PortalField label="Ert företag" icon={Search} value={query} onChangeText={setQuery} placeholder="Skriv namnet" autoCorrect={false} returnKeyType="search" />
+          <PortalField label={tb("Ert företag")} icon={Search} value={query} onChangeText={setQuery} placeholder={tb("Skriv namnet")} autoCorrect={false} returnKeyType="search" />
           {hits.length > 0 && (
             <GradientCard>
               {hits.map((p, i) => {
@@ -107,19 +108,19 @@ export default function BusinessStart() {
             </GradientCard>
           )}
           {query.trim().length >= 2 && hits.length === 0 && (
-            <Text style={s.none}>Vi hittar inget företag som heter så.</Text>
+            <Text style={s.none}>{tb("Vi hittar inget företag som heter så.")}</Text>
           )}
         </View>
       </Rise>
 
       <Rise index={4}>
         <View>
-          <SectionHeader title="Finns ni inte med?" />
+          <SectionHeader title={tb("Finns ni inte med?")} />
           <TouchableOpacity style={s.apply} activeOpacity={0.8} onPress={() => pushOnce(router, "/business/apply")}>
             <Store size={20} color={colors.goldText} strokeWidth={1.9} />
             <View style={{ flex: 1 }}>
-              <Text style={s.applyTitle}>Ansök om att komma med</Text>
-              <Text style={s.applySub}>Berätta om företaget så lägger vi till det.</Text>
+              <Text style={s.applyTitle}>{tb("Ansök om att komma med")}</Text>
+              <Text style={s.applySub}>{tb("Berätta om företaget så lägger vi till det.")}</Text>
             </View>
             <ChevronRight size={17} color={colors.faint} strokeWidth={2} />
           </TouchableOpacity>
@@ -127,7 +128,7 @@ export default function BusinessStart() {
       </Rise>
 
       <Rise index={5}>
-        <Note icon={Mail} text="Har någon på företaget bjudit in dig? Inbjudan syns under Inställningar när du loggat in med samma e-postadress som inbjudan skickades till." />
+        <Note icon={Mail} text={tb("Har någon på företaget bjudit in dig? Inbjudan syns under Inställningar när du loggat in med samma e-postadress som inbjudan skickades till.")} />
       </Rise>
     </SettingsScreen>
   );

@@ -21,6 +21,8 @@ import { useBusinessStats, usePortalPlace } from "@/hooks/useBusiness";
 import { businessError, type BusinessStats } from "@/lib/business";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
+import { decimal, whole } from "@/i18n/numbers";
 
 type Days = 7 | 30 | 365;
 
@@ -52,9 +54,9 @@ export default function BusinessStatsPage() {
   const [scrubbing, setScrubbing] = useState(false);
 
   return (
-    <SettingsScreen title="Statistik" scrollEnabled={!scrubbing}>
+    <SettingsScreen title={tb("Statistik")} scrollEnabled={!scrubbing}>
       <Rise index={0}>
-        <PortalSegmented options={[{ id: 7, label: "7 dagar" }, { id: 30, label: "30 dagar" }, { id: 365, label: "12 månader" }]} value={days} onChange={setDays} />
+        <PortalSegmented options={[{ id: 7, label: tb("7 dagar") }, { id: 30, label: tb("30 dagar") }, { id: 365, label: tb("12 månader") }]} value={days} onChange={setDays} />
       </Rise>
       {error ? (
         <Text style={s.error}>{businessError(error)}</Text>
@@ -80,30 +82,30 @@ function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Day
   const sources = Object.entries(stats.sources).sort((a, b) => (a[0] === "other" ? 1 : b[0] === "other" ? -1 : b[1] - a[1]));
   const sourceTotal = sources.reduce((n, [, v]) => n + v, 0);
   const points = useMemo(() => chartPoints(stats.series, days), [stats.series, days]);
-  const per = days === 365 ? "månad" : "dag";
+  const per = days === 365 ? tb("månad") : tb("dag");
 
   return (
     <>
       <Rise index={1}>
         <GradientCard>
           <View style={s.heroBody}>
-            <Text style={s.heroN}>{stats.visitors.toLocaleString("sv-SE")}</Text>
+            <Text style={s.heroN}>{whole(stats.visitors)}</Text>
             <Text style={s.heroText}>
-              {stats.visitors === 1 ? "person" : "personer"} tittade på er sida {days === 7 ? "i veckan" : days === 30 ? "senaste 30 dagarna" : "senaste året"}
+              {tb(stats.visitors === 1 ? "person tittade på er sida {{0}}" : "personer tittade på er sida {{0}}", { 0: days === 7 ? tb("i veckan") : days === 30 ? tb("senaste 30 dagarna") : tb("senaste året") })}
             </Text>
             {stats.visitors_prev > 0 && diff !== 0 && (
               <Text style={[s.heroDiff, { color: diff > 0 ? colors.success : colors.muted }]}>
-                {diff > 0 ? `${diff} fler` : `${-diff} färre`} än {PREV[days]}
+                {diff > 0 ? tb("{{0}} fler än {{1}}", { 0: diff, 1: tb(PREV[days]) }) : tb("{{0}} färre än {{1}}", { 0: -diff, 1: tb(PREV[days]) })}
               </Text>
             )}
             <View style={{ marginTop: 18 }}>
               <ScrubChart
                 points={points}
                 everyLabel={points.length <= 12}
-                latestTitle={days === 365 ? "Den här månaden" : "I dag"}
-                valueText={(n) => `${n} ${n === 1 ? "visning" : "visningar"}`}
-                averageTitle={`Snitt per ${per}`}
-                averageText={(avg) => `${avg.toLocaleString("sv-SE", { maximumFractionDigits: 1 })} visningar`}
+                latestTitle={days === 365 ? tb("Den här månaden") : tb("I dag")}
+                valueText={(n) => tb(n === 1 ? "1 visning" : "{{0}} visningar", { 0: n })}
+                averageTitle={tb("Snitt per {{0}}", { 0: per })}
+                averageText={(avg) => tb("{{0}} visningar", { 0: decimal(avg) })}
                 onScrubbing={onScrubbing}
               />
             </View>
@@ -113,23 +115,23 @@ function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Day
 
       <Rise index={2}>
         <View style={s.tiles}>
-          <Tile n={stats.views} prev={stats.views_prev} label="Visningar av er sida" />
-          <Tile n={stats.clicks} prev={stats.clicks_prev} label="Tryck på era knappar" />
-          <Tile n={stats.directions} prev={stats.directions_prev} label="Vägbeskrivningar" />
-          <Tile n={stats.favorites_new} prev={stats.favorites_new_prev} label={`Nya favoriter (${stats.favorites_total} totalt)`} />
-          <Tile n={stats.checkins} prev={stats.checkins_prev} label="Incheckningar hos er" />
-          <Tile n={stats.redemptions} prev={stats.redemptions_prev} label="Använda erbjudanden" />
-          <Tile n={stats.story_views} label="Visningar av stories" />
+          <Tile n={stats.views} prev={stats.views_prev} label={tb("Visningar av er sida")} />
+          <Tile n={stats.clicks} prev={stats.clicks_prev} label={tb("Tryck på era knappar")} />
+          <Tile n={stats.directions} prev={stats.directions_prev} label={tb("Vägbeskrivningar")} />
+          <Tile n={stats.favorites_new} prev={stats.favorites_new_prev} label={tb("Nya favoriter ({{0}} totalt)", { 0: stats.favorites_total })} />
+          <Tile n={stats.checkins} prev={stats.checkins_prev} label={tb("Incheckningar hos er")} />
+          <Tile n={stats.redemptions} prev={stats.redemptions_prev} label={tb("Använda erbjudanden")} />
+          <Tile n={stats.story_views} label={tb("Visningar av stories")} />
         </View>
       </Rise>
 
       <Rise index={3}>
         <View>
-          <SectionHeader title="Vad gästerna trycker på" />
+          <SectionHeader title={tb("Vad gästerna trycker på")} />
           <GradientCard>
             <View style={s.bars}>
               {LINKS.map((l) => (
-                <Bar key={l.key} label={l.label} n={stats.links[l.key] ?? 0} max={linkMax} />
+                <Bar key={l.key} label={tb(l.label)} n={stats.links[l.key] ?? 0} max={linkMax} />
               ))}
             </View>
           </GradientCard>
@@ -139,11 +141,11 @@ function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Day
       {sourceTotal > 0 && (
         <Rise index={4}>
           <View>
-            <SectionHeader title="Så hittade de er" />
+            <SectionHeader title={tb("Så hittade de er")} />
             <GradientCard>
               <View style={s.bars}>
                 {sources.map(([key, n]) => (
-                  <Bar key={key} label={SOURCES[key] ?? key} n={n} max={Math.max(...sources.map(([, v]) => v))} suffix={`${Math.round((n / sourceTotal) * 100)} %`} />
+                  <Bar key={key} label={tb(SOURCES[key] ?? key)} n={n} max={Math.max(...sources.map(([, v]) => v))} suffix={`${Math.round((n / sourceTotal) * 100)} %`} />
                 ))}
               </View>
             </GradientCard>
@@ -153,29 +155,29 @@ function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Day
 
       <Rise index={5}>
         <View>
-          <SectionHeader title="Vilka tittar" />
+          <SectionHeader title={tb("Vilka tittar")} />
           <GradientCard>
             {stats.audience ? (
               <View style={s.bars}>
                 {(() => {
                   const max = Math.max(1, ...AGES.map((a) => stats.audience!.ages[a.key] ?? 0));
                   return AGES.filter((a) => stats.audience!.ages[a.key]).map((a) => (
-                    <Bar key={a.key} label={a.label} n={stats.audience!.ages[a.key]} max={max} />
+                    <Bar key={a.key} label={tb(a.label)} n={stats.audience!.ages[a.key]} max={max} />
                   ));
                 })()}
                 {(stats.audience.local > 0 || stats.audience.visiting > 0) && (
                   <Text style={s.audienceLine}>
-                    {stats.audience.local} bor på Österlen · {stats.audience.visiting} är här på besök
+                    {stats.audience.local} {tb("bor på Österlen ·")} {stats.audience.visiting} {tb("är här på besök")}
                   </Text>
                 )}
                 {stats.audience.towns.length > 0 && (
-                  <Text style={s.audienceLine}>Flest från {stats.audience.towns.map((t) => t.town).join(", ")}</Text>
+                  <Text style={s.audienceLine}>{tb("Flest från")} {stats.audience.towns.map((t) => t.town).join(", ")}</Text>
                 )}
               </View>
             ) : (
               <View style={s.waiting}>
                 <Text style={s.waitingText}>
-                  Här ser ni ålder och var gästerna bor – men först när minst 20 olika personer tittat på er sida under perioden, så att ingen enskild går att känna igen. Hittills {stats.audience_people ?? 0} {stats.audience_people === 1 ? "person" : "personer"}.
+                  {tb("Här ser ni ålder och var gästerna bor – men först när minst 20 olika personer tittat på er sida under perioden, så att ingen enskild går att känna igen. Hittills {{0}}.", { 0: tb(stats.audience_people === 1 ? "1 person" : "{{0}} personer", { 0: stats.audience_people ?? 0 }) })}
                 </Text>
               </View>
             )}
@@ -184,7 +186,7 @@ function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Day
       </Rise>
 
       <Rise index={6}>
-        <Note icon={ShieldCheck} text={`Vi visar aldrig vem som tittat – bara hur många. Siffrorna gäller ${PERIOD[days]} som gått och jämförs med ${PREV[days]}.`} />
+        <Note icon={ShieldCheck} text={tb("Vi visar aldrig vem som tittat – bara hur många. Siffrorna gäller {{0}} som gått och jämförs med {{1}}.", { 0: tb(PERIOD[days]), 1: tb(PREV[days]) })} />
       </Rise>
     </>
   );
@@ -193,10 +195,10 @@ function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Day
 function Tile({ n, prev, label }: { n: number; prev?: number; label: string }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
-  const change = prev === undefined ? null : prev === 0 ? (n > 0 ? "Nytt" : null) : Math.round(((n - prev) / prev) * 100);
+  const change = prev === undefined ? null : prev === 0 ? (n > 0 ? tb("Nytt") : null) : Math.round(((n - prev) / prev) * 100);
   return (
     <View style={s.tile}>
-      <Text style={s.tileN}>{n.toLocaleString("sv-SE")}</Text>
+      <Text style={s.tileN}>{whole(n)}</Text>
       <Text style={s.tileLabel}>{label}</Text>
       {change !== null && change !== 0 && (
         <Text style={[s.tileChange, { color: typeof change === "string" || change > 0 ? colors.success : colors.muted }]}>
@@ -226,8 +228,8 @@ function chartPoints(series: BusinessStats["series"], days: Days): ChartPoint[] 
     const month = Number(p.d.slice(5, 7)) - 1;
     const day = Number(p.d.slice(8, 10));
     return days === 365
-      ? { label: MONTHS[month], name: `${MONTHS_LONG[month]} ${p.d.slice(0, 4)}`, count: p.views }
-      : { label: `${day}/${month + 1}`, name: `${day} ${MONTHS_LONG[month].toLowerCase()}`, count: p.views };
+      ? { label: MONTHS[month], name: `${tb(MONTHS_LONG[month])} ${p.d.slice(0, 4)}`, count: p.views }
+      : { label: `${day}/${month + 1}`, name: `${day} ${tb(MONTHS_LONG[month]).toLowerCase()}`, count: p.views };
   });
 }
 

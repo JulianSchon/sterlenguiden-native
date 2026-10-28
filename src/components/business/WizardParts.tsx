@@ -16,6 +16,7 @@ import { businessError, uploadPlaceImage } from "@/lib/business";
 import { pickPhotos, type PickedPhoto } from "@/lib/photos";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 // ── Bildväljaren ────────────────────────────────────────────────────────────
 
@@ -44,9 +45,9 @@ export function ImageChooser({ placeId, images, value, onChange, onError }: {
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert("Kameran är avstängd", "Slå på kameran för Österlenappen i telefonens inställningar.", [
-            { text: "Avbryt", style: "cancel" },
-            { text: "Öppna inställningar", onPress: () => Linking.openSettings() },
+          Alert.alert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
+            { text: tb("Avbryt"), style: "cancel" },
+            { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings() },
           ]);
           return;
         }
@@ -69,13 +70,13 @@ export function ImageChooser({ placeId, images, value, onChange, onError }: {
 
   return (
     <View style={s.grid}>
-      <Pressable style={[s.addTile, { width: size, height: size }]} onPress={() => add("library")} accessibilityRole="button" accessibilityLabel="Välj en ny bild">
+      <Pressable style={[s.addTile, { width: size, height: size }]} onPress={() => add("library")} accessibilityRole="button" accessibilityLabel={tb("Välj en ny bild")}>
         <ImagePlus size={24} color={colors.goldText} strokeWidth={1.9} />
-        <Text style={s.addText}>Välj ny</Text>
+        <Text style={s.addText}>{tb("Välj ny")}</Text>
       </Pressable>
-      <Pressable style={[s.addTile, { width: size, height: size }]} onPress={() => add("camera")} accessibilityRole="button" accessibilityLabel="Ta en bild">
+      <Pressable style={[s.addTile, { width: size, height: size }]} onPress={() => add("camera")} accessibilityRole="button" accessibilityLabel={tb("Ta en bild")}>
         <Camera size={24} color={colors.goldText} strokeWidth={1.9} />
-        <Text style={s.addText}>Ta en bild</Text>
+        <Text style={s.addText}>{tb("Ta en bild")}</Text>
       </Pressable>
       {uploading && <Skeleton width={size} height={size} radius={14} />}
       {all.map((url) => {

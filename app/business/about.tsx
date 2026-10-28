@@ -14,6 +14,7 @@ import { useBusinessPlace, usePlaceAutosave, usePortalPlace } from "@/hooks/useB
 import { placeImages } from "@/hooks/usePlaces";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 const SHORT_GOOD = 120;
 
@@ -31,7 +32,7 @@ export default function BusinessAbout() {
 
   if (!place || !draft) {
     return (
-      <SettingsScreen title="Om er">
+      <SettingsScreen title={tb("Om er")}>
         <Skeleton height={96} radius={18} />
         <Skeleton height={80} radius={14} />
         <Skeleton height={180} radius={14} />
@@ -42,16 +43,16 @@ export default function BusinessAbout() {
   const image = placeImages(place.image_url)[0];
 
   return (
-    <SettingsScreen title="Om er" right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
+    <SettingsScreen title={tb("Om er")} right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
       <Rise index={0}>
         <View>
-          <SectionHeader title="Så här syns ni i sökningen" />
+          <SectionHeader title={tb("Så här syns ni i sökningen")} />
           <GradientCard>
             <View style={s.preview}>
               {image ? <ExpoImage source={{ uri: image }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
               <View style={{ flex: 1 }}>
-                <Text style={s.previewName} numberOfLines={1}>{draft.name || "Ert namn"}</Text>
-                <Text style={s.previewShort} numberOfLines={2}>{draft.short || "En kort mening om er syns här."}</Text>
+                <Text style={s.previewName} numberOfLines={1}>{draft.name || tb("Ert namn")}</Text>
+                <Text style={s.previewShort} numberOfLines={2}>{draft.short || tb("En kort mening om er syns här.")}</Text>
                 {!!place.nearest_town && <Text style={s.previewTown}>{place.nearest_town}</Text>}
               </View>
             </View>
@@ -62,35 +63,35 @@ export default function BusinessAbout() {
       <Rise index={1}>
         <View style={s.fields}>
           <PortalField
-            label="Företagets namn"
+            label={tb("Företagets namn")}
             value={draft.name}
             maxLength={80}
             error={nameError}
             onChangeText={(v) => {
               setDraft({ ...draft, name: v });
               const ok = v.trim().length >= 2;
-              setNameError(ok ? null : "Namnet behöver minst två tecken.");
+              setNameError(ok ? null : tb("Namnet behöver minst två tecken."));
               if (ok) auto.queue({ name: v.trim() });
             }}
           />
           <PortalField
-            label="Kort om er"
+            label={tb("Kort om er")}
             value={draft.short}
             counter={SHORT_GOOD}
             maxLength={200}
             multiline
-            placeholder="T.ex. Gårdshotell med spa och egen restaurang, fem minuter från havet."
-            help="En eller två meningar. Syns under ert namn och i sökningen."
+            placeholder={tb("T.ex. Gårdshotell med spa och egen restaurang, fem minuter från havet.")}
+            help={tb("En eller två meningar. Syns under ert namn och i sökningen.")}
             onChangeText={(v) => { setDraft({ ...draft, short: v }); auto.queue({ short_description: v.trim() || null }); }}
             style={{ minHeight: 76 }}
           />
           <PortalField
-            label="Berätta mer"
+            label={tb("Berätta mer")}
             value={draft.long}
             maxLength={4000}
             multiline
-            placeholder="Vad gör er speciella? Vad ska gästerna inte missa? Hur hittar man er?"
-            help="Syns när gästerna läser mer om er. Skriv som ni pratar – det blir bäst så."
+            placeholder={tb("Vad gör er speciella? Vad ska gästerna inte missa? Hur hittar man er?")}
+            help={tb("Syns när gästerna läser mer om er. Skriv som ni pratar – det blir bäst så.")}
             onChangeText={(v) => { setDraft({ ...draft, long: v }); auto.queue({ description: v.trim() || null }); }}
             style={{ minHeight: 200 }}
           />

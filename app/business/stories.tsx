@@ -21,6 +21,7 @@ import { businessError, removePlaceImages, type BusinessStory } from "@/lib/busi
 import { pushOnce } from "@/lib/navigateOnce";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 const isLive = (st: BusinessStory) => !!st.expires_at && new Date(st.expires_at).getTime() > Date.now();
 
@@ -29,7 +30,7 @@ function when(st: BusinessStory): string {
   if (isLive(st)) {
     const ms = new Date(st.expires_at ?? 0).getTime() - Date.now();
     const h = Math.floor(ms / 3_600_000);
-    return h >= 1 ? `${h} h kvar` : `${Math.max(1, Math.round(ms / 60_000))} min kvar`;
+    return h >= 1 ? tb("{{0}} h kvar", { 0: h }) : tb("{{0}} min kvar", { 0: Math.max(1, Math.round(ms / 60_000)) });
   }
   const d = new Date(st.created_at);
   return `${d.getDate()}/${d.getMonth() + 1}`;
@@ -51,18 +52,18 @@ export default function BusinessStories() {
 
   const remove = (y: number, st: BusinessStory) => {
     actionMenu.ask(y, {
-      title: "Ta bort storyn?", message: "Den försvinner direkt för alla.",
+      title: tb("Ta bort storyn?"), message: tb("Den försvinner direkt för alla."),
       actions: [{
-        label: "Ta bort", destructive: true,
+        label: tb("Ta bort"), destructive: true,
         onPress: () => actions.remove(st.id)
-          .then(() => { setOpen(null); removePlaceImages([st.image_url]); setTimeout(() => toast.current?.show("Borttagen"), 250); })
+          .then(() => { setOpen(null); removePlaceImages([st.image_url]); setTimeout(() => toast.current?.show(tb("Borttagen")), 250); })
           .catch((e) => toast.current?.show(businessError(e))),
       }],
     });
   };
 
   const tile = (st: BusinessStory) => (
-    <Pressable key={st.id} onPress={() => setOpen(st)} style={[s.tile, { width: w, height: w * 16 / 9 }]} accessibilityLabel="Visa storyn">
+    <Pressable key={st.id} onPress={() => setOpen(st)} style={[s.tile, { width: w, height: w * 16 / 9 }]} accessibilityLabel={tb("Visa storyn")}>
       <ExpoImage source={{ uri: st.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
       <View style={s.tileShade} />
       {isLive(st) && <Text style={s.tileLive}>{when(st)}</Text>}
@@ -75,9 +76,9 @@ export default function BusinessStories() {
 
   return (
     <>
-      <SettingsScreen title="Stories" footer={<GoldButton label="Ny story" onPress={() => pushOnce(router, `/business/story?place=${placeId}`)} />}>
+      <SettingsScreen title={tb("Stories")} footer={<GoldButton label={tb("Ny story")} onPress={() => pushOnce(router, `/business/story?place=${placeId}`)} />}>
         <Rise index={0}>
-          <Note icon={Camera} text="En story syns överst på Hem i 24 timmar – för alla, och först för dem som sparat er." />
+          <Note icon={Camera} text={tb("En story syns överst på Hem i 24 timmar – för alla, och först för dem som sparat er.")} />
         </Rise>
         {!stories ? (
           <View style={{ flexDirection: "row", gap: 10 }}>
@@ -87,14 +88,14 @@ export default function BusinessStories() {
           <>
             <Rise index={1}>
               <View>
-                <SectionHeader title={live.length ? `Ute nu · ${live.length}` : "Ute nu"} />
-                {live.length ? <View style={s.grid}>{live.map(tile)}</View> : <Text style={s.none}>Ingen story ute just nu.</Text>}
+                <SectionHeader title={live.length ? tb("Ute nu · {{0}}", { 0: live.length }) : tb("Ute nu")} />
+                {live.length ? <View style={s.grid}>{live.map(tile)}</View> : <Text style={s.none}>{tb("Ingen story ute just nu.")}</Text>}
               </View>
             </Rise>
             {old.length > 0 && (
               <Rise index={2}>
                 <View>
-                  <SectionHeader title="Senaste 30 dagarna" />
+                  <SectionHeader title={tb("Senaste 30 dagarna")} />
                   <View style={s.grid}>{old.map(tile)}</View>
                 </View>
               </Rise>
@@ -124,16 +125,16 @@ function StoryPreview({ story, onClose, onRemove, menu }: {
           <View style={[s.previewTop, { paddingTop: insets.top + 10 }]}>
             <View style={s.previewInfo}>
               <Eye size={16} color="#FFFFFF" strokeWidth={2.2} />
-              <Text style={s.previewText}>{story.views} har sett den · {when(story)}</Text>
+              <Text style={s.previewText}>{story.views} {tb("har sett den ·")} {when(story)}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={12} style={s.round} accessibilityLabel="Stäng">
+            <TouchableOpacity onPress={onClose} hitSlop={12} style={s.round} accessibilityLabel={tb("Stäng")}>
               <X size={22} color="#FFFFFF" strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
           <View style={[s.previewBottom, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <TouchableOpacity style={s.removeBtn} onPress={(e) => onRemove(e.nativeEvent.pageY - 220, story)} activeOpacity={0.8}>
               <Trash2 size={18} color="#FFFFFF" strokeWidth={2.2} />
-              <Text style={s.removeText}>Ta bort storyn</Text>
+              <Text style={s.removeText}>{tb("Ta bort storyn")}</Text>
             </TouchableOpacity>
           </View>
         </View>

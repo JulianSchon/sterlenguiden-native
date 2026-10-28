@@ -31,6 +31,7 @@ import { businessError, type ClaimInfo } from "@/lib/business";
 import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 type Step = "intro" | "method" | "code" | "request" | "sent" | "done";
 const PROGRESS: Record<Step, number> = { intro: 0.25, method: 0.5, code: 0.75, request: 0.75, sent: 1, done: 1 };
@@ -44,12 +45,12 @@ function mailProof(placeName: string, placeId: number) {
 
 function sendProblem(r: ClaimResult): string {
   switch (r.reason) {
-    case "wait": return `Vänta ${r.seconds ?? 60} sekunder innan du ber om en ny kod.`;
-    case "too_many_place": return "Det har skickats många koder till företaget i dag. Försök i morgon – eller skicka en förfrågan i stället.";
-    case "too_many_user": return "Du har bett om många koder i dag. Försök i morgon.";
-    case "has_owner": return "Någon sköter redan platsen.";
-    case "not_adult": return "Du behöver vara 18 år.";
-    default: return "Koden kunde inte skickas. Skicka en förfrågan i stället.";
+    case "wait": return tb("Vänta {{0}} sekunder innan du ber om en ny kod.", { 0: r.seconds ?? 60 });
+    case "too_many_place": return tb("Det har skickats många koder till företaget i dag. Försök i morgon – eller skicka en förfrågan i stället.");
+    case "too_many_user": return tb("Du har bett om många koder i dag. Försök i morgon.");
+    case "has_owner": return tb("Någon sköter redan platsen.");
+    case "not_adult": return tb("Du behöver vara 18 år.");
+    default: return tb("Koden kunde inte skickas. Skicka en förfrågan i stället.");
   }
 }
 
@@ -86,36 +87,36 @@ export default function ClaimScreen() {
   let content: React.ReactNode;
   if (infoError) {
     content = (
-      <StepLayout title="Det går inte just nu" subtitle={businessError(infoError)}
-        footer={<AuthButton label="Försök igen" onPress={() => refetch()} />} />
+      <StepLayout title={tb("Det går inte just nu")} subtitle={businessError(infoError)}
+        footer={<AuthButton label={tb("Försök igen")} onPress={() => refetch()} />} />
     );
   } else if (!info) {
     content = <View style={{ padding: AUTH_GUTTER, gap: 16 }}><Skeleton height={34} width="70%" radius={8} /><Skeleton height={180} radius={20} /></View>;
   } else if (info.is_business === false) {
     content = (
-      <StepLayout title="Det här är ingen företagssida" subtitle={`${info.place.name} är en plats i appen, inte ett företag. Tycker du att något är fel? Tipsa oss längst ner på sidan.`}
-        footer={<AuthButton label="Okej" onPress={() => router.back()} />}>
+      <StepLayout title={tb("Det här är ingen företagssida")} subtitle={tb("{{0}} är en plats i appen, inte ett företag. Tycker du att något är fel? Tipsa oss längst ner på sidan.", { 0: info.place.name })}
+        footer={<AuthButton label={tb("Okej")} onPress={() => router.back()} />}>
         <PlaceCard info={info} />
       </StepLayout>
     );
   } else if (info.role) {
     content = (
-      <StepLayout title="Du sköter redan den här sidan" subtitle={`Allt för ${info.place.name} finns under Mitt företag.`}
-        footer={<AuthButton label="Öppna Mitt företag" onPress={() => router.replace(`/business?place=${placeId}`)} />}>
+      <StepLayout title={tb("Du sköter redan den här sidan")} subtitle={tb("Allt för {{0}} finns under Mitt företag.", { 0: info.place.name })}
+        footer={<AuthButton label={tb("Öppna Mitt företag")} onPress={() => router.replace(`/business?place=${placeId}`)} />}>
         <PlaceCard info={info} />
       </StepLayout>
     );
   } else if (info.pending && step !== "sent") {
     content = (
       <StepLayout
-        title="Vi har fått er förfrågan"
+        title={tb("Vi har fått er förfrågan")}
         subtitle={info.pending === "join"
-          ? `Den har gått till dem som sköter ${info.place.name}. Du får tillgång när de godkänt.`
-          : `Har ni mejlat oss från ${info.place.name}s egen e-post? Då godkänner vi så snart vi sett det. Ni ser det under Inställningar.`}
+          ? tb("Den har gått till dem som sköter {{0}}. Du får tillgång när de godkänt.", { 0: info.place.name })
+          : tb("Har ni mejlat oss från {{0}}s egen e-post? Då godkänner vi så snart vi sett det. Ni ser det under Inställningar.", { 0: info.place.name })}
         footer={<>
-          {info.pending === "claim" && <AuthButton label="Mejla oss från företagets e-post" onPress={() => mailProof(info.place.name, placeId)} />}
-          <AuthButton label="Klart" variant={info.pending === "claim" ? "outline" : "primary"} onPress={() => router.back()} />
-          <TextButton label="Ta tillbaka förfrågan" onPress={async () => {
+          {info.pending === "claim" && <AuthButton label={tb("Mejla oss från företagets e-post")} onPress={() => mailProof(info.place.name, placeId)} />}
+          <AuthButton label={tb("Klart")} variant={info.pending === "claim" ? "outline" : "primary"} onPress={() => router.back()} />
+          <TextButton label={tb("Ta tillbaka förfrågan")} onPress={async () => {
             const req = overview?.requests.find((r) => r.place_id === placeId && r.status === "pending");
             if (req) await cancelRequest(req.id).catch(() => {});
             await finished();
@@ -127,8 +128,8 @@ export default function ClaimScreen() {
     );
   } else if (!info.adult && !info.has_owner) {
     content = (
-      <StepLayout title="Du behöver vara 18 år" subtitle="För att ta hand om ett företags sida i appen behöver man vara myndig. Be någon på företaget göra det – sedan kan de bjuda in dig."
-        footer={<AuthButton label="Okej" onPress={() => router.back()} />}>
+      <StepLayout title={tb("Du behöver vara 18 år")} subtitle={tb("För att ta hand om ett företags sida i appen behöver man vara myndig. Be någon på företaget göra det – sedan kan de bjuda in dig.")}
+        footer={<AuthButton label={tb("Okej")} onPress={() => router.back()} />}>
         <PlaceCard info={info} />
       </StepLayout>
     );
@@ -220,7 +221,7 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
         return;
       }
       setPhase("wrong");
-      setError(r.reason === "expired" ? "Koden har gått ut. Be om en ny." : r.reason === "locked" ? "För många fel försök. Be om en ny kod." : r.reason === "has_owner" ? "Någon har precis tagit hand om platsen." : r.left != null ? `Fel kod – ${r.left} försök kvar.` : "Fel kod – försök igen.");
+      setError(r.reason === "expired" ? tb("Koden har gått ut. Be om en ny.") : r.reason === "locked" ? tb("För många fel försök. Be om en ny kod.") : r.reason === "has_owner" ? tb("Någon har precis tagit hand om platsen.") : r.left != null ? tb("Fel kod – {{0}} försök kvar.", { 0: r.left }) : tb("Fel kod – försök igen."));
       setCode("");
       setTimeout(() => setPhase((p) => (p === "wrong" ? "typing" : p)), 1000);
     } catch (e) {
@@ -235,7 +236,7 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
     try {
       const r = await requestAccess(placeId, null, null, null);
       if (!r.ok) {
-        setError(r.reason === "already_pending" ? "Du har redan skickat en förfrågan." : r.reason === "too_many" ? "Du har skickat många förfrågningar i dag. Försök i morgon." : r.reason === "closed" ? "Den här sidan tar inte emot förfrågningar. Be dem bjuda in dig." : "Det gick inte att skicka.");
+        setError(r.reason === "already_pending" ? tb("Du har redan skickat en förfrågan.") : r.reason === "too_many" ? tb("Du har skickat många förfrågningar i dag. Försök i morgon.") : r.reason === "closed" ? tb("Den här sidan tar inte emot förfrågningar. Be dem bjuda in dig.") : tb("Det gick inte att skicka."));
         return;
       }
       setSentKind(r.kind === "join" ? "join" : "claim");
@@ -253,19 +254,19 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
   if (step === "intro") {
     return (
       <StepLayout
-        title={info.has_owner ? `Jobbar du på ${info.place.name}?` : "Är det här ert företag?"}
+        title={info.has_owner ? tb("Jobbar du på {{0}}?", { 0: info.place.name }) : tb("Är det här ert företag?")}
         subtitle={info.has_owner
-          ? "Någon sköter redan sidan. Skicka en förfrågan till dem – eller be dem bjuda in dig."
-          : "Ta hand om er sida i Österlenappen: öppettider, bilder, erbjudanden i Österlenpasset och evenemang. Det kostar ingenting."}
+          ? tb("Någon sköter redan sidan. Skicka en förfrågan till dem – eller be dem bjuda in dig.")
+          : tb("Ta hand om er sida i Österlenappen: öppettider, bilder, erbjudanden i Österlenpasset och evenemang. Det kostar ingenting.")}
         scroll
-        footer={<AuthButton label="Fortsätt" disabled={!sure} onPress={() => go(info.has_owner ? "request" : info.email ? "method" : "request")} />}
+        footer={<AuthButton label={tb("Fortsätt")} disabled={!sure} onPress={() => go(info.has_owner ? "request" : info.email ? "method" : "request")} />}
       >
         <PlaceCard info={info} />
         <Pressable style={[s.sure, sure && { borderColor: colors.gold }]} onPress={() => setSure(!sure)} accessibilityRole="checkbox" accessibilityState={{ checked: sure }}>
           <View style={[s.box, sure && { backgroundColor: colors.gold, borderColor: colors.gold }]}>
             {sure && <Check size={15} color={colors.onGold} strokeWidth={3} />}
           </View>
-          <Text style={s.sureText}>Jag driver eller jobbar på {info.place.name}</Text>
+          <Text style={s.sureText}>{tb("Jag driver eller jobbar på")} {info.place.name}</Text>
         </Pressable>
       </StepLayout>
     );
@@ -274,12 +275,12 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
   if (step === "method") {
     return (
       <StepLayout
-        title="Vi skickar en kod"
-        subtitle="Koden går till företagets egen e-post – så vet vi att det är ni. Den gäller i 15 minuter."
+        title={tb("Vi skickar en kod")}
+        subtitle={tb("Koden går till företagets egen e-post – så vet vi att det är ni. Den gäller i 15 minuter.")}
         footer={<>
           {error && <FieldNote tone="danger" text={error} />}
-          <AuthButton label="Skicka koden" onPress={send} loading={busy} />
-          <TextButton label="Jag kommer inte åt den adressen" onPress={() => { setError(null); go("request"); }} />
+          <AuthButton label={tb("Skicka koden")} onPress={send} loading={busy} />
+          <TextButton label={tb("Jag kommer inte åt den adressen")} onPress={() => { setError(null); go("request"); }} />
         </>}
       >
         <View style={s.emailCard}>
@@ -287,7 +288,7 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
           <Text style={s.emailText} numberOfLines={1}>{info.email}</Text>
         </View>
         {info.code_active && (
-          <TextButton label="Jag har redan en kod" onPress={() => go("code")} />
+          <TextButton label={tb("Jag har redan en kod")} onPress={() => go("code")} />
         )}
       </StepLayout>
     );
@@ -298,14 +299,14 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
     const quiet = phase === "checking" || phase === "ok";
     return (
       <StepLayout
-        title="Skriv in koden"
-        subtitle={`Vi har skickat sex siffror till ${info.email}.`}
+        title={tb("Skriv in koden")}
+        subtitle={tb("Vi har skickat sex siffror till {{0}}.", { 0: info.email })}
         footer={<>
-          <TextButton label={left > 0 ? `Ny kod om ${left} s` : "Skicka en ny kod"} onPress={left > 0 || quiet ? () => {} : send} />
-          <TextButton label="Jag fick ingen kod" onPress={() => { setError(null); go("request"); }} />
+          <TextButton label={left > 0 ? tb("Ny kod om {{0}} s", { 0: left }) : tb("Skicka en ny kod")} onPress={left > 0 || quiet ? () => {} : send} />
+          <TextButton label={tb("Jag fick ingen kod")} onPress={() => { setError(null); go("request"); }} />
         </>}
       >
-        <Pressable onPress={() => input.current?.focus()} accessibilityLabel="Koden">
+        <Pressable onPress={() => input.current?.focus()} accessibilityLabel={tb("Koden")}>
           <CodeBoxes code={code} length={6} width={width - AUTH_GUTTER * 2} focused={focused} phase={phase} onOkShown={async () => { await onFinished(); go("done"); }} />
         </Pressable>
         <TextInput
@@ -328,7 +329,7 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
           style={s.hidden}
         />
         {!quiet && error ? <FieldNote tone="danger" text={error} /> : null}
-        {!quiet && !error ? <FieldNote text="Hittar ni inte mejlet? Kolla skräpposten." /> : null}
+        {!quiet && !error ? <FieldNote text={tb("Hittar ni inte mejlet? Kolla skräpposten.")} /> : null}
       </StepLayout>
     );
   }
@@ -337,19 +338,19 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
     const claim = !info.has_owner;
     return (
       <StepLayout
-        title={claim ? "Visa att det är ert företag" : "Skicka en förfrågan"}
+        title={claim ? tb("Visa att det är ert företag") : tb("Skicka en förfrågan")}
         subtitle={claim
-          ? "Skicka ett mejl till oss från företagets e-post – den ni använder i jobbet. När mejlet kommit fram får du tillgång."
-          : `Förfrågan går till dem som sköter ${info.place.name}. Du får tillgång när de godkänt.`}
+          ? tb("Skicka ett mejl till oss från företagets e-post – den ni använder i jobbet. När mejlet kommit fram får du tillgång.")
+          : tb("Förfrågan går till dem som sköter {{0}}. Du får tillgång när de godkänt.", { 0: info.place.name })}
         footer={<>
           {error && <FieldNote tone="danger" text={error} />}
-          <AuthButton label={claim ? "Skriv mejlet" : "Skicka förfrågan"} onPress={submitRequest} loading={busy} />
+          <AuthButton label={claim ? tb("Skriv mejlet") : tb("Skicka förfrågan")} onPress={submitRequest} loading={busy} />
         </>}
       >
         {claim && (
           <View style={s.emailCard}>
             <Mail size={20} color={colors.goldText} strokeWidth={2} />
-            <Text style={s.mailNote}>Mejlet är redan skrivet. Kolla bara att det skickas från företagets adress och tryck Skicka.</Text>
+            <Text style={s.mailNote}>{tb("Mejlet är redan skrivet. Kolla bara att det skickas från företagets adress och tryck Skicka.")}</Text>
           </View>
         )}
       </StepLayout>
@@ -359,21 +360,21 @@ function Flow({ info, step, go, onFinished, onOpen, onClose }: {
   if (step === "sent") {
     return (
       <DoneMoment
-        title="Tack!"
+        title={tb("Tack!")}
         text={sentKind === "join"
-          ? `Förfrågan har gått till ${info.place.name}. Du ser sidan under Inställningar när de godkänt.`
-          : "När ditt mejl kommit fram får du tillgång – oftast inom en dag. Ert företag dyker då upp under Inställningar."}
-        primary={{ label: "Klart", onPress: onClose }}
-        secondary={sentKind === "join" ? undefined : { label: "Öppna mejlet igen", onPress: () => mailProof(info.place.name, placeId) }}
+          ? tb("Förfrågan har gått till {{0}}. Du ser sidan under Inställningar när de godkänt.", { 0: info.place.name })
+          : tb("När ditt mejl kommit fram får du tillgång – oftast inom en dag. Ert företag dyker då upp under Inställningar.")}
+        primary={{ label: tb("Klart"), onPress: onClose }}
+        secondary={sentKind === "join" ? undefined : { label: tb("Öppna mejlet igen"), onPress: () => mailProof(info.place.name, placeId) }}
       />
     );
   }
 
   return (
     <DoneMoment
-      title={`Nu sköter du ${info.place.name}`}
-      text="Öppettider, bilder, erbjudanden och evenemang – allt ändrar ni själva, direkt i appen."
-      primary={{ label: "Öppna Mitt företag", onPress: onOpen }}
+      title={tb("Nu sköter du {{0}}", { 0: info.place.name })}
+      text={tb("Öppettider, bilder, erbjudanden och evenemang – allt ändrar ni själva, direkt i appen.")}
+      primary={{ label: tb("Öppna Mitt företag"), onPress: onOpen }}
     />
   );
 }

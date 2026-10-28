@@ -21,6 +21,8 @@ import { dayKey, eventWhen, lastDay } from "@/lib/events";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
+import { currentLanguage } from "@/i18n";
 
 export default function BusinessEvents() {
   const router = useRouter();
@@ -44,18 +46,18 @@ export default function BusinessEvents() {
 
   const remove = (e: PlaceEvent, scope: "one" | "series") => {
     actions.remove(e.id, scope)
-      .then((n) => toast.current?.show(n > 1 ? `${n} tillfällen borttagna` : "Borttaget"))
+      .then((n) => toast.current?.show(n > 1 ? tb("{{0}} tillfällen borttagna", { 0: n }) : tb("Borttaget")))
       .catch((err) => toast.current?.show(businessError(err)));
   };
   const removeQuestion = (e: PlaceEvent): NonNullable<MenuItem["confirm"]> => (e.series_id
     ? {
-      title: "Ta bort vilka?", message: "Evenemanget återkommer.",
+      title: tb("Ta bort vilka?"), message: tb("Evenemanget återkommer."),
       actions: [
-        { label: "Bara det här", destructive: true, onPress: () => remove(e, "one") },
-        { label: "Alla kommande", destructive: true, onPress: () => remove(e, "series") },
+        { label: tb("Bara det här"), destructive: true, onPress: () => remove(e, "one") },
+        { label: tb("Alla kommande"), destructive: true, onPress: () => remove(e, "series") },
       ],
     }
-    : { title: "Ta bort evenemanget?", message: "Det försvinner ur Kalendern direkt.", actions: [{ label: "Ta bort", destructive: true, onPress: () => remove(e, "one") }] });
+    : { title: tb("Ta bort evenemanget?"), message: tb("Det försvinner ur Kalendern direkt."), actions: [{ label: tb("Ta bort"), destructive: true, onPress: () => remove(e, "one") }] });
 
   const menu = (ev: GestureResponderEvent, e: PlaceEvent) => {
     const items: MenuItem[] = [];
@@ -67,10 +69,10 @@ export default function BusinessEvents() {
 
   return (
     <>
-      <SettingsScreen title="Evenemang" footer={<GoldButton label="Nytt evenemang" onPress={() => pushOnce(router, `/business/event?place=${placeId}`)} />}>
+      <SettingsScreen title={tb("Evenemang")} footer={<GoldButton label={tb("Nytt evenemang")} onPress={() => pushOnce(router, `/business/event?place=${placeId}`)} />}>
         <Rise index={0}>
           <PortalSegmented
-            options={[{ id: "upcoming", label: `Kommande${upcoming.length ? ` · ${upcoming.length}` : ""}` }, { id: "past", label: "Tidigare" }]}
+            options={[{ id: "upcoming", label: tb("Kommande{{0}}", { 0: upcoming.length ? ` · ${upcoming.length}` : "" }) }, { id: "past", label: tb("Tidigare") }]}
             value={tab}
             onChange={setTab}
           />
@@ -81,8 +83,8 @@ export default function BusinessEvents() {
           <Rise index={1}>
             <View style={s.empty}>
               <View style={s.emptyIcon}><CalendarDays size={28} color={colors.goldText} strokeWidth={1.8} /></View>
-              <Text style={s.emptyTitle}>{tab === "upcoming" ? "Inga kommande evenemang" : "Inga tidigare evenemang"}</Text>
-              {tab === "upcoming" && <Text style={s.emptyText}>Livemusik, quiz, provning eller marknad? Lägg in det, så syns det i Kalendern.</Text>}
+              <Text style={s.emptyTitle}>{tab === "upcoming" ? tb("Inga kommande evenemang") : tb("Inga tidigare evenemang")}</Text>
+              {tab === "upcoming" && <Text style={s.emptyText}>{tb("Livemusik, quiz, provning eller marknad? Lägg in det, så syns det i Kalendern.")}</Text>}
             </View>
           </Rise>
         ) : (
@@ -91,15 +93,15 @@ export default function BusinessEvents() {
               <Pressable onPress={(ev) => menu(ev, e)} style={({ pressed }) => [s.card, tab === "past" && { opacity: 0.6 }, pressed && { opacity: 0.8 }]}>
                 <View style={s.image}>
                   {!!e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
-                  <DateBox event={e} small style={s.date} lng="sv" />
+                  <DateBox event={e} small style={s.date} />
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={s.title} numberOfLines={2}>{e.title}</Text>
-                  <Text style={s.meta} numberOfLines={1}>{eventWhen(e, "sv")}</Text>
+                  <Text style={s.meta} numberOfLines={1}>{eventWhen(e, currentLanguage())}</Text>
                   {e.series_id && (
                     <View style={s.series}>
                       <Repeat size={12} color={colors.goldText} strokeWidth={2.2} />
-                      <Text style={s.seriesText}>Återkommer</Text>
+                      <Text style={s.seriesText}>{tb("Återkommer")}</Text>
                     </View>
                   )}
                 </View>

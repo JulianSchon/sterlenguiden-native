@@ -16,6 +16,7 @@ import { AlertCircle, Check, CircleCheck, type LucideIcon } from "lucide-react-n
 import type { SaveState } from "@/hooks/useBusiness";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 const light = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
@@ -32,9 +33,9 @@ export function SaveIndicator({ state, onRetry }: { state: SaveState; onRetry?: 
   const style = useAnimatedStyle(() => ({ opacity: fade.value }));
   if (state === "error") {
     return (
-      <TouchableOpacity onPress={onRetry} hitSlop={10} style={s.saveRow} accessibilityRole="button" accessibilityLabel="Försök spara igen">
+      <TouchableOpacity onPress={onRetry} hitSlop={10} style={s.saveRow} accessibilityRole="button" accessibilityLabel={tb("Försök spara igen")}>
         <AlertCircle size={15} color={colors.danger} strokeWidth={2.2} />
-        <Text style={[s.saveText, { color: colors.danger }]}>Inte sparat</Text>
+        <Text style={[s.saveText, { color: colors.danger }]}>{tb("Inte sparat")}</Text>
       </TouchableOpacity>
     );
   }
@@ -42,7 +43,7 @@ export function SaveIndicator({ state, onRetry }: { state: SaveState; onRetry?: 
     <Reanimated.View style={[s.saveRow, style]} accessibilityLiveRegion="polite">
       {state === "saved" && <Check size={15} color={colors.success} strokeWidth={2.6} />}
       <Text style={[s.saveText, { color: state === "saved" ? colors.success : colors.muted }]}>
-        {state === "saved" ? "Sparat" : "Sparar…"}
+        {state === "saved" ? tb("Sparat") : tb("Sparar…")}
       </Text>
     </Reanimated.View>
   );
@@ -268,7 +269,7 @@ export const PortalToast = forwardRef<PortalToastHandle>(function PortalToast(_,
           hitSlop={10}
           accessibilityRole="button"
         >
-          <Text style={s.toastUndo}>Ångra</Text>
+          <Text style={s.toastUndo}>{tb("Ångra")}</Text>
         </TouchableOpacity>
       )}
     </Reanimated.View>

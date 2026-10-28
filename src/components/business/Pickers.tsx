@@ -9,6 +9,7 @@ import * as Haptics from "expo-haptics";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 // ── Tidshjulet ──────────────────────────────────────────────────────────────
 
@@ -121,18 +122,18 @@ export const addDaysIso = (v: string, n: number) => {
 /** "1 juli", "1–14 juli", "28 juni–3 juli" */
 export function rangeText(from: string, to?: string | null): string {
   const a = parseIso(from);
-  if (!to || to === from) return `${a.getDate()} ${MONTHS[a.getMonth()]}`;
+  if (!to || to === from) return `${a.getDate()} ${tb(MONTHS[a.getMonth()])}`;
   const b = parseIso(to);
   return a.getMonth() === b.getMonth()
-    ? `${a.getDate()}–${b.getDate()} ${MONTHS[b.getMonth()]}`
-    : `${a.getDate()} ${MONTHS[a.getMonth()]}–${b.getDate()} ${MONTHS[b.getMonth()]}`;
+    ? `${a.getDate()}–${b.getDate()} ${tb(MONTHS[b.getMonth()])}`
+    : `${a.getDate()} ${tb(MONTHS[a.getMonth()])}–${b.getDate()} ${tb(MONTHS[b.getMonth()])}`;
 }
 
 /** "lördag 24 juni" */
 export function dayText(value: string): string {
   const d = parseIso(value);
-  const wd = ["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"][d.getDay()];
-  return `${wd} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  const wd = tb(["söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"][d.getDay()]);
+  return `${wd} ${d.getDate()} ${tb(MONTHS[d.getMonth()])}`;
 }
 
 export type CalendarValue =
@@ -200,22 +201,22 @@ export function DateCalendar({ value, onChange, min }: {
           onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
           style={[s.calArrow, !canPrev && { opacity: 0.3 }]}
           hitSlop={8}
-          accessibilityLabel="Förra månaden"
+          accessibilityLabel={tb("Förra månaden")}
         >
           <ChevronLeft size={20} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={s.calTitle}>{MONTHS[month.getMonth()]} {month.getFullYear()}</Text>
+        <Text style={s.calTitle}>{tb(MONTHS[month.getMonth()])} {month.getFullYear()}</Text>
         <TouchableOpacity
           onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
           style={s.calArrow}
           hitSlop={8}
-          accessibilityLabel="Nästa månad"
+          accessibilityLabel={tb("Nästa månad")}
         >
           <ChevronRight size={20} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
       </View>
       <View style={s.calWeek}>
-        {WEEKDAYS.map((w) => <Text key={w} style={s.calWeekday}>{w}</Text>)}
+        {WEEKDAYS.map((w) => <Text key={w} style={s.calWeekday}>{tb(w)}</Text>)}
       </View>
       <View style={s.calGrid}>
         {cells.map((day, i) => {

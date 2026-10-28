@@ -18,6 +18,7 @@ import {
 } from "@/lib/business";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 type Key = "phone" | "email" | "website_url" | "book_url" | "instagram_url" | "facebook_url" | "transit_stop_name";
 
@@ -76,7 +77,7 @@ export default function BusinessContact() {
   };
   const blur = (key: Key) => {
     if (!draft) return;
-    if (clean(key, draft[key]) === false) setErrors({ ...errors, [key]: ERRORS[key] });
+    if (clean(key, draft[key]) === false) setErrors({ ...errors, [key]: tb(ERRORS[key]) });
   };
 
   const buttons = useMemo(() => {
@@ -93,7 +94,7 @@ export default function BusinessContact() {
 
   if (!place || !draft) {
     return (
-      <SettingsScreen title="Kontakt och länkar">
+      <SettingsScreen title={tb("Kontakt och länkar")}>
         <Skeleton height={86} radius={18} />
         {[0, 1, 2, 3].map((i) => <Skeleton key={i} height={84} radius={14} />)}
       </SettingsScreen>
@@ -114,13 +115,13 @@ export default function BusinessContact() {
   );
 
   return (
-    <SettingsScreen title="Kontakt och länkar" right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
+    <SettingsScreen title={tb("Kontakt och länkar")} right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
       <Rise index={0}>
         <View>
-          <SectionHeader title="Knapparna på er sida" />
+          <SectionHeader title={tb("Knapparna på er sida")} />
           <View style={s.buttons}>
             {buttons.length === 0 ? (
-              <Text style={s.none}>Fyll i något nedan så får gästerna knappar att trycka på.</Text>
+              <Text style={s.none}>{tb("Fyll i något nedan så får gästerna knappar att trycka på.")}</Text>
             ) : buttons.map(({ label, Icon }) => (
               <View key={label} style={s.button}>
                 <View style={s.buttonIcon}><Icon size={19} color={colors.text} strokeWidth={1.9} /></View>
@@ -131,7 +132,7 @@ export default function BusinessContact() {
           {clean("book_url", draft.book_url) ? (
             <View style={s.book}>
               <CalendarCheck size={17} color={colors.onGold} strokeWidth={2.2} />
-              <Text style={s.bookText}>Boka – längst ner på er sida</Text>
+              <Text style={s.bookText}>{tb("Boka – längst ner på er sida")}</Text>
             </View>
           ) : null}
         </View>
@@ -139,18 +140,18 @@ export default function BusinessContact() {
 
       <Rise index={1}>
         <View style={s.fields}>
-          {field("phone", "Telefon", Phone, { keyboardType: "phone-pad", placeholder: "0414-123 45", textContentType: "telephoneNumber" })}
-          {field("email", "E-post", Mail, { keyboardType: "email-address", autoCapitalize: "none", placeholder: "info@ertforetag.se", help: "Hit skickas också koden om någon ny vill ta hand om er sida." })}
-          {field("website_url", "Hemsida", Globe, { keyboardType: "url", autoCapitalize: "none", placeholder: "ertforetag.se" })}
-          {field("book_url", "Bokningslänk", CalendarCheck, {
-            keyboardType: "url", autoCapitalize: "none", placeholder: "Länken till er bokningssida",
-            help: "Finns den får ni en stor Boka-knapp längst ner på er sida.",
+          {field("phone", tb("Telefon"), Phone, { keyboardType: "phone-pad", placeholder: "0414-123 45", textContentType: "telephoneNumber" })}
+          {field("email", tb("E-post"), Mail, { keyboardType: "email-address", autoCapitalize: "none", placeholder: "info@ertforetag.se", help: tb("Hit skickas också koden om någon ny vill ta hand om er sida.") })}
+          {field("website_url", tb("Hemsida"), Globe, { keyboardType: "url", autoCapitalize: "none", placeholder: "ertforetag.se" })}
+          {field("book_url", tb("Bokningslänk"), CalendarCheck, {
+            keyboardType: "url", autoCapitalize: "none", placeholder: tb("Länken till er bokningssida"),
+            help: tb("Finns den får ni en stor Boka-knapp längst ner på er sida."),
           })}
-          {field("instagram_url", "Instagram", InstagramIcon as typeof Phone, { autoCapitalize: "none", placeholder: "@ertforetag" })}
-          {field("facebook_url", "Facebook", FacebookIcon as typeof Phone, { autoCapitalize: "none", placeholder: "Namnet på er sida eller länken" })}
-          {field("transit_stop_name", "Närmaste hållplats", Bus, {
-            placeholder: "T.ex. Kivik Torget", maxLength: 80,
-            help: "Visas under Hitta hit, för den som kommer med tåg eller buss.",
+          {field("instagram_url", tb("Instagram"), InstagramIcon as typeof Phone, { autoCapitalize: "none", placeholder: "@ertforetag" })}
+          {field("facebook_url", tb("Facebook"), FacebookIcon as typeof Phone, { autoCapitalize: "none", placeholder: tb("Namnet på er sida eller länken") })}
+          {field("transit_stop_name", tb("Närmaste hållplats"), Bus, {
+            placeholder: tb("T.ex. Kivik Torget"), maxLength: 80,
+            help: tb("Visas under Hitta hit, för den som kommer med tåg eller buss."),
           })}
         </View>
       </Rise>

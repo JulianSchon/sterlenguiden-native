@@ -18,6 +18,7 @@ import { businessError } from "@/lib/business";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 const PROMISES = [
   { Icon: CircleCheck, title: "Allt sparas medan ni skriver", text: "Ingen spara-knapp att glömma. Ändrar ni något syns det i appen direkt." },
@@ -56,20 +57,20 @@ export default function BusinessWelcome() {
         <View style={[s.hero, { paddingTop: insets.top }]}>
           {!!image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />}
           <LinearGradient colors={["rgba(0,0,0,0.35)", "rgba(0,0,0,0)", colors.bg]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
-          <TouchableOpacity style={[s.close, { top: insets.top + 10 }]} onPress={() => router.back()} hitSlop={10} accessibilityLabel="Stäng">
+          <TouchableOpacity style={[s.close, { top: insets.top + 10 }]} onPress={() => router.back()} hitSlop={10} accessibilityLabel={tb("Stäng")}>
             <X size={22} color="#FFFFFF" strokeWidth={2.2} />
           </TouchableOpacity>
         </View>
         <View style={s.body}>
           <Rise index={0}>
-            <Text style={s.kicker}>Mitt företag</Text>
-            <Text style={s.title}>Välkommen, {mine?.name ?? ""}!</Text>
+            <Text style={s.kicker}>{tb("Mitt företag")}</Text>
+            <Text style={s.title}>{tb("Välkommen,")} {mine?.name ?? ""}!</Text>
             <Text style={s.lead}>
-              Här tar ni hand om er sida i Österlenappen: öppettider, bilder, erbjudanden i Österlenpasset, evenemang och stories.
+              {tb("Här tar ni hand om er sida i Österlenappen: öppettider, bilder, erbjudanden i Österlenpasset, evenemang och stories.")}
             </Text>
           </Rise>
           <View style={s.promises}>
-            {PROMISES.map(({ Icon, title, text }, i) => (
+            {PROMISES.map(({ Icon, title: sv, text: svText }, i) => ({ Icon, title: tb(sv), text: tb(svText), i })).map(({ Icon, title, text, i }) => (
               <Rise key={title} index={i + 1}>
                 <View style={s.promise}>
                   <View style={s.promiseIcon}>
@@ -87,10 +88,10 @@ export default function BusinessWelcome() {
       </ScrollView>
       <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {error && <FieldNote tone="danger" text={error} />}
-        <GoldButton label="Kom igång" onPress={start} loading={busy} />
+        <GoldButton label={tb("Kom igång")} onPress={start} loading={busy} />
         <Text style={s.fine}>
-          Genom att fortsätta godkänner ni{" "}
-          <Text style={s.link} onPress={() => pushOnce(router, "/business/terms")}>villkoren för företag</Text>.
+          {tb("Genom att fortsätta godkänner ni")}{" "}
+          <Text style={s.link} onPress={() => pushOnce(router, "/business/terms")}>{tb("villkoren för företag")}</Text>.
         </Text>
       </View>
     </View>

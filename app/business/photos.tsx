@@ -24,6 +24,7 @@ import { businessError, removePlaceImages, uploadPlaceImage } from "@/lib/busine
 import { pickPhotos, type PickedPhoto } from "@/lib/photos";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 const MAX = 10;
 
@@ -34,7 +35,7 @@ const newKey = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 /** Kamera eller bildbiblioteket (systemets egen meny på iPhone) */
 function askSource(title: string, extra?: { label: string; destructive?: boolean; onPress: () => void }): Promise<PhotoSource | null> {
   return new Promise((resolve) => {
-    const options = ["Välj bilder", "Ta en bild", ...(extra ? [extra.label] : []), "Avbryt"];
+    const options = [tb("Välj bilder"), tb("Ta en bild"), ...(extra ? [extra.label] : []), tb("Avbryt")];
     const cancel = options.length - 1;
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -47,10 +48,10 @@ function askSource(title: string, extra?: { label: string; destructive?: boolean
       );
     } else {
       Alert.alert(title, undefined, [
-        { text: "Välj bilder", onPress: () => resolve("library") },
-        { text: "Ta en bild", onPress: () => resolve("camera") },
+        { text: tb("Välj bilder"), onPress: () => resolve("library") },
+        { text: tb("Ta en bild"), onPress: () => resolve("camera") },
         ...(extra ? [{ text: extra.label, style: extra.destructive ? "destructive" as const : "default" as const, onPress: () => { extra.onPress(); resolve(null); } }] : []),
-        { text: "Avbryt", style: "cancel", onPress: () => resolve(null) },
+        { text: tb("Avbryt"), style: "cancel", onPress: () => resolve(null) },
       ]);
     }
   });
@@ -97,9 +98,9 @@ export default function BusinessPhotos() {
 
   const showError = (e: unknown) => {
     if (e instanceof Error && e.message === "camera_denied") {
-      Alert.alert("Kameran är avstängd", "Slå på kameran för Österlenappen i telefonens inställningar.", [
-        { text: "Avbryt", style: "cancel" },
-        { text: "Öppna inställningar", onPress: () => Linking.openSettings() },
+      Alert.alert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
+        { text: tb("Avbryt"), style: "cancel" },
+        { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings() },
       ]);
     } else {
       toast.current?.show(businessError(e));
@@ -109,8 +110,8 @@ export default function BusinessPhotos() {
   const add = async () => {
     if (!items) return;
     const room = MAX - items.length;
-    if (room <= 0) { toast.current?.show(`Högst ${MAX} bilder – ta bort en först`); return; }
-    const source = await askSource("Lägg till bilder");
+    if (room <= 0) { toast.current?.show(tb("Högst {{0}} bilder – ta bort en först", { 0: MAX })); return; }
+    const source = await askSource(tb("Lägg till bilder"));
     if (!source) return;
     try {
       const picked = source === "camera" ? [await takePhoto()].filter((p): p is PickedPhoto => !!p) : await pickPhotos(room);
@@ -144,7 +145,7 @@ export default function BusinessPhotos() {
     saveList(next);
     const url = item.url;
     doomed.current.set(url, setTimeout(() => { doomed.current.delete(url); removePlaceImages([url]); }, 6000));
-    toast.current?.show("Bilden borttagen", () => {
+    toast.current?.show(tb("Bilden borttagen"), () => {
       const t = doomed.current.get(url);
       if (t) clearTimeout(t);
       doomed.current.delete(url);
@@ -154,13 +155,13 @@ export default function BusinessPhotos() {
   };
 
   const changeLogo = async () => {
-    const source = await askSource("Logga", logo ? {
-      label: "Ta bort loggan", destructive: true,
+    const source = await askSource(tb("Logga"), logo ? {
+      label: tb("Ta bort loggan"), destructive: true,
       onPress: () => {
         const old = logo;
         setLogo(null);
         auto.queue({ logo_url: null }, true);
-        toast.current?.show("Loggan borttagen", () => { setLogo(old); auto.queue({ logo_url: old }, true); });
+        toast.current?.show(tb("Loggan borttagen"), () => { setLogo(old); auto.queue({ logo_url: old }, true); });
       },
     } : undefined);
     if (!source) return;
@@ -182,7 +183,7 @@ export default function BusinessPhotos() {
 
   if (!items || logo === undefined) {
     return (
-      <SettingsScreen title="Bilder och logga">
+      <SettingsScreen title={tb("Bilder och logga")}>
         <Skeleton height={110} radius={18} />
         <Skeleton height={86} radius={16} />
         <Skeleton height={86} radius={16} />
@@ -192,8 +193,8 @@ export default function BusinessPhotos() {
 
   const header = (
     <View style={s.headerBlock}>
-      <SectionHeader title="Logga" />
-      <TouchableOpacity style={s.logoRow} activeOpacity={0.8} onPress={changeLogo} accessibilityRole="button" accessibilityLabel="Byt logga">
+      <SectionHeader title={tb("Logga")} />
+      <TouchableOpacity style={s.logoRow} activeOpacity={0.8} onPress={changeLogo} accessibilityRole="button" accessibilityLabel={tb("Byt logga")}>
         <View style={s.logo}>
           {logoBusy ? <Skeleton width={72} height={72} radius={36} /> : logo ? (
             <ExpoImage source={{ uri: logo }} style={{ width: "100%", height: "100%" }} contentFit="contain" />
@@ -202,13 +203,13 @@ export default function BusinessPhotos() {
           )}
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.logoTitle}>{logo ? "Byt logga" : "Lägg till er logga"}</Text>
-          <Text style={s.logoSub}>Syns i en rund ram på er sida och i era stories.</Text>
+          <Text style={s.logoTitle}>{logo ? tb("Byt logga") : tb("Lägg till er logga")}</Text>
+          <Text style={s.logoSub}>{tb("Syns i en rund ram på er sida och i era stories.")}</Text>
         </View>
       </TouchableOpacity>
       <View style={{ height: 26 }} />
-      <SectionHeader title={`Bilder · ${items.length} av ${MAX}`} />
-      <Note text="Den första är huvudbilden – den syns överst och i listor. Håll i ⋮⋮ och dra för att ändra ordning." />
+      <SectionHeader title={tb("Bilder · {{0}} av {{1}}", { 0: items.length, 1: MAX })} />
+      <Note text={tb("Den första är huvudbilden – den syns överst och i listor. Håll i ⋮⋮ och dra för att ändra ordning.")} />
       <View style={{ height: 12 }} />
     </View>
   );
@@ -218,17 +219,17 @@ export default function BusinessPhotos() {
       {items.length < MAX && (
         <TouchableOpacity style={s.addBtn} activeOpacity={0.8} onPress={add} accessibilityRole="button">
           <ImagePlus size={20} color={colors.goldText} strokeWidth={2} />
-          <Text style={s.addText}>Lägg till bilder</Text>
+          <Text style={s.addText}>{tb("Lägg till bilder")}</Text>
         </TouchableOpacity>
       )}
-      <Note icon={Camera} text="Tips: ljusa bilder i liggande format blir finast. Visa gärna både miljön och maten eller varorna." />
+      <Note icon={Camera} text={tb("Tips: ljusa bilder i liggande format blir finast. Visa gärna både miljön och maten eller varorna.")} />
       {auto.error && <Text style={s.error}>{auto.error}</Text>}
     </View>
   );
 
   return (
     <>
-      <SettingsScreen title="Bilder och logga" right={<SaveIndicator state={auto.state} onRetry={auto.flush} />} fixed>
+      <SettingsScreen title={tb("Bilder och logga")} right={<SaveIndicator state={auto.state} onRetry={auto.flush} />} fixed>
         <DraggableFlatList
           containerStyle={{ flex: 1 }}
           data={items}
@@ -255,18 +256,18 @@ export default function BusinessPhotos() {
                 </View>
                 <View style={{ flex: 1 }}>
                   {getIndex() === 0 ? (
-                    <Text style={s.mainTag}>Huvudbild</Text>
+                    <Text style={s.mainTag}>{tb("Huvudbild")}</Text>
                   ) : (
-                    <Text style={s.rowLabel}>Bild {(getIndex() ?? 0) + 1}</Text>
+                    <Text style={s.rowLabel}>{tb("Bild")} {(getIndex() ?? 0) + 1}</Text>
                   )}
-                  {!item.url && <Text style={s.rowSub}>Laddar upp …</Text>}
+                  {!item.url && <Text style={s.rowSub}>{tb("Laddar upp …")}</Text>}
                 </View>
                 {item.url && (
-                  <TouchableOpacity onPress={() => remove(item)} hitSlop={10} style={s.minus} accessibilityLabel="Ta bort bilden">
+                  <TouchableOpacity onPress={() => remove(item)} hitSlop={10} style={s.minus} accessibilityLabel={tb("Ta bort bilden")}>
                     <Minus size={16} color="#FFFFFF" strokeWidth={3} />
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity onLongPress={drag} delayLongPress={120} hitSlop={12} disabled={!item.url} accessibilityLabel="Dra för att flytta">
+                <TouchableOpacity onLongPress={drag} delayLongPress={120} hitSlop={12} disabled={!item.url} accessibilityLabel={tb("Dra för att flytta")}>
                   <GripVertical size={22} color={colors.faint} strokeWidth={2} />
                 </TouchableOpacity>
               </View>

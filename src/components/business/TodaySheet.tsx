@@ -11,6 +11,7 @@ import { TimeWheel } from "@/components/business/Pickers";
 import { dayLabel, regularToday, todayOnly } from "@/lib/hoursEditor";
 import type { Hours, HoursException } from "@/lib/openingHours";
 import { useTheme } from "@/theme/ThemeProvider";
+import { tb } from "@/i18n/business";
 
 type Choice = "closed" | "earlier" | "later" | "open";
 
@@ -63,28 +64,28 @@ export function TodaySheet({ visible, hours, exceptions, onClose, onSave }: {
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Ändra i dag">
+    <Sheet visible={visible} onClose={onClose} title={tb("Ändra i dag")}>
       <Text style={[s.lead, { color: colors.muted }]}>
         {normallyClosed
-          ? "I dag brukar ni ha stängt. Gäller bara i dag."
-          : `I dag brukar ni ha öppet ${dayLabel(regular)}. Ändringen gäller bara i dag.`}
+          ? tb("I dag brukar ni ha stängt. Gäller bara i dag.")
+          : tb("I dag brukar ni ha öppet {{0}}. Ändringen gäller bara i dag.", { 0: dayLabel(regular) })}
       </Text>
       <View style={s.choices}>
         {!normallyClosed && (
           <>
-            <ChoiceCard icon={DoorClosed} title="Stängt hela dagen" selected={choice === "closed"} onPress={() => pick("closed")} />
-            <ChoiceCard icon={Clock3} title="Stänger tidigare" selected={choice === "earlier"} onPress={() => pick("earlier")} />
-            <ChoiceCard icon={Sunrise} title="Öppnar senare" selected={choice === "later"} onPress={() => pick("later")} />
+            <ChoiceCard icon={DoorClosed} title={tb("Stängt hela dagen")} selected={choice === "closed"} onPress={() => pick("closed")} />
+            <ChoiceCard icon={Clock3} title={tb("Stänger tidigare")} selected={choice === "earlier"} onPress={() => pick("earlier")} />
+            <ChoiceCard icon={Sunrise} title={tb("Öppnar senare")} selected={choice === "later"} onPress={() => pick("later")} />
           </>
         )}
         {normallyClosed && (
-          <ChoiceCard icon={DoorOpen} title="Öppet i dag ändå" selected={choice === "open"} onPress={() => pick("open")} />
+          <ChoiceCard icon={DoorOpen} title={tb("Öppet i dag ändå")} selected={choice === "open"} onPress={() => pick("open")} />
         )}
       </View>
 
       {(choice === "earlier" || choice === "later") && (
         <View style={s.wheel}>
-          <Text style={[s.wheelLabel, { color: colors.text }]}>{choice === "earlier" ? `Stänger kl ${time}` : `Öppnar kl ${time}`}</Text>
+          <Text style={[s.wheelLabel, { color: colors.text }]}>{choice === "earlier" ? tb("Stänger kl {{0}}", { 0: time }) : tb("Öppnar kl {{0}}", { 0: time })}</Text>
           <TimeWheel value={time} onChange={setTime} />
         </View>
       )}
@@ -95,24 +96,24 @@ export function TodaySheet({ visible, hours, exceptions, onClose, onSave }: {
               onPress={() => setEditing("open")}
               style={[s.pairItem, { color: editing === "open" ? colors.goldText : colors.muted, borderColor: editing === "open" ? colors.goldBorder : colors.border }]}
             >
-              Öppnar {openTime}
+              {tb("Öppnar")} {openTime}
             </Text>
             <Text
               onPress={() => setEditing("close")}
               style={[s.pairItem, { color: editing === "close" ? colors.goldText : colors.muted, borderColor: editing === "close" ? colors.goldBorder : colors.border }]}
             >
-              Stänger {closeTime}
+              {tb("Stänger")} {closeTime}
             </Text>
           </View>
           <TimeWheel value={editing === "open" ? openTime : closeTime} onChange={editing === "open" ? setOpenTime : setCloseTime} />
         </View>
       )}
 
-      <PrimaryButton label="Spara för i dag" onPress={save} />
+      <PrimaryButton label={tb("Spara för i dag")} onPress={save} />
       {current && (
         <TouchableOpacity onPress={() => onSave(null)} style={s.undoRow} activeOpacity={0.6} hitSlop={8}>
           <Undo2 size={15} color={colors.goldText} strokeWidth={2.2} />
-          <Text style={[s.undo, { color: colors.goldText }]}>Ta bort ändringen – vanliga tider gäller</Text>
+          <Text style={[s.undo, { color: colors.goldText }]}>{tb("Ta bort ändringen – vanliga tider gäller")}</Text>
         </TouchableOpacity>
       )}
     </Sheet>

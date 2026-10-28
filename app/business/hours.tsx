@@ -26,6 +26,8 @@ import { IconSwitch } from "@/components/IconSwitch";
 import { DAY_NAMES, exceptionFor, exceptionLine, isoDay, type HoursException } from "@/lib/openingHours";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
+import { currentLanguage } from "@/i18n";
 
 const QUICK: { label: string; days: number[]; from: string; to: string }[] = [
   { label: "Mån–fre 9–17", days: [1, 2, 3, 4, 5], from: "09:00", to: "17:00" },
@@ -83,7 +85,7 @@ export default function BusinessHours() {
 
   if (!week || !exceptions) {
     return (
-      <SettingsScreen title="Öppettider">
+      <SettingsScreen title={tb("Öppettider")}>
         <Skeleton height={380} radius={22} />
         <Skeleton height={140} radius={22} />
       </SettingsScreen>
@@ -94,18 +96,18 @@ export default function BusinessHours() {
 
   return (
     <>
-      <SettingsScreen title="Öppettider" right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
+      <SettingsScreen title={tb("Öppettider")} right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
         <Rise index={0}>
           <View>
-            <SectionHeader title="Vanliga veckan" />
+            <SectionHeader title={tb("Vanliga veckan")} />
             {empty && (
               <View style={s.noHours}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.noHoursTitle}>{isHotel(place?.categories) ? "Öppettider behövs inte för hotell" : "Vi har inga fasta öppettider"}</Text>
+                  <Text style={s.noHoursTitle}>{isHotel(place?.categories) ? tb("Öppettider behövs inte för hotell") : tb("Vi har inga fasta öppettider")}</Text>
                   <Text style={s.noHoursText}>
                     {isHotel(place?.categories)
-                      ? "Hotell behöver inga – fyll bara i om ni har t.ex. restaurang eller reception med fasta tider."
-                      : "T.ex. öppet efter överenskommelse. Då visas inga tider på er sida."}
+                      ? tb("Hotell behöver inga – fyll bara i om ni har t.ex. restaurang eller reception med fasta tider.")
+                      : tb("T.ex. öppet efter överenskommelse. Då visas inga tider på er sida.")}
                   </Text>
                 </View>
                 {!isHotel(place?.categories) && <IconSwitch value={noHours} onChange={toggleNoHours} />}
@@ -113,12 +115,12 @@ export default function BusinessHours() {
             )}
             {empty && !noHours && !isHotel(place?.categories) && (
               <View style={s.quick}>
-                <Text style={s.quickLead}>Snabbstart – välj det som liknar er, och ändra sedan det som skiljer:</Text>
+                <Text style={s.quickLead}>{tb("Snabbstart – välj det som liknar er, och ändra sedan det som skiljer:")}</Text>
                 <View style={s.chips}>
                   {QUICK.map((q) => (
                     <Chip
                       key={q.label}
-                      label={q.label}
+                      label={tb(q.label)}
                       selected={false}
                       onPress={() => {
                         const next = { ...week };
@@ -141,7 +143,7 @@ export default function BusinessHours() {
                     activeOpacity={0.7}
                     onPress={() => setDay(d)}
                     accessibilityRole="button"
-                    accessibilityLabel={`${DAY_NAMES[d]}: ${dayLabel(value)}. Ändra.`}
+                    accessibilityLabel={tb("{{0}}: {{1}}. Ändra.", { 0: DAY_NAMES[d], 1: dayLabel(value) })}
                   >
                     <Text style={[s.dayName, today && s.dayToday]}>{DAY_NAMES[d]}</Text>
                     <Text
@@ -157,22 +159,22 @@ export default function BusinessHours() {
             </GradientCard>
             {!empty && (
               <TouchableOpacity
-                onPress={() => Alert.alert("Visa inga öppettider?", "Då står det inget om öppet eller stängt på er sida.", [
-                  { text: "Avbryt", style: "cancel" },
+                onPress={() => Alert.alert(tb("Visa inga öppettider?"), tb("Då står det inget om öppet eller stängt på er sida."), [
+                  { text: tb("Avbryt"), style: "cancel" },
                   {
-                    text: "Ta bort tiderna", style: "destructive",
+                    text: tb("Ta bort tiderna"), style: "destructive",
                     onPress: () => {
                       const before = week;
                       const next = Object.fromEntries(WEEK_ORDER.map((d) => [d, { kind: "unset" } as DayEdit]));
                       saveWeek(next);
-                      toast.current?.show("Öppettiderna borttagna", () => saveWeek(before));
+                      toast.current?.show(tb("Öppettiderna borttagna"), () => saveWeek(before));
                     },
                   },
                 ])}
                 hitSlop={8}
                 style={s.clear}
               >
-                <Text style={s.clearText}>Visa inga öppettider</Text>
+                <Text style={s.clearText}>{tb("Visa inga öppettider")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -180,27 +182,27 @@ export default function BusinessHours() {
 
         <Rise index={1}>
           <View>
-            <SectionHeader title="Tillfälliga ändringar" />
+            <SectionHeader title={tb("Tillfälliga ändringar")} />
             {upcoming.length > 0 && (
               <GradientCard style={{ marginBottom: 12 }}>
                 {upcoming.map((ex, i) => (
                   <View key={ex.id} style={[s.exRow, i > 0 && s.dayBorder]}>
                     <CalendarClock size={18} color={colors.goldText} strokeWidth={2} />
                     <View style={{ flex: 1 }}>
-                      <Text style={s.exText}>{exceptionLine(ex, undefined, "sv")}</Text>
-                      {ex.yearly && <Text style={s.exSub}>Varje år</Text>}
+                      <Text style={s.exText}>{exceptionLine(ex, undefined, currentLanguage())}</Text>
+                      {ex.yearly && <Text style={s.exSub}>{tb("Varje år")}</Text>}
                     </View>
                     <TouchableOpacity
                       hitSlop={8}
                       onPress={() => setSheet({ kind: ex.week ? "period" : ex.from === ex.to && !ex.yearly ? "day" : "closed", editing: ex })}
-                      accessibilityLabel="Ändra"
+                      accessibilityLabel={tb("Ändra")}
                     >
                       <Pencil size={17} color={colors.muted} strokeWidth={2} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       hitSlop={8}
-                      onPress={() => saveExceptions(exceptions.filter((e) => e.id !== ex.id), "Borttagen", exceptions)}
-                      accessibilityLabel="Ta bort"
+                      onPress={() => saveExceptions(exceptions.filter((e) => e.id !== ex.id), tb("Borttagen"), exceptions)}
+                      accessibilityLabel={tb("Ta bort")}
                     >
                       <Trash2 size={17} color={colors.muted} strokeWidth={2} />
                     </TouchableOpacity>
@@ -209,9 +211,9 @@ export default function BusinessHours() {
               </GradientCard>
             )}
             <View style={s.addRow}>
-              <AddButton Icon={CalendarOff} label="Stängt några dagar" sub="Semester, helgdag" onPress={() => setSheet({ kind: "closed", editing: null })} />
-              <AddButton Icon={Sun} label="Andra tider en period" sub="T.ex. sommartider" onPress={() => setSheet({ kind: "period", editing: null })} />
-              <AddButton Icon={CalendarRange} label="En enskild dag" sub="Stänger tidigare, öppet extra" onPress={() => setSheet({ kind: "day", editing: null })} />
+              <AddButton Icon={CalendarOff} label={tb("Stängt några dagar")} sub={tb("Semester, helgdag")} onPress={() => setSheet({ kind: "closed", editing: null })} />
+              <AddButton Icon={Sun} label={tb("Andra tider en period")} sub={tb("T.ex. sommartider")} onPress={() => setSheet({ kind: "period", editing: null })} />
+              <AddButton Icon={CalendarRange} label={tb("En enskild dag")} sub={tb("Stänger tidigare, öppet extra")} onPress={() => setSheet({ kind: "day", editing: null })} />
             </View>
           </View>
         </Rise>
@@ -219,8 +221,8 @@ export default function BusinessHours() {
         {holidays.length > 0 && (
           <Rise index={2}>
             <View>
-              <SectionHeader title="Röda dagar som kommer" />
-              <Note text="Har ni stängt? Ett tryck så syns det i appen." icon={CalendarOff} />
+              <SectionHeader title={tb("Röda dagar som kommer")} />
+              <Note text={tb("Har ni stängt? Ett tryck så syns det i appen.")} icon={CalendarOff} />
               <View style={[s.chips, { marginTop: 10 }]}>
                 {holidays.map((h) => (
                   <Chip
@@ -229,7 +231,7 @@ export default function BusinessHours() {
                     selected={false}
                     onPress={() => saveExceptions(
                       [...exceptions, { id: newId(), from: h.date, to: h.date, closed: true, label: h.name }],
-                      `Stängt ${h.name.toLowerCase()}`,
+                      tb("Stängt {{0}}", { 0: h.name.toLowerCase() }),
                       exceptions,
                     )}
                   />
@@ -260,7 +262,7 @@ export default function BusinessHours() {
           const before = exceptions;
           const next = before.some((e) => e.id === ex.id) ? before.map((e) => (e.id === ex.id ? ex : e)) : [...before, ex];
           setSheet(null);
-          saveExceptions(next, "Sparat", before);
+          saveExceptions(next, tb("Sparat"), before);
         }}
       />
       <PortalToast ref={toast} />

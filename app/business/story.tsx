@@ -48,6 +48,8 @@ import { businessError, uploadPlaceBytes, type StoryLink } from "@/lib/business"
 import { preparePhoto } from "@/lib/photos";
 import { STORY_FILTERS, renderFiltered } from "@/lib/storyFilters";
 import { eventWhen } from "@/lib/events";
+import { tb } from "@/i18n/business";
+import { currentLanguage } from "@/i18n";
 
 const EMOJIS = ["❤️", "🔥", "😍", "✨", "⭐", "☀️", "🌊", "🌿", "🍎", "🍷", "🍺", "☕", "🍰", "🦞", "🐟", "🧀", "🍕", "🎉", "🎶", "🛍️", "🌸", "🌻", "🍂", "❄️", "🥂", "👋", "🙌", "💛"];
 const GOLD = "#E4C67A";
@@ -133,7 +135,7 @@ function StoryEditor() {
     let alive = true;
     renderFiltered(source, filter.matrix)
       .then((r) => { if (alive && r) setFiltered((m) => ({ ...m, [filter.id]: r.uri })); })
-      .catch(() => { if (alive) setError("Filtren fungerar inte på den här telefonen."); });
+      .catch(() => { if (alive) setError(tb("Filtren fungerar inte på den här telefonen.")); });
     return () => { alive = false; };
   }, [source, filter, filtered]);
 
@@ -183,12 +185,12 @@ function StoryEditor() {
   const offerLink = useCallback((id: string): StoryItem | null => {
     const o = offers?.find((x) => x.offer.id === id)?.offer;
     if (!o) return null;
-    return { id: newId(), kind: "link", link: { kind: "offer", id: o.id }, title: o.title, sub: o.savings_label ?? "Med Österlenpasset", look: 0 };
+    return { id: newId(), kind: "link", link: { kind: "offer", id: o.id }, title: o.title, sub: o.savings_label ?? tb("Med Österlenpasset"), look: 0 };
   }, [offers]);
   const eventLink = useCallback((id: string): StoryItem | null => {
     const e = events?.find((x) => String(x.id) === id);
     if (!e) return null;
-    return { id: newId(), kind: "link", link: { kind: "event", id: String(e.id) }, title: e.title, sub: eventWhen(e, "sv"), look: 0 };
+    return { id: newId(), kind: "link", link: { kind: "event", id: String(e.id) }, title: e.title, sub: eventWhen(e, currentLanguage()), look: 0 };
   }, [events]);
 
   // Öppnad från "Berätta om det i en story": länken ligger på plats direkt
@@ -208,8 +210,8 @@ function StoryEditor() {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         menu.ask(SH / 2 - 120, {
-          title: "Kameran är avstängd", message: "Slå på kameran för Österlenappen i telefonens inställningar.",
-          actions: [{ label: "Öppna inställningar", onPress: () => Linking.openSettings() }],
+          title: tb("Kameran är avstängd"), message: tb("Slå på kameran för Österlenappen i telefonens inställningar."),
+          actions: [{ label: tb("Öppna inställningar"), onPress: () => Linking.openSettings() }],
         });
         return null;
       }
@@ -254,7 +256,7 @@ function StoryEditor() {
       if (i !== cur) Haptics.selectionAsync().catch(() => {});
       return i;
     });
-    showFlash(STORY_FILTERS[i].name);
+    showFlash(tb(STORY_FILTERS[i].name));
   }, [showFlash]);
   const changeFilter = useCallback((dir: 1 | -1) => {
     chooseFilter(Math.min(STORY_FILTERS.length - 1, Math.max(0, filterIndex + dir)));
@@ -265,7 +267,7 @@ function StoryEditor() {
     Haptics.selectionAsync().catch(() => {});
     setFit(next.id);
     imgX.value = 0; imgY.value = 0; imgScale.value = 1;
-    showFlash(next.name);
+    showFlash(tb(next.name));
   };
 
   const startText = useCallback((x: number, y: number) => {
@@ -350,15 +352,15 @@ function StoryEditor() {
       setPhase("done");
     } catch (e) {
       setPhase("edit");
-      setError(e instanceof Error && e.message === "snapshot" ? "Storyn kunde inte sparas. Försök igen." : businessError(e));
+      setError(e instanceof Error && e.message === "snapshot" ? tb("Storyn kunde inte sparas. Försök igen.") : businessError(e));
     }
   };
 
   const close = () => {
     if (phase === "pick" || (items.length === 0 && !source)) { router.back(); return; }
     menu.ask(insets.top + 56, {
-      title: "Släng storyn?", message: "Det du gjort sparas inte.",
-      actions: [{ label: "Släng", destructive: true, onPress: () => router.back() }],
+      title: tb("Släng storyn?"), message: tb("Det du gjort sparas inte."),
+      actions: [{ label: tb("Släng"), destructive: true, onPress: () => router.back() }],
     });
   };
 
@@ -375,24 +377,24 @@ function StoryEditor() {
       <View style={[s.root, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
         <StatusBar style="light" />
         <View style={s.pickTop}>
-          <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel="Stäng"><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
+          <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel={tb("Stäng")}><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
         </View>
         <View style={s.pickBody}>
-          <Text style={s.pickTitle}>Ny story</Text>
-          <Text style={s.pickLead}>Visa hur det ser ut hos er just nu. Den syns överst på Hem i 24 timmar.</Text>
+          <Text style={s.pickTitle}>{tb("Ny story")}</Text>
+          <Text style={s.pickLead}>{tb("Visa hur det ser ut hos er just nu. Den syns överst på Hem i 24 timmar.")}</Text>
           <View style={s.pickButtons}>
             <TouchableOpacity style={[s.pickBtn, { backgroundColor: GOLD }]} activeOpacity={0.85} onPress={() => start("camera")}>
               <Camera size={22} color="#1A1408" strokeWidth={2.2} />
-              <Text style={[s.pickBtnText, { color: "#1A1408" }]}>Ta en bild</Text>
+              <Text style={[s.pickBtnText, { color: "#1A1408" }]}>{tb("Ta en bild")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.pickBtn} activeOpacity={0.85} onPress={() => start("library")}>
               <ImageIcon size={22} color="#FFFFFF" strokeWidth={2} />
-              <Text style={s.pickBtnText}>Välj från bilder</Text>
+              <Text style={s.pickBtnText}>{tb("Välj från bilder")}</Text>
             </TouchableOpacity>
           </View>
           {images.length > 0 && (
             <>
-              <Text style={s.pickSmall}>Eller använd en av era bilder</Text>
+              <Text style={s.pickSmall}>{tb("Eller använd en av era bilder")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {images.map((url) => (
                   <Pressable key={url} onPress={() => start({ url })} style={s.pickThumb}>
@@ -415,9 +417,9 @@ function StoryEditor() {
       <View style={[s.root, s.doneRoot, { paddingTop: insets.top }]}>
         <StatusBar style="light" />
         <DoneMoment
-          title="Storyn är ute!"
-          text="Den syns överst på Hem i 24 timmar – först för dem som sparat er."
-          primary={{ label: "Klart", onPress: () => router.back() }}
+          title={tb("Storyn är ute!")}
+          text={tb("Den syns överst på Hem i 24 timmar – först för dem som sparat er.")}
+          primary={{ label: tb("Klart"), onPress: () => router.back() }}
         />
       </View>
     );
@@ -467,11 +469,11 @@ function StoryEditor() {
         {/* Knapparna ovanpå bilden (fotograferas inte) */}
         {!busy && !dragging && (
           <Reanimated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)} style={s.tools} pointerEvents="box-none">
-            <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel="Stäng"><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
+            <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel={tb("Stäng")}><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
             <View style={s.toolsRight}>
-              <TouchableOpacity onPress={() => startText(cw / 2, ch * 0.4)} hitSlop={8} style={s.round} accessibilityLabel="Text"><Type size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
-              <TouchableOpacity onPress={() => { setStickersReady(false); setStickers(true); }} hitSlop={8} style={s.round} accessibilityLabel="Lägg till"><Smile size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
-              <TouchableOpacity onPress={cycleFit} hitSlop={8} style={s.round} accessibilityLabel={`Format: ${fitDef.name}`}>
+              <TouchableOpacity onPress={() => startText(cw / 2, ch * 0.4)} hitSlop={8} style={s.round} accessibilityLabel={tb("Text")}><Type size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setStickersReady(false); setStickers(true); }} hitSlop={8} style={s.round} accessibilityLabel={tb("Lägg till")}><Smile size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
+              <TouchableOpacity onPress={cycleFit} hitSlop={8} style={s.round} accessibilityLabel={tb("Format: {{0}}", { 0: tb(fitDef.name) })}>
                 <fitDef.Icon size={21} color="#FFFFFF" strokeWidth={2.2} />
               </TouchableOpacity>
             </View>
@@ -493,21 +495,21 @@ function StoryEditor() {
           {STORY_FILTERS.map((f, i) => {
             const on = i === filterIndex;
             return (
-              <Pressable key={f.id} onPress={() => chooseFilter(i)} style={s.filter} accessibilityLabel={`Filter: ${f.name}`}>
+              <Pressable key={f.id} onPress={() => chooseFilter(i)} style={s.filter} accessibilityLabel={tb("Filter: {{0}}", { 0: f.name })}>
                 <View style={[s.filterThumb, on && s.filterThumbOn]}>
                   {thumbs[f.id] ? <ExpoImage source={{ uri: thumbs[f.id] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : null}
                 </View>
-                <Text style={[s.filterName, on && { color: "#FFFFFF" }]} numberOfLines={1}>{f.name}</Text>
+                <Text style={[s.filterName, on && { color: "#FFFFFF" }]} numberOfLines={1}>{tb(f.name)}</Text>
               </Pressable>
             );
           })}
         </ScrollView>
         <View style={s.barRow}>
           <Text style={s.hint} numberOfLines={2}>
-            {error ?? "Tryck på bilden för att skriva. Tryck på en sak för att byta stil."}
+            {error ?? tb("Tryck på bilden för att skriva. Tryck på en sak för att byta stil.")}
           </Text>
           <TouchableOpacity style={[s.publish, busy && { opacity: 0.5 }]} disabled={busy} activeOpacity={0.85} onPress={publish}>
-            <Text style={s.publishBtn}>Publicera</Text>
+            <Text style={s.publishBtn}>{tb("Publicera")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -515,13 +517,13 @@ function StoryEditor() {
       {/* Medan storyn laddas upp: skärmen mörk */}
       {busy && (
         <Reanimated.View entering={FadeIn.duration(200)} style={[StyleSheet.absoluteFill, s.publishing]}>
-          <Text style={s.publishText}>Lägger upp …</Text>
+          <Text style={s.publishText}>{tb("Lägger upp …")}</Text>
         </Reanimated.View>
       )}
 
       {editing && <TextEditor editing={editing} onChange={setEditing} onDone={finishText} />}
 
-      <Sheet visible={stickers} onClose={() => setStickers(false)} onShow={() => setStickersReady(true)} title="Lägg till" tall>
+      <Sheet visible={stickers} onClose={() => setStickers(false)} onShow={() => setStickersReady(true)} title={tb("Lägg till")} tall>
         {stickersReady ? (
           <Reanimated.View entering={FadeIn.duration(160)} style={{ flex: 1 }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12, gap: 14 }}>
@@ -529,24 +531,24 @@ function StoryEditor() {
                 {place && (
                   <TouchableOpacity style={s.quick} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "place", text: place.name, look: 0 }, { x: cw / 2, y: ch * 0.22 }); }}>
                     <MapPin size={22} color={GOLD} strokeWidth={2.2} />
-                    <Text style={s.quickText}>Platsen</Text>
+                    <Text style={s.quickText}>{tb("Platsen")}</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity style={s.quick} onPress={addPhoto}>
                   <ImagePlus size={22} color={GOLD} strokeWidth={2.2} />
-                  <Text style={s.quickText}>Bild</Text>
+                  <Text style={s.quickText}>{tb("Bild")}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.quick} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "badge", text: `Kl ${clock}`, look: 0 }, { x: cw / 2, y: ch * 0.3 }); }}>
+                <TouchableOpacity style={s.quick} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "badge", text: tb("Kl {{0}}", { 0: clock }), look: 0 }, { x: cw / 2, y: ch * 0.3 }); }}>
                   <Clock size={22} color={GOLD} strokeWidth={2.2} />
-                  <Text style={s.quickText}>Klockan</Text>
+                  <Text style={s.quickText}>{tb("Klockan")}</Text>
                 </TouchableOpacity>
               </View>
               {activeOffers.map((o) => (
                 <TouchableOpacity key={o.offer.id} style={s.stickerRow} onPress={() => { setStickers(false); const l = offerLink(o.offer.id); if (l) addItem(l, { x: cw / 2, y: ch * 0.72 }); }}>
                   <Ticket size={20} color={GOLD} strokeWidth={2.2} />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.stickerRowText} numberOfLines={1}>Erbjudande · {o.offer.title}</Text>
-                    <Text style={s.stickerRowSub}>Gästen trycker och kommer till erbjudandet</Text>
+                    <Text style={s.stickerRowText} numberOfLines={1}>{tb("Erbjudande ·")} {o.offer.title}</Text>
+                    <Text style={s.stickerRowSub}>{tb("Gästen trycker och kommer till erbjudandet")}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -554,20 +556,20 @@ function StoryEditor() {
                 <TouchableOpacity key={e.id} style={s.stickerRow} onPress={() => { setStickers(false); const l = eventLink(String(e.id)); if (l) addItem(l, { x: cw / 2, y: ch * 0.72 }); }}>
                   <CalendarDays size={20} color={GOLD} strokeWidth={2.2} />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.stickerRowText} numberOfLines={1}>Evenemang · {e.title}</Text>
-                    <Text style={s.stickerRowSub}>{eventWhen(e, "sv")}</Text>
+                    <Text style={s.stickerRowText} numberOfLines={1}>{tb("Evenemang ·")} {e.title}</Text>
+                    <Text style={s.stickerRowSub}>{eventWhen(e, currentLanguage())}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
-              <Text style={s.sheetLabel}>Klistermärken</Text>
+              <Text style={s.sheetLabel}>{tb("Klistermärken")}</Text>
               <View style={s.badges}>
                 {BADGES.map((b) => (
-                  <TouchableOpacity key={b} style={s.badgeBtn} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "badge", text: b, look: 0 }, { x: cw / 2, y: ch * 0.3 }); }}>
-                    <Text style={s.badgeBtnText}>{b.toUpperCase()}</Text>
+                  <TouchableOpacity key={b} style={s.badgeBtn} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "badge", text: tb(b), look: 0 }, { x: cw / 2, y: ch * 0.3 }); }}>
+                    <Text style={s.badgeBtnText}>{tb(b).toUpperCase()}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={s.sheetLabel}>Emoji</Text>
+              <Text style={s.sheetLabel}>{tb("Emoji")}</Text>
               <View style={s.emojis}>
                 {EMOJIS.map((em) => (
                   <TouchableOpacity key={em} style={s.emojiBtn} onPress={() => {
@@ -601,11 +603,11 @@ function TextEditor({ editing, onChange, onDone }: { editing: Editing; onChange:
         <TouchableOpacity
           style={[s.bgBtn, editing.bg !== "none" && { backgroundColor: "#FFFFFF" }]}
           onPress={() => onChange({ ...editing, bg: nextBg[editing.bg] })}
-          accessibilityLabel="Bakgrund bakom texten"
+          accessibilityLabel={tb("Bakgrund bakom texten")}
         >
-          <Text style={[s.bgBtnText, editing.bg !== "none" && { color: "#111111" }]}>A</Text>
+          <Text style={[s.bgBtnText, editing.bg !== "none" && { color: "#111111" }]}>{tb("A")}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onDone} hitSlop={10}><Text style={s.doneText}>Klar</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onDone} hitSlop={10}><Text style={s.doneText}>{tb("Klar")}</Text></TouchableOpacity>
       </View>
       <View style={s.editorCenter}>
         <View style={[s.editorBox, solid && { backgroundColor: editing.color }, editing.bg === "soft" && { backgroundColor: "rgba(0,0,0,0.5)" }]}>
@@ -615,7 +617,7 @@ function TextEditor({ editing, onChange, onDone }: { editing: Editing; onChange:
             autoFocus
             multiline
             maxLength={160}
-            placeholder="Skriv något …"
+            placeholder={tb("Skriv något …")}
             placeholderTextColor="rgba(255,255,255,0.5)"
             selectionColor={GOLD}
             style={[
@@ -631,13 +633,13 @@ function TextEditor({ editing, onChange, onDone }: { editing: Editing; onChange:
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fontRow} keyboardShouldPersistTaps="always">
           {FONTS.map((f) => (
             <TouchableOpacity key={f.id} onPress={() => onChange({ ...editing, font: f.id })} style={[s.fontChip, editing.font === f.id && s.fontChipOn]}>
-              <Text style={[s.fontChipText, { fontFamily: f.family }, editing.font === f.id && { color: "#111111" }]}>{f.label}</Text>
+              <Text style={[s.fontChipText, { fontFamily: f.family }, editing.font === f.id && { color: "#111111" }]}>{tb(f.label)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
         <View style={s.colorRow}>
           {TEXT_COLORS.map((c) => (
-            <TouchableOpacity key={c} onPress={() => onChange({ ...editing, color: c })} style={[s.colorDot, { backgroundColor: c }, editing.color === c && s.colorDotOn]} accessibilityLabel="Färg" />
+            <TouchableOpacity key={c} onPress={() => onChange({ ...editing, color: c })} style={[s.colorDot, { backgroundColor: c }, editing.color === c && s.colorDotOn]} accessibilityLabel={tb("Färg")} />
           ))}
         </View>
       </Reanimated.View>

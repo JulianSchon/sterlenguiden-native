@@ -51,6 +51,8 @@ import { dayKey, lastDay } from "@/lib/events";
 import { findCategory } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
+import { currentLanguage } from "@/i18n";
 
 
 export default function BusinessHome() {
@@ -85,7 +87,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
   const [switchOpen, setSwitchOpen] = useState(false);
 
   const locked = useCallback((page: string) => !!PAGE_PERMISSION[page] && !canDo(mine, PAGE_PERMISSION[page]), [mine]);
-  const askOwner = useCallback(() => Alert.alert("Låst för dig", `Det här har du inte fått tillgång till. Fråga en ägare för ${mine.name} – de kan ändra det under Personal.`), [mine.name]);
+  const askOwner = useCallback(() => Alert.alert(tb("Låst för dig"), tb("Det här har du inte fått tillgång till. Fråga en ägare för {{0}} – de kan ändra det under Personal.", { 0: mine.name })), [mine.name]);
   const go = useCallback((page: string, extra = "") => {
     if (locked(page)) { askOwner(); return; }
     pushOnce(router, `/business/${page}?place=${placeId}${extra}`);
@@ -100,7 +102,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
     try {
       await update.mutateAsync({ hours_exceptions: setToday(before, change) });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      toast.current?.show(change === null ? "Vanliga tider i dag" : change.closed ? "Stängt i dag – det syns i appen" : "Dagens tider ändrade",
+      toast.current?.show(change === null ? tb("Vanliga tider i dag") : change.closed ? tb("Stängt i dag – det syns i appen") : tb("Dagens tider ändrade"),
         () => update.mutate({ hours_exceptions: before }));
     } catch (e) {
       toast.current?.show(businessError(e));
@@ -117,16 +119,16 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
       style={s.eye}
       onPress={() => pushOnce(router, `/place/${placeId}`)}
       hitSlop={8}
-      accessibilityLabel="Visa er sida som gästerna ser den"
+      accessibilityLabel={tb("Visa er sida som gästerna ser den")}
     >
       <Eye size={17} color={colors.text} strokeWidth={2} />
-      <Text style={s.eyeText}>Visa sidan</Text>
+      <Text style={s.eyeText}>{tb("Visa sidan")}</Text>
     </TouchableOpacity>
   );
 
   return (
     <>
-      <SettingsScreen title="Mitt företag" right={eye}>
+      <SettingsScreen title={tb("Mitt företag")} right={eye}>
         <Rise index={0}>
           <Hero mine={mine} place={place} onSwitch={places.length > 1 ? () => setSwitchOpen(true) : undefined} />
         </Rise>
@@ -150,11 +152,11 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
 
         <Rise index={2}>
           <View>
-            <Text style={s.label}>Skapa</Text>
+            <Text style={s.label}>{tb("Skapa")}</Text>
             <View style={s.createRow}>
-              <CreateTile Icon={Camera} title="Story" locked={locked("story")} sub="Visa dagen" onPress={() => go("story")} />
-              <CreateTile Icon={Ticket} title="Erbjudande" locked={locked("offer")} sub="I Österlenpasset" onPress={() => go("offer")} />
-              <CreateTile Icon={CalendarPlus} title="Evenemang" locked={locked("event")} sub="Bjud in gäster" onPress={() => go("event")} />
+              <CreateTile Icon={Camera} title={tb("Story")} locked={locked("story")} sub={tb("Visa dagen")} onPress={() => go("story")} />
+              <CreateTile Icon={Ticket} title={tb("Erbjudande")} locked={locked("offer")} sub={tb("I Österlenpasset")} onPress={() => go("offer")} />
+              <CreateTile Icon={CalendarPlus} title={tb("Evenemang")} locked={locked("event")} sub={tb("Bjud in gäster")} onPress={() => go("event")} />
             </View>
           </View>
         </Rise>
@@ -167,12 +169,12 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
 
         {(activeStories.length > 0 || activeOffers.length > 0 || upcoming.length > 0) && (
           <Rise index={4}>
-            <SettingsGroup label="Just nu">
+            <SettingsGroup label={tb("Just nu")}>
               {activeStories.length > 0 && (
                 <SettingsRow
                   icon={Camera}
-                  label={activeStories.length === 1 ? "1 story ute nu" : `${activeStories.length} stories ute nu`}
-                  subtitle={`${activeStories.reduce((n, st) => n + st.views, 0)} har sett ${activeStories.length === 1 ? "den" : "dem"}`}
+                  label={activeStories.length === 1 ? tb("1 story ute nu") : tb("{{0}} stories ute nu", { 0: activeStories.length })}
+                  subtitle={tb(activeStories.length === 1 ? "{{0}} har sett den" : "{{0}} har sett dem", { 0: activeStories.reduce((n, st) => n + st.views, 0) })}
                   right={lockIcon("stories")}
                   onPress={() => go("stories")}
                 />
@@ -180,8 +182,8 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
               {activeOffers.length > 0 && (
                 <SettingsRow
                   icon={Ticket}
-                  label={activeOffers.length === 1 ? "1 aktivt erbjudande" : `${activeOffers.length} aktiva erbjudanden`}
-                  subtitle={`Använt ${activeOffers.reduce((n, o) => n + o.recent, 0)} gånger senaste 30 dagarna`}
+                  label={activeOffers.length === 1 ? tb("1 aktivt erbjudande") : tb("{{0}} aktiva erbjudanden", { 0: activeOffers.length })}
+                  subtitle={tb("Använt {{0}} gånger senaste 30 dagarna", { 0: activeOffers.reduce((n, o) => n + o.recent, 0) })}
                   right={lockIcon("offers")}
                   onPress={() => go("offers")}
                 />
@@ -189,8 +191,8 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
               {upcoming.length > 0 && (
                 <SettingsRow
                   icon={CalendarDays}
-                  label={`Nästa: ${upcoming[0].title}`}
-                  subtitle={upcoming.length === 1 ? "1 kommande evenemang" : `${upcoming.length} kommande evenemang`}
+                  label={tb("Nästa: {{0}}", { 0: upcoming[0].title })}
+                  subtitle={upcoming.length === 1 ? tb("1 kommande evenemang") : tb("{{0}} kommande evenemang", { 0: upcoming.length })}
                   right={lockIcon("events")}
                   onPress={() => go("events")}
                 />
@@ -200,29 +202,29 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
         )}
 
         <Rise index={5}>
-          <SettingsGroup label="Er sida">
-            <SettingsRow icon={Clock} label="Öppettider" value={place ? (hasAnyHours(place.opening_hours) ? undefined : "Saknas") : undefined} right={lockIcon("hours")} onPress={() => go("hours")} />
-            <SettingsRow icon={FileText} label="Om er" value={place && !place.short_description ? "Saknas" : undefined} right={lockIcon("about")} onPress={() => go("about")} />
-            <SettingsRow icon={Images} label="Bilder och logga" value={place ? `${placeImages(place.image_url).length} bilder` : undefined} right={lockIcon("photos")} onPress={() => go("photos")} />
-            <SettingsRow icon={Phone} label="Kontakt och länkar" right={lockIcon("contact")} onPress={() => go("contact")} />
-            <SettingsRow icon={LayoutGrid} label="Kategori och meny" right={lockIcon("categories")} onPress={() => go("categories")} />
-            <SettingsRow icon={ListChecks} label="Det här finns hos er" subtitle="Parkering, wifi, hundvänligt …" right={lockIcon("amenities")} onPress={() => go("amenities")} />
+          <SettingsGroup label={tb("Er sida")}>
+            <SettingsRow icon={Clock} label={tb("Öppettider")} value={place ? (hasAnyHours(place.opening_hours) ? undefined : tb("Saknas")) : undefined} right={lockIcon("hours")} onPress={() => go("hours")} />
+            <SettingsRow icon={FileText} label={tb("Om er")} value={place && !place.short_description ? tb("Saknas") : undefined} right={lockIcon("about")} onPress={() => go("about")} />
+            <SettingsRow icon={Images} label={tb("Bilder och logga")} value={place ? `${placeImages(place.image_url).length} bilder` : undefined} right={lockIcon("photos")} onPress={() => go("photos")} />
+            <SettingsRow icon={Phone} label={tb("Kontakt och länkar")} right={lockIcon("contact")} onPress={() => go("contact")} />
+            <SettingsRow icon={LayoutGrid} label={tb("Kategori och meny")} right={lockIcon("categories")} onPress={() => go("categories")} />
+            <SettingsRow icon={ListChecks} label={tb("Det här finns hos er")} subtitle={tb("Parkering, wifi, hundvänligt …")} right={lockIcon("amenities")} onPress={() => go("amenities")} />
           </SettingsGroup>
         </Rise>
 
         <Rise index={6}>
-          <SettingsGroup label="Mer">
-            <SettingsRow icon={Ticket} label="Erbjudanden" value={activeOffers.length ? `${activeOffers.length} aktiva` : undefined} right={lockIcon("offers")} onPress={() => go("offers")} />
-            <SettingsRow icon={CalendarDays} label="Evenemang" value={upcoming.length ? `${upcoming.length} kommande` : undefined} right={lockIcon("events")} onPress={() => go("events")} />
-            <SettingsRow icon={Camera} label="Stories" value={activeStories.length ? `${activeStories.length} live` : undefined} right={lockIcon("stories")} onPress={() => go("stories")} />
-            <SettingsRow icon={BarChart3} label="Statistik" onPress={() => go("stats")} />
+          <SettingsGroup label={tb("Mer")}>
+            <SettingsRow icon={Ticket} label={tb("Erbjudanden")} value={activeOffers.length ? `${activeOffers.length} aktiva` : undefined} right={lockIcon("offers")} onPress={() => go("offers")} />
+            <SettingsRow icon={CalendarDays} label={tb("Evenemang")} value={upcoming.length ? `${upcoming.length} kommande` : undefined} right={lockIcon("events")} onPress={() => go("events")} />
+            <SettingsRow icon={Camera} label={tb("Stories")} value={activeStories.length ? `${activeStories.length} live` : undefined} right={lockIcon("stories")} onPress={() => go("stories")} />
+            <SettingsRow icon={BarChart3} label={tb("Statistik")} onPress={() => go("stats")} />
             <SettingsRow
               icon={Users}
-              label="Personal"
-              value={mine.requests > 0 ? `${mine.requests} vill gå med` : undefined}
+              label={tb("Personal")}
+              value={mine.requests > 0 ? tb("{{0}} vill gå med", { 0: mine.requests }) : undefined}
               onPress={() => go("team")}
             />
-            <SettingsRow icon={Settings2} label="Inställningar" onPress={() => go("settings")} />
+            <SettingsRow icon={Settings2} label={tb("Inställningar")} onPress={() => go("settings")} />
           </SettingsGroup>
         </Rise>
 
@@ -231,8 +233,8 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
             <SettingsRow
               compact
               icon={LifeBuoy}
-              label="Behöver ni hjälp?"
-              subtitle={`Mejla oss på ${HELP_EMAIL} – vi svarar personligen.`}
+              label={tb("Behöver ni hjälp?")}
+              subtitle={tb("Mejla oss på {{0}} – vi svarar personligen.", { 0: HELP_EMAIL })}
               tint={colors.warm}
               onPress={() => Linking.openURL(`mailto:${HELP_EMAIL}?subject=${encodeURIComponent(`Hjälp med ${mine.name}`)}`).catch(() => {})}
             />
@@ -249,7 +251,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
           onSave={saveToday}
         />
       )}
-      <Sheet visible={switchOpen} onClose={() => setSwitchOpen(false)} title="Byt företag">
+      <Sheet visible={switchOpen} onClose={() => setSwitchOpen(false)} title={tb("Byt företag")}>
         <View style={{ gap: 8 }}>
           {places.map((p) => (
             <TouchableOpacity
@@ -261,7 +263,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
               <PlaceThumb mine={p} size={44} />
               <View style={{ flex: 1 }}>
                 <Text style={s.switchName} numberOfLines={1}>{p.name}</Text>
-                <Text style={s.switchSub}>{p.role === "owner" ? "Ägare" : "Personal"}{p.town ? ` · ${p.town}` : ""}</Text>
+                <Text style={s.switchSub}>{p.role === "owner" ? tb("Ägare") : tb("Personal")}{p.town ? ` · ${p.town}` : ""}</Text>
               </View>
               {p.id === placeId && <Check size={18} color={colors.goldText} strokeWidth={2.4} />}
             </TouchableOpacity>
@@ -291,12 +293,12 @@ function Hero({ mine, place, onSwitch }: { mine: MyPlace; place: BusinessPlace |
         <PlaceThumb mine={{ ...mine, logo_url: place?.logo_url ?? mine.logo_url }} size={52} />
         <View style={{ flex: 1 }}>
           <Text style={s.heroName} numberOfLines={2}>{place?.name ?? mine.name}</Text>
-          <Text style={s.heroSub}>{mine.role === "owner" ? "Ägare" : "Personal"}{mine.town ? ` · ${mine.town}` : ""}</Text>
+          <Text style={s.heroSub}>{mine.role === "owner" ? tb("Ägare") : tb("Personal")}{mine.town ? ` · ${mine.town}` : ""}</Text>
         </View>
         {onSwitch && (
-          <TouchableOpacity style={s.heroSwitch} onPress={onSwitch} hitSlop={8} accessibilityLabel="Byt företag">
+          <TouchableOpacity style={s.heroSwitch} onPress={onSwitch} hitSlop={8} accessibilityLabel={tb("Byt företag")}>
             <Repeat size={15} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={s.heroSwitchText}>Byt</Text>
+            <Text style={s.heroSwitchText}>{tb("Byt")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -327,14 +329,14 @@ function TodayCard({ place, onCloseToday, onChange, onUndo, onHours }: {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const tint = useHoursColors();
-  const status = hoursStatus(effectiveHours(place.opening_hours, place.hours_exceptions), undefined, "sv");
+  const status = hoursStatus(effectiveHours(place.opening_hours, place.hours_exceptions), undefined, currentLanguage());
   const own = todayOnly(place.hours_exceptions);
   const closedToday = own?.closed === true;
 
   return (
     <GradientCard>
       <View style={s.todayBody}>
-        <Text style={s.label}>I dag</Text>
+        <Text style={s.label}>{tb("I dag")}</Text>
         {status ? (
           <View style={s.todayStatus}>
             <View style={[s.dot, { backgroundColor: tint[status.state] }]} />
@@ -342,16 +344,16 @@ function TodayCard({ place, onCloseToday, onChange, onUndo, onHours }: {
           </View>
         ) : (
           <TouchableOpacity onPress={onHours} activeOpacity={0.7} style={s.todayStatus}>
-            <Text style={s.todayEmpty}>Inga öppettider än · </Text>
-            <Text style={[s.todayEmpty, { color: colors.goldText }]}>Fyll i</Text>
+            <Text style={s.todayEmpty}>{tb("Inga öppettider än ·")} </Text>
+            <Text style={[s.todayEmpty, { color: colors.goldText }]}>{tb("Fyll i")}</Text>
           </TouchableOpacity>
         )}
         {own && (
           <View style={s.ownRow}>
-            <Text style={s.ownText}>{closedToday ? "Ni har stängt i dag – det syns i appen." : "Ni har ändrat dagens tider."}</Text>
+            <Text style={s.ownText}>{closedToday ? tb("Ni har stängt i dag – det syns i appen.") : tb("Ni har ändrat dagens tider.")}</Text>
             <TouchableOpacity onPress={onUndo} hitSlop={8} style={s.ownUndo} accessibilityRole="button">
               <Undo2 size={14} color={colors.goldText} strokeWidth={2.2} />
-              <Text style={s.ownUndoText}>Ångra</Text>
+              <Text style={s.ownUndoText}>{tb("Ångra")}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -360,14 +362,14 @@ function TodayCard({ place, onCloseToday, onChange, onUndo, onHours }: {
             <View style={{ flex: 1 }}>
               <PressableScale scale={0.97} style={[s.todayBtn, s.todayBtnStrong]} onPress={onCloseToday} accessibilityRole="button">
                 <DoorClosed size={17} color={colors.text} strokeWidth={2} />
-                <Text style={s.todayBtnText} numberOfLines={1}>Stängt i dag</Text>
+                <Text style={s.todayBtnText} numberOfLines={1}>{tb("Stängt i dag")}</Text>
               </PressableScale>
             </View>
           )}
           <View style={{ flex: 1 }}>
             <PressableScale scale={0.97} style={s.todayBtn} onPress={status ? onChange : onHours} accessibilityRole="button">
               <Clock size={17} color={colors.text} strokeWidth={2} />
-              <Text style={s.todayBtnText} numberOfLines={1}>{status ? "Ändra i dag" : "Öppettider"}</Text>
+              <Text style={s.todayBtnText} numberOfLines={1}>{status ? tb("Ändra i dag") : tb("Öppettider")}</Text>
             </PressableScale>
           </View>
         </View>
@@ -395,12 +397,12 @@ function Tasks({ placeId, place, hasOffer, onOpen }: {
 
   const tasks = useMemo(() => [
     // Hotell (och den som valt "inga fasta öppettider") behöver inga öppettider för att vara klar
-    { key: "hours", label: "Fyll i öppettiderna", done: hasAnyHours(place.opening_hours) || noHours || isHotel(place.categories), page: "hours" },
-    { key: "about", label: "Skriv några rader om er", done: !!place.short_description?.trim(), page: "about" },
-    { key: "photos", label: "Lägg till minst tre bilder", done: placeImages(place.image_url).length >= 3, page: "photos" },
-    { key: "logo", label: "Lägg till er logga", done: !!place.logo_url, page: "photos" },
-    { key: "contact", label: "Telefon eller hemsida", done: !!(place.phone || place.website_url), page: "contact" },
-    { key: "offer", label: "Skapa ert första erbjudande", done: hasOffer, page: "offer" },
+    { key: "hours", label: tb("Fyll i öppettiderna"), done: hasAnyHours(place.opening_hours) || noHours || isHotel(place.categories), page: "hours" },
+    { key: "about", label: tb("Skriv några rader om er"), done: !!place.short_description?.trim(), page: "about" },
+    { key: "photos", label: tb("Lägg till minst tre bilder"), done: placeImages(place.image_url).length >= 3, page: "photos" },
+    { key: "logo", label: tb("Lägg till er logga"), done: !!place.logo_url, page: "photos" },
+    { key: "contact", label: tb("Telefon eller hemsida"), done: !!(place.phone || place.website_url), page: "contact" },
+    { key: "offer", label: tb("Skapa ert första erbjudande"), done: hasOffer, page: "offer" },
   ], [place, hasOffer, noHours]);
   const done = tasks.filter((t) => t.done).length;
   if (hidden !== false || done === tasks.length) return null;
@@ -412,12 +414,12 @@ function Tasks({ placeId, place, hasOffer, onOpen }: {
       <GradientCard borderColor={colors.goldBorder}>
         <View style={s.tasksBody}>
           <View style={s.tasksHead}>
-            <Text style={s.tasksTitle}>Er sida är {pct} % klar</Text>
+            <Text style={s.tasksTitle}>{tb("Er sida är")} {pct} {tb("% klar")}</Text>
             <TouchableOpacity
               onPress={() => { setHidden(true); AsyncStorage.setItem(key, "1").catch(() => {}); }}
               hitSlop={10}
             >
-              <Text style={s.tasksHide}>Dölj</Text>
+              <Text style={s.tasksHide}>{tb("Dölj")}</Text>
             </TouchableOpacity>
           </View>
           <View style={s.track}>
@@ -464,27 +466,27 @@ function WeekCard({ stats, onPress }: { stats: ReturnType<typeof useBusinessStat
   if (!stats) return <Skeleton height={150} radius={22} />;
   const diff = stats.visitors - stats.visitors_prev;
   const headline = stats.visitors === 0
-    ? "Ingen har tittat på er sida än i veckan."
-    : stats.visitors === 1 ? "1 person tittade på er sida i veckan." : `${stats.visitors} personer tittade på er sida i veckan.`;
+    ? tb("Ingen har tittat på er sida än i veckan.")
+    : stats.visitors === 1 ? tb("1 person tittade på er sida i veckan.") : tb("{{0}} personer tittade på er sida i veckan.", { 0: stats.visitors });
   return (
     <Pressable onPress={onPress} style={({ pressed }) => pressed && { opacity: 0.9 }} accessibilityRole="button">
       <GradientCard>
         <View style={s.weekBody}>
           <View style={s.weekHead}>
-            <Text style={s.label}>Den här veckan</Text>
+            <Text style={s.label}>{tb("Den här veckan")}</Text>
             <ArrowUpRight size={18} color={colors.faint} strokeWidth={2} />
           </View>
           <Text style={s.weekHeadline}>{headline}</Text>
           {stats.visitors === 0 ? (
-            <Text style={s.weekSub}>Lägg upp en story – den syns direkt överst på Hem.</Text>
+            <Text style={s.weekSub}>{tb("Lägg upp en story – den syns direkt överst på Hem.")}</Text>
           ) : diff !== 0 && stats.visitors_prev > 0 ? (
             <Text style={[s.weekSub, { color: diff > 0 ? colors.success : colors.muted }]}>
-              {diff > 0 ? `${diff} fler än veckan innan` : `${-diff} färre än veckan innan`}
+              {diff > 0 ? tb("{{0}} fler än veckan innan", { 0: diff }) : tb("{{0}} färre än veckan innan", { 0: -diff })}
             </Text>
           ) : null}
           <View style={s.weekStats}>
             <MiniStat n={stats.clicks} label="klick" />
-            <MiniStat n={stats.directions} label="vägbeskr." />
+            <MiniStat n={stats.directions} label={tb("vägbeskr.")} />
             <MiniStat n={stats.favorites_new} label="sparade" />
             <MiniStat n={stats.redemptions} label="erbjud." />
           </View>
@@ -509,11 +511,11 @@ function MiniStat({ n, label }: { n: number; label: string }) {
 function HomeError({ message, onRetry }: { message: string; onRetry: () => void }) {
   const s = useThemedStyles(createStyles);
   return (
-    <SettingsScreen title="Mitt företag">
+    <SettingsScreen title={tb("Mitt företag")}>
       <View style={s.errorBox}>
         <Text style={s.errorText}>{message}</Text>
         <TouchableOpacity onPress={onRetry} style={s.retry} activeOpacity={0.75}>
-          <Text style={s.retryText}>Försök igen</Text>
+          <Text style={s.retryText}>{tb("Försök igen")}</Text>
         </TouchableOpacity>
       </View>
     </SettingsScreen>
@@ -524,7 +526,7 @@ function HomeError({ message, onRetry }: { message: string; onRetry: () => void 
 
 function HomeSkeleton() {
   return (
-    <SettingsScreen title="Mitt företag">
+    <SettingsScreen title={tb("Mitt företag")}>
       <Skeleton height={176} radius={22} />
       <Skeleton height={132} radius={22} />
       <View style={{ flexDirection: "row", gap: 10 }}>

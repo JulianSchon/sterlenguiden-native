@@ -29,6 +29,8 @@ import type { Offer } from "@/lib/offers";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
+import { whole } from "@/i18n/numbers";
 
 type Step = "title" | "value" | "use" | "time" | "image" | "terms" | "review" | "done";
 const ALL: Step[] = ["title", "value", "use", "time", "image", "terms", "review", "done"];
@@ -128,16 +130,16 @@ export default function OfferComposer() {
   const leave = () => {
     const dirty = !editingId && draft.title.trim().length > 0 && wizard.step !== "done";
     if (!dirty) { router.back(); return; }
-    Alert.alert("Sluta skapa erbjudandet?", "Det du fyllt i sparas inte.", [
-      { text: "Fortsätt skriva", style: "cancel" },
-      { text: "Sluta", style: "destructive", onPress: () => router.back() },
+    Alert.alert(tb("Sluta skapa erbjudandet?"), tb("Det du fyllt i sparas inte."), [
+      { text: tb("Fortsätt skriva"), style: "cancel" },
+      { text: tb("Sluta"), style: "destructive", onPress: () => router.back() },
     ]);
   };
   const back = () => (wizard.first ? leave() : wizard.back());
 
   const expiresIso = expiryDate(draft.expiry, draft.picked);
   const value = draft.value ? Number(draft.value.replace(/\D/g, "")) : null;
-  const label = draft.labelTouched ? draft.label.trim() : value ? `Spara ${value.toLocaleString("sv-SE")} kr` : "";
+  const label = draft.labelTouched ? draft.label.trim() : value ? tb("Spara {{0}} kr", { 0: whole(value) }) : "";
   const payload: OfferDraft = {
     title: draft.title.trim(),
     description: draft.description.trim() || null,
@@ -150,7 +152,7 @@ export default function OfferComposer() {
     image_url: draft.image,
   };
   const preview: Offer = {
-    id: "preview", place_id: placeId, user_id: "", title: payload.title || "Ert erbjudande",
+    id: "preview", place_id: placeId, user_id: "", title: payload.title || tb("Ert erbjudande"),
     description: payload.description, image_url: payload.image_url, savings_label: payload.savings_label,
     savings_value: payload.savings_value, category: payload.category, redemption_limit: payload.redemption_limit,
     redemption_interval: payload.redemption_interval, expires_at: payload.expires_at, is_active: true,
@@ -172,23 +174,23 @@ export default function OfferComposer() {
     }
   };
 
-  const footer = (ok: boolean, label = "Fortsätt") => <AuthButton label={label} onPress={wizard.next} disabled={!ok} />;
+  const footer = (ok: boolean, label = tb("Fortsätt")) => <AuthButton label={label} onPress={wizard.next} disabled={!ok} />;
 
   let content: React.ReactNode = null;
   switch (wizard.step) {
     case "title":
       content = (
         <StepLayout
-          title="Vad får gästen?"
-          subtitle="Kort och tydligt – det här är det första medlemmarna ser."
+          title={tb("Vad får gästen?")}
+          subtitle={tb("Kort och tydligt – det här är det första medlemmarna ser.")}
           scroll
           footer={footer(draft.title.trim().length >= 2)}
         >
-          <PortalField ref={titleRef} label="Erbjudandet" big value={draft.title} maxLength={60} counter={60}
-            placeholder="T.ex. 2 för 1 på lunch" onChangeText={(v) => set({ title: v })} returnKeyType="next"
+          <PortalField ref={titleRef} label={tb("Erbjudandet")} big value={draft.title} maxLength={60} counter={60}
+            placeholder={tb("T.ex. 2 för 1 på lunch")} onChangeText={(v) => set({ title: v })} returnKeyType="next"
             onSubmitEditing={() => draft.title.trim().length >= 2 && wizard.next()} />
           <View style={s.chips}>
-            {SUGGESTIONS.map((t) => <Chip key={t} label={t} selected={draft.title === t} onPress={() => set({ title: t })} />)}
+            {SUGGESTIONS.map((t) => <Chip key={t} label={tb(t)} selected={draft.title === tb(t)} onPress={() => set({ title: tb(t) })} />)}
           </View>
         </StepLayout>
       );
@@ -196,35 +198,35 @@ export default function OfferComposer() {
     case "value":
       content = (
         <StepLayout
-          title="Vad är det värt?"
-          subtitle="Ungefär hur mycket sparar gästen? Det visar hur mycket man sparar med passet."
+          title={tb("Vad är det värt?")}
+          subtitle={tb("Ungefär hur mycket sparar gästen? Det visar hur mycket man sparar med passet.")}
           scroll
           footer={<>
-            <AuthButton label="Fortsätt" onPress={wizard.next} />
+            <AuthButton label={tb("Fortsätt")} onPress={wizard.next} />
           </>}
         >
-          <PortalField label="Värde" big value={draft.value} keyboardType="number-pad" maxLength={4} suffix="kr" placeholder="150"
+          <PortalField label={tb("Värde")} big value={draft.value} keyboardType="number-pad" maxLength={4} suffix="kr" placeholder="150"
             onChangeText={(v) => set({ value: v.replace(/\D/g, "").slice(0, 4) })}
-            error={value != null && value > 5000 ? "Högst 5 000 kr." : null}
-            help="Lämna tomt om ni inte vet – det går bra ändå." />
-          <PortalField label="Det här står på biljetten" value={label} maxLength={40} placeholder="T.ex. Spara 150 kr eller 20 % rabatt"
+            error={value != null && value > 5000 ? tb("Högst 5 000 kr.") : null}
+            help={tb("Lämna tomt om ni inte vet – det går bra ändå.")} />
+          <PortalField label={tb("Det här står på biljetten")} value={label} maxLength={40} placeholder={tb("T.ex. Spara 150 kr eller 20 % rabatt")}
             onChangeText={(v) => set({ label: v, labelTouched: true })} />
         </StepLayout>
       );
       break;
     case "use":
       content = (
-        <StepLayout title="Hur ofta får man använda det?" footer={footer(true)} scroll>
+        <StepLayout title={tb("Hur ofta får man använda det?")} footer={footer(true)} scroll>
           {INTERVALS.map((i) => (
-            <ChoiceCard key={i.id} title={i.title} subtitle={i.sub} tag={i.tag} selected={draft.interval === i.id} onPress={() => set({ interval: i.id })}
+            <ChoiceCard key={i.id} title={tb(i.title)} subtitle={tb(i.sub)} tag={i.tag ? tb(i.tag) : undefined} selected={draft.interval === i.id} onPress={() => set({ interval: i.id })}
               icon={i.id === "once" ? Ticket : i.id === "unlimited" ? InfinityIcon : Repeat} />
           ))}
           {draft.interval !== "once" && (
             <View style={{ gap: 10, marginTop: 4 }}>
-              <Text style={s.small}>Högst antal gånger per medlem</Text>
+              <Text style={s.small}>{tb("Högst antal gånger per medlem")}</Text>
               <View style={s.chips}>
                 {[null, 2, 3, 5, 10].map((n) => (
-                  <Chip key={String(n)} label={n == null ? "Ingen gräns" : `${n} gånger`} selected={draft.limit === n} onPress={() => set({ limit: n })} />
+                  <Chip key={String(n)} label={n == null ? tb("Ingen gräns") : tb("{{0}} gånger", { 0: n })} selected={draft.limit === n} onPress={() => set({ limit: n })} />
                 ))}
               </View>
             </View>
@@ -234,13 +236,13 @@ export default function OfferComposer() {
       break;
     case "time":
       content = (
-        <StepLayout title="Hur länge gäller det?" subtitle={locked ? "Någon har redan använt erbjudandet, så bara bilden och slutdatumet går att ändra." : "Erbjudandet försvinner av sig självt när tiden gått ut."}
+        <StepLayout title={tb("Hur länge gäller det?")} subtitle={locked ? tb("Någon har redan använt erbjudandet, så bara bilden och slutdatumet går att ändra.") : tb("Erbjudandet försvinner av sig självt när tiden gått ut.")}
           footer={footer(draft.expiry !== "date" || !!draft.picked)} scroll>
-          <ChoiceCard icon={InfinityIcon} title="Tills vidare" subtitle="Tills ni avslutar det själva." selected={draft.expiry === "none"} onPress={() => set({ expiry: "none" })} />
-          <ChoiceCard icon={CalendarDays} title="En månad" subtitle={`Till ${rangeText(addDaysIso(todayIso(), 30))}`} selected={draft.expiry === "month1"} onPress={() => set({ expiry: "month1" })} />
-          <ChoiceCard icon={CalendarDays} title="Två veckor" subtitle={`Till ${rangeText(addDaysIso(todayIso(), 14))}`} selected={draft.expiry === "weeks2"} onPress={() => set({ expiry: "weeks2" })} />
-          {summer && <ChoiceCard icon={Sun} title="Hela sommaren" subtitle="Till 31 augusti" selected={draft.expiry === "summer"} onPress={() => set({ expiry: "summer" })} />}
-          <ChoiceCard icon={CalendarRange} title="Välj ett datum" subtitle={draft.expiry === "date" && draft.picked ? `Till ${rangeText(draft.picked)}` : undefined} selected={draft.expiry === "date"} onPress={() => set({ expiry: "date" })} />
+          <ChoiceCard icon={InfinityIcon} title={tb("Tills vidare")} subtitle={tb("Tills ni avslutar det själva.")} selected={draft.expiry === "none"} onPress={() => set({ expiry: "none" })} />
+          <ChoiceCard icon={CalendarDays} title={tb("En månad")} subtitle={tb("Till {{0}}", { 0: rangeText(addDaysIso(todayIso(), 30)) })} selected={draft.expiry === "month1"} onPress={() => set({ expiry: "month1" })} />
+          <ChoiceCard icon={CalendarDays} title={tb("Två veckor")} subtitle={tb("Till {{0}}", { 0: rangeText(addDaysIso(todayIso(), 14)) })} selected={draft.expiry === "weeks2"} onPress={() => set({ expiry: "weeks2" })} />
+          {summer && <ChoiceCard icon={Sun} title={tb("Hela sommaren")} subtitle={tb("Till 31 augusti")} selected={draft.expiry === "summer"} onPress={() => set({ expiry: "summer" })} />}
+          <ChoiceCard icon={CalendarRange} title={tb("Välj ett datum")} subtitle={draft.expiry === "date" && draft.picked ? tb("Till {{0}}", { 0: rangeText(draft.picked) }) : undefined} selected={draft.expiry === "date"} onPress={() => set({ expiry: "date" })} />
           {draft.expiry === "date" && (
             <View style={s.calendar}>
               <DateCalendar value={{ mode: "single", date: draft.picked }} onChange={(v) => v.mode === "single" && set({ picked: v.date })} />
@@ -251,47 +253,47 @@ export default function OfferComposer() {
       break;
     case "image":
       content = (
-        <StepLayout title="Välj en bild" subtitle="En bild som visar känslan. Era egna bilder finns här – eller ta en ny." footer={footer(true)} scroll>
+        <StepLayout title={tb("Välj en bild")} subtitle={tb("En bild som visar känslan. Era egna bilder finns här – eller ta en ny.")} footer={footer(true)} scroll>
           <ImageChooser placeId={placeId} images={images} value={draft.image} onChange={(url) => set({ image: url })} onError={(m) => toast.current?.show(m)} />
         </StepLayout>
       );
       break;
     case "terms":
       content = (
-        <StepLayout title="Några villkor?" subtitle="Valfritt. Skriv det gästen behöver veta – när det gäller och hur man gör."
-          footer={<AuthButton label={draft.description.trim() ? "Fortsätt" : "Hoppa över"} onPress={wizard.next} />}>
-          <PortalField label="Villkor" value={draft.description} multiline maxLength={400} counter={400}
-            placeholder="T.ex. Gäller vardagar 11–14. Visa erbjudandet innan du beställer." onChangeText={(v) => set({ description: v })} />
+        <StepLayout title={tb("Några villkor?")} subtitle={tb("Valfritt. Skriv det gästen behöver veta – när det gäller och hur man gör.")}
+          footer={<AuthButton label={draft.description.trim() ? tb("Fortsätt") : tb("Hoppa över")} onPress={wizard.next} />}>
+          <PortalField label={tb("Villkor")} value={draft.description} multiline maxLength={400} counter={400}
+            placeholder={tb("T.ex. Gäller vardagar 11–14. Visa erbjudandet innan du beställer.")} onChangeText={(v) => set({ description: v })} />
         </StepLayout>
       );
       break;
     case "review":
       content = (
-        <StepLayout title="Så här ser det ut" subtitle="Precis så här visas det för medlemmarna." scroll
+        <StepLayout title={tb("Så här ser det ut")} subtitle={tb("Precis så här visas det för medlemmarna.")} scroll
           footer={<>
             {error && <FieldNote tone="danger" text={error} />}
-            <AuthButton label={editingId ? "Spara ändringarna" : "Publicera"} onPress={publish} loading={busy} />
+            <AuthButton label={editingId ? tb("Spara ändringarna") : tb("Publicera")} onPress={publish} loading={busy} />
           </>}>
           <View pointerEvents="none">
-            <OfferTicket offer={preview} used={false} torn={false} edge={edge} linkPlace={false} onOpen={() => {}} lng="sv" />
+            <OfferTicket offer={preview} used={false} torn={false} edge={edge} linkPlace={false} onOpen={() => {}} />
           </View>
           <View style={s.summary}>
-            <SummaryRow label="Gäller" value={expiresIso ? `till ${rangeText(expiresIso)}` : "tills vidare"} />
-            <SummaryRow label="Används" value={INTERVALS.find((i) => i.id === draft.interval)?.title.toLowerCase() ?? ""} />
-            {value ? <SummaryRow label="Värde" value={`${value.toLocaleString("sv-SE")} kr`} /> : null}
+            <SummaryRow label={tb("Gäller")} value={expiresIso ? `till ${rangeText(expiresIso)}` : tb("tills vidare")} />
+            <SummaryRow label={tb("Används")} value={INTERVALS.find((i) => i.id === draft.interval)?.title.toLowerCase() ?? ""} />
+            {value ? <SummaryRow label={tb("Värde")} value={`${whole(value)} kr`} /> : null}
           </View>
-          <Note text="Ni kan pausa eller avsluta det när som helst under Erbjudanden." />
+          <Note text={tb("Ni kan pausa eller avsluta det när som helst under Erbjudanden.")} />
         </StepLayout>
       );
       break;
     case "done":
       content = (
         <DoneMoment
-          title={editingId ? "Sparat!" : "Erbjudandet är ute!"}
-          text={editingId ? "Ändringen syns direkt i appen." : "Nu syns det för alla med Österlenpasset – på er sida och under Förmåner."}
-          primary={{ label: "Klart", onPress: () => router.back() }}
+          title={editingId ? tb("Sparat!") : tb("Erbjudandet är ute!")}
+          text={editingId ? tb("Ändringen syns direkt i appen.") : tb("Nu syns det för alla med Österlenpasset – på er sida och under Förmåner.")}
+          primary={{ label: tb("Klart"), onPress: () => router.back() }}
           secondary={editingId ? undefined : {
-            label: "Berätta om det i en story",
+            label: tb("Berätta om det i en story"),
             onPress: () => { router.back(); setTimeout(() => pushOnce(router, `/business/story?place=${placeId}&offer=${savedId}`), 350); },
           }}
         />

@@ -19,6 +19,7 @@ import { BUSINESS_EMAIL as HELP_EMAIL } from "@/lib/appInfo";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 
 export default function BusinessSettings() {
@@ -43,27 +44,27 @@ export default function BusinessSettings() {
     const y = e.nativeEvent.pageY;
     const fail = (title: string, message: string) => actionMenu.ask(y, { title, message, actions: [] });
     actionMenu.ask(y, {
-      title: `Lämna ${mine.name}?`, message: "Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka.",
+      title: tb("Lämna {{0}}?", { 0: mine.name }), message: tb("Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka."),
       actions: [{
-        label: "Lämna", destructive: true,
+        label: tb("Lämna"), destructive: true,
         onPress: () => team.remove(user.id).then((r) => {
           if (r.ok) router.dismissTo("/settings");
-          else fail("Det går inte än", r.reason === "last_owner" ? "Du är den enda ägaren. Gör någon annan till ägare under Personal först." : "Försök igen.");
-        }).catch((err) => fail("Det gick inte", businessError(err))),
+          else fail(tb("Det går inte än"), r.reason === "last_owner" ? tb("Du är den enda ägaren. Gör någon annan till ägare under Personal först.") : tb("Försök igen."));
+        }).catch((err) => fail(tb("Det gick inte"), businessError(err))),
       }],
     });
   };
 
   return (
-    <SettingsScreen title="Inställningar" right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
+    <SettingsScreen title={tb("Inställningar")} right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
       {owner && (
         <Rise index={0}>
-          <SettingsGroup label="Er sida i appen">
+          <SettingsGroup label={tb("Er sida i appen")}>
             <SettingsRow
               icon={UserPlus}
               wrap
-              label="Visa ”Är det här ditt företag?”"
-              subtitle="Längst ner på er sida. Då kan nyanställda be om att få gå med – ni godkänner själva."
+              label={tb("Visa ”Är det här ditt företag?”")}
+              subtitle={tb("Längst ner på er sida. Då kan nyanställda be om att få gå med – ni godkänner själva.")}
               right={showLink === null ? undefined : (
                 <IconSwitch value={showLink} onChange={(v) => { setShowLink(v); auto.queue({ claim_link_hidden: !v }, true); }} />
               )}
@@ -73,18 +74,18 @@ export default function BusinessSettings() {
       )}
       <Rise index={1}>
         <SettingsGroup>
-          <SettingsRow icon={FileText} label="Villkor för företag" onPress={() => pushOnce(router, "/business/terms")} />
+          <SettingsRow icon={FileText} label={tb("Villkor för företag")} onPress={() => pushOnce(router, "/business/terms")} />
           <SettingsRow
             icon={LifeBuoy}
-            label="Hjälp"
-            subtitle={`Mejla ${HELP_EMAIL} – vi svarar personligen.`}
+            label={tb("Hjälp")}
+            subtitle={tb("Mejla {{0}} – vi svarar personligen.", { 0: HELP_EMAIL })}
             onPress={() => Linking.openURL(`mailto:${HELP_EMAIL}?subject=${encodeURIComponent(`Hjälp med ${mine?.name ?? "Mitt företag"}`)}`).catch(() => {})}
           />
         </SettingsGroup>
       </Rise>
       <Rise index={2}>
         <SettingsGroup>
-          <SettingsRow icon={LogOut} label={`Lämna ${mine?.name ?? "företaget"}`} destructive onPress={leave} />
+          <SettingsRow icon={LogOut} label={tb("Lämna {{0}}", { 0: mine?.name ?? "företaget" })} destructive onPress={leave} />
         </SettingsGroup>
       </Rise>
       {auto.error && <Text style={[s.error, { color: colors.danger }]}>{auto.error}</Text>}

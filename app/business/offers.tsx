@@ -20,6 +20,7 @@ import { businessError, type BusinessOffer } from "@/lib/business";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
 
 type Tab = "active" | "paused" | "ended";
 
@@ -53,8 +54,8 @@ export default function BusinessOffers() {
   const run = async (id: string, action: "pause" | "resume" | "end" | "delete", done: string) => {
     try {
       const r = await actions.act(id, action);
-      if (r && r.ok === false) toast.current?.show(r.reason === "expired" ? "Slutdatumet har passerat – ändra det först" : "Det gick inte");
-      else toast.current?.show(r?.ended ? "Avslutat (någon har använt det, så det sparas)" : done);
+      if (r && r.ok === false) toast.current?.show(r.reason === "expired" ? tb("Slutdatumet har passerat – ändra det först") : tb("Det gick inte"));
+      else toast.current?.show(r?.ended ? tb("Avslutat (någon har använt det, så det sparas)") : done);
     } catch (e) {
       toast.current?.show(businessError(e));
     }
@@ -74,13 +75,13 @@ export default function BusinessOffers() {
 
   return (
     <>
-      <SettingsScreen title="Erbjudanden" footer={<GoldButton label="Nytt erbjudande" onPress={() => pushOnce(router, `/business/offer?place=${placeId}`)} />}>
+      <SettingsScreen title={tb("Erbjudanden")} footer={<GoldButton label={tb("Nytt erbjudande")} onPress={() => pushOnce(router, `/business/offer?place=${placeId}`)} />}>
         <Rise index={0}>
           <PortalSegmented
             options={[
-              { id: "active", label: `Aktiva${counts.active ? ` · ${counts.active}` : ""}` },
-              { id: "paused", label: `Pausade${counts.paused ? ` · ${counts.paused}` : ""}` },
-              { id: "ended", label: "Avslutade" },
+              { id: "active", label: tb("Aktiva{{0}}", { 0: counts.active ? ` · ${counts.active}` : "" }) },
+              { id: "paused", label: tb("Pausade{{0}}", { 0: counts.paused ? ` · ${counts.paused}` : "" }) },
+              { id: "ended", label: tb("Avslutade") },
             ]}
             value={tab}
             onChange={setTab}
@@ -94,10 +95,10 @@ export default function BusinessOffers() {
             <View style={s.empty}>
               <View style={s.emptyIcon}><Ticket size={28} color={colors.goldText} strokeWidth={1.8} /></View>
               <Text style={s.emptyTitle}>
-                {tab === "active" ? "Inget aktivt erbjudande" : tab === "paused" ? "Inga pausade" : "Inga avslutade än"}
+                {tab === "active" ? tb("Inget aktivt erbjudande") : tab === "paused" ? tb("Inga pausade") : tb("Inga avslutade än")}
               </Text>
               {tab === "active" && (
-                <Text style={s.emptyText}>Ett erbjudande i Österlenpasset ger er nya gäster – och syns för alla medlemmar.</Text>
+                <Text style={s.emptyText}>{tb("Ett erbjudande i Österlenpasset ger er nya gäster – och syns för alla medlemmar.")}</Text>
               )}
             </View>
           </Rise>
@@ -112,12 +113,12 @@ export default function BusinessOffers() {
                   <Text style={s.title} numberOfLines={2}>{o.offer.title}</Text>
                   {!!o.offer.savings_label && <Text style={s.label}>{o.offer.savings_label}</Text>}
                   <Text style={s.meta}>
-                    {RULE[o.offer.redemption_interval ?? "once"]}
+                    {tb(RULE[o.offer.redemption_interval ?? "once"])}
                     {" · "}
-                    {o.offer.expires_at ? `${tab === "ended" ? "slutade" : "till"} ${rangeText(o.offer.expires_at.slice(0, 10))}` : "tills vidare"}
+                    {o.offer.expires_at ? `${tab === "ended" ? "slutade" : "till"} ${rangeText(o.offer.expires_at.slice(0, 10))}` : tb("tills vidare")}
                   </Text>
                   <Text style={s.used}>
-                    {o.redemptions === 0 ? "Ingen har använt det än" : `Använt ${o.redemptions} ${o.redemptions === 1 ? "gång" : "gånger"} av ${o.people} ${o.people === 1 ? "person" : "personer"}`}
+                    {o.redemptions === 0 ? tb("Ingen har använt det än") : tb(o.redemptions === 1 ? "Använt 1 gång av 1 person" : o.people === 1 ? "Använt {{0}} gånger av 1 person" : "Använt {{0}} gånger av {{1}} personer", { 0: o.redemptions, 1: o.people })}
                   </Text>
                 </View>
               </Pressable>

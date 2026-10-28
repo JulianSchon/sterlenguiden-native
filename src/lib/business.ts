@@ -11,6 +11,7 @@ import { preparePhoto } from "@/lib/photos";
 import type { HoursException } from "@/lib/openingHours";
 import type { Offer } from "@/lib/offers";
 import { findCategory, type CategoryId } from "@/theme/categories";
+import { tb } from "@/i18n/business";
 
 // ── Typerna ─────────────────────────────────────────────────────────────────
 
@@ -246,25 +247,25 @@ const FIELD_NAMES: Record<string, string> = {
 export function businessError(e: unknown): string {
   const message = e instanceof Error ? e.message : String(e ?? "");
   const code = e instanceof BusinessError ? e.code : undefined;
-  if (code === "PGRST202" || /could not find the function/i.test(message)) return "Den här delen är inte igång än. Försök igen lite senare.";
-  if (/network|fetch|timeout/i.test(message)) return "Vi får ingen kontakt just nu. Kolla nätet och försök igen.";
-  if (message.includes("not_member")) return "Du sköter inte den här platsen längre.";
-  if (message.includes("not_owner")) return "Det här kan bara en ägare göra.";
-  if (message.includes("no_permission")) return "Det här har du inte tillgång till. Fråga en ägare för företaget.";
-  if (message.includes("not_signed_in")) return "Du behöver vara inloggad.";
-  if (message.includes("locked")) return "Någon har redan använt erbjudandet, så det kan inte skrivas om. Avsluta det och skapa ett nytt i stället.";
-  if (message.includes("too_many:offers")) return "Ni kan ha högst 10 erbjudanden igång samtidigt.";
-  if (message.includes("too_many:stories")) return "Ni har lagt upp många stories i dag. Vänta till i morgon.";
-  if (message.includes("too_many:events")) return "Ni har väldigt många kommande evenemang. Ta bort några gamla först.";
-  if (message.includes("too_many:dates")) return "Högst 52 tillfällen åt gången.";
-  if (message.includes("too_many:image_url")) return "Högst 10 bilder.";
-  if (message.includes("invalid:savings_value")) return "Värdet kan vara högst 5 000 kr.";
-  if (message.includes("invalid:expires_at")) return "Slutdatumet behöver vara inom två år.";
-  if (message.includes("invalid:hours_exceptions") || message.includes("too_many:hours_exceptions")) return "Datumen ser inte rätt ut. Kolla att slutet kommer efter början.";
+  if (code === "PGRST202" || /could not find the function/i.test(message)) return tb("Den här delen är inte igång än. Försök igen lite senare.");
+  if (/network|fetch|timeout/i.test(message)) return tb("Vi får ingen kontakt just nu. Kolla nätet och försök igen.");
+  if (message.includes("not_member")) return tb("Du sköter inte den här platsen längre.");
+  if (message.includes("not_owner")) return tb("Det här kan bara en ägare göra.");
+  if (message.includes("no_permission")) return tb("Det här har du inte tillgång till. Fråga en ägare för företaget.");
+  if (message.includes("not_signed_in")) return tb("Du behöver vara inloggad.");
+  if (message.includes("locked")) return tb("Någon har redan använt erbjudandet, så det kan inte skrivas om. Avsluta det och skapa ett nytt i stället.");
+  if (message.includes("too_many:offers")) return tb("Ni kan ha högst 10 erbjudanden igång samtidigt.");
+  if (message.includes("too_many:stories")) return tb("Ni har lagt upp många stories i dag. Vänta till i morgon.");
+  if (message.includes("too_many:events")) return tb("Ni har väldigt många kommande evenemang. Ta bort några gamla först.");
+  if (message.includes("too_many:dates")) return tb("Högst 52 tillfällen åt gången.");
+  if (message.includes("too_many:image_url")) return tb("Högst 10 bilder.");
+  if (message.includes("invalid:savings_value")) return tb("Värdet kan vara högst 5 000 kr.");
+  if (message.includes("invalid:expires_at")) return tb("Slutdatumet behöver vara inom två år.");
+  if (message.includes("invalid:hours_exceptions") || message.includes("too_many:hours_exceptions")) return tb("Datumen ser inte rätt ut. Kolla att slutet kommer efter början.");
   const field = message.match(/(?:invalid|too_long):([a-z_]+)/)?.[1];
-  if (field && message.includes("too_long")) return `${FIELD_NAMES[field] ?? "Texten"} är för lång.`;
-  if (field) return `${FIELD_NAMES[field] ?? "Något"} ser inte rätt ut.`;
-  return "Något gick fel. Försök igen.";
+  if (field && message.includes("too_long")) return tb("{{0}} är för lång.", { 0: tb(FIELD_NAMES[field] ?? "Texten") });
+  if (field) return tb("{{0}} ser inte rätt ut.", { 0: tb(FIELD_NAMES[field] ?? "Något") });
+  return tb("Något gick fel. Försök igen.");
 }
 
 // ── Bilderna ────────────────────────────────────────────────────────────────
@@ -413,23 +414,23 @@ function swedishHolidays(year: number): Holiday[] {
   const e = easter(year);
   const plus = (n: number) => new Date(e.getFullYear(), e.getMonth(), e.getDate() + n);
   const list: [Date, string][] = [
-    [new Date(year, 0, 1), "Nyårsdagen"],
-    [new Date(year, 0, 6), "Trettondedag jul"],
-    [plus(-2), "Långfredagen"],
-    [plus(-1), "Påskafton"],
-    [e, "Påskdagen"],
-    [plus(1), "Annandag påsk"],
-    [new Date(year, 4, 1), "Första maj"],
-    [plus(39), "Kristi himmelsfärd"],
-    [plus(49), "Pingstdagen"],
-    [new Date(year, 5, 6), "Nationaldagen"],
-    [firstWeekday(year, 5, 19, 5), "Midsommarafton"],
-    [firstWeekday(year, 5, 20, 6), "Midsommardagen"],
-    [firstWeekday(year, 9, 31, 6), "Alla helgons dag"],
-    [new Date(year, 11, 24), "Julafton"],
-    [new Date(year, 11, 25), "Juldagen"],
-    [new Date(year, 11, 26), "Annandag jul"],
-    [new Date(year, 11, 31), "Nyårsafton"],
+    [new Date(year, 0, 1), tb("Nyårsdagen")],
+    [new Date(year, 0, 6), tb("Trettondedag jul")],
+    [plus(-2), tb("Långfredagen")],
+    [plus(-1), tb("Påskafton")],
+    [e, tb("Påskdagen")],
+    [plus(1), tb("Annandag påsk")],
+    [new Date(year, 4, 1), tb("Första maj")],
+    [plus(39), tb("Kristi himmelsfärd")],
+    [plus(49), tb("Pingstdagen")],
+    [new Date(year, 5, 6), tb("Nationaldagen")],
+    [firstWeekday(year, 5, 19, 5), tb("Midsommarafton")],
+    [firstWeekday(year, 5, 20, 6), tb("Midsommardagen")],
+    [firstWeekday(year, 9, 31, 6), tb("Alla helgons dag")],
+    [new Date(year, 11, 24), tb("Julafton")],
+    [new Date(year, 11, 25), tb("Juldagen")],
+    [new Date(year, 11, 26), tb("Annandag jul")],
+    [new Date(year, 11, 31), tb("Nyårsafton")],
   ];
   return list.map(([d, name]) => ({ date: iso(d), name })).sort((a, b) => a.date.localeCompare(b.date));
 }

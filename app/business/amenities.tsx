@@ -15,6 +15,7 @@ import { PRACTICAL, parseAmenities } from "@/lib/mapFilters";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import i18n from "i18next";
+import { tb } from "@/i18n/business";
 
 const ITEMS = PRACTICAL.filter((p) => p.id !== "openNow");
 const HELP: Record<string, string> = {
@@ -47,9 +48,9 @@ export default function BusinessAmenities() {
   };
 
   return (
-    <SettingsScreen title="Det här finns" right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
+    <SettingsScreen title={tb("Det här finns")} right={<SaveIndicator state={auto.state} onRetry={auto.flush} />}>
       <Rise index={0}>
-        <Text style={s.lead}>Slå på det som finns hos er. Det syns på er sida, och gästerna hittar er när de söker på det.</Text>
+        <Text style={s.lead}>{tb("Slå på det som finns hos er. Det syns på er sida, och gästerna hittar er när de söker på det.")}</Text>
       </Rise>
       <Rise index={1}>
         {on ? (
@@ -58,8 +59,8 @@ export default function BusinessAmenities() {
               <SettingsRow
                 key={item.id}
                 icon={item.Icon}
-                label={i18n.t(item.labelKey as "map.practical.openNow", { lng: "sv" })}
-                subtitle={HELP[item.id]}
+                label={i18n.t(item.labelKey as "map.practical.openNow")}
+                subtitle={HELP[item.id] ? tb(HELP[item.id]) : undefined}
                 right={<IconSwitch value={!!on[item.id]} onChange={(v) => toggle(item.id, v)} />}
               />
             ))}

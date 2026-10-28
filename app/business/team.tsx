@@ -13,7 +13,6 @@ import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TouchableOpacity, View, type GestureResponderEvent } from "react-native";
 import { useRouter } from "expo-router";
 import { formatDistanceToNowStrict } from "date-fns";
-import { sv } from "date-fns/locale";
 import { Mail, UserPlus, Users } from "lucide-react-native";
 import { useActionMenu, type MenuItem } from "@/components/ActionMenu";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
@@ -27,6 +26,8 @@ import { DEFAULT_PERMISSIONS, PERMISSIONS, businessError, isEmail, type MemberRo
 import { IconSwitch } from "@/components/IconSwitch";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { tb } from "@/i18n/business";
+import { dateLocale } from "@/i18n/dates";
 
 const WHAT: Record<string, string> = {
   hours: "ändrade öppettiderna", exceptions: "ändrade tillfälliga öppettider", about: "ändrade texten om er",
@@ -36,7 +37,7 @@ const WHAT: Record<string, string> = {
   claimed: "tog hand om sidan", joined: "gick med",
 };
 
-const ago = (iso: string) => formatDistanceToNowStrict(new Date(iso), { locale: sv, addSuffix: true });
+const ago = (iso: string) => formatDistanceToNowStrict(new Date(iso), { locale: dateLocale(), addSuffix: true });
 
 export default function BusinessTeam() {
   const router = useRouter();
@@ -64,13 +65,13 @@ export default function BusinessTeam() {
     try {
       const r = await actions.invite(email.trim(), role, role === "staff" ? perms : null);
       if (!r.ok) {
-        setInviteError(r.reason === "already_member" ? "Den personen är redan med." : r.reason === "unknown_user" ? "Vi hittar ingen med det användarnamnet." : r.reason === "invalid_email" ? "E-postadressen ser inte rätt ut." : r.reason === "too_many" ? "Ni har många inbjudningar som väntar. Ta bort några först." : "Det gick inte.");
+        setInviteError(r.reason === "already_member" ? tb("Den personen är redan med.") : r.reason === "unknown_user" ? tb("Vi hittar ingen med det användarnamnet.") : r.reason === "invalid_email" ? tb("E-postadressen ser inte rätt ut.") : r.reason === "too_many" ? tb("Ni har många inbjudningar som väntar. Ta bort några först.") : tb("Det gick inte."));
         return;
       }
       setInviteOpen(false);
       setEmail("");
       setPerms(DEFAULT_PERMISSIONS);
-      setTimeout(() => toast.current?.show(r.emailed ? "Inbjudan skickad" : "Inbjudan sparad – be personen logga in med den adressen"), 300);
+      setTimeout(() => toast.current?.show(r.emailed ? tb("Inbjudan skickad") : tb("Inbjudan sparad – be personen logga in med den adressen")), 300);
     } catch (e) {
       setInviteError(businessError(e));
     } finally {
@@ -79,7 +80,7 @@ export default function BusinessTeam() {
   };
 
   const result = (p: Promise<{ ok: boolean; reason?: string }>, done: string) =>
-    p.then((r) => toast.current?.show(r.ok ? done : r.reason === "last_owner" ? "Det måste finnas minst en ägare" : "Det gick inte"))
+    p.then((r) => toast.current?.show(r.ok ? done : r.reason === "last_owner" ? tb("Det måste finnas minst en ägare") : tb("Det gick inte")))
       .catch((e) => toast.current?.show(businessError(e)));
 
   const memberMenu = (e: GestureResponderEvent, m: TeamMember) => {
@@ -118,7 +119,7 @@ export default function BusinessTeam() {
 
   return (
     <>
-      <SettingsScreen title="Personal">
+      <SettingsScreen title={tb("Personal")}>
         {!team ? (
           <><Skeleton height={140} radius={22} /><Skeleton height={90} radius={22} /></>
         ) : (
@@ -126,18 +127,18 @@ export default function BusinessTeam() {
             {team.requests.length > 0 && owner && (
               <Rise index={0}>
                 <View>
-                  <SectionHeader title="Vill gå med" />
+                  <SectionHeader title={tb("Vill gå med")} />
                   <GradientCard borderColor={colors.goldBorder}>
                     {team.requests.map((r, i) => (
                       <View key={r.id} style={[s.request, i > 0 && s.border]}>
-                        <Text style={s.requestName}>{r.name ?? "Någon"}{r.role_title ? ` · ${r.role_title}` : ""}</Text>
+                        <Text style={s.requestName}>{r.name ?? tb("Någon")}{r.role_title ? ` · ${r.role_title}` : ""}</Text>
                         {!!r.message && <Text style={s.requestMsg}>”{r.message}”</Text>}
                         <View style={s.requestButtons}>
-                          <TouchableOpacity style={[s.reqBtn, { backgroundColor: colors.gold }]} onPress={() => result(actions.answerJoin(r.id, true), `${r.name ?? "Personen"} är med`)}>
-                            <Text style={[s.reqBtnText, { color: colors.onGold }]}>Godkänn</Text>
+                          <TouchableOpacity style={[s.reqBtn, { backgroundColor: colors.gold }]} onPress={() => result(actions.answerJoin(r.id, true), tb("{{0}} är med", { 0: r.name ?? "Personen" }))}>
+                            <Text style={[s.reqBtnText, { color: colors.onGold }]}>{tb("Godkänn")}</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity style={s.reqBtn} onPress={() => result(actions.answerJoin(r.id, false), "Nekad")}>
-                            <Text style={s.reqBtnText}>Neka</Text>
+                          <TouchableOpacity style={s.reqBtn} onPress={() => result(actions.answerJoin(r.id, false), tb("Nekad"))}>
+                            <Text style={s.reqBtnText}>{tb("Neka")}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -149,7 +150,7 @@ export default function BusinessTeam() {
 
             <Rise index={1}>
               <View>
-                <SectionHeader title={`Sköter ${mine?.name ?? "sidan"}`} />
+                <SectionHeader title={tb("Sköter {{0}}", { 0: mine?.name ?? "sidan" })} />
                 <GradientCard>
                   {team.members.map((m, i) => (
                     <Pressable key={m.user_id} onPress={(e) => memberMenu(e, m)} style={({ pressed }) => [s.member, i > 0 && s.border, pressed && { backgroundColor: colors.fill }]}>
@@ -157,13 +158,13 @@ export default function BusinessTeam() {
                         <Text style={s.avatarText}>{(m.name ?? "?").slice(0, 1).toUpperCase()}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.memberName}>{m.name ?? "Utan namn"}{m.me ? " (du)" : ""}</Text>
+                        <Text style={s.memberName}>{m.name ?? tb("Utan namn")}{m.me ? " (du)" : ""}</Text>
                         {m.role === "staff" ? (
                           <Text style={s.memberSub} numberOfLines={1}>{permissionSummary(m.permissions)}</Text>
                         ) : m.username ? <Text style={s.memberSub}>@{m.username}</Text> : null}
                       </View>
                       <Text style={[s.role, m.role === "owner" && { color: colors.goldText, backgroundColor: colors.goldSoft }]}>
-                        {m.role === "owner" ? "Ägare" : "Personal"}
+                        {m.role === "owner" ? tb("Ägare") : tb("Personal")}
                       </Text>
                     </Pressable>
                   ))}
@@ -174,18 +175,18 @@ export default function BusinessTeam() {
             {team.invites.length > 0 && (
               <Rise index={2}>
                 <View>
-                  <SectionHeader title="Inbjudna" />
+                  <SectionHeader title={tb("Inbjudna")} />
                   <GradientCard>
                     {team.invites.map((inv, i) => (
                       <View key={inv.id} style={[s.member, i > 0 && s.border]}>
                         <Mail size={18} color={colors.muted} strokeWidth={2} />
                         <View style={{ flex: 1 }}>
                           <Text style={s.memberName} numberOfLines={1}>{inv.email}</Text>
-                          <Text style={s.memberSub}>{inv.role === "owner" ? "Ägare" : "Personal"} · inbjuden {ago(inv.created_at)}</Text>
+                          <Text style={s.memberSub}>{inv.role === "owner" ? tb("Ägare") : tb("Personal")} {tb("· inbjuden")} {ago(inv.created_at)}</Text>
                         </View>
                         {owner && (
-                          <TouchableOpacity hitSlop={8} onPress={() => result(actions.cancelInvite(inv.id).then(() => ({ ok: true })), "Inbjudan borttagen")}>
-                            <Text style={s.remove}>Ta bort</Text>
+                          <TouchableOpacity hitSlop={8} onPress={() => result(actions.cancelInvite(inv.id).then(() => ({ ok: true })), tb("Inbjudan borttagen"))}>
+                            <Text style={s.remove}>{tb("Ta bort")}</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -199,23 +200,23 @@ export default function BusinessTeam() {
               <Rise index={3}>
                 <TouchableOpacity style={s.inviteBtn} activeOpacity={0.8} onPress={() => { setInviteError(null); setInviteOpen(true); }}>
                   <UserPlus size={19} color={colors.goldText} strokeWidth={2} />
-                  <Text style={s.inviteText}>Bjud in någon</Text>
+                  <Text style={s.inviteText}>{tb("Bjud in någon")}</Text>
                 </TouchableOpacity>
               </Rise>
             )}
 
             <Rise index={4}>
-              <Note icon={Users} text="Ägare kan allt och väljer vad var och en i personalen får göra – tryck på en person för att ändra. Ny personal får allt utom erbjudanden." />
+              <Note icon={Users} text={tb("Ägare kan allt och väljer vad var och en i personalen får göra – tryck på en person för att ändra. Ny personal får allt utom erbjudanden.")} />
             </Rise>
 
             {team.changes.length > 0 && (
               <Rise index={5}>
                 <View>
-                  <SectionHeader title="Senaste ändringarna" />
+                  <SectionHeader title={tb("Senaste ändringarna")} />
                   <GradientCard>
                     {team.changes.map((c, i) => (
                       <View key={`${c.what}-${c.at}`} style={[s.change, i > 0 && s.border]}>
-                        <Text style={s.changeText}><Text style={s.changeName}>{c.name ?? "Någon"}</Text> {WHAT[c.what] ?? "ändrade sidan"}</Text>
+                        <Text style={s.changeText}><Text style={s.changeName}>{c.name ?? tb("Någon")}</Text> {tb(WHAT[c.what] ?? "ändrade sidan")}</Text>
                         <Text style={s.changeAt}>{ago(c.at)}</Text>
                       </View>
                     ))}
@@ -227,37 +228,37 @@ export default function BusinessTeam() {
         )}
       </SettingsScreen>
 
-      <Sheet visible={inviteOpen} onClose={() => setInviteOpen(false)} title="Bjud in någon">
+      <Sheet visible={inviteOpen} onClose={() => setInviteOpen(false)} title={tb("Bjud in någon")}>
         <View style={{ gap: 16 }}>
           <PortalField
-            label="E-post eller användarnamn"
+            label={tb("E-post eller användarnamn")}
             icon={Mail}
             value={email}
             onChangeText={(v) => { setEmail(v); setInviteError(null); }}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="namn@exempel.se eller @användarnamn"
+            placeholder={tb("namn@exempel.se eller @användarnamn")}
             error={inviteError}
-            help="Har personen redan appen räcker användarnamnet – inbjudan väntar under Inställningar nästa gång hen öppnar appen."
+            help={tb("Har personen redan appen räcker användarnamnet – inbjudan väntar under Inställningar nästa gång hen öppnar appen.")}
           />
-          <PortalSegmented options={[{ id: "staff", label: "Personal" }, { id: "owner", label: "Ägare" }]} value={role} onChange={setRole} />
+          <PortalSegmented options={[{ id: "staff", label: tb("Personal") }, { id: "owner", label: tb("Ägare") }]} value={role} onChange={setRole} />
           {role === "staff" ? (
             <PermissionToggles value={perms} onChange={setPerms} />
           ) : (
-            <Text style={s.ownerNote}>En ägare kan göra allt, även bjuda in och ta bort personal.</Text>
+            <Text style={s.ownerNote}>{tb("En ägare kan göra allt, även bjuda in och ta bort personal.")}</Text>
           )}
         </View>
-        <PrimaryButton label="Skicka inbjudan" onPress={sendInvite} loading={busy} disabled={!isEmail(email) && !/^@?[a-z0-9._]{3,20}$/i.test(email.trim())} />
+        <PrimaryButton label={tb("Skicka inbjudan")} onPress={sendInvite} loading={busy} disabled={!isEmail(email) && !/^@?[a-z0-9._]{3,20}$/i.test(email.trim())} />
       </Sheet>
-      <Sheet visible={!!editing} onClose={() => setEditing(null)} title={editing ? `Vad får ${editing.name ?? "hen"} göra?` : ""}>
+      <Sheet visible={!!editing} onClose={() => setEditing(null)} title={editing ? tb("Vad får {{0}} göra?", { 0: editing.name ?? "hen" }) : ""}>
         <PermissionToggles value={editPerms} onChange={setEditPerms} />
         <PrimaryButton
-          label="Spara"
+          label={tb("Spara")}
           onPress={() => {
             const who = editing;
             setEditing(null);
-            if (who) result(actions.setPermissions(who.user_id, editPerms), "Sparat");
+            if (who) result(actions.setPermissions(who.user_id, editPerms), tb("Sparat"));
           }}
         />
       </Sheet>
@@ -269,9 +270,9 @@ export default function BusinessTeam() {
 
 /** "Stories, evenemang och sidan" — vad någon i personalen får göra */
 function permissionSummary(perms: Permission[] | null | undefined): string {
-  if (!perms) return "Får göra allt";
-  if (perms.length === 0) return "Får bara titta";
-  const names: Record<Permission, string> = { stories: "stories", events: "evenemang", offers: "erbjudanden", info: "ändra sidan" };
+  if (!perms) return tb("Får göra allt");
+  if (perms.length === 0) return tb("Får bara titta");
+  const names: Record<Permission, string> = { stories: "stories", events: "evenemang", offers: "erbjudanden", info: tb("ändra sidan") };
   const list = PERMISSIONS.filter((p) => perms.includes(p.id)).map((p) => names[p.id]);
   const text = list.length === 1 ? list[0] : `${list.slice(0, -1).join(", ")} och ${list[list.length - 1]}`;
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -287,8 +288,8 @@ function PermissionToggles({ value, onChange }: { value: Permission[]; onChange:
         return (
           <View key={p.id} style={s.permRow}>
             <View style={{ flex: 1 }}>
-              <Text style={s.permLabel}>{p.label}</Text>
-              <Text style={s.permHelp}>{p.help}</Text>
+              <Text style={s.permLabel}>{tb(p.label)}</Text>
+              <Text style={s.permHelp}>{tb(p.help)}</Text>
             </View>
             <IconSwitch value={on} onChange={(v) => onChange(v ? [...value, p.id] : value.filter((x) => x !== p.id))} />
           </View>
