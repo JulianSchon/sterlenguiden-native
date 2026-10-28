@@ -50,6 +50,8 @@ const COLOR_RING = 34;
 /** Panelens luft mot kanterna (Sheet), för att räkna ut ortrutornas bredd */
 const SHEET_GUTTER = 20;
 const TOWN_GAP = 8;
+/** Så många intressen får plats på raden; resten blir "+N" */
+const MAX_INTERESTS_SHOWN = 3;
 
 type Editing = "name" | "username" | "email" | "birth" | "home" | "password" | null;
 
@@ -118,7 +120,7 @@ export default function AccountSettings() {
   const towns = OSTERLEN_TOWNS.map((town) => town.name);
   const townW = Math.floor((width - SHEET_GUTTER * 2 - TOWN_GAP * 2) / 3);
   // I kategoriordningen; gamla värden från webbversionen som inte längre är kategorier visas inte
-  const interests = CATEGORIES.filter((c) => profile?.interests?.includes(c.id)).map((c) => c.label);
+  const interests = CATEGORIES.filter((c) => profile?.interests?.includes(c.id));
   const pendingEmail = user?.new_email ?? null;
   const homeValue = profile?.city
     ? `${profile.city} · ${t(profile.lives_in_osterlen === false ? "account.home.visiting" : "account.home.living")}`
@@ -297,7 +299,19 @@ export default function AccountSettings() {
           <SettingsRow
             icon={ThumbsUp}
             eyebrow={t("account.interests")}
-            label={interests.length ? interests.join(", ") : t("account.add")}
+            label={interests.length ? interests.map((c) => c.label).join(", ") : t("account.add")}
+            labelContent={interests.length ? (
+              // En prick i kategorins färg framför varje namn; får inte alla plats syns de första och "+N"
+              <View style={s.interests}>
+                {interests.slice(0, MAX_INTERESTS_SHOWN).map((c) => (
+                  <View key={c.id} style={s.interest}>
+                    <View style={[s.interestDot, { backgroundColor: c.screen }]} />
+                    <Text style={s.interestText} numberOfLines={1}>{c.label}</Text>
+                  </View>
+                ))}
+                {interests.length > MAX_INTERESTS_SHOWN ? <Text style={s.interestMore}>+{interests.length - MAX_INTERESTS_SHOWN}</Text> : null}
+              </View>
+            ) : undefined}
             onPress={() => router.push("/settings/interests")}
           />
         </SettingsGroup>
@@ -498,6 +512,12 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   townActive: { borderColor: c.goldBorder, backgroundColor: c.goldSoft },
   townText: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.muted },
 
+  interests: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 6 },
+  interest: { flexDirection: "row", alignItems: "center", gap: 6 },
+  // Ljus kant runt pricken, så de mörka färgerna syns även i mörkt läge
+  interestDot: { width: 9, height: 9, borderRadius: 4.5, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong },
+  interestText: { fontFamily: "Montserrat_500Medium", fontSize: 14, letterSpacing: -0.3, color: c.text },
+  interestMore: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
   deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12 },
   deleteText: { fontFamily: "Montserrat_500Medium", fontSize: 13.5, letterSpacing: -0.3, color: c.danger },
 });

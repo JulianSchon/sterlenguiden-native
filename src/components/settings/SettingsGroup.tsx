@@ -29,12 +29,14 @@ export function SettingsGroup({ label, children }: { label?: string; children: R
 }
 
 export function SettingsRow({
-  icon: Icon, eyebrow, label, subtitle, value, onPress, destructive = false, compact = false, dense = false, strong = false, tint, right,
+  icon: Icon, eyebrow, label, labelContent, subtitle, value, onPress, destructive = false, compact = false, dense = false, strong = false, tint, right,
 }: {
   icon?: LucideIcon;
   /** Liten rubrik i versaler ovanför etiketten (uppgiftsrader: "E-POST" över adressen) */
   eyebrow?: string;
   label: string;
+  /** Eget innehåll i stället för etikettens text (t.ex. färgade prickar); label används då för skärmläsare */
+  labelContent?: ReactNode;
   /** Förklarande rad under etiketten */
   subtitle?: string;
   /** Kort värde till höger, t.ex. "På" */
@@ -73,9 +75,11 @@ export function SettingsRow({
       )}
       <View style={{ flex: 1 }}>
         {eyebrow ? <Text style={s.eyebrow} numberOfLines={1}>{eyebrow}</Text> : null}
-        <Text style={[s.label, compact && s.labelCompact, strong && s.labelStrong, destructive && { color: colors.danger }]} numberOfLines={1}>
-          {label}
-        </Text>
+        {labelContent ? <View accessible accessibilityLabel={label}>{labelContent}</View> : (
+          <Text style={[s.label, compact && s.labelCompact, strong && s.labelStrong, destructive && { color: colors.danger }]} numberOfLines={1}>
+            {label}
+          </Text>
+        )}
         {subtitle ? <Text style={[s.subtitle, tint ? { color: tint } : null]} numberOfLines={2}>{subtitle}</Text> : null}
       </View>
       {value ? <Text style={s.value} numberOfLines={1}>{value}</Text> : null}
