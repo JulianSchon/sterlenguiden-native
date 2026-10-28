@@ -40,7 +40,7 @@ import {
   AlignCenter, AlignLeft, AlignRight, Brush, CalendarDays, Camera, ChartColumn, MessageCircleQuestionMark, Clock, ImageIcon, ImagePlus, MapPin, RectangleHorizontal,
   RectangleVertical, Smile, Square, Ticket, Trash2, Type, X,
 } from "lucide-react-native";
-import { ThemeProvider } from "@/theme/ThemeProvider";
+import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { Sheet } from "@/components/Sheet";
 import { useActionMenu } from "@/components/ActionMenu";
 import { DoneMoment } from "@/components/business/WizardParts";
@@ -113,6 +113,8 @@ function StoryEditor() {
   const { data: events } = usePlaceEvents(placeId);
   const actions = useStoryActions(placeId);
   const menu = useActionMenu();
+  // Startsidan (välj bild) och Klart har appens bakgrund; själva redigeringen är svart som en kamera
+  const { colors } = useTheme();
 
   // Bildytan i 9:16, så stor som får plats
   const availH = SH - insets.top - insets.bottom - BAR_H - 8;
@@ -513,7 +515,7 @@ function StoryEditor() {
   // ── Välj bild ──
   if (phase === "pick") {
     return (
-      <View style={[s.root, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View style={[s.root, { backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
         <StatusBar style="light" />
         <View style={s.pickTop}>
           <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel={tb("Stäng")}><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
@@ -553,7 +555,7 @@ function StoryEditor() {
   // ── Klart: mörk skärm och guldcirkeln, som för evenemang och erbjudanden ──
   if (phase === "done") {
     return (
-      <View style={[s.root, s.doneRoot, { paddingTop: insets.top }]}>
+      <View style={[s.root, s.doneRoot, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
         <StatusBar style="light" />
         <DoneMoment
           title={tb("Storyn är ute!")}
@@ -900,7 +902,7 @@ function SizeSlider({ value, onChange, top }: { value: number; onChange: (size: 
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000000", alignItems: "center" },
-  doneRoot: { alignItems: "stretch", backgroundColor: "#121212" },
+  doneRoot: { alignItems: "stretch" },
   center: { alignItems: "center", justifyContent: "center" },
   round: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.38)" },
 
