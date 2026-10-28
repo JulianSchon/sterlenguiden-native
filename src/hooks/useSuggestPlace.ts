@@ -6,6 +6,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { currentLanguage } from "@/i18n";
+import { signedInUser } from "@/lib/session";
 
 export type SuggestionCategory = "food" | "stay" | "cafe" | "shops" | "nature" | "activities" | "sights" | "crafts";
 
@@ -20,8 +21,9 @@ interface PlaceSuggestion {
 
 export function useSuggestPlace() {
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async (suggestion: PlaceSuggestion) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) throw new Error("not_authenticated");
       const { error } = await supabase.from("place_suggestions").insert({
         user_id: user.id,

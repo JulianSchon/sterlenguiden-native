@@ -7,13 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Offer, RedemptionRow } from "@/lib/offers";
 import { ACTIVE_REDEMPTION_KEY, type ActiveRedemption } from "@/hooks/useActiveRedemption";
 import { syncServerClock } from "@/lib/serverClock";
+import { signedInUser } from "@/lib/session";
 
 export function useOfferRedemptions() {
   return useQuery<RedemptionRow[]>({
     queryKey: ["offer-redemptions"],
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -34,8 +35,9 @@ export function useActivateOffer() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async (offer: Offer): Promise<ActiveRedemption> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) throw new Error("Inte inloggad");
 
       // Ingen tid skickas med: databasen skriver now()

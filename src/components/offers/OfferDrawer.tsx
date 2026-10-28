@@ -55,6 +55,7 @@ import { HoldToActivate } from "./HoldToActivate";
 import { OfferConfirmDialog } from "./OfferConfirmDialog";
 import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE, EDGE_STROKE } from "./tear";
 import { useArmedTicketImage } from "./OfferTicket";
+import { isNetworkError } from "@/lib/network";
 
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
 export interface OriginRect { x: number; y: number; w: number; h: number }
@@ -328,7 +329,7 @@ export const OfferDrawer = memo(function OfferDrawer({
       // klocka ställts fram för att använda ett veckoerbjudande igen
       const blocked = e instanceof Object && /offer_(not_available|already_used|not_yet_available)/.test(String((e as { message?: string }).message));
       const key = blocked ? "offers.activateBlocked" : "offers.activateFailed";
-      Alert.alert(t(`${key}.title`), t(`${key}.body`));
+      Alert.alert(t(`${key}.title`), isNetworkError(e) ? t("common.offlineAction") : t(`${key}.body`));
     } finally {
       setActivating(false);
     }

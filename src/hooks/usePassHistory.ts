@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
 
 interface PassPurchase {
   id: string;
@@ -36,7 +37,7 @@ interface RedeemedGift {
 }
 
 async function requireUserId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await signedInUser();
   return user?.id ?? null;
 }
 

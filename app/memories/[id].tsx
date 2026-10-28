@@ -28,6 +28,7 @@ import { LoadingImage, Skeleton } from "@/components/Skeleton";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { isNetworkError } from "@/lib/network";
 
 
 const HERO_MARGIN = 24;
@@ -86,8 +87,13 @@ export default function MemoryDetailScreen() {
       {
         text: i18n.t("memories.delete"), style: "destructive",
         onPress: async () => {
-          await deleteMemory.mutateAsync(memory);
-          router.back();
+          try {
+            await deleteMemory.mutateAsync(memory);
+            router.back();
+          } catch (e) {
+            // Utan nät har appen redan sagt det (OfflineNotice)
+            if (!isNetworkError(e)) Alert.alert(i18n.t("lists.errorTitle"));
+          }
         },
       },
     ]);

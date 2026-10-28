@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
 
 export interface Visit {
   id: string;
@@ -13,7 +14,7 @@ export function useVisits() {
   return useQuery({
     queryKey: ["visits"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [] as Visit[];
       const { data, error } = await supabase
         .from("visits")
@@ -48,6 +49,7 @@ export class CheckInTooFarError extends Error {
 export function useCheckIn() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async ({ placeId, lat, lng }: { placeId: number; lat: number; lng: number }) => {
       const { data, error } = await supabase.rpc("check_in", { p_place_id: placeId, p_lat: lat, p_lng: lng });
       if (error) {

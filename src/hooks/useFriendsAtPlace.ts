@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import i18n from "i18next";
+import { signedInUser } from "@/lib/session";
 
 export interface FriendAtPlace {
   userId: string;
@@ -30,7 +31,7 @@ export function useFriendsAtPlace(placeId: number | null) {
     enabled: placeId != null,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<FriendAtPlace[]> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [];
       const { data, error } = await supabase.rpc("rpc_friends_at_place", { p_place_id: placeId! });
       if (error) return [];

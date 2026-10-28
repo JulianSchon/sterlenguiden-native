@@ -9,6 +9,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
 
 export type FriendStatus = "none" | "outgoing" | "incoming" | "accepted";
 
@@ -144,7 +145,7 @@ export function useSendFriendRequest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (targetUserId: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) throw new Error("Inte inloggad");
       const { error } = await supabase
         .from("friendships")

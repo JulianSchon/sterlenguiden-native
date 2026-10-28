@@ -3,13 +3,14 @@ import { AppState } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { swedishDay } from "@/lib/streak";
+import { signedInUser } from "@/lib/session";
 
 /** Alla svenska kalenderdagar ("YYYY-MM-DD") då användaren öppnat appen. */
 export function useAppDays() {
   return useQuery({
     queryKey: ["app-days"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [] as string[];
       const { data, error } = await supabase
         .from("app_days")
@@ -38,7 +39,7 @@ export function useRecordAppDay() {
     async function record() {
       const day = swedishDay();
       if (recordedDay === day) return;
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return;
       const { error } = await supabase
         .from("app_days")

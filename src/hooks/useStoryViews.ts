@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
 
 interface StoryView {
   story_id: string;
@@ -32,7 +33,7 @@ export function useStoryViews() {
   return useQuery({
     queryKey: ["story-views"],
     queryFn: async (): Promise<StoryView[]> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [];
       const seen = await readLocal(user.id);
       const cutoff = Date.now() - SEEN_WINDOW_MS;
@@ -59,7 +60,7 @@ export function useStoryViews() {
  */
 export async function markStoryViewed(storyId: string): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await signedInUser();
     if (!user) return;
     const at = new Date().toISOString();
     const seen = await readLocal(user.id);

@@ -9,6 +9,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
 import i18n from "i18next";
+import { signedInUser } from "@/lib/session";
 
 const LEADERBOARD_PAGE = 50;
 
@@ -156,8 +157,9 @@ type LeaderboardSettings = { show_in_leaderboard?: boolean; show_leaderboard_ava
 function useUpdateLeaderboardSettings() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async (changes: LeaderboardSettings) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) throw new Error("not_authenticated");
       const { error } = await supabase.from("profiles").update(changes).eq("user_id", user.id);
       if (error) throw error;

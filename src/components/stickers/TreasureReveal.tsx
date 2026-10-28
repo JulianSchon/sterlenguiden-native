@@ -48,6 +48,7 @@ import { Confetti, FillBar, GOLD, GhostButton, GoldButton, GoldRays, Reveal } fr
 import { ChestBase, ChestLid, CHEST_H, CHEST_SEAM_Y, CHEST_W } from "./TreasureChest";
 import { StickerArt } from "./StickerArt";
 import i18n from "i18next";
+import { isNetworkError } from "@/lib/network";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
@@ -229,7 +230,7 @@ export function TreasureReveal({
       })
       .catch((e: Error) => {
         afterLanding(() => {
-          setError(i18n.t(e.message === "too_far" ? "treasure.tooFar" : "treasure.failed"));
+          setError(i18n.t(e.message === "too_far" ? "treasure.tooFar" : isNetworkError(e) ? "common.offlineAction" : "treasure.failed"));
           setTremble(0);
           seam.value = withTiming(0, { duration: 300 });
           glow.value = withTiming(0, { duration: 300 });

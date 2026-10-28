@@ -11,6 +11,8 @@ export const en: typeof sv = {
     ok: "OK",
     error: "Something went wrong",
     tryAgain: "Try again",
+    offline: "You are offline – it wasn’t saved. Try again when you have a connection.",
+    offlineAction: "No connection right now. Try again when you have a connection.",
   },
   settings: {
     title: "Settings",

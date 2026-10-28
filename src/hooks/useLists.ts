@@ -12,6 +12,7 @@ import { firstImageUrl } from "@/hooks/usePlaces";
 import { effectiveHours, type HoursException } from "@/lib/openingHours";
 import { preparePhoto } from "@/lib/photos";
 import { pickSquarePhoto, type PhotoSource } from "@/hooks/useAccount";
+import { signedInUser } from "@/lib/session";
 
 const COVER_BUCKET = "list-covers";
 
@@ -86,7 +87,7 @@ export interface ListDetail {
 }
 
 async function requireUserId(): Promise<string> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await signedInUser();
   if (!user) throw new Error("not_authenticated");
   return user.id;
 }
@@ -147,6 +148,7 @@ export function useLists() {
 export function useMarkListOpened() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { background: true },
     mutationFn: async (listId: string) => {
       const userId = await requireUserId();
       const { error } = await supabase
@@ -235,6 +237,7 @@ export function useList(id: string | undefined) {
 export function useUpdateList() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async ({ listId, name, description }: { listId: string; name: string; description: string }) => {
       const { error } = await supabase
         .from("lists")
@@ -375,6 +378,7 @@ async function deletePreviousCoverIfOwned(previousUrl: string | null | undefined
 export function useChangeListCover() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async ({ listId, source }: { listId: string; source: PhotoSource }): Promise<boolean> => {
       const photo = await pickSquarePhoto(source);
       if (!photo) return false;
@@ -449,6 +453,7 @@ export function useDuplicateList() {
 export function useCopyFriendList() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: (list: ListDetail) => insertListCopy(list, list.name, null),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });
@@ -459,6 +464,7 @@ export function useCopyFriendList() {
 export function useCreateList() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async (
       { name, description, friendIds = [] }: { name: string; description: string; friendIds?: string[] }
     ) => {
@@ -535,6 +541,7 @@ export function usePendingListInvites() {
 export function useAcceptListInvite() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async (listId: string) => {
       const { error } = await supabase.rpc("accept_list_invite", { target_list_id: listId });
       if (error) throw error;
@@ -563,6 +570,7 @@ export function useDeclineListInvite() {
 export function useJoinList() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async (code: string) => {
       const { data, error } = await supabase.rpc("join_list", { code });
       if (error) throw new Error(error.message.includes("too_many_attempts") ? "too_many_attempts" : error.message);

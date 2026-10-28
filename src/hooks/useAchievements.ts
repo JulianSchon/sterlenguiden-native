@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
 
 /** En klarad trofé (tabellen trophies). Databasen kontrollerar att den verkligen är klar. */
 export interface Achievement {
@@ -14,7 +15,7 @@ export function useAchievements() {
   return useQuery({
     queryKey: ["achievements"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [] as Achievement[];
       const { data, error } = await supabase
         .from("trophies")
@@ -30,8 +31,9 @@ export function useAchievements() {
 export function useGrantAchievement() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { background: true },
     mutationFn: async (vars: { achievement_type: string; level: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) throw new Error("Not authenticated");
       const { error } = await supabase.from("trophies").insert({
         user_id: user.id,

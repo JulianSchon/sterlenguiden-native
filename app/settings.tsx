@@ -31,6 +31,7 @@ import { GradientCard } from "@/components/GradientCard";
 import { Rise } from "@/components/Rise";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { signedInUser } from "@/lib/session";
 
 export default function SettingsHub() {
   const { t } = useTranslation();
@@ -78,7 +79,7 @@ export default function SettingsHub() {
 
   const saveLanguage = useMutation({
     mutationFn: async (code: LanguageCode) => {
-      const { data: { user: u } } = await supabase.auth.getUser();
+      const u = await signedInUser();
       if (!u) return;
       await supabase.from("profiles").update({ preferred_language: code }).eq("user_id", u.id);
     },

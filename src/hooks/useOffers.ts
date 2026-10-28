@@ -7,6 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Offer } from "@/lib/offers";
+import { signedInUser } from "@/lib/session";
 
 export function useOffers(placeId?: number) {
   return useQuery<Offer[]>({
@@ -36,7 +37,7 @@ export function useRedeemedOffers() {
   return useQuery<Offer[]>({
     queryKey: ["offers", "redeemed"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [];
 
       const { data, error } = await supabase

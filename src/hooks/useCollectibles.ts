@@ -5,6 +5,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
 
 const BUCKET = "Stickers";
 
@@ -52,7 +53,7 @@ export function useCollected() {
   return useQuery({
     queryKey: ["collected"],
     queryFn: async (): Promise<Map<string, string>> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return new Map();
       const { data, error } = await supabase
         .from("user_collectibles")
@@ -68,6 +69,7 @@ export function useCollected() {
 export function useCollectSticker() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async ({ collectibleId, lat, lng }: { collectibleId: string; lat: number; lng: number }) => {
       const { data, error } = await supabase.rpc("collect_sticker", {
         p_collectible_id: collectibleId,

@@ -10,6 +10,7 @@ import type { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { CARD_VARIANTS, type CardVariant } from "@/lib/cardVariants";
 import { formatDate } from "@/i18n/dates";
+import { signedInUser } from "@/lib/session";
 
 const BUCKET = "cards";
 
@@ -66,7 +67,7 @@ export function useMyCards() {
   return useQuery({
     queryKey: ["my-cards"],
     queryFn: async (): Promise<OwnedCard[]> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [];
       const { data, error } = await supabase
         .from("user_cards")

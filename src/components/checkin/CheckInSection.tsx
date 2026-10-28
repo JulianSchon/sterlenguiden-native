@@ -29,6 +29,7 @@ import type { ThemeColors } from "@/theme/colors";
 import { CheckInCelebration, type CelebrationExit, type CelebrationState } from "./CheckInCelebration";
 import { HoldToCheckIn } from "./HoldToCheckIn";
 import i18n from "i18next";
+import { isNetworkError } from "@/lib/network";
 
 export function CheckInSection({ place }: { place: Place }) {
   // Saknar platsen koordinater kan GPS inte avgöra något (QR-kod kommer senare)
@@ -100,6 +101,8 @@ export function CheckInSection({ place }: { place: Place }) {
           ? i18n.t("checkin.cooldown")
           : e instanceof CheckInTooFarError
             ? i18n.t("checkin.tooFar")
+          : isNetworkError(e)
+            ? i18n.t("common.offlineAction")
           : __DEV__ && e instanceof Error
             ? `Något gick fel: ${e.message}` // tekniskt fel syns bara under utveckling
             : i18n.t("checkin.failed")

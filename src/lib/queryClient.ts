@@ -1,8 +1,27 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { QueryClient, type Query } from "@tanstack/react-query";
+import { MutationCache, QueryClient, type Query } from "@tanstack/react-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { isNetworkError, notifyOffline } from "@/lib/network";
+
+declare module "@tanstack/react-query" {
+  interface Register {
+    mutationMeta: {
+      /** Sidan visar själv ett meddelande när det misslyckas (då visas inte "Du är utan nät" också) */
+      ownError?: boolean;
+      /** Sker i bakgrunden utan att man tryckt på något: inget meddelande */
+      background?: boolean;
+    };
+  }
+}
 
 export const queryClient = new QueryClient({
+  // Något man gjorde gick inte att spara för att nätet saknas: säg det, i stället för att det tyst
+  // inte blev av (hjärtan och svep sparas i stället senare, se lib/outbox)
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => {
+      if (isNetworkError(error) && !mutation.meta?.ownError && !mutation.meta?.background) notifyOffline();
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes

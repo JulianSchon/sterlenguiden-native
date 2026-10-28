@@ -6,6 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { preparePhoto, type PickedPhoto } from "@/lib/photos";
+import { signedInUser } from "@/lib/session";
 
 const BUCKET = "memories";
 
@@ -47,7 +48,7 @@ function toMemory(r: {
 }
 
 async function requireUserId(): Promise<string> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await signedInUser();
   if (!user) throw new Error("not_authenticated");
   return user.id;
 }
@@ -131,6 +132,7 @@ async function uploadAll(userId: string, photos: PickedPhoto[]): Promise<string[
 export function useCreateMemory() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async ({ input, photos }: { input: MemoryInput; photos: PickedPhoto[] }) => {
       const userId = await requireUserId();
       const photoPaths = await uploadAll(userId, photos);
@@ -164,6 +166,7 @@ export function useCreateMemory() {
 export function useUpdateMemory() {
   const queryClient = useQueryClient();
   return useMutation({
+    meta: { ownError: true },
     mutationFn: async ({
       memory, input, keptPaths, newPhotos,
     }: { memory: Memory; input: MemoryInput; keptPaths: string[]; newPhotos: PickedPhoto[] }) => {

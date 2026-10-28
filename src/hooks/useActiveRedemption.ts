@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ACTIVE_SECS } from "@/lib/offers";
 import { serverNow, syncServerClock } from "@/lib/serverClock";
+import { signedInUser } from "@/lib/session";
 
 export interface ActiveRedemption {
   offerId: string;
@@ -34,7 +35,7 @@ export function useActiveRedemption() {
     staleTime: Infinity,
     gcTime: Infinity,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return null;
 
       const select = "offer_id, activated_at, offer:offers(title, category, savings_label, place:places(name, logo_url))";

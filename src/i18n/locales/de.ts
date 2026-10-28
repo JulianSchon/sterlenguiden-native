@@ -11,6 +11,8 @@ export const de: typeof sv = {
     ok: "OK",
     error: "Etwas ist schiefgelaufen",
     tryAgain: "Erneut versuchen",
+    offline: "Du bist offline – es wurde nicht gespeichert. Versuche es erneut, wenn du wieder Netz hast.",
+    offlineAction: "Gerade keine Verbindung. Versuche es erneut, wenn du wieder Netz hast.",
   },
   settings: {
     title: "Einstellungen",

@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
+import { sendOrQueue } from "@/lib/outbox";
 
 export function useDismissals() {
   return useQuery({
     queryKey: ["discovery_dismissals"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [] as number[];
 
       const { data, error } = await supabase
@@ -22,16 +24,8 @@ export function useDismissals() {
 export function useDismissPlace() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (placeId: number) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from("discovery_dismissals")
-        .insert({ user_id: user.id, place_id: placeId });
-
-      if (error && error.code !== "23505") throw error;
-    },
+    // Utan nät sparas svepet när nätet är tillbaka (lib/outbox)
+    mutationFn: (placeId: number) => sendOrQueue({ kind: "discover-dismiss", id: placeId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["discovery_dismissals"] });
     },
@@ -45,7 +39,7 @@ export function useDiscoveryLikes() {
   return useQuery({
     queryKey: ["discovery_likes"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [] as number[];
 
       const { data, error } = await supabase
@@ -62,16 +56,7 @@ export function useDiscoveryLikes() {
 export function useLikePlace() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (placeId: number) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase
-        .from("discovery_likes")
-        .insert({ user_id: user.id, place_id: placeId });
-
-      if (error && error.code !== "23505") throw error;
-    },
+    mutationFn: (placeId: number) => sendOrQueue({ kind: "discover-like", id: placeId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["discovery_likes"] });
     },

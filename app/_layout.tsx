@@ -31,6 +31,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { loadSavedLanguage } from "@/i18n";
 import { forgetGoogleAccount } from "@/lib/socialAuth";
 import { tabsEnterFromBelow } from "@/lib/tabsEntrance";
+import { clearOutbox, startOutbox } from "@/lib/outbox";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import i18n from "i18next";
 import { LogBox } from "react-native";
@@ -107,6 +109,7 @@ export default function RootLayout() {
         // Den sparade kopian i telefonen tas bort också.
         queryClient.clear();
         queryPersister.removeClient();
+        clearOutbox();
         forgetGoogleAccount();
         // Allt som var öppet stängs först, så man inte kan svepa tillbaka in i appen utloggad
         if (router.canDismiss()) router.dismissAll();
@@ -145,6 +148,8 @@ export default function RootLayout() {
 
 function AppStack() {
   const { colors, scheme } = useTheme();
+  // Hjärtan och svep som gjordes utan nät skickas när nätet är tillbaka
+  useEffect(() => startOutbox(), []);
 
   // Navigeringens egen bakgrund är vit som standard och syns i hörnen medan en
   // sida glider in över en annan. Ge den temats bakgrund.
@@ -224,6 +229,8 @@ function AppStack() {
       <TrophyHost />
       {/* Eventets panel — evenemang öppnas alltid här, var man än är (se lib/eventSheet) */}
       <EventSheetHost />
+      {/* "Du är utan nät" när något inte gick att spara */}
+      <OfflineNotice />
       </GestureHandlerRootView>
     </NavigationThemeProvider>
   );

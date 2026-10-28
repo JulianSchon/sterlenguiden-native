@@ -32,6 +32,7 @@ import { Avatar } from "@/components/profile/Avatar";
 import { ringOverflow } from "@/components/profile/AvatarRing";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { isNetworkError } from "@/lib/network";
 
 // Sex färger, tre mörka och tre ljusa om vartannat (mörk cirkel → ljusa bokstäver,
 // ljus cirkel → mörka bokstäver; bokstäverna får automatiskt samma nyans som cirkeln).
@@ -104,6 +105,8 @@ export default function AccountSettings() {
       await updateProfile.mutateAsync({ display_name: name.trim() });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) {
+      // Utan nät har appen redan sagt det (OfflineNotice)
+      if (isNetworkError(e)) return;
       const cooldown = e instanceof Error && e.message === "display_name_cooldown";
       Alert.alert(t("common.error"), cooldown ? t("account.name.cooldown") : t("common.error"));
     }
@@ -114,6 +117,7 @@ export default function AccountSettings() {
       await updateProfile.mutateAsync({ username: username.trim() });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) {
+      if (isNetworkError(e)) return;
       const key = e instanceof Error && (e.message === "username_taken" || e.message === "username_invalid") ? e.message : null;
       Alert.alert(t("common.error"), key ? t(`account.username.${key === "username_taken" ? "taken" : "invalid"}`) : t("common.error"));
     }

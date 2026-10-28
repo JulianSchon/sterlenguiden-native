@@ -42,6 +42,8 @@ import { useTranslation } from "react-i18next";
 import { findCategory } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { signedInUser } from "@/lib/session";
+import { saveEventFavorite, savePlaceFavorite } from "@/hooks/useFavorites";
 
 
 type FavKind = "place" | "event";
@@ -103,7 +105,7 @@ function useFavoritesDetailed() {
     // de säger till om ["favorites"] hämtas den här listan också på nytt
     queryKey: ["favorites", "detail"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -234,19 +236,9 @@ export default function FavoritesScreen() {
       return next;
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const column = item.kind === "place" ? "place_id" : "event_id";
-
-    if (wasFav) {
-      await supabase.from("favorites").delete().eq("user_id", user.id).eq(column, item.id);
-    } else {
-      await supabase.from("favorites").insert({
-        user_id: user.id,
-        place_id: item.kind === "place" ? item.id : null,
-        event_id: item.kind === "event" ? item.id : null,
-      });
-    }
+    // Utan nät sparas det när nätet är tillbaka (lib/outbox)
+    const save = item.kind === "place" ? savePlaceFavorite : saveEventFavorite;
+    await save(item.id, !wasFav).catch(() => {});
     // Resten av appen synkas när man lämnar sidan, se överst
     favoritesChanged.current = true;
   }, []);

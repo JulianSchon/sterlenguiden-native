@@ -47,6 +47,7 @@ import { useTranslation } from "react-i18next";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { isNetworkError } from "@/lib/network";
 
 // Spotify-omslaget ligger INTE kant till kant (det gjorde Lovable-versionen, som Viktor
 // uttryckligen inte ville ha) — en stor kvadrat med luft runt om i stället.
@@ -173,23 +174,40 @@ export default function ListDetailScreen() {
     }
   }
 
+  /** Utan nät har appen redan sagt det (OfflineNotice); annars ett kort "något gick fel" */
+  function failed(e: unknown) {
+    if (!isNetworkError(e)) Alert.alert(i18n.t("lists.errorTitle"));
+  }
+
   async function handleDuplicate() {
     if (!list) return;
-    const newId = await duplicateList.mutateAsync(list);
-    router.replace(`/lists/${newId}`);
+    try {
+      const newId = await duplicateList.mutateAsync(list);
+      router.replace(`/lists/${newId}`);
+    } catch (e) {
+      failed(e);
+    }
   }
 
   function handleDeleteOrLeave() {
     if (!list) return;
     if (isOwner) {
       confirm(i18n.t("lists.deleteTitle"), i18n.t("lists.deleteText"), i18n.t("lists.deleteTitle"), async () => {
-        await deleteList.mutateAsync(list.id);
-        router.back();
+        try {
+          await deleteList.mutateAsync(list.id);
+          router.back();
+        } catch (e) {
+          failed(e);
+        }
       });
     } else {
       confirm(i18n.t("lists.leave"), i18n.t("lists.leaveText"), i18n.t("lists.leaveAction"), async () => {
-        await removeMember.mutateAsync({ listId: list.id, userId: user!.id });
-        router.back();
+        try {
+          await removeMember.mutateAsync({ listId: list.id, userId: user!.id });
+          router.back();
+        } catch (e) {
+          failed(e);
+        }
       });
     }
   }

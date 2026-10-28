@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
+import { sendOrQueue } from "@/lib/outbox";
 
 interface Favorite {
   id: string;
@@ -13,9 +15,7 @@ export function useFavorites() {
   return useQuery({
     queryKey: ["favorites"],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await signedInUser();
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -35,17 +35,8 @@ export function useFavorites() {
  * saveEventFavorite nedan: sidan visar hjärtat direkt och uppdaterar resten av appen senare).
  */
 export async function savePlaceFavorite(placeId: number, save: boolean) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-  if (save) {
-    const { error } = await supabase.from("favorites").insert({
-      user_id: user.id, place_id: placeId, event_id: null,
-    });
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from("favorites").delete().eq("user_id", user.id).eq("place_id", placeId);
-    if (error) throw error;
-  }
+  // Utan nät sparas det när nätet är tillbaka (lib/outbox) — kastar bara om servern säger nej
+  await sendOrQueue({ kind: "favorite-place", id: placeId, save });
 }
 
 /**
@@ -54,15 +45,5 @@ export async function savePlaceFavorite(placeId: number, save: boolean) {
  * favoritlistan ritar om Hem, Profil, troféräkningen m.fl., och mitt i hjärtanimationen gav det ett hack.
  */
 export async function saveEventFavorite(eventId: number, save: boolean) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-  if (save) {
-    const { error } = await supabase.from("favorites").insert({
-      user_id: user.id, event_id: eventId, place_id: null,
-    });
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from("favorites").delete().eq("user_id", user.id).eq("event_id", eventId);
-    if (error) throw error;
-  }
+  await sendOrQueue({ kind: "favorite-event", id: eventId, save });
 }

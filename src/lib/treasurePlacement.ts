@@ -4,7 +4,7 @@
  * telefonen per konto, så det överlever en omstart — samma princip som troféernas placering.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { supabase } from "@/integrations/supabase/client";
+import { signedInUser } from "@/lib/session";
 
 const key = (userId: string) => `treasures-to-place:v1:${userId}`;
 
@@ -20,7 +20,7 @@ export async function getTreasuresToPlace(userId: string): Promise<string[]> {
 /** Hämtar själv vem som är inloggad — anroparen kan ha ett useAuth-värde som inte hunnit laddas
  * (då sparades tidigare ingenting, och samlingen hade inget att klistra in). */
 export async function addTreasureToPlace(collectibleId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await signedInUser();
   if (!user) return;
   const userId = user.id;
   const current = await getTreasuresToPlace(userId);

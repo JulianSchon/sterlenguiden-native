@@ -14,6 +14,8 @@ export const sv = {
     ok: "OK",
     error: "Något gick fel",
     tryAgain: "Försök igen",
+    offline: "Du är utan nät – det sparades inte. Försök igen när du har nät.",
+    offlineAction: "Ingen anslutning just nu. Försök igen när du har nät.",
   },
   settings: {
     title: "Inställningar",
