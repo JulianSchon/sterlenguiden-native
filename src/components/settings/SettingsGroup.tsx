@@ -3,7 +3,7 @@
  * Rubriken (valfri) ligger ovanför kortet.
  */
 import { Children, type ReactNode } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, type GestureResponderEvent } from "react-native";
 import { ChevronRight, type LucideIcon } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { GradientCard } from "@/components/GradientCard";
@@ -41,7 +41,8 @@ export function SettingsRow({
   subtitle?: string;
   /** Kort värde till höger, t.ex. "På" */
   value?: string;
-  onPress?: () => void;
+  /** Får tryckets händelse, så en meny kan öppnas vid raden (useActionMenu) */
+  onPress?: (e: GestureResponderEvent) => void;
   destructive?: boolean;
   /** Lägre rad för mindre viktiga val */
   compact?: boolean;
@@ -65,9 +66,9 @@ export function SettingsRow({
     <Pressable
       style={({ pressed }) => [s.row, compact && s.rowCompact, dense && s.rowDense, pressed && onPress ? s.rowPressed : null]}
       disabled={!onPress}
-      onPress={() => {
+      onPress={(e) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-        onPress?.();
+        onPress?.(e);
       }}
     >
       {Icon && (

@@ -165,6 +165,9 @@ export type Database = {
           end_date: string | null
           has_food_drink: boolean | null
           has_parking: boolean | null
+          is_accessible: boolean
+          is_child_friendly: boolean
+          is_dog_friendly: boolean
           id: number
           image_url: string | null
           is_featured: boolean | null
@@ -191,6 +194,9 @@ export type Database = {
           end_date?: string | null
           has_food_drink?: boolean | null
           has_parking?: boolean | null
+          is_accessible?: boolean
+          is_child_friendly?: boolean
+          is_dog_friendly?: boolean
           id?: number
           image_url?: string | null
           is_featured?: boolean | null
@@ -217,6 +223,9 @@ export type Database = {
           end_date?: string | null
           has_food_drink?: boolean | null
           has_parking?: boolean | null
+          is_accessible?: boolean
+          is_child_friendly?: boolean
+          is_dog_friendly?: boolean
           id?: number
           image_url?: string | null
           is_featured?: boolean | null
@@ -913,6 +922,7 @@ export type Database = {
           email: string
           expires_at: string
           id: string
+          invited_username: string | null
           invited_by: string | null
           permissions: string[] | null
           place_id: number
@@ -926,6 +936,7 @@ export type Database = {
           email: string
           expires_at?: string
           id?: string
+          invited_username?: string | null
           invited_by?: string | null
           permissions?: string[] | null
           place_id: number
@@ -939,6 +950,7 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
+          invited_username?: string | null
           invited_by?: string | null
           permissions?: string[] | null
           place_id?: number

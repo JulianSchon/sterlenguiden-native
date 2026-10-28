@@ -1,10 +1,10 @@
 /**
  * Stories: de som är ute nu (24 timmar) och de senaste 30 dagarna, med hur många som sett var och
  * en. Ett tryck visar storyn i helskärm (som gästerna ser den); där kan man ta bort den. Nya
- * skapas med Ny story (business/story).
+ * skapas med Ny story (business/story), som ligger fast längst ner.
  */
 import { useRef, useState } from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -14,6 +14,7 @@ import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
 import { GoldButton } from "@/components/auth/AuthParts";
+import { useActionMenu } from "@/components/ActionMenu";
 import { Note, PortalToast, SectionHeader, type PortalToastHandle } from "@/components/business/PortalParts";
 import { usePlaceStories, usePortalPlace, useStoryActions } from "@/hooks/useBusiness";
 import { businessError, removePlaceImages, type BusinessStory } from "@/lib/business";
@@ -42,21 +43,22 @@ export default function BusinessStories() {
   const { data: stories } = usePlaceStories(placeId);
   const actions = useStoryActions(placeId);
   const toast = useRef<PortalToastHandle>(null);
+  const actionMenu = useActionMenu();
   const [open, setOpen] = useState<BusinessStory | null>(null);
   const live = (stories ?? []).filter(isLive);
   const old = (stories ?? []).filter((st) => !isLive(st));
   const w = (width - 32 - 20) / 3;
 
-  const remove = (st: BusinessStory) => {
-    Alert.alert("Ta bort storyn?", "Den försvinner direkt för alla.", [
-      { text: "Avbryt", style: "cancel" },
-      {
-        text: "Ta bort", style: "destructive",
+  const remove = (y: number, st: BusinessStory) => {
+    actionMenu.ask(y, {
+      title: "Ta bort storyn?", message: "Den försvinner direkt för alla.",
+      actions: [{
+        label: "Ta bort", destructive: true,
         onPress: () => actions.remove(st.id)
           .then(() => { setOpen(null); removePlaceImages([st.image_url]); setTimeout(() => toast.current?.show("Borttagen"), 250); })
           .catch((e) => toast.current?.show(businessError(e))),
-      },
-    ]);
+      }],
+    });
   };
 
   const tile = (st: BusinessStory) => (
@@ -73,7 +75,7 @@ export default function BusinessStories() {
 
   return (
     <>
-      <SettingsScreen title="Stories">
+      <SettingsScreen title="Stories" footer={<GoldButton label="Ny story" onPress={() => pushOnce(router, `/business/story?place=${placeId}`)} />}>
         <Rise index={0}>
           <Note icon={Camera} text="En story syns överst på Hem i 24 timmar – för alla, och först för dem som sparat er." />
         </Rise>
@@ -98,19 +100,19 @@ export default function BusinessStories() {
               </Rise>
             )}
           </>
-        )}
-        <Rise index={3}>
-          <GoldButton label="Ny story" onPress={() => pushOnce(router, `/business/story?place=${placeId}`)} />
-        </Rise>
-      </SettingsScreen>
-      <StoryPreview story={open} onClose={() => setOpen(null)} onRemove={remove} />
+        )}      </SettingsScreen>
+      <StoryPreview story={open} onClose={() => setOpen(null)} onRemove={remove} menu={actionMenu.element} />
       <PortalToast ref={toast} />
     </>
   );
 }
 
 /** Storyn i helskärm, som gästerna ser den — med hur många som sett den, och Ta bort */
-function StoryPreview({ story, onClose, onRemove }: { story: BusinessStory | null; onClose: () => void; onRemove: (st: BusinessStory) => void }) {
+function StoryPreview({ story, onClose, onRemove, menu }: {
+  story: BusinessStory | null; onClose: () => void; onRemove: (y: number, st: BusinessStory) => void;
+  /** Frågan om att ta bort visas ovanpå helskärmen */
+  menu: React.ReactNode;
+}) {
   const insets = useSafeAreaInsets();
   const s = useThemedStyles(createStyles);
   return (
@@ -129,13 +131,14 @@ function StoryPreview({ story, onClose, onRemove }: { story: BusinessStory | nul
             </TouchableOpacity>
           </View>
           <View style={[s.previewBottom, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
-            <TouchableOpacity style={s.removeBtn} onPress={() => onRemove(story)} activeOpacity={0.8}>
+            <TouchableOpacity style={s.removeBtn} onPress={(e) => onRemove(e.nativeEvent.pageY - 220, story)} activeOpacity={0.8}>
               <Trash2 size={18} color="#FFFFFF" strokeWidth={2.2} />
               <Text style={s.removeText}>Ta bort storyn</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
+      {menu}
     </Modal>
   );
 }

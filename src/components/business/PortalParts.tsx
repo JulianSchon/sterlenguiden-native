@@ -94,7 +94,7 @@ export const PortalField = forwardRef<TextInput, PortalFieldProps>(function Port
           placeholderTextColor={colors.faint}
           selectionColor={colors.gold}
           cursorColor={colors.gold}
-          style={[s.input, big && s.inputBigText, multiline && s.inputMultiText, style]}
+          style={[s.input, !multiline && s.inputSingle, big && s.inputBigText, multiline && s.inputMultiText, style]}
           onFocus={(e) => { setFocused(true); onFocus?.(e); }}
           onBlur={(e) => { setFocused(false); onBlur?.(e); }}
           {...input}
@@ -291,6 +291,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   inputMulti: { alignItems: "flex-start", paddingVertical: 12 },
   // fontSize 16 hindrar iOS från att zooma in vid fokus
   input: { flex: 1, minHeight: 50, fontFamily: "Inter_500Medium", fontSize: 16, color: c.text },
+  // En rad: fast höjd utan egen luft, så texten (och platshållaren) står mitt i rutan
+  inputSingle: { height: 50, paddingVertical: 0 },
   inputBigText: { fontFamily: "Montserrat_600SemiBold", fontSize: 20, letterSpacing: -0.3 },
   inputMultiText: { minHeight: 120, textAlignVertical: "top", lineHeight: 22, paddingTop: 0 },
   affix: { fontFamily: "Inter_500Medium", fontSize: 16, color: c.muted },

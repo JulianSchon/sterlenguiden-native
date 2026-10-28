@@ -2,19 +2,20 @@
  * Personal: vilka som sköter platsen, inbjudningar som väntar, förfrågningar om att få gå med och
  * de senaste ändringarna ("Anna ändrade öppettiderna · i går").
  *
- * Man bjuder in med e-post: personen loggar in i Österlenappen med den adressen, och då väntar
- * inbjudan under Inställningar. Ägare kan bjuda in, byta roll och ta bort; personal kan ändra allt
+ * Man bjuder in med e-post eller användarnamn: inbjudan väntar under Inställningar nästa gång
+ * personen öppnar appen (med användarnamn ser ägaren aldrig personens e-post). Ägare kan bjuda in, byta roll och ta bort; personal kan ändra allt
  * på sidan men inte vilka som har tillgång.
  *
  * Ägaren väljer vad var och en i personalen får göra: stories, evenemang, erbjudanden och att ändra
  * sidan. Ny personal får allt utom erbjudanden (de påverkar kassan). Databasen kontrollerar det.
  */
 import { useRef, useState } from "react";
-import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, TouchableOpacity, View, type GestureResponderEvent } from "react-native";
 import { useRouter } from "expo-router";
 import { formatDistanceToNowStrict } from "date-fns";
 import { sv } from "date-fns/locale";
 import { Mail, UserPlus, Users } from "lucide-react-native";
+import { useActionMenu, type MenuItem } from "@/components/ActionMenu";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { Rise } from "@/components/Rise";
@@ -45,6 +46,7 @@ export default function BusinessTeam() {
   const { data: team } = useTeam(placeId);
   const actions = useTeamActions(placeId);
   const toast = useRef<PortalToastHandle>(null);
+  const actionMenu = useActionMenu();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("staff");
@@ -62,7 +64,7 @@ export default function BusinessTeam() {
     try {
       const r = await actions.invite(email.trim(), role, role === "staff" ? perms : null);
       if (!r.ok) {
-        setInviteError(r.reason === "already_member" ? "Den personen är redan med." : r.reason === "invalid_email" ? "E-postadressen ser inte rätt ut." : r.reason === "too_many" ? "Ni har många inbjudningar som väntar. Ta bort några först." : "Det gick inte.");
+        setInviteError(r.reason === "already_member" ? "Den personen är redan med." : r.reason === "unknown_user" ? "Vi hittar ingen med det användarnamnet." : r.reason === "invalid_email" ? "E-postadressen ser inte rätt ut." : r.reason === "too_many" ? "Ni har många inbjudningar som väntar. Ta bort några först." : "Det gick inte.");
         return;
       }
       setInviteOpen(false);
@@ -80,21 +82,21 @@ export default function BusinessTeam() {
     p.then((r) => toast.current?.show(r.ok ? done : r.reason === "last_owner" ? "Det måste finnas minst en ägare" : "Det gick inte"))
       .catch((e) => toast.current?.show(businessError(e)));
 
-  const memberMenu = (m: TeamMember) => {
-    const items: { label: string; destructive?: boolean; onPress: () => void }[] = [];
+  const memberMenu = (e: GestureResponderEvent, m: TeamMember) => {
+    const items: MenuItem[] = [];
     if (m.me) {
       items.push({
         label: "Lämna företaget", destructive: true,
-        onPress: () => Alert.alert(`Lämna ${mine?.name}?`, "Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka.", [
-          { text: "Avbryt", style: "cancel" },
-          {
-            text: "Lämna", style: "destructive",
+        confirm: {
+          title: `Lämna ${mine?.name}?`, message: "Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka.",
+          actions: [{
+            label: "Lämna", destructive: true,
             onPress: () => actions.remove(m.user_id).then((r) => {
               if (r.ok) router.dismissTo("/settings");
               else toast.current?.show(r.reason === "last_owner" ? "Gör någon annan till ägare först" : "Det gick inte");
-            }).catch((e) => toast.current?.show(businessError(e))),
-          },
-        ]),
+            }).catch((err) => toast.current?.show(businessError(err))),
+          }],
+        },
       });
     } else if (owner) {
       if (m.role === "staff") {
@@ -105,22 +107,13 @@ export default function BusinessTeam() {
         : { label: "Gör till ägare", onPress: () => result(actions.setRole(m.user_id, "owner"), "Nu ägare") });
       items.push({
         label: "Ta bort från företaget", destructive: true,
-        onPress: () => Alert.alert(`Ta bort ${m.name ?? "personen"}?`, "Hen kan inte längre ändra er sida.", [
-          { text: "Avbryt", style: "cancel" },
-          { text: "Ta bort", style: "destructive", onPress: () => result(actions.remove(m.user_id), "Borttagen") },
-        ]),
+        confirm: {
+          title: `Ta bort ${m.name ?? "personen"}?`, message: "Hen kan inte längre ändra er sida.",
+          actions: [{ label: "Ta bort", destructive: true, onPress: () => result(actions.remove(m.user_id), "Borttagen") }],
+        },
       });
     }
-    if (items.length === 0) return;
-    if (Platform.OS === "ios") {
-      const options = [...items.map((i) => i.label), "Avbryt"];
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: m.name ?? undefined, options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: items.findIndex((i) => i.destructive) },
-        (n) => items[n]?.onPress(),
-      );
-    } else {
-      Alert.alert(m.name ?? "", undefined, [...items.map((i) => ({ text: i.label, style: i.destructive ? "destructive" as const : "default" as const, onPress: i.onPress })), { text: "Avbryt", style: "cancel" }]);
-    }
+    actionMenu.open(e, { title: m.name ?? undefined, items });
   };
 
   return (
@@ -159,7 +152,7 @@ export default function BusinessTeam() {
                 <SectionHeader title={`Sköter ${mine?.name ?? "sidan"}`} />
                 <GradientCard>
                   {team.members.map((m, i) => (
-                    <Pressable key={m.user_id} onPress={() => memberMenu(m)} style={({ pressed }) => [s.member, i > 0 && s.border, pressed && { backgroundColor: colors.fill }]}>
+                    <Pressable key={m.user_id} onPress={(e) => memberMenu(e, m)} style={({ pressed }) => [s.member, i > 0 && s.border, pressed && { backgroundColor: colors.fill }]}>
                       <View style={[s.avatar, { backgroundColor: m.color ?? colors.tile }]}>
                         <Text style={s.avatarText}>{(m.name ?? "?").slice(0, 1).toUpperCase()}</Text>
                       </View>
@@ -237,16 +230,16 @@ export default function BusinessTeam() {
       <Sheet visible={inviteOpen} onClose={() => setInviteOpen(false)} title="Bjud in någon">
         <View style={{ gap: 16 }}>
           <PortalField
-            label="E-post"
+            label="E-post eller användarnamn"
             icon={Mail}
             value={email}
             onChangeText={(v) => { setEmail(v); setInviteError(null); }}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="namn@exempel.se"
+            placeholder="namn@exempel.se eller @användarnamn"
             error={inviteError}
-            help="Personen loggar in i Österlenappen med den här adressen – då väntar inbjudan där."
+            help="Har personen redan appen räcker användarnamnet – inbjudan väntar under Inställningar nästa gång hen öppnar appen."
           />
           <PortalSegmented options={[{ id: "staff", label: "Personal" }, { id: "owner", label: "Ägare" }]} value={role} onChange={setRole} />
           {role === "staff" ? (
@@ -255,7 +248,7 @@ export default function BusinessTeam() {
             <Text style={s.ownerNote}>En ägare kan göra allt, även bjuda in och ta bort personal.</Text>
           )}
         </View>
-        <PrimaryButton label="Skicka inbjudan" onPress={sendInvite} loading={busy} disabled={!isEmail(email)} />
+        <PrimaryButton label="Skicka inbjudan" onPress={sendInvite} loading={busy} disabled={!isEmail(email) && !/^@?[a-z0-9._]{3,20}$/i.test(email.trim())} />
       </Sheet>
       <Sheet visible={!!editing} onClose={() => setEditing(null)} title={editing ? `Vad får ${editing.name ?? "hen"} göra?` : ""}>
         <PermissionToggles value={editPerms} onChange={setEditPerms} />
@@ -268,6 +261,7 @@ export default function BusinessTeam() {
           }}
         />
       </Sheet>
+      {actionMenu.element}
       <PortalToast ref={toast} />
     </>
   );

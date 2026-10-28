@@ -1,9 +1,10 @@
 /**
- * Erbjudanden: de som är igång, pausade och avslutade. Varje kort visar hur många som använt det.
- * Tryck för att ändra, pausa, starta igen, avsluta, göra ett likadant eller ta bort.
+ * Erbjudanden: de som är aktiva, pausade och avslutade. Varje kort visar hur många som använt det.
+ * Tryck för att ändra, pausa, starta igen, avsluta, göra ett likadant eller ta bort (appens egen
+ * meny, vid kortet). Nytt erbjudande ligger fast längst ner.
  */
 import { useMemo, useRef, useState } from "react";
-import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
 import { useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import { Ticket } from "lucide-react-native";
@@ -11,6 +12,7 @@ import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
 import { GoldButton } from "@/components/auth/AuthParts";
+import { useActionMenu, type MenuItem } from "@/components/ActionMenu";
 import { PortalSegmented, PortalToast, type PortalToastHandle } from "@/components/business/PortalParts";
 import { rangeText } from "@/components/business/Pickers";
 import { useBusinessOffers, useOfferActions, usePortalPlace } from "@/hooks/useBusiness";
@@ -39,6 +41,7 @@ export default function BusinessOffers() {
   const { data: offers } = useBusinessOffers(placeId);
   const actions = useOfferActions(placeId);
   const toast = useRef<PortalToastHandle>(null);
+  const actionMenu = useActionMenu();
   const [tab, setTab] = useState<Tab>("active");
   const list = useMemo(() => (offers ?? []).filter((o) => tabOf(o) === tab), [offers, tab]);
   const counts = useMemo(() => {
@@ -57,35 +60,25 @@ export default function BusinessOffers() {
     }
   };
 
-  const menu = (o: BusinessOffer) => {
+  const menu = (e: GestureResponderEvent, o: BusinessOffer) => {
     const t = tabOf(o);
-    const items: { label: string; destructive?: boolean; onPress: () => void }[] = [];
+    const items: MenuItem[] = [];
     if (t !== "ended") items.push({ label: o.redemptions > 0 ? "Ändra bild eller slutdatum" : "Ändra", onPress: () => pushOnce(router, `/business/offer?place=${placeId}&id=${o.offer.id}`) });
     if (t === "active") items.push({ label: "Pausa", onPress: () => run(o.offer.id, "pause", "Pausat – syns inte förrän ni startar det igen") });
     if (t === "paused") items.push({ label: "Starta igen", onPress: () => run(o.offer.id, "resume", "Igång igen") });
     items.push({ label: "Gör ett likadant", onPress: () => pushOnce(router, `/business/offer?place=${placeId}&copy=${o.offer.id}`) });
-    if (t !== "ended") items.push({ label: "Avsluta nu", destructive: true, onPress: () => confirm("Avsluta erbjudandet?", "Det försvinner direkt ur appen.", "Avsluta", () => run(o.offer.id, "end", "Avslutat")) });
-    if (o.redemptions === 0) items.push({ label: "Ta bort", destructive: true, onPress: () => confirm("Ta bort erbjudandet?", "Det går inte att ångra.", "Ta bort", () => run(o.offer.id, "delete", "Borttaget")) });
-
-    if (Platform.OS === "ios") {
-      const options = [...items.map((i) => i.label), "Avbryt"];
-      const destructive = items.map((i, n) => (i.destructive ? n : -1)).filter((n) => n >= 0);
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: o.offer.title, options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: destructive },
-        (n) => items[n]?.onPress(),
-      );
-    } else {
-      Alert.alert(o.offer.title, undefined, [...items.map((i) => ({ text: i.label, style: i.destructive ? "destructive" as const : "default" as const, onPress: i.onPress })), { text: "Avbryt", style: "cancel" }]);
-    }
+    if (t !== "ended") items.push({ label: "Avsluta nu", destructive: true, confirm: { title: "Avsluta erbjudandet?", message: "Det försvinner direkt ur appen.", actions: [{ label: "Avsluta", destructive: true, onPress: () => run(o.offer.id, "end", "Avslutat") }] } });
+    if (o.redemptions === 0) items.push({ label: "Ta bort", destructive: true, confirm: { title: "Ta bort erbjudandet?", message: "Det går inte att ångra.", actions: [{ label: "Ta bort", destructive: true, onPress: () => run(o.offer.id, "delete", "Borttaget") }] } });
+    actionMenu.open(e, { title: o.offer.title, items });
   };
 
   return (
     <>
-      <SettingsScreen title="Erbjudanden">
+      <SettingsScreen title="Erbjudanden" footer={<GoldButton label="Nytt erbjudande" onPress={() => pushOnce(router, `/business/offer?place=${placeId}`)} />}>
         <Rise index={0}>
           <PortalSegmented
             options={[
-              { id: "active", label: `Igång${counts.active ? ` · ${counts.active}` : ""}` },
+              { id: "active", label: `Aktiva${counts.active ? ` · ${counts.active}` : ""}` },
               { id: "paused", label: `Pausade${counts.paused ? ` · ${counts.paused}` : ""}` },
               { id: "ended", label: "Avslutade" },
             ]}
@@ -101,7 +94,7 @@ export default function BusinessOffers() {
             <View style={s.empty}>
               <View style={s.emptyIcon}><Ticket size={28} color={colors.goldText} strokeWidth={1.8} /></View>
               <Text style={s.emptyTitle}>
-                {tab === "active" ? "Inget erbjudande igång" : tab === "paused" ? "Inga pausade" : "Inga avslutade än"}
+                {tab === "active" ? "Inget aktivt erbjudande" : tab === "paused" ? "Inga pausade" : "Inga avslutade än"}
               </Text>
               {tab === "active" && (
                 <Text style={s.emptyText}>Ett erbjudande i Österlenpasset ger er nya gäster – och syns för alla medlemmar.</Text>
@@ -111,7 +104,7 @@ export default function BusinessOffers() {
         ) : (
           list.map((o, i) => (
             <Rise key={o.offer.id} index={i + 1}>
-              <Pressable onPress={() => menu(o)} style={({ pressed }) => [s.card, pressed && { opacity: 0.85 }]} accessibilityRole="button">
+              <Pressable onPress={(e) => menu(e, o)} style={({ pressed }) => [s.card, pressed && { opacity: 0.85 }]} accessibilityRole="button">
                 {o.offer.image_url ? (
                   <ExpoImage source={{ uri: o.offer.image_url }} style={s.image} contentFit="cover" />
                 ) : <View style={s.image} />}
@@ -131,18 +124,11 @@ export default function BusinessOffers() {
             </Rise>
           ))
         )}
-
-        <Rise index={2}>
-          <GoldButton label="Nytt erbjudande" onPress={() => pushOnce(router, `/business/offer?place=${placeId}`)} />
-        </Rise>
       </SettingsScreen>
+      {actionMenu.element}
       <PortalToast ref={toast} />
     </>
   );
-}
-
-function confirm(title: string, message: string, action: string, onYes: () => void) {
-  Alert.alert(title, message, [{ text: "Avbryt", style: "cancel" }, { text: action, style: "destructive", onPress: onYes }]);
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({

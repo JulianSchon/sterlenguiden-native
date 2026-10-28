@@ -3,12 +3,13 @@
  * nyanställda kan be om att få gå med), villkoren, hjälp och att lämna företaget.
  */
 import { useEffect, useState } from "react";
-import { Alert, Linking, StyleSheet, Text } from "react-native";
+import { Linking, StyleSheet, Text, type GestureResponderEvent } from "react-native";
 import { useRouter } from "expo-router";
 import { FileText, LifeBuoy, LogOut, UserPlus } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { IconSwitch } from "@/components/IconSwitch";
+import { useActionMenu } from "@/components/ActionMenu";
 import { Rise } from "@/components/Rise";
 import { SaveIndicator } from "@/components/business/PortalParts";
 import { useBusinessPlace, usePlaceAutosave, usePortalPlace, useTeamActions } from "@/hooks/useBusiness";
@@ -30,24 +31,27 @@ export default function BusinessSettings() {
   const auto = usePlaceAutosave(placeId, 0);
   const team = useTeamActions(placeId);
   const [showLink, setShowLink] = useState<boolean | null>(null);
+  const actionMenu = useActionMenu();
   const owner = mine?.role === "owner";
 
   useEffect(() => {
     if (place && showLink === null) setShowLink(!place.claim_link_hidden);
   }, [place, showLink]);
 
-  const leave = () => {
+  const leave = (e: GestureResponderEvent) => {
     if (!user || !mine) return;
-    Alert.alert(`Lämna ${mine.name}?`, "Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka.", [
-      { text: "Avbryt", style: "cancel" },
-      {
-        text: "Lämna", style: "destructive",
+    const y = e.nativeEvent.pageY;
+    const fail = (title: string, message: string) => actionMenu.ask(y, { title, message, actions: [] });
+    actionMenu.ask(y, {
+      title: `Lämna ${mine.name}?`, message: "Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka.",
+      actions: [{
+        label: "Lämna", destructive: true,
         onPress: () => team.remove(user.id).then((r) => {
           if (r.ok) router.dismissTo("/settings");
-          else Alert.alert("Det går inte än", r.reason === "last_owner" ? "Du är den enda ägaren. Gör någon annan till ägare under Personal först." : "Försök igen.");
-        }).catch((e) => Alert.alert("Det gick inte", businessError(e))),
-      },
-    ]);
+          else fail("Det går inte än", r.reason === "last_owner" ? "Du är den enda ägaren. Gör någon annan till ägare under Personal först." : "Försök igen.");
+        }).catch((err) => fail("Det gick inte", businessError(err))),
+      }],
+    });
   };
 
   return (
@@ -84,6 +88,7 @@ export default function BusinessSettings() {
         </SettingsGroup>
       </Rise>
       {auto.error && <Text style={[s.error, { color: colors.danger }]}>{auto.error}</Text>}
+      {actionMenu.element}
     </SettingsScreen>
   );
 }

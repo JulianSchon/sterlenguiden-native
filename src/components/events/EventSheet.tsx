@@ -39,7 +39,7 @@ import * as Haptics from "expo-haptics";
 // Toningarna står still: vanliga inbyggda toningar, inte egna Skia-ytor
 import { LinearGradient } from "expo-linear-gradient";
 import {
-  CalendarCheck, CalendarDays, CalendarPlus, Car, ChevronRight, Globe, Home, MapPin,
+  Accessibility, Baby, CalendarCheck, CalendarDays, CalendarPlus, Car, ChevronRight, Dog, Globe, Home, MapPin,
   Store, Sun, Ticket, UtensilsCrossed, X, type LucideIcon,
 } from "lucide-react-native";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
@@ -510,6 +510,12 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
     { Icon: UtensilsCrossed, label: t(event.has_food_drink ? "calendar.sheet.food" : "calendar.sheet.noFood"), has: !!event.has_food_drink },
     { Icon: Car, label: t(event.has_parking ? "calendar.sheet.parking" : "calendar.sheet.noParking"), has: !!event.has_parking },
   ];
+  // Det som bara står när det stämmer (barnvänligt, hundvänligt, rullstol), under remsan
+  const extras: { Icon: LucideIcon; label: string }[] = [
+    ...(event.is_child_friendly ? [{ Icon: Baby, label: t("calendar.sheet.childFriendly") }] : []),
+    ...(event.is_dog_friendly ? [{ Icon: Dog, label: t("calendar.sheet.dogFriendly") }] : []),
+    ...(event.is_accessible ? [{ Icon: Accessibility, label: t("calendar.sheet.accessible") }] : []),
+  ];
   const releaseAt = event.tickets_release_at ? new Date(event.tickets_release_at) : null;
   const ticketState: "buy" | "soldOut" | "release" | null =
     event.is_sold_out ? "soldOut"
@@ -575,6 +581,16 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
           </View>
         ))}
       </View>
+      {extras.length > 0 && (
+        <View style={s.extras}>
+          {extras.map(({ Icon, label }) => (
+            <View key={label} style={s.extra}>
+              <Icon size={15} color={colors.goldText} strokeWidth={2} />
+              <Text style={s.extraText}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {ticketState && (
         <PressableScale
@@ -666,6 +682,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   stripItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 4 },
   stripDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: c.borderStrong },
   stripText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, lineHeight: 16, color: c.text, textAlign: "center" },
+  extras: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: -6 },
+  extra: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, backgroundColor: c.goldSoft },
+  extraText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: c.goldText },
   stripTextOff: { fontFamily: "Inter_500Medium", color: c.faint },
 
   ticketBtn: {

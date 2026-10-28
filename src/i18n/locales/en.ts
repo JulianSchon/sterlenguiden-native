@@ -928,7 +928,7 @@ export const en: typeof sv = {
       featured: "FEATURED", share: "Share with a friend", addToCalendar: "Add to calendar", close: "Close",
       organizer: "Organiser", organizerSite: "Organiser's website", showOnMap: "Show on map",
       booking: "Booking required", ticket: "Ticket required", free: "Free entry", indoor: "Indoors", outdoor: "Outdoors",
-      food: "Food & drink", noFood: "No food served", parking: "Parking", noParking: "No parking",
+      food: "Food & drink", noFood: "No food served", parking: "Parking", noParking: "No parking", childFriendly: "Child-friendly", dogFriendly: "Dog-friendly", accessible: "Wheelchair accessible",
       buy: "Buy tickets", soldOut: "Sold out", release: "Tickets on sale {{date}} at {{time}}",
       about: "About the event",
       past: "Has ended", ongoing: "Happening now", today: "Today", tomorrow: "Tomorrow", inDays: "In {{count}} days",

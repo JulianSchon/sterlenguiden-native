@@ -268,6 +268,9 @@ export interface EventDraft {
   is_indoor: boolean;
   has_food_drink: boolean;
   has_parking: boolean;
+  is_child_friendly: boolean;
+  is_dog_friendly: boolean;
+  is_accessible: boolean;
 }
 
 export function useEventActions(placeId: number) {

@@ -22,7 +22,7 @@ export type Permission = "stories" | "events" | "offers" | "info";
 export const PERMISSIONS: { id: Permission; label: string; help: string }[] = [
   { id: "stories", label: "Lägga upp stories", help: "Visa hur det ser ut hos er just nu" },
   { id: "events", label: "Skapa evenemang", help: "Lägga in, ändra och ta bort evenemang" },
-  { id: "offers", label: "Skapa erbjudanden", help: "Påverkar kassan – ge bara till den du litar på" },
+  { id: "offers", label: "Skapa erbjudanden", help: "Lägga ut erbjudanden i Österlenpasset" },
   { id: "info", label: "Ändra er sida", help: "Öppettider, Stängt i dag, texter, bilder och kontakt" },
 ];
 

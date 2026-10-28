@@ -1,18 +1,18 @@
 /**
  * Nytt evenemang — eller ändra/kopiera ett. Ett steg i taget:
- *   1. Vad heter det?          5. Berätta om det (och vilken sorts evenemang)
- *   2. När? (dag och tid)      6. Bra att veta (inomhus, mat, parkering, biljetter, annan plats)
- *   3. Återkommer det?         7. Så här ser det ut — Publicera
- *   4. Bild
+ *   1. Vad heter det?          5. Berätta mer (text och sorts evenemang, båda krävs)
+ *   2. När? (dag och tid)      6. Bra att veta (inomhus, mat, parkering, barn, hund, rullstol,
+ *   3. Återkommer det?            biljetter, annan plats)
+ *   4. Bild                    7. Så här ser det ut — tryck på kortet för att se hela panelen; Publicera
  * Återkommande tillfällen hänger ihop (samma serie), så man kan ändra eller ta bort alla kommande
  * på en gång. Utan egen bild får evenemanget platsens första bild.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import {
-  CalendarCheck, CalendarDays, CalendarRange, Car, Home, Repeat, Ticket, UtensilsCrossed,
+  Accessibility, Baby, CalendarCheck, CalendarDays, CalendarRange, Car, Dog, Home, Repeat, Ticket, UtensilsCrossed,
 } from "lucide-react-native";
 import { AuthButton, FieldNote } from "@/components/auth/AuthParts";
 import { StepLayout } from "@/components/onboarding/StepLayout";
@@ -26,6 +26,8 @@ import { useBusinessPlace, useEventActions, usePlaceEvents, usePortalPlace, type
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, cleanUrl } from "@/lib/business";
 import { EVENT_CATEGORIES, eventWhen } from "@/lib/events";
+import { openEvent } from "@/lib/eventSheet";
+import type { Event } from "@/hooks/useEvents";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -55,6 +57,9 @@ interface Draft {
   indoor: boolean;
   food: boolean;
   parking: boolean;
+  child: boolean;
+  dog: boolean;
+  access: boolean;
   entry: Entry;
   link: string;
   otherPlace: boolean;
@@ -131,6 +136,7 @@ export default function EventComposer() {
       description: e?.description ?? "",
       category: e?.main_category ?? null,
       indoor: !!e?.is_indoor, food: !!e?.has_food_drink, parking: !!e?.has_parking,
+      child: !!e?.is_child_friendly, dog: !!e?.is_dog_friendly, access: !!e?.is_accessible,
       entry: e?.tickets_required ? "tickets" : e?.booking_required ? "booking" : "free",
       link: e?.ticket_url ?? "",
       otherPlace: !!e?.location, location: e?.location ?? "",
@@ -167,6 +173,9 @@ export default function EventComposer() {
     is_indoor: draft.indoor,
     has_food_drink: draft.food,
     has_parking: draft.parking,
+    is_child_friendly: draft.child,
+    is_dog_friendly: draft.dog,
+    is_accessible: draft.access,
   };
   const dates = draft.date ? seriesDates(draft.date, draft.repeat, draft.count, draft.custom) : [];
 
@@ -285,7 +294,8 @@ export default function EventComposer() {
       break;
     case "about":
       content = (
-        <StepLayout title="Berätta om det" subtitle="Vad händer, vad kostar det och hur gör man? Skriv som ni pratar." scroll footer={next}>
+        <StepLayout title="Berätta mer" subtitle="Vad händer, vad kostar det och hur gör man?" scroll
+          footer={<AuthButton label="Fortsätt" onPress={wizard.next} disabled={draft.description.trim().length < 2 || !draft.category} />}>
           <PortalField label="Om evenemanget" value={draft.description} multiline maxLength={2000}
             placeholder="T.ex. Allsångsquiz från kl 18. Boka bord via hemsidan eller ring oss." onChangeText={(v) => set({ description: v })} />
           <Text style={s.small}>Vilken sorts evenemang?</Text>
@@ -303,6 +313,9 @@ export default function EventComposer() {
             <Chip icon={Home} label="Inomhus" selected={draft.indoor} onPress={() => set({ indoor: !draft.indoor })} />
             <Chip icon={UtensilsCrossed} label="Mat och dryck" selected={draft.food} onPress={() => set({ food: !draft.food })} />
             <Chip icon={Car} label="Parkering" selected={draft.parking} onPress={() => set({ parking: !draft.parking })} />
+            <Chip icon={Baby} label="Barnvänligt" selected={draft.child} onPress={() => set({ child: !draft.child })} />
+            <Chip icon={Dog} label="Hundvänligt" selected={draft.dog} onPress={() => set({ dog: !draft.dog })} />
+            <Chip icon={Accessibility} label="Tillgängligt med rullstol" selected={draft.access} onPress={() => set({ access: !draft.access })} />
           </View>
           <Text style={[s.small, { marginTop: 8 }]}>Behöver man biljett?</Text>
           <ChoiceCard title="Nej, det är bara att komma" selected={draft.entry === "free"} onPress={() => set({ entry: "free" })} />
@@ -326,13 +339,23 @@ export default function EventComposer() {
       break;
     case "review": {
       const preview = { date: payload.date, end_date: payload.end_date, time: payload.time };
+      // Hela panelen som gästerna får upp, med det som är ifyllt (sparas inte, id -1)
+      const showSheet = () => openEvent(-1, {
+        event: {
+          ...payload, id: -1, place_id: place.id, created_at: new Date().toISOString(), created_by: null,
+          is_featured: false, is_sold_out: false, logo_url: null, series_id: null, tickets_release_at: null, website_url: null,
+          place: { id: place.id, name: place.name, logo_url: place.logo_url, lat: place.lat, lng: place.lng },
+        } as Event,
+        saved: false,
+        onToggleSave: () => {},
+      });
       content = (
         <StepLayout title="Så här ser det ut" subtitle={dates.length > 1 ? `${dates.length} tillfällen, från ${dayText(dates[0])} till ${dayText(dates[dates.length - 1])}.` : undefined} scroll
           footer={<>
             {error && <FieldNote tone="danger" text={error} />}
             <AuthButton label={editingId ? "Spara ändringarna" : dates.length > 1 ? `Publicera ${dates.length} tillfällen` : "Publicera"} onPress={onPublish} loading={busy} />
           </>}>
-          <View style={s.preview}>
+          <Pressable style={({ pressed }) => [s.preview, pressed && { opacity: 0.85 }]} onPress={showSheet} accessibilityRole="button">
             <View style={s.previewImage}>
               {payload.image_url && <ExpoImage source={{ uri: payload.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
               <DateBox event={preview} style={s.previewDate} lng="sv" />
@@ -340,8 +363,9 @@ export default function EventComposer() {
             <View style={{ padding: 14, gap: 4 }}>
               <Text style={s.previewTitle} numberOfLines={2}>{payload.title}</Text>
               <Text style={s.previewMeta} numberOfLines={1}>{[eventWhen(preview, "sv"), payload.location ?? place.name].join("  ·  ")}</Text>
+              <Text style={[s.previewHint, { color: colors.goldText }]}>Tryck för att se hela evenemanget</Text>
             </View>
-          </View>
+          </Pressable>
           <Note text="Evenemanget syns i Kalendern, på er sida och för dem som sparat er som favorit." />
         </StepLayout>
       );
@@ -382,4 +406,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   previewDate: { position: "absolute", top: 12, left: 12 },
   previewTitle: { fontFamily: "Montserrat_700Bold", fontSize: 18, lineHeight: 23, color: c.text },
   previewMeta: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.muted },
+  previewHint: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, marginTop: 6 },
 });

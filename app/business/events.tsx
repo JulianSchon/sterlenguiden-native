@@ -1,9 +1,10 @@
 /**
  * Evenemang: kommande (närmast först) och tidigare. Tryck för att ändra, göra ett likadant eller
  * ta bort — för återkommande frågar appen om det gäller bara det tillfället eller alla kommande.
+ * Menyn är appens egen och öppnas vid kortet. Nytt evenemang ligger fast längst ner.
  */
 import { useMemo, useRef, useState } from "react";
-import { ActionSheetIOS, Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
 import { useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import { CalendarDays, Repeat } from "lucide-react-native";
@@ -11,6 +12,7 @@ import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
 import { GoldButton } from "@/components/auth/AuthParts";
+import { useActionMenu, type MenuItem } from "@/components/ActionMenu";
 import { DateBox } from "@/components/events/EventCards";
 import { PortalSegmented, PortalToast, type PortalToastHandle } from "@/components/business/PortalParts";
 import { useEventActions, usePlaceEvents, usePortalPlace, type PlaceEvent } from "@/hooks/useBusiness";
@@ -28,6 +30,7 @@ export default function BusinessEvents() {
   const { data: events } = usePlaceEvents(placeId);
   const actions = useEventActions(placeId);
   const toast = useRef<PortalToastHandle>(null);
+  const actionMenu = useActionMenu();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const today = dayKey(new Date());
   const { upcoming, past } = useMemo(() => {
@@ -44,40 +47,27 @@ export default function BusinessEvents() {
       .then((n) => toast.current?.show(n > 1 ? `${n} tillfällen borttagna` : "Borttaget"))
       .catch((err) => toast.current?.show(businessError(err)));
   };
-  const askRemove = (e: PlaceEvent) => {
-    if (e.series_id) {
-      Alert.alert("Ta bort vilka?", "Evenemanget återkommer.", [
-        { text: "Avbryt", style: "cancel" },
-        { text: "Bara det här", style: "destructive", onPress: () => remove(e, "one") },
-        { text: "Alla kommande", style: "destructive", onPress: () => remove(e, "series") },
-      ]);
-    } else {
-      Alert.alert("Ta bort evenemanget?", "Det försvinner ur Kalendern direkt.", [
-        { text: "Avbryt", style: "cancel" },
-        { text: "Ta bort", style: "destructive", onPress: () => remove(e, "one") },
-      ]);
+  const removeQuestion = (e: PlaceEvent): NonNullable<MenuItem["confirm"]> => (e.series_id
+    ? {
+      title: "Ta bort vilka?", message: "Evenemanget återkommer.",
+      actions: [
+        { label: "Bara det här", destructive: true, onPress: () => remove(e, "one") },
+        { label: "Alla kommande", destructive: true, onPress: () => remove(e, "series") },
+      ],
     }
-  };
+    : { title: "Ta bort evenemanget?", message: "Det försvinner ur Kalendern direkt.", actions: [{ label: "Ta bort", destructive: true, onPress: () => remove(e, "one") }] });
 
-  const menu = (e: PlaceEvent) => {
-    const items: { label: string; destructive?: boolean; onPress: () => void }[] = [];
+  const menu = (ev: GestureResponderEvent, e: PlaceEvent) => {
+    const items: MenuItem[] = [];
     if (tab === "upcoming") items.push({ label: "Ändra", onPress: () => pushOnce(router, `/business/event?place=${placeId}&id=${e.id}`) });
     items.push({ label: "Gör ett likadant", onPress: () => pushOnce(router, `/business/event?place=${placeId}&copy=${e.id}`) });
-    items.push({ label: "Ta bort", destructive: true, onPress: () => askRemove(e) });
-    if (Platform.OS === "ios") {
-      const options = [...items.map((i) => i.label), "Avbryt"];
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: e.title, options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: items.length - 1 },
-        (n) => items[n]?.onPress(),
-      );
-    } else {
-      Alert.alert(e.title, undefined, [...items.map((i) => ({ text: i.label, style: i.destructive ? "destructive" as const : "default" as const, onPress: i.onPress })), { text: "Avbryt", style: "cancel" }]);
-    }
+    items.push({ label: "Ta bort", destructive: true, confirm: removeQuestion(e) });
+    actionMenu.open(ev, { title: e.title, items });
   };
 
   return (
     <>
-      <SettingsScreen title="Evenemang">
+      <SettingsScreen title="Evenemang" footer={<GoldButton label="Nytt evenemang" onPress={() => pushOnce(router, `/business/event?place=${placeId}`)} />}>
         <Rise index={0}>
           <PortalSegmented
             options={[{ id: "upcoming", label: `Kommande${upcoming.length ? ` · ${upcoming.length}` : ""}` }, { id: "past", label: "Tidigare" }]}
@@ -98,7 +88,7 @@ export default function BusinessEvents() {
         ) : (
           list.map((e, i) => (
             <Rise key={e.id} index={Math.min(i + 1, 8)}>
-              <Pressable onPress={() => menu(e)} style={({ pressed }) => [s.card, tab === "past" && { opacity: 0.6 }, pressed && { opacity: 0.8 }]}>
+              <Pressable onPress={(ev) => menu(ev, e)} style={({ pressed }) => [s.card, tab === "past" && { opacity: 0.6 }, pressed && { opacity: 0.8 }]}>
                 <View style={s.image}>
                   {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
                   <DateBox event={e} small style={s.date} lng="sv" />
@@ -116,11 +106,8 @@ export default function BusinessEvents() {
               </Pressable>
             </Rise>
           ))
-        )}
-        <Rise index={2}>
-          <GoldButton label="Nytt evenemang" onPress={() => pushOnce(router, `/business/event?place=${placeId}`)} />
-        </Rise>
-      </SettingsScreen>
+        )}      </SettingsScreen>
+      {actionMenu.element}
       <PortalToast ref={toast} />
     </>
   );

@@ -931,7 +931,7 @@ export const sv = {
       featured: "UTVALT", share: "Dela med en vän", addToCalendar: "Lägg till i kalender", close: "Stäng",
       organizer: "Arrangör", organizerSite: "Arrangörens webbplats", showOnMap: "Visa på kartan",
       booking: "Bokning krävs", ticket: "Biljett krävs", free: "Fri entré", indoor: "Inomhus", outdoor: "Utomhus",
-      food: "Mat & dryck", noFood: "Ingen servering", parking: "Parkering", noParking: "Ingen parkering",
+      food: "Mat & dryck", noFood: "Ingen servering", parking: "Parkering", noParking: "Ingen parkering", childFriendly: "Barnvänligt", dogFriendly: "Hundvänligt", accessible: "Tillgängligt med rullstol",
       buy: "Köp biljett", soldOut: "Slutsålt", release: "Biljettsläpp {{date}} kl. {{time}}",
       about: "Om evenemanget",
       past: "Har varit", ongoing: "Pågår nu", today: "I dag", tomorrow: "I morgon", inDays: "Om {{count}} dagar",

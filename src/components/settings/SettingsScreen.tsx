@@ -15,7 +15,7 @@ import { darkColors, lightColors, type ThemeColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
 
 export function SettingsScreen({
-  title, right, compact = false, morph, scrollRef, onScroll, overlay, page = false, fixed = false, children,
+  title, right, compact = false, morph, scrollRef, onScroll, overlay, footer, page = false, fixed = false, children,
 }: {
   title: string; right?: ReactNode; compact?: boolean; morph?: SharedValue<number>;
   /** Rubriken i samma storlek som Profils övriga sidor (Mitt Österlen, Favoriter …) i stället för Inställningars */
@@ -26,6 +26,8 @@ export function SettingsScreen({
   scrollRef?: RefObject<ScrollView | null>; onScroll?: (y: number) => void;
   /** Lager ovanpå hela sidan, rubriken inräknad (t.ex. en panel som flyger in från en lista) */
   overlay?: ReactNode;
+  /** Fast längst ner, ovanför hemknappen (t.ex. Ny story); innehållet scrollar bakom */
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -77,11 +79,12 @@ export function SettingsScreen({
           // Sidor som ryms på skärmen ska stå stilla; bara längre sidor (eller små skärmar) gungar och scrollar
           alwaysBounceVertical={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[s.body, compact && s.bodyCompact, { paddingBottom: Math.max(insets.bottom, 16) + (compact ? 8 : 40) }]}
+          contentContainerStyle={[s.body, compact && s.bodyCompact, { paddingBottom: footer ? 24 : Math.max(insets.bottom, 16) + (compact ? 8 : 40) }]}
         >
           {children}
         </ScrollView>
       )}
+      {footer ? <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>{footer}</View> : null}
       {overlay}
     </Animated.View>
   );
@@ -109,4 +112,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   // För sidor som ska rymmas utan att scrolla
   bodyCompact: { paddingTop: 10, gap: 14 },
   fixed: { flex: 1 },
+  footer: { paddingHorizontal: 16, paddingTop: 12, backgroundColor: c.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
 });
