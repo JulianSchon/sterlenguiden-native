@@ -12,6 +12,9 @@
  *
  * - Ett tryck på berättelsens länk (klistermärket "Erbjudande" eller "Evenemang" som företaget lagt
  *   på bilden) öppnar erbjudandet eller evenemanget.
+ * - En videostory spelar filmen (lika länge som den är, högst 30 s) med företagets lager ovanpå.
+ * - En enkät går att rösta i (ett tryck på ett av svaren) och visar sedan resultatet; en fråga
+ *   öppnar en ruta att skriva i. Storyn står still medan man skriver.
  *
  * Allt som rör sig räknas på UI-tråden (Reanimated + gesture handler). Appens egen kod ritar bara
  * om när man byter berättelse. Sett-markeringarna sparas direkt men listan på Hem uppdateras först
@@ -19,7 +22,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import i18n from "i18next";
-import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming,
   type SharedValue,
@@ -34,6 +37,12 @@ import * as Haptics from "expo-haptics";
 import { X } from "lucide-react-native";
 import type { BusinessStory } from "@/hooks/useBusinessStories";
 import { markStoryViewed } from "@/hooks/useStoryViews";
+import { supabase } from "@/integrations/supabase/client";
+import { StoryVideo, videoAvailable } from "@/components/stories/StoryVideo";
+import { INTERACTION_W, PollCard, QuestionCard } from "@/components/stories/StoryInteractions";
+
+/** Enkätens läge för en story: röster per svar och vad man själv valt */
+interface PollState { counts: [number, number]; mine: number | null }
 
 export type StoryType = "favorite" | "regular";
 
@@ -97,9 +106,16 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   const story = storyAt[group] ?? 0;
   // Bilderna som laddats (grannarna i kuben laddar sina i förväg)
   const [loadedIds, setLoadedIds] = useState<ReadonlySet<string>>(() => new Set());
-  const onLoaded = useCallback((id: string) => {
+  // Hur länge varje story visas: 5 s för en bild, filmens längd för en film
+  const durations = useRef(new Map<string, number>());
+  const onLoaded = useCallback((id: string, ms?: number) => {
+    if (ms) durations.current.set(id, Math.min(30000, Math.max(2000, ms)));
     setLoadedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   }, []);
+  // Enkäterna man sett (hämtas när storyn visas) och frågorna man svarat på
+  const [polls, setPolls] = useState<Record<string, PollState>>({});
+  const [answered, setAnswered] = useState<ReadonlySet<string>>(() => new Set());
+  const [answering, setAnswering] = useState(false);
   const current = groups[group]?.stories[story];
 
   // ── Det som rör sig ──
@@ -166,19 +182,46 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
     progress.value = 0;
   }, [group, story, restart, progress]);
   const isLoaded = !!current && loadedIds.has(current.id);
-  const running = isLoaded && !paused && presented;
+  const running = isLoaded && !paused && !answering && presented;
+  const storyMs = (current && durations.current.get(current.id)) || STORY_MS;
   useEffect(() => {
     if (!running) return;
     const startFresh = fresh.current;
     fresh.current = false;
     if (startFresh) progress.value = 0;
     // Ny: hela tiden. Efter en paus: det som var kvar
-    const ms = startFresh ? STORY_MS : Math.max(1, (1 - progress.value) * STORY_MS);
+    const ms = startFresh ? storyMs : Math.max(1, (1 - progress.value) * storyMs);
     progress.value = withTiming(1, { duration: ms, easing: Easing.linear }, (done) => {
       if (done) runOnJS(next)();
     });
     return () => cancelAnimation(progress);
-  }, [running, next, progress, restart]);
+  }, [running, next, progress, restart, storyMs]);
+
+  // Enkätens resultat hämtas när storyn visas (har man redan röstat syns resultatet direkt)
+  useEffect(() => {
+    const id = current?.id;
+    if (!id || current?.interaction?.kind !== "poll" || polls[id]) return;
+    supabase.rpc("story_poll" as never, { p_story_id: id } as never).then(({ data }) => {
+      const d = data as unknown as { counts: [number, number]; mine: number | null } | null;
+      if (d) setPolls((m) => ({ ...m, [id]: { counts: d.counts, mine: d.mine } }));
+    });
+  }, [current, polls]);
+
+  const vote = useCallback((option: number) => {
+    const id = current?.id;
+    if (!id || polls[id]?.mine != null) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // Syns direkt; serverns siffror ersätter dem när de kommer
+    setPolls((m) => {
+      const prev = m[id] ?? { counts: [0, 0] as [number, number], mine: null };
+      const counts: [number, number] = [prev.counts[0] + (option === 0 ? 1 : 0), prev.counts[1] + (option === 1 ? 1 : 0)];
+      return { ...m, [id]: { counts, mine: option } };
+    });
+    supabase.rpc("story_vote" as never, { p_story_id: id, p_option: option } as never).then(({ data }) => {
+      const d = data as unknown as { counts: [number, number]; mine: number | null } | null;
+      if (d) setPolls((m) => ({ ...m, [id]: { counts: d.counts, mine: d.mine } }));
+    });
+  }, [current, polls]);
 
   // Sett när bilden väl syns
   useEffect(() => {
@@ -198,6 +241,22 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   const pause = useCallback((on: boolean) => setPaused(on), []);
   // Ett tryck: på länken öppnas den, annars nästa (höger) eller förra (vänster) berättelse
   const tapAt = useCallback((x: number, y: number) => {
+    const inter = current?.interaction;
+    if (inter) {
+      const f = storyFrame(W, H);
+      const cx = f.left + inter.x * f.w;
+      const cy = f.top + inter.y * f.h;
+      // Trycket i kortets egen riktning (kortet kan vara vridet)
+      const dx = x - cx;
+      const dy = y - cy;
+      const lx = dx * Math.cos(-inter.r) - dy * Math.sin(-inter.r);
+      const ly = dx * Math.sin(-inter.r) + dy * Math.cos(-inter.r);
+      if (Math.abs(lx) <= (inter.w * f.w) / 2 + 8 && Math.abs(ly) <= (inter.h * f.h) / 2 + 8) {
+        if (inter.kind === "poll") vote(lx < 0 ? 0 : 1);
+        else if (current && !answered.has(current.id)) setAnswering(true);
+        return;
+      }
+    }
     const link = current?.link;
     if (link && onOpenLink) {
       const f = storyFrame(W, H);
@@ -213,7 +272,7 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
     }
     if (x < W * 0.3) prev();
     else next();
-  }, [current, onOpenLink, W, H, groups, group, finish, prev, next]);
+  }, [current, onOpenLink, W, H, groups, group, finish, prev, next, vote, answered]);
   const axis = useSharedValue(0); // 1 = sidled (kuben), 2 = nedåt (stäng)
   const startPos = useSharedValue(0);
   const gesture = useMemo(() => {
@@ -300,19 +359,73 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
               held={held}
               width={W}
               onLoaded={onLoaded}
+              playing={g === group && running}
+              poll={g === group && current ? polls[current.id] ?? null : null}
+              answered={g === group && !!current && answered.has(current.id)}
               onClose={close}
               onOpenPlace={(placeId) => { finish(); onOpenPlace(placeId); }}
             />
           ))}
         </Reanimated.View>
       </GestureDetector>
+      {answering && current && current.interaction?.kind === "question" && (
+        <AnswerBox
+          prompt={current.interaction.prompt}
+          storyId={current.id}
+          onDone={(sent) => {
+            setAnswering(false);
+            if (sent) setAnswered((prev) => new Set(prev).add(current.id));
+          }}
+        />
+      )}
     </GestureHandlerRootView>
+  );
+}
+
+/** Att svara på en fråga: rutan ovanför tangentbordet; storyn står still under tiden */
+function AnswerBox({ prompt, storyId, onDone }: { prompt: string; storyId: string; onDone: (sent: boolean) => void }) {
+  const insets = useSafeAreaInsets();
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const send = async () => {
+    setBusy(true);
+    setFailed(false);
+    const { error } = await supabase.rpc("story_answer" as never, { p_story_id: storyId, p_answer: text.trim() } as never);
+    setBusy(false);
+    if (error) { setFailed(true); return; }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    onDone(true);
+  };
+  return (
+    <KeyboardAvoidingView style={[StyleSheet.absoluteFill, s.answerWrap]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => onDone(false)} />
+      <View style={[s.answerCard, { marginBottom: Math.max(insets.bottom, 12) }]}>
+        <Text style={s.answerPrompt}>{prompt}</Text>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          autoFocus
+          multiline
+          maxLength={300}
+          placeholder={i18n.t("stories.interaction.placeholder")}
+          placeholderTextColor="#8A8A8E"
+          style={s.answerInput}
+        />
+        <Text style={[s.answerNote, failed && { color: "#DC2626" }]}>
+          {failed ? i18n.t("stories.interaction.failed") : i18n.t("stories.interaction.anonymous")}
+        </Text>
+        <TouchableOpacity style={[s.answerSend, (!text.trim() || busy) && { opacity: 0.4 }]} disabled={!text.trim() || busy} onPress={send}>
+          <Text style={s.answerSendText}>{i18n.t("stories.interaction.send")}</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 /** Ett företags sida i kuben: bilden, strecken, namnet och det nertill */
 const StoryPage = memo(function StoryPage({
-  group, index, storyIndex, active, pos, progress, held, width, onLoaded, onClose, onOpenPlace,
+  group, index, storyIndex, active, pos, progress, held, width, onLoaded, playing, poll, answered, onClose, onOpenPlace,
 }: {
   group: StoryGroupData;
   index: number;
@@ -322,12 +435,20 @@ const StoryPage = memo(function StoryPage({
   progress: SharedValue<number>;
   held: SharedValue<number>;
   width: number;
-  onLoaded: (storyId: string) => void;
+  onLoaded: (storyId: string, ms?: number) => void;
+  /** Den här sidans film ska spela (aktiv och inte pausad) */
+  playing: boolean;
+  poll: PollState | null;
+  answered: boolean;
   onClose: () => void;
   onOpenPlace: (placeId: number) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const story = group.stories[storyIndex] ?? group.stories[0];
+  const frame = storyFrame(width, height);
+  const isVideo = !!story.video_url && videoAvailable();
+  const inter = story.interaction ?? null;
   const name = group.placeName.split(/[-–—,]/)[0].trim();
 
   // Kuben: sidan till höger vrids in kring sin vänstra kant, sidan som lämnar kring sin högra
@@ -358,8 +479,38 @@ const StoryPage = memo(function StoryPage({
         contentFit="contain"
         cachePolicy="memory-disk"
         transition={120}
-        onLoad={() => onLoaded(story.id)}
+        onLoad={isVideo ? undefined : () => onLoaded(story.id)}
       />
+      {/* Film: spelas i storyns ruta, med företagets lager (text, klistermärken) ovanpå */}
+      {isVideo && active && (
+        <View style={[s.media, { left: frame.left, top: frame.top, width: frame.w, height: frame.h }]} pointerEvents="none">
+          <StoryVideo key={story.id} uri={story.video_url!} playing={playing} onReady={(ms) => onLoaded(story.id, ms)} />
+          {!!story.overlay_url && <ExpoImage source={{ uri: story.overlay_url }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />}
+        </View>
+      )}
+      {/* Enkäten eller frågan, levande på sin plats */}
+      {inter && (
+        <View
+          pointerEvents="none"
+          style={[s.inter, {
+            left: frame.left + inter.x * frame.w - INTERACTION_W / 2,
+            // Mitten på sin plats: kortets egen höjd (före skalningen) räknas ut ur den sparade storleken
+            top: frame.top + inter.y * frame.h - (inter.h * frame.h) / ((inter.w * frame.w) / INTERACTION_W) / 2,
+            transform: [{ rotate: `${inter.r}rad` }, { scale: (inter.w * frame.w) / INTERACTION_W }],
+          }]}
+        >
+          {inter.kind === "poll" ? (
+            <PollCard
+              question={inter.question}
+              options={inter.options}
+              mine={poll?.mine ?? null}
+              results={poll && poll.mine != null ? shares(poll.counts) : null}
+            />
+          ) : (
+            <QuestionCard prompt={inter.prompt} sent={answered} />
+          )}
+        </View>
+      )}
       <LinearGradient colors={["rgba(0,0,0,0.45)", "rgba(0,0,0,0)"]} style={[s.topShade, { height: insets.top + 110 }]} pointerEvents="none" />
 
       <Reanimated.View style={[StyleSheet.absoluteFill, chrome]} pointerEvents="box-none">
@@ -386,6 +537,12 @@ const StoryPage = memo(function StoryPage({
     </Reanimated.View>
   );
 });
+
+/** Andelarna av rösterna (0–1); inga röster = 0 och 0 */
+function shares(counts: [number, number]): [number, number] {
+  const total = counts[0] + counts[1];
+  return total ? [counts[0] / total, counts[1] / total] : [0, 0];
+}
 
 /** Ett streck överst. fill: 1 = sedd, 0 = kommer, null = den som visas (följer tiden) */
 function Bar({ fill, progress, active }: { fill: number | null; progress: SharedValue<number>; active: boolean }) {
@@ -417,4 +574,17 @@ const s = StyleSheet.create({
   },
   time: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: "rgba(255,255,255,0.75)" },
   dim: { backgroundColor: "rgba(0,0,0,0.35)" },
+  media: { position: "absolute", overflow: "hidden" },
+  inter: { position: "absolute", width: INTERACTION_W },
+
+  answerWrap: { justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 14 },
+  answerCard: { borderRadius: 22, backgroundColor: "#FFFFFF", padding: 16, gap: 10 },
+  answerPrompt: { fontFamily: "Montserrat_700Bold", fontSize: 17, lineHeight: 22, color: "#111111", textAlign: "center" },
+  answerInput: {
+    minHeight: 70, maxHeight: 140, borderRadius: 14, backgroundColor: "#F1F1F3", paddingHorizontal: 14, paddingVertical: 12,
+    fontFamily: "Inter_500Medium", fontSize: 16, color: "#111111", textAlignVertical: "top",
+  },
+  answerNote: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "#6B6B70", textAlign: "center" },
+  answerSend: { height: 48, borderRadius: 14, backgroundColor: "#C9A24E", alignItems: "center", justifyContent: "center" },
+  answerSendText: { fontFamily: "Inter_700Bold", fontSize: 15.5, color: "#1A1408" },
 });

@@ -149,6 +149,14 @@ export interface StoryLink {
   h: number;
 }
 
+/**
+ * En enkät eller fråga i en story. Ritas inte in i bilden utan visas levande i storyn: x och y är
+ * mitten (andelar av bilden), w och h storleken (andelar), r vridningen i radianer.
+ */
+export type StoryInteraction =
+  | { kind: "poll"; question: string; options: [string, string]; x: number; y: number; w: number; h: number; r: number }
+  | { kind: "question"; prompt: string; x: number; y: number; w: number; h: number; r: number };
+
 export interface BusinessStory {
   id: string;
   image_url: string;
@@ -156,7 +164,15 @@ export interface BusinessStory {
   created_at: string;
   expires_at: string | null;
   link: StoryLink | null;
+  /** Videostory: filmen och det genomskinliga lagret med text och klistermärken ovanpå */
+  video_url: string | null;
+  overlay_url: string | null;
+  interaction: StoryInteraction | null;
   views: number;
+  /** Enkätens röster [första, andra]; null om storyn inte har någon enkät */
+  votes: [number, number] | null;
+  /** Svaren på frågan, nyast först (utan vem som svarat); null om ingen fråga */
+  answers: string[] | null;
 }
 
 export interface BusinessStats {
@@ -288,10 +304,13 @@ export async function uploadPlaceImage(
 }
 
 /** Laddar upp färdiga bytes (berättelsens bild, som redan är rätt storlek) */
-export async function uploadPlaceBytes(placeId: number, bytes: Uint8Array): Promise<string> {
-  const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+const MEDIA_TYPES = { jpg: "image/jpeg", png: "image/png", mp4: "video/mp4", mov: "video/quicktime" } as const;
+
+/** Laddar upp en fil (bild, genomskinligt lager eller video) i platsens mapp och ger dess adress */
+export async function uploadPlaceBytes(placeId: number, bytes: Uint8Array | ArrayBuffer, type: keyof typeof MEDIA_TYPES = "jpg"): Promise<string> {
+  const name = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${type}`;
   const path = `${placeId}/${name}`;
-  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, bytes, { contentType: "image/jpeg" });
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, bytes, { contentType: MEDIA_TYPES[type] });
   if (error) throw error;
   return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
 }

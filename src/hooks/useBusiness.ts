@@ -16,7 +16,7 @@ import type { Event } from "@/hooks/useEvents";
 import {
   businessError, rpc,
   type AdminRequest, type BusinessOffer, type BusinessOverview, type BusinessPlace, type BusinessStats,
-  type BusinessStory, type ClaimInfo, type MemberRole, type Permission, type PlacePatch, type StoryLink, type Team,
+  type BusinessStory, type ClaimInfo, type MemberRole, type Permission, type PlacePatch, StoryInteraction, type StoryLink, type Team,
 } from "@/lib/business";
 
 // ── Vad jag sköter ──────────────────────────────────────────────────────────
@@ -309,8 +309,14 @@ export function useStoryActions(placeId: number) {
       queryClient.invalidateQueries({ queryKey: ["business-stories"] });
     });
     return {
-      post: (imageUrl: string, caption: string | null, link: StoryLink | null) =>
-        after(rpc<string>("business_post_story", { p_place_id: placeId, p_image_url: imageUrl, p_caption: caption, p_link: link })),
+      post: (story: {
+        imageUrl: string; caption: string | null; link: StoryLink | null;
+        videoUrl?: string | null; overlayUrl?: string | null; interaction?: StoryInteraction | null;
+      }) =>
+        after(rpc<string>("business_post_story", {
+          p_place_id: placeId, p_image_url: story.imageUrl, p_caption: story.caption, p_link: story.link,
+          p_video_url: story.videoUrl ?? null, p_overlay_url: story.overlayUrl ?? null, p_interaction: story.interaction ?? null,
+        })),
       remove: (id: string) => after(rpc<void>("business_delete_story", { p_id: id })),
     };
   }, [queryClient, placeId]);

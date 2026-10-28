@@ -15,6 +15,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { CalendarDays, ChevronRight, MapPin, Ticket } from "lucide-react-native";
 import { tb } from "@/i18n/business";
+import { PollCard, QuestionCard } from "@/components/stories/StoryInteractions";
 
 export type FontId = "classic" | "modern" | "elegant" | "hand" | "type";
 export type TextBg = "none" | "solid" | "soft";
@@ -44,6 +45,9 @@ export type StoryItem =
   | { id: string; kind: "emoji"; text: string }
   | { id: string; kind: "badge"; text: string; look: Look }
   | { id: string; kind: "photo"; uri: string; ratio: number }
+  /** Enkät och fråga: visas levande i storyn (ritas inte in i bilden), högst en av dem per story */
+  | { id: string; kind: "poll"; question: string; options: [string, string] }
+  | { id: string; kind: "question"; prompt: string }
   | { id: string; kind: "place"; text: string; look: Look }
   | { id: string; kind: "link"; link: { kind: "offer" | "event"; id: string }; title: string; sub: string; look: Look };
 
@@ -94,6 +98,8 @@ function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
     );
   }
   if (item.kind === "emoji") return <Text style={s.emoji}>{item.text}</Text>;
+  if (item.kind === "poll") return <PollCard question={item.question} options={item.options} />;
+  if (item.kind === "question") return <QuestionCard prompt={item.prompt} />;
   if (item.kind === "photo") {
     const w = maxWidth * 0.52;
     return <ExpoImage source={{ uri: item.uri }} style={[s.photo, { width: w, height: w / item.ratio }]} contentFit="cover" />;

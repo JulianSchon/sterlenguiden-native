@@ -1411,6 +1411,9 @@ export type Database = {
           expires_at: string | null
           id: string
           image_url: string
+          interaction: Json | null
+          overlay_url: string | null
+          video_url: string | null
           link: Json | null
           place_id: number
           user_id: string
@@ -1421,6 +1424,9 @@ export type Database = {
           expires_at?: string | null
           id?: string
           image_url: string
+          interaction: Json | null
+          overlay_url: string | null
+          video_url: string | null
           link?: Json | null
           place_id: number
           user_id: string
@@ -1431,6 +1437,9 @@ export type Database = {
           expires_at?: string | null
           id?: string
           image_url?: string
+          interaction?: Json | null
+          overlay_url?: string | null
+          video_url?: string | null
           link?: Json | null
           place_id?: number
           user_id?: string

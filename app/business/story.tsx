@@ -1,7 +1,8 @@
 /**
  * Ny story — så likt Instagram som möjligt, så företagaren känner igen sig.
  *
- *  1. Ta en bild, välj en ur telefonen eller använd en av platsens egna.
+ *  1. Ta en bild eller film, välj en ur telefonen eller använd en av platsens bilder. En film är
+ *     högst 30 sekunder; den saknar filter och format men får allt annat ovanpå.
  *  2. Verktygen står i en rad till höger, som på Instagram: Text, Lägg till, Rita och Format.
  *     Filtren ligger som små förhandsbilder längst ner (eller svep åt sidan på bilden). Formatet
  *     (stående, liggande, kvadrat) får bilden suddig bakom vid liggande och kvadrat. Tryck på
@@ -11,8 +12,11 @@
  *     och klistermärkena byter stil vid tryck (smal/kvadrat, vit/svart). Rita med fingret. Dra, nyp
  *     och vrid allt; nära mitten syns en hjälplinje och saken fastnar. Den sak man rör hamnar
  *     överst. Dra till papperskorgen för att ta bort. Två fingrar på bilden flyttar och zoomar den.
+ *     En enkät (fråga och två svar) eller en fråga (gästen skriver ett svar) — högst en per story —
+ *     ritas inte in i bilden utan sparas med sin plats och visas levande för gästerna.
  *  3. Publicera: storyn fotograferas precis som den syns (med text och klistermärken inbakade),
- *     laddas upp och syns överst på Hem i 24 timmar. Skärmen blir mörk och guldcirkeln kommer
+ *     laddas upp och syns överst på Hem i 24 timmar. En film laddas upp som den är, med två bilder:
+ *     ett genomskinligt lager med det man lagt ovanpå (visas över filmen) och ett omslag. Skärmen blir mörk och guldcirkeln kommer
  *     fram, som när ett evenemang eller erbjudande läggs ut.
  *
  * Allt rör sig på UI-tråden. Filtren ritas av Skia i telefonen (lib/storyFilters).
@@ -33,7 +37,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { ImageFormat, makeImageFromView } from "@shopify/react-native-skia";
 import {
-  AlignCenter, AlignLeft, AlignRight, Brush, CalendarDays, Camera, Clock, ImageIcon, ImagePlus, MapPin, RectangleHorizontal,
+  AlignCenter, AlignLeft, AlignRight, Brush, CalendarDays, Camera, ChartColumn, MessageCircleQuestionMark, Clock, ImageIcon, ImagePlus, MapPin, RectangleHorizontal,
   RectangleVertical, Smile, Square, Ticket, Trash2, Type, X,
 } from "lucide-react-native";
 import { ThemeProvider } from "@/theme/ThemeProvider";
@@ -45,9 +49,12 @@ import {
   type FontId, type ItemMotion, type StoryItem, type TextAlign, type TextBg,
 } from "@/components/business/StoryItems";
 import { DrawingTools, StrokesView, type Stroke } from "@/components/business/StoryDrawing";
+import { StoryVideo, videoAvailable, type StoryVideoHandle } from "@/components/stories/StoryVideo";
+import { PortalField } from "@/components/business/PortalParts";
+import { PrimaryButton } from "@/components/Sheet";
 import { useBusinessOffers, useBusinessPlace, usePlaceEvents, usePortalPlace, useStoryActions } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
-import { businessError, uploadPlaceBytes, type StoryLink } from "@/lib/business";
+import { businessError, uploadPlaceBytes, type StoryInteraction, type StoryLink } from "@/lib/business";
 import { preparePhoto } from "@/lib/photos";
 import { STORY_FILTERS, renderFiltered } from "@/lib/storyFilters";
 import { eventWhen } from "@/lib/events";
@@ -70,6 +77,17 @@ const FITS: { id: Fit; name: string; Icon: typeof Square; ratio: number }[] = [
 ];
 interface Editing { id: string | null; text: string; font: FontId; color: string; bg: TextBg; size: number; align: TextAlign; at: { x: number; y: number } }
 const NEXT_ALIGN: Record<TextAlign, TextAlign> = { center: "left", left: "right", right: "center" };
+/** Enkäten eller frågan som skrivs i panelen (id = den som ändras, null = ny) */
+interface InteractionDraft { id: string | null; kind: "poll" | "question"; question: string; a: string; b: string; prompt: string }
+/** Vad som syns när storyn fotograferas: allt (stillbild), bara det ovanpå (filmens lager) eller omslaget */
+type Capture = "off" | "still" | "overlay" | "poster";
+const isInteraction = (i: StoryItem) => i.kind === "poll" || i.kind === "question";
+/** Ett par bildrutor, så att det som ändrats hunnit ritas innan storyn fotograferas */
+const frames = (n = 3) => new Promise<void>((resolve) => {
+  let i = 0;
+  const tick = () => (++i >= n ? resolve() : requestAnimationFrame(tick));
+  requestAnimationFrame(tick);
+});
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -119,6 +137,13 @@ function StoryEditor() {
   const [overTrash, setOverTrash] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
+  // Videostory: filmen i stället för bilden
+  const [video, setVideo] = useState<{ uri: string } | null>(null);
+  const videoRef = useRef<StoryVideoHandle>(null);
+  const [capturing, setCapturing] = useState<Capture>("off");
+  const [posterThumb, setPosterThumb] = useState<unknown | null>(null);
+  const posterLoaded = useRef<(() => void) | null>(null);
+  const [interactionDraft, setInteractionDraft] = useState<InteractionDraft | null>(null);
   const [drawing, setDrawing] = useState(false);
   // Hjälplinjerna genom mitten medan en sak dras dit
   const [guides, setGuides] = useState({ v: false, h: false });
@@ -188,7 +213,9 @@ function StoryEditor() {
     });
     setItems((list) => {
       // Bara en länk per story
-      const rest = item.kind === "link" ? list.filter((i) => i.kind !== "link") : list;
+      const rest = item.kind === "link" ? list.filter((i) => i.kind !== "link")
+        : isInteraction(item) ? list.filter((i) => !isInteraction(i))
+        : list;
       return [...rest, item].slice(-14);
     });
     Haptics.selectionAsync().catch(() => {});
@@ -223,7 +250,7 @@ function StoryEditor() {
 
   // ── Bilden ──
   /** Kameran eller biblioteket; null om man avbröt eller kameran är avstängd */
-  const pickPhoto = async (kind: "camera" | "library"): Promise<{ uri: string; ratio: number } | null> => {
+  const pickPhoto = async (kind: "camera" | "library", allowVideo = false): Promise<{ uri: string; ratio: number; isVideo: boolean } | null> => {
     if (kind === "camera") {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -234,19 +261,36 @@ function StoryEditor() {
         return null;
       }
     }
-    const result = kind === "camera"
-      ? await ImagePicker.launchCameraAsync({ quality: 1 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
+    // Film: högst 30 sekunder, och telefonen gör om den till 720p så den inte blir för stor
+    const media: ImagePicker.ImagePickerOptions = allowVideo && videoAvailable()
+      ? { mediaTypes: ["images", "videos"], videoMaxDuration: 30, videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720, quality: 1 }
+      : { mediaTypes: ["images"], quality: 1 };
+    const result = kind === "camera" ? await ImagePicker.launchCameraAsync(media) : await ImagePicker.launchImageLibraryAsync(media);
     if (result.canceled) return null;
     const a = result.assets[0];
+    const ratio = a.width && a.height ? a.width / a.height : 1;
+    if (a.type === "video") {
+      if ((a.duration ?? 0) > 31000) throw new Error("video_too_long");
+      return { uri: a.uri, ratio, isVideo: true };
+    }
     const uri = await preparePhoto({ uri: a.uri, width: a.width, height: a.height }, 1600);
-    return { uri, ratio: a.width && a.height ? a.width / a.height : 1 };
+    return { uri, ratio, isVideo: false };
   };
 
   const start = async (kind: "camera" | "library" | { url: string }) => {
     try {
-      const uri = typeof kind === "object" ? kind.url : (await pickPhoto(kind))?.uri ?? null;
-      if (!uri) return;
+      const picked = typeof kind === "object" ? { uri: kind.url, isVideo: false } : await pickPhoto(kind, true);
+      if (!picked) return;
+      if (picked.isVideo) {
+        setVideo({ uri: picked.uri });
+        setSource(null);
+        setFiltered({});
+        setThumbs({});
+        setPhase("edit");
+        return;
+      }
+      const uri = picked.uri;
+      setVideo(null);
       setSource(uri);
       setFiltered({ none: uri });
       setThumbs({});
@@ -254,7 +298,7 @@ function StoryEditor() {
       imgX.value = 0; imgY.value = 0; imgScale.value = 1;
       setPhase("edit");
     } catch (e) {
-      setError(businessError(e));
+      setError(e instanceof Error && e.message === "video_too_long" ? tb("Filmen får vara högst 30 sekunder.") : businessError(e));
     }
   };
 
@@ -320,11 +364,34 @@ function StoryEditor() {
     if (!item) return;
     if (item.kind === "text") {
       setEditing({ id, text: item.text, font: item.font, color: item.color, bg: item.bg, size: item.size, align: item.align, at: { x: 0, y: 0 } });
+    } else if (item.kind === "poll") {
+      setInteractionDraft({ id, kind: "poll", question: item.question, a: item.options[0], b: item.options[1], prompt: "" });
+    } else if (item.kind === "question") {
+      setInteractionDraft({ id, kind: "question", question: "", a: "", b: "", prompt: item.prompt });
     } else if (item.kind === "place" || item.kind === "link" || item.kind === "badge") {
       Haptics.selectionAsync().catch(() => {});
       setItems((list) => list.map((i) => (i.id === id && "look" in i ? { ...i, look: nextLook(i.look) } as StoryItem : i)));
     }
   }, [items]);
+
+  /** Panelen för enkät eller fråga öppnas först när Lägg till-panelen glidit ner */
+  const newInteraction = (kind: "poll" | "question") => {
+    setStickers(false);
+    setTimeout(() => setInteractionDraft({ id: null, kind, question: "", a: tb("Ja"), b: tb("Nej"), prompt: tb("Fråga oss något!") }), 450);
+  };
+  const saveInteraction = () => {
+    const d = interactionDraft;
+    if (!d) return;
+    const item: StoryItem = d.kind === "poll"
+      ? { id: d.id ?? newId(), kind: "poll", question: d.question.trim(), options: [d.a.trim(), d.b.trim()] }
+      : { id: d.id ?? newId(), kind: "question", prompt: d.prompt.trim() };
+    if (d.id) setItems((list) => list.map((i) => (i.id === d.id ? item : i)));
+    else addItem(item, { x: cw / 2, y: ch * 0.6 });
+    setInteractionDraft(null);
+  };
+  const interactionOk = !!interactionDraft && (interactionDraft.kind === "poll"
+    ? interactionDraft.a.trim().length > 0 && interactionDraft.b.trim().length > 0
+    : interactionDraft.prompt.trim().length > 0);
 
   const bringToFront = useCallback((id: string) => {
     frontCounter.current += 1;
@@ -366,19 +433,63 @@ function StoryEditor() {
     };
   };
 
+  /** Enkäten eller frågan: mitten, storleken (utan det osynliga greppet) och vridningen, i andelar av bilden */
+  const interactionRect = (): StoryInteraction | null => {
+    const item = items.find(isInteraction);
+    const m = item && motions.current.get(item.id);
+    if (!item || !m) return null;
+    const place = {
+      x: m.x.value / cw, y: m.y.value / ch,
+      w: ((m.w.value - TOUCH_PAD * 2) * m.scale.value) / cw, h: ((m.h.value - TOUCH_PAD * 2) * m.scale.value) / ch,
+      r: m.rot.value,
+    };
+    if (item.kind === "poll") return { kind: "poll", question: item.question, options: item.options, ...place };
+    if (item.kind === "question") return { kind: "question", prompt: item.prompt, ...place };
+    return null;
+  };
+
+  /** Fotograferar det som syns i läget `mode` (det ritas om först) */
+  const shoot = async (mode: Capture) => {
+    setCapturing(mode);
+    await frames();
+    const image = await makeImageFromView(capture);
+    if (!image) throw new Error("snapshot");
+    return image;
+  };
+
   const publish = async () => {
     setError(null);
     try {
-      // Fotograferas innan skärmen blir mörk, så inget av det kommer med
-      const snapshot = await makeImageFromView(capture);
-      if (!snapshot) throw new Error("snapshot");
-      setPhase("publishing");
-      const bytes = snapshot.encodeToBytes(ImageFormat.JPEG, 90);
-      const url = await uploadPlaceBytes(placeId, bytes);
       const caption = items.filter((i) => i.kind === "text").map((i) => (i as { text: string }).text).join(" · ").slice(0, 300) || null;
-      await actions.post(url, caption, linkRect());
+      const interaction = interactionRect();
+      if (video) {
+        // Lagret ovanpå filmen (genomskinligt), sedan omslaget: en stillbild ur filmen med samma saker ovanpå
+        const overlay = await shoot("overlay");
+        const thumb = await videoRef.current?.poster();
+        const loaded = new Promise<void>((resolve) => { posterLoaded.current = resolve; setTimeout(resolve, 1500); });
+        setPosterThumb(thumb ?? null);
+        if (thumb) await loaded;
+        const poster = await shoot("poster");
+        setCapturing("off");
+        setPhase("publishing");
+        const film = await (await fetch(video.uri)).arrayBuffer();
+        const [videoUrl, overlayUrl, imageUrl] = await Promise.all([
+          uploadPlaceBytes(placeId, film, video.uri.toLowerCase().endsWith(".mov") ? "mov" : "mp4"),
+          uploadPlaceBytes(placeId, overlay.encodeToBytes(ImageFormat.PNG, 100), "png"),
+          uploadPlaceBytes(placeId, poster.encodeToBytes(ImageFormat.JPEG, 85)),
+        ]);
+        await actions.post({ imageUrl, caption, link: linkRect(), videoUrl, overlayUrl, interaction });
+      } else {
+        // Fotograferas innan skärmen blir mörk, så inget av det kommer med
+        const snapshot = await shoot("still");
+        setCapturing("off");
+        setPhase("publishing");
+        const imageUrl = await uploadPlaceBytes(placeId, snapshot.encodeToBytes(ImageFormat.JPEG, 90));
+        await actions.post({ imageUrl, caption, link: linkRect(), interaction });
+      }
       setPhase("done");
     } catch (e) {
+      setCapturing("off");
       setPhase("edit");
       setError(e instanceof Error && e.message === "snapshot" ? tb("Storyn kunde inte sparas. Försök igen.") : businessError(e));
     }
@@ -461,9 +572,9 @@ function StoryEditor() {
       <StatusBar style="light" hidden={busy} />
       <View style={[s.canvasWrap, { width: cw, height: ch }]}>
         {/* Det här fotograferas när man publicerar: bilden och allt ovanpå, inget annat */}
-        <View ref={capture} collapsable={false} style={{ width: cw, height: ch, backgroundColor: "#000", overflow: "hidden" }}>
+        <View ref={capture} collapsable={false} style={{ width: cw, height: ch, backgroundColor: capturing === "overlay" ? "transparent" : "#000", overflow: "hidden" }}>
           {/* Liggande och kvadrat: samma bild suddig och lite mörkare bakom */}
-          {fit !== "fill" && shown && (
+          {!video && fit !== "fill" && shown && (
             <>
               <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} transition={0} />
               <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.25)" }]} />
@@ -471,15 +582,26 @@ function StoryEditor() {
           )}
           <GestureDetector gesture={background}>
             <Reanimated.View style={[StyleSheet.absoluteFill, s.center]}>
-              <Reanimated.View style={[{ width: cw, height: frameH, overflow: fit === "fill" ? "visible" : "hidden" }, imageStyle]}>
-                {!!shown && <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
-              </Reanimated.View>
+              {video ? (
+                // Filmen (tyst medan man redigerar); när storyn fotograferas syns den inte, eller som omslag
+                <View style={StyleSheet.absoluteFill}>
+                  {capturing === "poster" ? (
+                    posterThumb ? <ExpoImage source={posterThumb as never} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} onLoad={() => posterLoaded.current?.()} /> : null
+                  ) : capturing !== "overlay" ? (
+                    <StoryVideo ref={videoRef} uri={video.uri} playing={!busy} muted loop />
+                  ) : null}
+                </View>
+              ) : (
+                <Reanimated.View style={[{ width: cw, height: frameH, overflow: fit === "fill" ? "visible" : "hidden" }, imageStyle]}>
+                  {!!shown && <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
+                </Reanimated.View>
+              )}
             </Reanimated.View>
           </GestureDetector>
           {items.map((item) => {
             const motion = motions.current.get(item.id);
             return motion ? (
-              <View key={item.id} style={[StyleSheet.absoluteFill, { zIndex: front[item.id] ?? 0 }]} pointerEvents="box-none">
+              <View key={item.id} style={[StyleSheet.absoluteFill, { zIndex: front[item.id] ?? 0 }, capturing !== "off" && isInteraction(item) && { opacity: 0 }]} pointerEvents="box-none">
                 <MovableItem
                   item={item}
                   motion={motion}
@@ -513,7 +635,7 @@ function StoryEditor() {
               <Tool label={tb("Text")} showLabel={toolNames} onPress={() => startText(cw / 2, ch * 0.4)}><Type size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
               <Tool label={tb("Lägg till")} showLabel={toolNames} onPress={() => { setStickersReady(false); setStickers(true); }}><Smile size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
               <Tool label={tb("Rita")} showLabel={toolNames} onPress={() => setDrawing(true)}><Brush size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
-              <Tool label={tb(fitDef.name)} showLabel={toolNames} onPress={cycleFit}><fitDef.Icon size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
+              {!video && <Tool label={tb(fitDef.name)} showLabel={toolNames} onPress={cycleFit}><fitDef.Icon size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>}
             </View>
           </Reanimated.View>
         )}
@@ -539,7 +661,7 @@ function StoryEditor() {
 
       <View style={[s.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         {/* Filtren som små förhandsbilder: det valda har en guldram */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={s.filters}>
+        {video ? <View style={{ flex: 1 }} /> : <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={s.filters}>
           {STORY_FILTERS.map((f, i) => {
             const on = i === filterIndex;
             return (
@@ -551,7 +673,7 @@ function StoryEditor() {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </ScrollView>}
         <TouchableOpacity style={[s.publish, busy && { opacity: 0.5 }]} disabled={busy} activeOpacity={0.85} onPress={publish}>
           <Text style={s.publishBtn}>{tb("Publicera")}</Text>
         </TouchableOpacity>
@@ -578,6 +700,16 @@ function StoryEditor() {
                     <Text style={s.quickText}>{tb("Platsen")}</Text>
                   </TouchableOpacity>
                 )}
+                <TouchableOpacity style={s.quick} onPress={() => newInteraction("poll")}>
+                  <ChartColumn size={22} color={GOLD} strokeWidth={2.2} />
+                  <Text style={s.quickText}>{tb("Enkät")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.quick} onPress={() => newInteraction("question")}>
+                  <MessageCircleQuestionMark size={22} color={GOLD} strokeWidth={2.2} />
+                  <Text style={s.quickText}>{tb("Fråga")}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={s.quickRow}>
                 <TouchableOpacity style={s.quick} onPress={addPhoto}>
                   <ImagePlus size={22} color={GOLD} strokeWidth={2.2} />
                   <Text style={s.quickText}>{tb("Bild")}</Text>
@@ -627,6 +759,34 @@ function StoryEditor() {
             </ScrollView>
           </Reanimated.View>
         ) : null}
+      </Sheet>
+
+      <Sheet visible={!!interactionDraft} onClose={() => setInteractionDraft(null)} title={interactionDraft?.kind === "question" ? tb("Fråga") : tb("Enkät")}>
+        {interactionDraft && (
+          <View style={{ gap: 14 }}>
+            {interactionDraft.kind === "poll" ? (
+              <>
+                <PortalField label={tb("Frågan (valfritt)")} value={interactionDraft.question} maxLength={80} placeholder={tb("T.ex. Vilken tårta blir veckans?")}
+                  onChangeText={(v) => setInteractionDraft({ ...interactionDraft, question: v })} />
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <PortalField label={tb("Svar 1")} value={interactionDraft.a} maxLength={24} onChangeText={(v) => setInteractionDraft({ ...interactionDraft, a: v })} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <PortalField label={tb("Svar 2")} value={interactionDraft.b} maxLength={24} onChangeText={(v) => setInteractionDraft({ ...interactionDraft, b: v })} />
+                  </View>
+                </View>
+                <Text style={s.sheetNote}>{tb("Gästerna röstar direkt i storyn och ser resultatet. Ni ser rösterna under Stories.")}</Text>
+              </>
+            ) : (
+              <>
+                <PortalField label={tb("Er fråga")} value={interactionDraft.prompt} maxLength={80} onChangeText={(v) => setInteractionDraft({ ...interactionDraft, prompt: v })} />
+                <Text style={s.sheetNote}>{tb("Gästerna skriver ett svar i storyn. Ni läser svaren under Stories, utan att se vem som skrivit.")}</Text>
+              </>
+            )}
+            <PrimaryButton label={interactionDraft.id ? tb("Spara") : tb("Lägg till")} onPress={saveInteraction} disabled={!interactionOk} />
+          </View>
+        )}
       </Sheet>
       {menu.element}
     </View>
@@ -809,6 +969,7 @@ const s = StyleSheet.create({
   },
   stickerRowText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#F5F1E8" },
   stickerRowSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(245,241,232,0.55)", marginTop: 2 },
+  sheetNote: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, color: "rgba(245,241,232,0.6)" },
   sheetLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, textTransform: "uppercase", color: "rgba(245,241,232,0.55)", marginTop: 4 },
   badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   badgeBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: "#FFFFFF" },
