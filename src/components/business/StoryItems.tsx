@@ -3,8 +3,9 @@
  * till, platsens namn och en länk till ett erbjudande eller evenemang. Varje sak dras med ett finger,
  * nyps större/mindre och vrids med två, och dras till papperskorgen nertill för att tas bort. Ett
  * osynligt grepp runt varje sak gör att även små saker går att nypa och vrida. Platsen, länken och
- * klistermärkena byter stil vid tryck (vit liten → vit stor → mörk liten → mörk stor). Allt rör sig
- * på UI-tråden.
+ * klistermärkena byter stil vid tryck (smal vit → kvadrat vit → smal svart → kvadrat svart). När en
+ * sak dras nära mitten syns en hjälplinje och saken fastnar där, som på Instagram. Den sak man rör
+ * läggs överst. Allt rör sig på UI-tråden.
  */
 import { memo, useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -17,6 +18,9 @@ import { tb } from "@/i18n/business";
 
 export type FontId = "classic" | "modern" | "elegant" | "hand" | "type";
 export type TextBg = "none" | "solid" | "soft";
+export type TextAlign = "left" | "center" | "right";
+/** Textens storlek (punkter) när den skrivs; reglaget i textläget går mellan dessa */
+export const TEXT_SIZE = { min: 18, base: 30, max: 64 };
 
 export const FONTS: { id: FontId; label: string; family: string; upper?: boolean }[] = [
   { id: "classic", label: "Klassisk", family: "Montserrat_700Bold" },
@@ -28,7 +32,7 @@ export const FONTS: { id: FontId; label: string; family: string; upper?: boolean
 
 export const TEXT_COLORS = ["#FFFFFF", "#111111", "#E4C67A", "#E5484D", "#F97316", "#2E9E6B", "#3B82F6", "#EC4899"];
 
-/** Stilen på plats, länk och klistermärke: 0 vit liten, 1 vit stor, 2 mörk liten, 3 mörk stor */
+/** Stilen på plats, länk och klistermärke: 0 smal vit, 1 kvadrat vit, 2 smal svart, 3 kvadrat svart */
 export type Look = 0 | 1 | 2 | 3;
 export const nextLook = (look: Look): Look => ((look + 1) % 4) as Look;
 
@@ -36,7 +40,7 @@ export const nextLook = (look: Look): Look => ((look + 1) % 4) as Look;
 export const BADGES = ["Nyhet!", "Öppet i dag", "Dagens lunch", "Nybakat", "Välkommen in", "Sista chansen", "Slutsålt"];
 
 export type StoryItem =
-  | { id: string; kind: "text"; text: string; font: FontId; color: string; bg: TextBg }
+  | { id: string; kind: "text"; text: string; font: FontId; color: string; bg: TextBg; size: number; align: TextAlign }
   | { id: string; kind: "emoji"; text: string }
   | { id: string; kind: "badge"; text: string; look: Look }
   | { id: string; kind: "photo"; uri: string; ratio: number }
@@ -63,6 +67,12 @@ export function contrastOn(hex: string): string {
   return l > 0.6 ? "#111111" : "#FFFFFF";
 }
 
+/** Textens radavstånd och storlek: handskriften är lite större för att se lika stor ut */
+export function textMetrics(font: FontId, size: number) {
+  const fontSize = font === "hand" ? size * 1.33 : size;
+  return { fontSize, lineHeight: Math.round(fontSize * 1.2) };
+}
+
 function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
   if (item.kind === "text") {
     const font = FONTS.find((f) => f.id === item.font) ?? FONTS[0];
@@ -72,9 +82,8 @@ function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
       <View style={[s.textBox, solid && { backgroundColor: item.color }, soft && s.soft, { maxWidth }]}>
         <Text
           style={[
-            s.text,
-            { fontFamily: font.family, color: solid ? contrastOn(item.color) : item.color },
-            font.id === "hand" && { fontSize: 40, lineHeight: 44 },
+            { fontFamily: font.family, color: solid ? contrastOn(item.color) : item.color, textAlign: item.align },
+            textMetrics(item.font, item.size),
             font.upper && { textTransform: "uppercase", letterSpacing: 1 },
             item.bg === "none" && s.shadow,
           ]}
@@ -90,35 +99,49 @@ function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
     return <ExpoImage source={{ uri: item.uri }} style={[s.photo, { width: w, height: w / item.ratio }]} contentFit="cover" />;
   }
   const dark = item.look >= 2;
-  const big = item.look % 2 === 1;
-  const k = big ? 1.35 : 1;
+  const square = item.look % 2 === 1;
   const ink = dark ? "#FFFFFF" : "#111111";
   const box = dark ? s.boxDark : s.boxLight;
   if (item.kind === "badge") {
     return (
-      <View style={[s.badge, box, { paddingHorizontal: 16 * k, paddingVertical: 9 * k, borderRadius: 14 * k }]}>
-        <Text style={[s.badgeText, { color: dark ? "#E4C67A" : "#111111", fontSize: 20 * k }]} numberOfLines={1}>{item.text.toUpperCase()}</Text>
+      <View style={[box, square ? s.badgeSquare : s.badgeWide]}>
+        <Text style={[s.badgeText, square ? s.badgeTextSquare : null, { color: dark ? "#E4C67A" : "#111111" }]} numberOfLines={square ? 3 : 1}>
+          {item.text.toUpperCase()}
+        </Text>
       </View>
     );
   }
   if (item.kind === "place") {
     return (
-      <View style={[s.place, box, { paddingHorizontal: 14 * k, paddingVertical: 9 * k, borderRadius: 12 * k, gap: 6 * k }]}>
-        <MapPin size={20 * k} color={dark ? "#E4C67A" : "#C2410C"} strokeWidth={2.4} />
-        <Text style={[s.placeText, { color: dark ? "#FFFFFF" : "#C2410C", fontSize: 18 * k }]} numberOfLines={1}>{item.text.toUpperCase()}</Text>
+      <View style={[box, square ? s.placeSquare : s.placeWide]}>
+        <MapPin size={square ? 30 : 20} color={dark ? "#E4C67A" : "#C2410C"} strokeWidth={2.4} />
+        <Text style={[s.placeText, square && s.placeTextSquare, { color: dark ? "#FFFFFF" : "#C2410C" }]} numberOfLines={square ? 2 : 1}>
+          {item.text.toUpperCase()}
+        </Text>
       </View>
     );
   }
   const Icon = item.link.kind === "offer" ? Ticket : CalendarDays;
-  return (
-    <View style={[s.link, box, { gap: 10 * k, paddingLeft: 8 * k, paddingRight: 12 * k, paddingVertical: 8 * k, borderRadius: 16 * k, maxWidth: 300 * k }]}>
-      <View style={[s.linkIcon, { width: 40 * k, height: 40 * k, borderRadius: 12 * k }]}><Icon size={20 * k} color="#1A1408" strokeWidth={2.2} /></View>
-      <View style={{ flexShrink: 1 }}>
-        <Text style={[s.linkKicker, { fontSize: 10.5 * k }, dark && { color: "#E4C67A" }]}>{item.link.kind === "offer" ? tb("Erbjudande") : tb("Evenemang")}</Text>
-        <Text style={[s.linkTitle, { color: ink, fontSize: 16 * k }]} numberOfLines={1}>{item.title}</Text>
-        {!!item.sub && <Text style={[s.linkSub, { fontSize: 12.5 * k }, dark && { color: "rgba(255,255,255,0.7)" }]} numberOfLines={1}>{item.sub}</Text>}
+  const kicker = item.link.kind === "offer" ? tb("Erbjudande") : tb("Evenemang");
+  if (square) {
+    return (
+      <View style={[box, s.linkSquare]}>
+        <View style={s.linkIconBig}><Icon size={26} color="#1A1408" strokeWidth={2.2} /></View>
+        <Text style={[s.linkKicker, dark && { color: "#E4C67A" }]}>{kicker}</Text>
+        <Text style={[s.linkTitle, s.linkTitleSquare, { color: ink }]} numberOfLines={2}>{item.title}</Text>
+        {!!item.sub && <Text style={[s.linkSub, s.center, dark && { color: "rgba(255,255,255,0.7)" }]} numberOfLines={1}>{item.sub}</Text>}
       </View>
-      <ChevronRight size={20 * k} color={ink} strokeWidth={2.4} />
+    );
+  }
+  return (
+    <View style={[box, s.link]}>
+      <View style={s.linkIcon}><Icon size={20} color="#1A1408" strokeWidth={2.2} /></View>
+      <View style={{ flexShrink: 1 }}>
+        <Text style={[s.linkKicker, dark && { color: "#E4C67A" }]}>{kicker}</Text>
+        <Text style={[s.linkTitle, { color: ink }]} numberOfLines={1}>{item.title}</Text>
+        {!!item.sub && <Text style={[s.linkSub, dark && { color: "rgba(255,255,255,0.7)" }]} numberOfLines={1}>{item.sub}</Text>}
+      </View>
+      <ChevronRight size={20} color={ink} strokeWidth={2.4} />
     </View>
   );
 }
@@ -128,13 +151,19 @@ function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
  * saken där tas den bort.
  */
 export const MovableItem = memo(function MovableItem({
-  item, motion, maxWidth, trash, onTap, onActive, onOverTrash, onDelete,
+  item, motion, maxWidth, trash, center, onTap, onFront, onGuides, onActive, onOverTrash, onDelete,
 }: {
   item: StoryItem;
   motion: ItemMotion;
   maxWidth: number;
   trash: { x: number; y: number };
+  /** Bildens mitt: där saken fastnar och hjälplinjerna går */
+  center: { x: number; y: number };
   onTap: (id: string) => void;
+  /** Saken rördes: lägg den överst */
+  onFront: (id: string) => void;
+  /** Vilka hjälplinjer som syns (lodrät genom mitten, vågrät genom mitten) */
+  onGuides: (vertical: boolean, horizontal: boolean) => void;
   onActive: (active: boolean) => void;
   onOverTrash: (over: boolean) => void;
   onDelete: (id: string) => void;
@@ -142,6 +171,9 @@ export const MovableItem = memo(function MovableItem({
   const start = useSharedValue({ x: 0, y: 0, scale: 1, rot: 0 });
   const over = useSharedValue(false);
   const lift = useSharedValue(1);
+  const snapX = useSharedValue(false);
+  const snapY = useSharedValue(false);
+  const SNAP = 10;
   const near = (ax: number, ay: number) => {
     "worklet";
     return Math.abs(ax - trash.x) < 60 && Math.abs(ay - trash.y) < 60;
@@ -152,14 +184,26 @@ export const MovableItem = memo(function MovableItem({
   const pan = Gesture.Pan()
     .minDistance(4)
     .averageTouches(true)
+    .onBegin(() => { runOnJS(onFront)(item.id); })
     .onStart(() => {
       start.value = { x: motion.x.value, y: motion.y.value, scale: motion.scale.value, rot: motion.rot.value };
       lift.value = withSpring(1.04, { damping: 18, stiffness: 260 });
       runOnJS(onActive)(true);
     })
     .onUpdate((e) => {
-      motion.x.value = start.value.x + e.translationX;
-      motion.y.value = start.value.y + e.translationY;
+      const x = start.value.x + e.translationX;
+      const y = start.value.y + e.translationY;
+      // Nära mitten: saken fastnar där och hjälplinjen visas, med en liten knack
+      const sx = Math.abs(x - center.x) < SNAP;
+      const sy = Math.abs(y - center.y) < SNAP;
+      motion.x.value = sx ? center.x : x;
+      motion.y.value = sy ? center.y : y;
+      if (sx !== snapX.value || sy !== snapY.value) {
+        if ((sx && !snapX.value) || (sy && !snapY.value)) runOnJS(buzz)();
+        snapX.value = sx;
+        snapY.value = sy;
+        runOnJS(onGuides)(sx, sy);
+      }
       const isOver = near(e.absoluteX, e.absoluteY);
       if (isOver !== over.value) {
         over.value = isOver;
@@ -172,6 +216,9 @@ export const MovableItem = memo(function MovableItem({
     })
     .onFinalize(() => {
       over.value = false;
+      if (snapX.value || snapY.value) runOnJS(onGuides)(false, false);
+      snapX.value = false;
+      snapY.value = false;
       lift.value = withSpring(1, { damping: 18, stiffness: 260 });
       runOnJS(onOverTrash)(false);
       runOnJS(onActive)(false);
@@ -212,19 +259,26 @@ const s = StyleSheet.create({
   grip: { padding: TOUCH_PAD },
   boxLight: { backgroundColor: "#FFFFFF" },
   boxDark: { backgroundColor: "rgba(17,17,17,0.88)" },
-  badge: { alignItems: "center" },
-  badgeText: { fontFamily: "Montserrat_700Bold", letterSpacing: 0.6 },
+  badgeWide: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 14, alignItems: "center" },
+  badgeSquare: { width: 130, height: 130, borderRadius: 22, padding: 12, alignItems: "center", justifyContent: "center" },
+  badgeText: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 0.6 },
+  badgeTextSquare: { fontSize: 22, lineHeight: 27, textAlign: "center" },
   photo: { borderRadius: 12, borderWidth: 4, borderColor: "#FFFFFF" },
   textBox: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   soft: { backgroundColor: "rgba(0,0,0,0.5)" },
-  text: { fontSize: 30, lineHeight: 36, textAlign: "center" },
   shadow: { textShadowColor: "rgba(0,0,0,0.45)", textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   emoji: { fontSize: 64, lineHeight: 76 },
-  place: { flexDirection: "row", alignItems: "center" },
-  placeText: { fontFamily: "Montserrat_700Bold", letterSpacing: 0.3 },
-  link: { flexDirection: "row", alignItems: "center" },
-  linkIcon: { alignItems: "center", justifyContent: "center", backgroundColor: "#E4C67A" },
-  linkKicker: { fontFamily: "Inter_700Bold", letterSpacing: 0.8, textTransform: "uppercase", color: "#8A6A1F" },
-  linkTitle: { fontFamily: "Montserrat_700Bold" },
-  linkSub: { fontFamily: "Inter_600SemiBold", color: "#444444" },
+  placeWide: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12 },
+  placeSquare: { width: 140, minHeight: 140, borderRadius: 22, padding: 14, gap: 8, alignItems: "center", justifyContent: "center" },
+  placeText: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: 0.3 },
+  placeTextSquare: { fontSize: 17, lineHeight: 21, textAlign: "center" },
+  link: { flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 8, paddingRight: 12, paddingVertical: 8, borderRadius: 16, maxWidth: 300 },
+  linkSquare: { width: 170, minHeight: 170, borderRadius: 24, padding: 14, gap: 4, alignItems: "center", justifyContent: "center" },
+  linkIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#E4C67A" },
+  linkIconBig: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "#E4C67A", marginBottom: 6 },
+  linkKicker: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 0.8, textTransform: "uppercase", color: "#8A6A1F" },
+  linkTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16 },
+  linkTitleSquare: { fontSize: 17, lineHeight: 21, textAlign: "center" },
+  linkSub: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: "#444444" },
+  center: { textAlign: "center" },
 });

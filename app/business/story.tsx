@@ -2,13 +2,15 @@
  * Ny story — så likt Instagram som möjligt, så företagaren känner igen sig.
  *
  *  1. Ta en bild, välj en ur telefonen eller använd en av platsens egna.
- *  2. Filtren ligger som små förhandsbilder längst ner (eller svep åt sidan på bilden). Formatet
- *     (stående, liggande, kvadrat) byts uppe till höger; liggande och kvadrat får bilden suddig
- *     bakom. Tryck på bilden för att skriva (typsnitt, färg, bakgrund). Lägg till emoji,
- *     klistermärken, en bild till, platsens namn och en länk till ett erbjudande eller evenemang
- *     (gästen trycker på den i storyn och kommer dit). Platsen, länken och klistermärkena byter
- *     stil vid tryck. Dra, nyp och vrid allt; dra till papperskorgen för att ta bort. Två fingrar
- *     på bilden flyttar och zoomar den.
+ *  2. Verktygen står i en rad till höger, som på Instagram: Text, Lägg till, Rita och Format.
+ *     Filtren ligger som små förhandsbilder längst ner (eller svep åt sidan på bilden). Formatet
+ *     (stående, liggande, kvadrat) får bilden suddig bakom vid liggande och kvadrat. Tryck på
+ *     bilden för att skriva (typsnitt, färg, bakgrund, storlek med reglaget till vänster,
+ *     justering). Lägg till emoji, klistermärken, en bild till, platsens namn och en länk till ett
+ *     erbjudande eller evenemang (gästen trycker på den i storyn och kommer dit). Platsen, länken
+ *     och klistermärkena byter stil vid tryck (smal/kvadrat, vit/svart). Rita med fingret. Dra, nyp
+ *     och vrid allt; nära mitten syns en hjälplinje och saken fastnar. Den sak man rör hamnar
+ *     överst. Dra till papperskorgen för att ta bort. Två fingrar på bilden flyttar och zoomar den.
  *  3. Publicera: storyn fotograferas precis som den syns (med text och klistermärken inbakade),
  *     laddas upp och syns överst på Hem i 24 timmar. Skärmen blir mörk och guldcirkeln kommer
  *     fram, som när ett evenemang eller erbjudande läggs ut.
@@ -31,17 +33,18 @@ import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { ImageFormat, makeImageFromView } from "@shopify/react-native-skia";
 import {
-  CalendarDays, Camera, Clock, ImageIcon, ImagePlus, MapPin, RectangleHorizontal, RectangleVertical, Smile, Square,
-  Ticket, Trash2, Type, X,
+  AlignCenter, AlignLeft, AlignRight, Brush, CalendarDays, Camera, Clock, ImageIcon, ImagePlus, MapPin, RectangleHorizontal,
+  RectangleVertical, Smile, Square, Ticket, Trash2, Type, X,
 } from "lucide-react-native";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { Sheet } from "@/components/Sheet";
 import { useActionMenu } from "@/components/ActionMenu";
 import { DoneMoment } from "@/components/business/WizardParts";
 import {
-  BADGES, FONTS, MovableItem, TEXT_COLORS, TOUCH_PAD, contrastOn, nextLook,
-  type FontId, type ItemMotion, type StoryItem, type TextBg,
+  BADGES, FONTS, MovableItem, TEXT_COLORS, TEXT_SIZE, TOUCH_PAD, contrastOn, nextLook, textMetrics,
+  type FontId, type ItemMotion, type StoryItem, type TextAlign, type TextBg,
 } from "@/components/business/StoryItems";
+import { DrawingTools, StrokesView, type Stroke } from "@/components/business/StoryDrawing";
 import { useBusinessOffers, useBusinessPlace, usePlaceEvents, usePortalPlace, useStoryActions } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, uploadPlaceBytes, type StoryLink } from "@/lib/business";
@@ -54,7 +57,7 @@ import { currentLanguage } from "@/i18n";
 const EMOJIS = ["❤️", "🔥", "😍", "✨", "⭐", "☀️", "🌊", "🌿", "🍎", "🍷", "🍺", "☕", "🍰", "🦞", "🐟", "🧀", "🍕", "🎉", "🎶", "🛍️", "🌸", "🌻", "🍂", "❄️", "🥂", "👋", "🙌", "💛"];
 const GOLD = "#E4C67A";
 /** Nedre raden: filtren och Publicera */
-const BAR_H = 148;
+const BAR_H = 100;
 const THUMB = 52;
 
 type Phase = "pick" | "edit" | "publishing" | "done";
@@ -65,7 +68,8 @@ const FITS: { id: Fit; name: string; Icon: typeof Square; ratio: number }[] = [
   { id: "landscape", name: "Liggande", Icon: RectangleHorizontal, ratio: 4 / 3 },
   { id: "square", name: "Kvadrat", Icon: Square, ratio: 1 },
 ];
-interface Editing { id: string | null; text: string; font: FontId; color: string; bg: TextBg; at: { x: number; y: number } }
+interface Editing { id: string | null; text: string; font: FontId; color: string; bg: TextBg; size: number; align: TextAlign; at: { x: number; y: number } }
+const NEXT_ALIGN: Record<TextAlign, TextAlign> = { center: "left", left: "right", right: "center" };
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -114,6 +118,20 @@ function StoryEditor() {
   const [dragging, setDragging] = useState(false);
   const [overTrash, setOverTrash] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [drawing, setDrawing] = useState(false);
+  // Hjälplinjerna genom mitten medan en sak dras dit
+  const [guides, setGuides] = useState({ v: false, h: false });
+  // Vilken sak som ligger överst: den man senast rörde (zIndex, så ingen flyttas i trädet mitt i en gest)
+  const [front, setFront] = useState<Record<string, number>>({});
+  const frontCounter = useRef(0);
+  // Verktygens namn syns en stund när man börjar redigera, sedan bara symbolerna (som på Instagram)
+  const [toolNames, setToolNames] = useState(true);
+  useEffect(() => {
+    if (phase !== "edit") return;
+    const t = setTimeout(() => setToolNames(false), 3500);
+    return () => clearTimeout(t);
+  }, [phase]);
   const capture = useRef<View>(null);
   const autoLinked = useRef(false);
 
@@ -243,6 +261,8 @@ function StoryEditor() {
   /** En bild till, ovanpå storyn */
   const addPhoto = async () => {
     setStickers(false);
+    // Bildväljaren kan inte öppnas medan panelen fortfarande glider ner (appen frös): vänta in den
+    await new Promise((r) => setTimeout(r, 450));
     try {
       const photo = await pickPhoto("library");
       if (photo) addItem({ id: newId(), kind: "photo", uri: photo.uri, ratio: photo.ratio }, { x: cw / 2, y: ch * 0.45 });
@@ -271,7 +291,7 @@ function StoryEditor() {
   };
 
   const startText = useCallback((x: number, y: number) => {
-    setEditing({ id: null, text: "", font: "classic", color: "#FFFFFF", bg: "none", at: { x, y } });
+    setEditing({ id: null, text: "", font: "classic", color: "#FFFFFF", bg: "none", size: TEXT_SIZE.base, align: "center", at: { x, y } });
   }, []);
 
   // Bakgrunden: svep = filter, tryck = skriv, två fingrar = flytta och zooma bilden
@@ -299,21 +319,29 @@ function StoryEditor() {
     const item = items.find((i) => i.id === id);
     if (!item) return;
     if (item.kind === "text") {
-      setEditing({ id, text: item.text, font: item.font, color: item.color, bg: item.bg, at: { x: 0, y: 0 } });
+      setEditing({ id, text: item.text, font: item.font, color: item.color, bg: item.bg, size: item.size, align: item.align, at: { x: 0, y: 0 } });
     } else if (item.kind === "place" || item.kind === "link" || item.kind === "badge") {
       Haptics.selectionAsync().catch(() => {});
       setItems((list) => list.map((i) => (i.id === id && "look" in i ? { ...i, look: nextLook(i.look) } as StoryItem : i)));
     }
   }, [items]);
 
+  const bringToFront = useCallback((id: string) => {
+    frontCounter.current += 1;
+    const z = frontCounter.current;
+    setFront((m) => ({ ...m, [id]: z }));
+  }, []);
+  const showGuides = useCallback((v: boolean, h: boolean) => setGuides({ v, h }), []);
+  const addStroke = useCallback((stroke: Stroke) => setStrokes((list) => [...list, stroke]), []);
+
   const finishText = () => {
     if (!editing) return;
     const text = editing.text.trim();
     if (editing.id) {
       if (!text) removeItem(editing.id);
-      else setItems((list) => list.map((i) => (i.id === editing.id ? { ...i, text, font: editing.font, color: editing.color, bg: editing.bg } as StoryItem : i)));
+      else setItems((list) => list.map((i) => (i.id === editing.id ? { ...i, text, font: editing.font, color: editing.color, bg: editing.bg, size: editing.size, align: editing.align } as StoryItem : i)));
     } else if (text) {
-      addItem({ id: newId(), kind: "text", text, font: editing.font, color: editing.color, bg: editing.bg }, editing.at);
+      addItem({ id: newId(), kind: "text", text, font: editing.font, color: editing.color, bg: editing.bg, size: editing.size, align: editing.align }, editing.at);
     }
     setEditing(null);
   };
@@ -451,33 +479,53 @@ function StoryEditor() {
           {items.map((item) => {
             const motion = motions.current.get(item.id);
             return motion ? (
-              <MovableItem
-                key={item.id}
-                item={item}
-                motion={motion}
-                maxWidth={cw * 0.86}
-                trash={trash}
-                onTap={onTapItem}
-                onActive={setDragging}
-                onOverTrash={setOverTrash}
-                onDelete={removeItem}
-              />
+              <View key={item.id} style={[StyleSheet.absoluteFill, { zIndex: front[item.id] ?? 0 }]} pointerEvents="box-none">
+                <MovableItem
+                  item={item}
+                  motion={motion}
+                  maxWidth={cw * 0.86}
+                  trash={trash}
+                  center={{ x: cw / 2, y: ch / 2 }}
+                  onTap={onTapItem}
+                  onFront={bringToFront}
+                  onGuides={showGuides}
+                  onActive={setDragging}
+                  onOverTrash={setOverTrash}
+                  onDelete={removeItem}
+                />
+              </View>
             ) : null;
           })}
+          <View style={[StyleSheet.absoluteFill, { zIndex: frontCounter.current + 1 }]} pointerEvents="none">
+            <StrokesView strokes={strokes} width={cw} height={ch} />
+          </View>
         </View>
 
+        {/* Hjälplinjerna genom mitten (fotograferas inte) */}
+        {guides.v && <View pointerEvents="none" style={[s.guideV, { left: cw / 2 - 0.75 }]} />}
+        {guides.h && <View pointerEvents="none" style={[s.guideH, { top: ch / 2 - 0.75 }]} />}
+
         {/* Knapparna ovanpå bilden (fotograferas inte) */}
-        {!busy && !dragging && (
+        {!busy && !dragging && !drawing && (
           <Reanimated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)} style={s.tools} pointerEvents="box-none">
             <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel={tb("Stäng")}><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
             <View style={s.toolsRight}>
-              <TouchableOpacity onPress={() => startText(cw / 2, ch * 0.4)} hitSlop={8} style={s.round} accessibilityLabel={tb("Text")}><Type size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
-              <TouchableOpacity onPress={() => { setStickersReady(false); setStickers(true); }} hitSlop={8} style={s.round} accessibilityLabel={tb("Lägg till")}><Smile size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
-              <TouchableOpacity onPress={cycleFit} hitSlop={8} style={s.round} accessibilityLabel={tb("Format: {{0}}", { 0: tb(fitDef.name) })}>
-                <fitDef.Icon size={21} color="#FFFFFF" strokeWidth={2.2} />
-              </TouchableOpacity>
+              <Tool label={tb("Text")} showLabel={toolNames} onPress={() => startText(cw / 2, ch * 0.4)}><Type size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
+              <Tool label={tb("Lägg till")} showLabel={toolNames} onPress={() => { setStickersReady(false); setStickers(true); }}><Smile size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
+              <Tool label={tb("Rita")} showLabel={toolNames} onPress={() => setDrawing(true)}><Brush size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
+              <Tool label={tb(fitDef.name)} showLabel={toolNames} onPress={cycleFit}><fitDef.Icon size={21} color="#FFFFFF" strokeWidth={2.2} /></Tool>
             </View>
           </Reanimated.View>
+        )}
+        {drawing && (
+          <DrawingTools
+            width={cw}
+            height={ch}
+            canUndo={strokes.length > 0}
+            onStroke={addStroke}
+            onUndo={() => setStrokes((list) => list.slice(0, -1))}
+            onDone={() => setDrawing(false)}
+          />
         )}
         <Reanimated.View pointerEvents="none" style={[s.flash, flashStyle]}>
           <Text style={s.flashText}>{flashText}</Text>
@@ -491,7 +539,7 @@ function StoryEditor() {
 
       <View style={[s.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         {/* Filtren som små förhandsbilder: det valda har en guldram */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={s.filters}>
           {STORY_FILTERS.map((f, i) => {
             const on = i === filterIndex;
             return (
@@ -504,15 +552,11 @@ function StoryEditor() {
             );
           })}
         </ScrollView>
-        <View style={s.barRow}>
-          <Text style={s.hint} numberOfLines={2}>
-            {error ?? tb("Tryck på bilden för att skriva. Tryck på en sak för att byta stil.")}
-          </Text>
-          <TouchableOpacity style={[s.publish, busy && { opacity: 0.5 }]} disabled={busy} activeOpacity={0.85} onPress={publish}>
-            <Text style={s.publishBtn}>{tb("Publicera")}</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={[s.publish, busy && { opacity: 0.5 }]} disabled={busy} activeOpacity={0.85} onPress={publish}>
+          <Text style={s.publishBtn}>{tb("Publicera")}</Text>
+        </TouchableOpacity>
       </View>
+      {error ? <Text style={[s.errorFloat, { bottom: BAR_H + Math.max(insets.bottom, 12) }]} numberOfLines={2}>{error}</Text> : null}
 
       {/* Medan storyn laddas upp: skärmen mörk */}
       {busy && (
@@ -521,7 +565,7 @@ function StoryEditor() {
         </Reanimated.View>
       )}
 
-      {editing && <TextEditor editing={editing} onChange={setEditing} onDone={finishText} />}
+      {editing && <TextEditor editing={editing} onChange={setEditing} onSize={(size) => setEditing((e) => (e ? { ...e, size } : e))} onDone={finishText} />}
 
       <Sheet visible={stickers} onClose={() => setStickers(false)} onShow={() => setStickersReady(true)} title={tb("Lägg till")} tall>
         {stickersReady ? (
@@ -590,23 +634,32 @@ function StoryEditor() {
 }
 
 /** Att skriva: texten mitt på skärmen, typsnitt och färger ovanför tangentbordet */
-function TextEditor({ editing, onChange, onDone }: { editing: Editing; onChange: (e: Editing) => void; onDone: () => void }) {
+function TextEditor({ editing, onChange, onSize, onDone }: {
+  editing: Editing; onChange: (e: Editing) => void; onSize: (size: number) => void; onDone: () => void;
+}) {
   const insets = useSafeAreaInsets();
   const keyboard = useAnimatedKeyboard();
   const lift = useAnimatedStyle(() => ({ paddingBottom: Math.max(keyboard.height.value, insets.bottom) + 10 }));
   const font = FONTS.find((f) => f.id === editing.font) ?? FONTS[0];
   const nextBg: Record<TextBg, TextBg> = { none: "solid", solid: "soft", soft: "none" };
   const solid = editing.bg === "solid";
+  const AlignIcon = editing.align === "left" ? AlignLeft : editing.align === "right" ? AlignRight : AlignCenter;
   return (
     <Reanimated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)} style={[StyleSheet.absoluteFill, s.editor]}>
+      <SizeSlider value={editing.size} onChange={onSize} top={insets.top + 90} />
       <View style={[s.editorTop, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity
-          style={[s.bgBtn, editing.bg !== "none" && { backgroundColor: "#FFFFFF" }]}
-          onPress={() => onChange({ ...editing, bg: nextBg[editing.bg] })}
-          accessibilityLabel={tb("Bakgrund bakom texten")}
-        >
-          <Text style={[s.bgBtnText, editing.bg !== "none" && { color: "#111111" }]}>{tb("A")}</Text>
-        </TouchableOpacity>
+        <View style={s.editorTopLeft}>
+          <TouchableOpacity
+            style={[s.bgBtn, editing.bg !== "none" && { backgroundColor: "#FFFFFF" }]}
+            onPress={() => onChange({ ...editing, bg: nextBg[editing.bg] })}
+            accessibilityLabel={tb("Bakgrund bakom texten")}
+          >
+            <Text style={[s.bgBtnText, editing.bg !== "none" && { color: "#111111" }]}>{tb("A")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.alignBtn} onPress={() => onChange({ ...editing, align: NEXT_ALIGN[editing.align] })} accessibilityLabel={tb("Justering")}>
+            <AlignIcon size={22} color="#FFFFFF" strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity onPress={onDone} hitSlop={10}><Text style={s.doneText}>{tb("Klar")}</Text></TouchableOpacity>
       </View>
       <View style={s.editorCenter}>
@@ -622,8 +675,8 @@ function TextEditor({ editing, onChange, onDone }: { editing: Editing; onChange:
             selectionColor={GOLD}
             style={[
               s.editorInput,
-              { fontFamily: font.family, color: solid ? contrastOn(editing.color) : editing.color },
-              font.id === "hand" && { fontSize: 40 },
+              { fontFamily: font.family, color: solid ? contrastOn(editing.color) : editing.color, textAlign: editing.align },
+              textMetrics(editing.font, editing.size),
               font.upper && { textTransform: "uppercase" },
             ]}
           />
@@ -644,6 +697,44 @@ function TextEditor({ editing, onChange, onDone }: { editing: Editing; onChange:
         </View>
       </Reanimated.View>
     </Reanimated.View>
+  );
+}
+
+/** En knapp i verktygsraden till höger, med namnet bredvid (som på Instagram) */
+function Tool({ label, showLabel, onPress, children }: { label: string; showLabel: boolean; onPress: () => void; children: React.ReactNode }) {
+  return (
+    <TouchableOpacity onPress={onPress} hitSlop={6} style={s.tool} accessibilityLabel={label} activeOpacity={0.75}>
+      {showLabel ? (
+        <Reanimated.Text exiting={FadeOut.duration(250)} style={s.toolLabel} numberOfLines={1}>{label}</Reanimated.Text>
+      ) : null}
+      <View style={s.round}>{children}</View>
+    </TouchableOpacity>
+  );
+}
+
+const SLIDER_H = 220;
+
+/** Textens storlek: dra uppåt för större, nedåt för mindre (lodrätt reglage till vänster, som på Instagram) */
+function SizeSlider({ value, onChange, top }: { value: number; onChange: (size: number) => void; top: number }) {
+  const fraction = (value - TEXT_SIZE.min) / (TEXT_SIZE.max - TEXT_SIZE.min);
+  const set = (y: number) => {
+    const f = Math.min(1, Math.max(0, 1 - y / SLIDER_H));
+    onChange(Math.round(TEXT_SIZE.min + f * (TEXT_SIZE.max - TEXT_SIZE.min)));
+  };
+  const gesture = useMemo(() => Gesture.Pan()
+    .minDistance(0)
+    .onBegin((e) => { runOnJS(set)(e.y); })
+    .onUpdate((e) => { runOnJS(set)(e.y); }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [onChange]);
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={[s.slider, { top }]} hitSlop={{ left: 16, right: 16 }} accessibilityLabel={tb("Storlek")}>
+        {/* Spåret smalnar av nedåt, så det syns åt vilket håll texten blir större */}
+        <View style={s.sliderTrack} />
+        <View style={[s.sliderKnob, { top: (1 - fraction) * SLIDER_H - 11 }]} />
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -668,8 +759,15 @@ const s = StyleSheet.create({
   error: { fontFamily: "Inter_500Medium", fontSize: 14, color: "#F87171", marginTop: 8 },
 
   canvasWrap: { borderRadius: 18, overflow: "hidden", backgroundColor: "#111111" },
-  tools: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", justifyContent: "space-between" },
-  toolsRight: { flexDirection: "row", gap: 10 },
+  tools: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  toolsRight: { gap: 12, alignItems: "flex-end" },
+  tool: { flexDirection: "row", alignItems: "center", gap: 8 },
+  toolLabel: {
+    fontFamily: "Inter_700Bold", fontSize: 12.5, color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 },
+  },
+  guideV: { position: "absolute", top: 0, bottom: 0, width: 1.5, backgroundColor: "rgba(228,198,122,0.9)" },
+  guideH: { position: "absolute", left: 0, right: 0, height: 1.5, backgroundColor: "rgba(228,198,122,0.9)" },
   flash: { position: "absolute", top: "42%", left: 0, right: 0, alignItems: "center" },
   flashText: {
     fontFamily: "Montserrat_700Bold", fontSize: 26, color: "#FFFFFF",
@@ -683,8 +781,12 @@ const s = StyleSheet.create({
   publishing: { backgroundColor: "#121212", alignItems: "center", justifyContent: "center" },
   publishText: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: "#FFFFFF" },
 
-  bar: { alignSelf: "stretch", gap: 10, paddingTop: 10 },
+  bar: { alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10, paddingRight: 16 },
   filters: { gap: 12, paddingHorizontal: 16 },
+  errorFloat: {
+    position: "absolute", left: 16, right: 16, textAlign: "center", fontFamily: "Inter_600SemiBold", fontSize: 13,
+    color: "#FFFFFF", backgroundColor: "rgba(220,38,38,0.85)", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, overflow: "hidden",
+  },
   filter: { alignItems: "center", gap: 5, width: THUMB + 6 },
   filterThumb: {
     width: THUMB, height: THUMB, borderRadius: 14, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.1)",
@@ -692,8 +794,6 @@ const s = StyleSheet.create({
   },
   filterThumbOn: { borderColor: GOLD },
   filterName: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.55)" },
-  barRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16 },
-  hint: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.65)" },
   publish: { height: 48, paddingHorizontal: 24, borderRadius: 24, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" },
   publishBtn: { fontFamily: "Montserrat_700Bold", fontSize: 14, letterSpacing: 1.2, textTransform: "uppercase", color: "#1A1408" },
 
@@ -719,12 +819,20 @@ const s = StyleSheet.create({
 
   editor: { backgroundColor: "rgba(0,0,0,0.72)" },
   editorTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 18 },
+  editorTopLeft: { flexDirection: "row", gap: 10 },
+  alignBtn: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  slider: { position: "absolute", left: 10, width: 28, height: SLIDER_H, alignItems: "center", zIndex: 2 },
+  sliderTrack: {
+    width: 0, height: SLIDER_H, borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: SLIDER_H,
+    borderLeftColor: "transparent", borderRightColor: "transparent", borderTopColor: "rgba(255,255,255,0.45)",
+  },
+  sliderKnob: { position: "absolute", width: 22, height: 22, borderRadius: 11, backgroundColor: "#FFFFFF" },
   bgBtn: { width: 40, height: 40, borderRadius: 10, borderWidth: 2, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
   bgBtnText: { fontFamily: "Montserrat_700Bold", fontSize: 19, color: "#FFFFFF" },
   doneText: { fontFamily: "Inter_700Bold", fontSize: 17, color: "#FFFFFF" },
   editorCenter: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
   editorBox: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, maxWidth: "100%" },
-  editorInput: { fontSize: 30, lineHeight: 36, textAlign: "center", minWidth: 60, padding: 0 },
+  editorInput: { minWidth: 60, padding: 0 },
   editorBottom: { gap: 12 },
   fontRow: { gap: 8, paddingHorizontal: 16 },
   fontChip: { paddingHorizontal: 14, height: 36, borderRadius: 18, justifyContent: "center", backgroundColor: "rgba(255,255,255,0.14)" },
