@@ -189,7 +189,7 @@ begin
         'id', c.id, 'user_id', c.user_id, 'name', pr.display_name, 'username', pr.username,
         'role_title', c.role_title, 'message', c.message, 'created_at', c.created_at
       ) order by c.created_at), '[]'::jsonb)
-      from public.place_claims c left join public.profiles pr on pr.user_id = c.user_id
+      from public.place_requests c left join public.profiles pr on pr.user_id = c.user_id
       where c.place_id = p_place_id and c.kind = 'join' and c.status = 'pending'
     ),
     'changes', (
