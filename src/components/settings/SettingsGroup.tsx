@@ -29,9 +29,11 @@ export function SettingsGroup({ label, children }: { label?: string; children: R
 }
 
 export function SettingsRow({
-  icon: Icon, label, subtitle, value, onPress, destructive = false, compact = false, dense = false, strong = false, tint, right,
+  icon: Icon, eyebrow, label, subtitle, value, onPress, destructive = false, compact = false, dense = false, strong = false, tint, right,
 }: {
   icon?: LucideIcon;
+  /** Liten rubrik i versaler ovanför etiketten (uppgiftsrader: "E-POST" över adressen) */
+  eyebrow?: string;
   label: string;
   /** Förklarande rad under etiketten */
   subtitle?: string;
@@ -70,6 +72,7 @@ export function SettingsRow({
         </View>
       )}
       <View style={{ flex: 1 }}>
+        {eyebrow ? <Text style={s.eyebrow} numberOfLines={1}>{eyebrow}</Text> : null}
         <Text style={[s.label, compact && s.labelCompact, strong && s.labelStrong, destructive && { color: colors.danger }]} numberOfLines={1}>
           {label}
         </Text>
@@ -98,6 +101,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   tileCompact: { width: 32, height: 32, borderRadius: 10 },
   // Samma typsnittsfamilj som rubriken (Montserrat), men i normal tyngd så raderna inte blir tunga
+  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1.2, color: c.faint, textTransform: "uppercase", marginBottom: 3 },
   label: { fontFamily: "Montserrat_500Medium", fontSize: 14.5, letterSpacing: -0.3, color: c.text },
   labelCompact: { fontSize: 13.5 },
   labelStrong: { fontFamily: "Montserrat_600SemiBold", fontSize: 14.5 },

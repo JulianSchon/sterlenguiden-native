@@ -1,26 +1,12 @@
 /**
- * Vilka notiser användaren vill ha (tabellen notification_preferences, en rad per
- * användare) och vilka orter som finns att välja mellan. Själva utskicket görs av
- * servern som läser samma tabell. Saknas raden gäller standardvärdena: allt på, hela Österlen.
+ * Om användaren vill ha notiser (tabellen notification_preferences, en rad per användare, en
+ * brytare). Vad som skickas bestämmer appen, inte användaren: dagens event, nya erbjudanden hos
+ * platser man gillat eller besökt och inbjudningar till listor, högst en notis om dagen. Själva
+ * utskicket görs av servern som läser samma tabell. Saknas raden är notiserna på.
  */
-import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { uniqueTowns } from "@/lib/towns";
 import { signedInUser } from "@/lib/session";
-import { usePlaces } from "@/hooks/usePlaces";
-
-export interface NotificationPrefs {
-  events: boolean;
-  offers: boolean;
-  news: boolean;
-  pass: boolean;
-  /** "all" = hela Österlen, "towns" = bara orterna i `towns` (gäller event och erbjudanden) */
-  scope: "all" | "towns";
-  towns: string[];
-}
-
-const DEFAULT_PREFS: NotificationPrefs = { events: true, offers: true, news: true, pass: true, scope: "all", towns: [] };
 
 const KEY = ["notification-prefs"];
 const table = () => supabase.from("notification_preferences");
@@ -31,47 +17,40 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-export function useNotificationPrefs() {
+export function useNotificationsEnabled() {
   return useQuery({
     queryKey: KEY,
-    queryFn: async (): Promise<NotificationPrefs> => {
+    queryFn: async (): Promise<boolean> => {
       const userId = await requireUserId();
-      const { data, error } = await table().select("events, offers, news, pass, scope, towns").eq("user_id", userId).maybeSingle();
+      const { data, error } = await table().select("enabled").eq("user_id", userId).maybeSingle();
       if (error) throw error;
-      return { ...DEFAULT_PREFS, ...data, scope: data?.scope === "towns" ? "towns" : "all" };
+      return data?.enabled ?? true;
     },
   });
 }
 
-/** Sparar ändringar direkt i vyn och i bakgrunden; misslyckas det återställs föregående värden. */
-export function useUpdateNotificationPrefs() {
+/** Sparar direkt i vyn och i bakgrunden; misslyckas det återställs det föregående värdet. */
+export function useSetNotificationsEnabled() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: KEY,
-    mutationFn: async (changes: Partial<NotificationPrefs>) => {
+    mutationFn: async (enabled: boolean) => {
       const userId = await requireUserId();
-      const { error } = await table().upsert({ user_id: userId, ...changes, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      const { error } = await table().upsert({ user_id: userId, enabled, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
       if (error) throw error;
     },
-    onMutate: async (changes) => {
+    onMutate: async (enabled) => {
       await queryClient.cancelQueries({ queryKey: KEY });
-      const previous = queryClient.getQueryData<NotificationPrefs>(KEY);
-      queryClient.setQueryData<NotificationPrefs>(KEY, { ...(previous ?? DEFAULT_PREFS), ...changes });
+      const previous = queryClient.getQueryData<boolean>(KEY);
+      queryClient.setQueryData<boolean>(KEY, enabled);
       return { previous };
     },
-    onError: (_error, _changes, context) => {
-      if (context?.previous) queryClient.setQueryData(KEY, context.previous);
+    onError: (_error, _enabled, context) => {
+      if (context?.previous !== undefined) queryClient.setQueryData(KEY, context.previous);
     },
     // Hämta om först när sista sparningen är klar, så en snabb följd av tryck inte ritas över av gamla svar
     onSettled: () => {
       if (queryClient.isMutating({ mutationKey: KEY }) <= 1) queryClient.invalidateQueries({ queryKey: KEY });
     },
   });
-}
-
-/** Orterna som finns bland platserna, för valet av område (ur platslistan appen redan har). */
-export function usePlaceTowns(): { data: string[] } {
-  const { data: places } = usePlaces();
-  const data = useMemo(() => uniqueTowns((places ?? []).flatMap((p) => (p.nearest_town ? [p.nearest_town] : []))), [places]);
-  return { data };
 }

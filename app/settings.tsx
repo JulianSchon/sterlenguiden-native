@@ -7,16 +7,18 @@
  * Vill ert företag synas här?
  */
 import { useState } from "react";
-import { Text, TouchableOpacity, Pressable, Alert, Image, StyleSheet } from "react-native";
+import { Text, TouchableOpacity, Pressable, Alert, Image, Linking, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus, ThumbsUp, Store, MailOpen, ShieldCheck } from "lucide-react-native";
+import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus, Store, MailOpen, ShieldCheck } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { useNotificationsEnabled, useSetNotificationsEnabled } from "@/hooks/useNotificationPrefs";
+import { askNotificationPermission } from "@/lib/notificationPermission";
 import { answerInvite, useBusinessOverview } from "@/hooks/useBusiness";
 import type { MyInvite } from "@/lib/business";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +26,7 @@ import { setLanguage, currentLanguage, type LanguageCode } from "@/i18n";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { LanguageMenu } from "@/components/settings/LanguageMenu";
+import { IconSwitch } from "@/components/IconSwitch";
 import { RoundFlag } from "@/components/RoundFlag";
 import { Avatar } from "@/components/profile/Avatar";
 import { ringOverflow } from "@/components/profile/AvatarRing";
@@ -47,6 +50,21 @@ export default function SettingsHub() {
   const myPlaces = business?.places ?? [];
   const invites = business?.invites ?? [];
   const joinRequests = myPlaces.reduce((n, p) => n + p.requests, 0);
+  const { data: notificationsOn } = useNotificationsEnabled();
+  const setNotifications = useSetNotificationsEnabled();
+
+  /** Slår man på notiser frågar telefonen om lov. Har man sagt nej där förut går det bara att ändra i telefonens inställningar. */
+  const toggleNotifications = async (on: boolean) => {
+    if (!on) return setNotifications.mutate(false);
+    const answer = await askNotificationPermission();
+    if (answer === "denied") {
+      return Alert.alert(t("settings.notifications.deniedTitle"), t("settings.notifications.deniedBody"), [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("settings.notifications.openSettings"), onPress: () => Linking.openSettings() },
+      ]);
+    }
+    setNotifications.mutate(true);
+  };
 
   const openInvite = (invite: MyInvite) => {
     Alert.alert(
@@ -120,10 +138,13 @@ export default function SettingsHub() {
         <Rise index={1}>
         <SettingsGroup>
           <SettingsRow icon={User} label={t("settings.sections.account")} onPress={() => router.push("/settings/account")} />
-          <SettingsRow icon={ThumbsUp} label={t("settings.sections.interests")} onPress={() => router.push("/settings/interests")} />
           <SettingsRow icon={Crown} label={t("settings.sections.pass")} onPress={() => router.push("/settings/pass")} />
           <SettingsRow icon={Palette} label={t("settings.sections.appearance")} onPress={() => router.push("/settings/appearance")} />
-          <SettingsRow icon={Bell} label={t("settings.sections.notifications")} onPress={() => router.push("/settings/notifications")} />
+          <SettingsRow
+            icon={Bell}
+            label={t("settings.sections.notifications")}
+            right={<IconSwitch value={notificationsOn ?? true} onChange={toggleNotifications} />}
+          />
           <SettingsRow icon={Info} label={t("settings.sections.about")} onPress={() => router.push("/settings/about")} />
         </SettingsGroup>
         </Rise>

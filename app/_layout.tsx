@@ -167,7 +167,6 @@ function AppStack() {
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="settings/account" options={{ headerShown: false }} />
         <Stack.Screen name="settings/appearance" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/notifications" options={{ headerShown: false }} />
         <Stack.Screen name="settings/about" options={{ headerShown: false }} />
         <Stack.Screen name="settings/interests" options={{ headerShown: false }} />
         <Stack.Screen name="settings/suggest" options={{ headerShown: false }} />

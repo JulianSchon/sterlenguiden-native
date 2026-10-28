@@ -10,7 +10,7 @@ import { View, Text, Pressable, TouchableOpacity, Alert, Share, StyleSheet } fro
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { differenceInCalendarDays } from "date-fns";
-import { ArrowDown, ArrowUp, Camera, Copy, EyeOff, Gift, Settings2, Tag, Ticket, type LucideIcon } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Camera, ChevronRight, Copy, Crown, EyeOff, Gift, Settings2, Tag, Ticket, type LucideIcon } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
@@ -26,7 +26,6 @@ import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { MemberCard, CARD_W } from "@/components/MemberCard";
 import { ActivityRow, AmountColumn, CardLine } from "@/components/pass/ActivityRow";
-import { PrimaryButton } from "@/components/Sheet";
 import { IconSwitch } from "@/components/IconSwitch";
 import { setPreviewNonMember, usePreviewNonMember } from "@/lib/memberPreview";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -54,6 +53,36 @@ function QuickAction({ icon: Icon, label, badge, onPress }: { icon: LucideIcon; 
         {badge ? <View style={s.badge}><Text style={s.badgeText}>{badge > 99 ? "99+" : badge}</Text></View> : null}
       </View>
       <Text style={s.actionLabel} numberOfLines={1}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Köpknappen för den som inte är medlem: kronan, vad man får och från vilket pris, på en rad. */
+function GetPassButton({ price, offers, onPress }: { price: number | null; offers: number; onPress: () => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const details = [
+    price !== null ? t("pass.status.from", { price }) : null,
+    offers === 1 ? t("pass.status.offersWaitingOne") : offers > 1 ? t("pass.status.offersWaiting", { count: offers }) : null,
+  ].filter(Boolean).join(" · ");
+  return (
+    <Pressable
+      style={({ pressed }) => [s.getPass, pressed && { opacity: 0.85, transform: [{ scale: 0.985 }] }]}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        onPress();
+      }}
+      accessibilityRole="button"
+    >
+      <View style={s.getPassIcon}>
+        <Crown size={22} color={colors.gold} strokeWidth={1.8} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.getPassTitle}>{t("pass.status.get")}</Text>
+        {details ? <Text style={s.getPassSub} numberOfLines={1}>{details}</Text> : null}
+      </View>
+      <ChevronRight size={20} color={colors.onGold} strokeWidth={2.2} />
     </Pressable>
   );
 }
@@ -162,10 +191,7 @@ export default function PassHub() {
       )}
 
       {!membership.isMember && (
-        <View style={{ gap: 8 }}>
-          <PrimaryButton label={t("pass.status.get")} onPress={() => router.push("/settings/pass-buy")} />
-          {cheapest !== null && <Text style={s.from}>{t("pass.status.from", { price: cheapest })}</Text>}
-        </View>
+        <GetPassButton price={cheapest} offers={offers.length} onPress={() => router.push("/settings/pass-buy")} />
       )}
 
       <View style={s.actions}>
@@ -296,7 +322,14 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   countdownRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   countdown: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
   bonus: { fontFamily: "Inter_400Regular", fontSize: 12.5, lineHeight: 18, color: c.muted, textAlign: "center" },
-  from: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, textAlign: "center" },
+  getPass: {
+    flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingLeft: 14, paddingRight: 16,
+    borderRadius: 18, backgroundColor: c.gold,
+  },
+  // Kronan på en mörk rund platta, så den syns tydligt mot guldet
+  getPassIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: c.onGold },
+  getPassTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: c.onGold },
+  getPassSub: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.onGold, opacity: 0.75, marginTop: 2 },
 
   actions: { flexDirection: "row", justifyContent: "space-evenly" },
   action: { alignItems: "center", gap: 8, width: 78 },

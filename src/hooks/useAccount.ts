@@ -91,6 +91,7 @@ type ProfileChanges = {
   circle_color?: string;
   birth_date?: string;
   lives_in_osterlen?: boolean;
+  city?: string | null;
   card_color?: string;
   avatar_ring?: string;
   interests?: string[];
@@ -99,7 +100,8 @@ type ProfileChanges = {
 /**
  * Sparar ändringar på profilen. Skärmen uppdateras direkt (optimistiskt) och
  * sparandet sker i bakgrunden; misslyckas det återställs profilen. Kastar
- * Error("display_name_cooldown") om namnet ändrats för nyligen och
+ * Error("display_name_cooldown") eller Error("username_cooldown") om namnet eller användarnamnet
+ * ändrats för nyligen och
  * Error("birth_date_locked") om födelsedatum redan är satt.
  */
 export function useUpdateProfile() {
@@ -110,6 +112,7 @@ export function useUpdateProfile() {
       const { error } = await supabase.from("profiles").update(changes).eq("user_id", userId);
       if (error) {
         if (error.message.includes("display_name_cooldown")) throw new Error("display_name_cooldown");
+        if (error.message.includes("username_cooldown")) throw new Error("username_cooldown");
         if (error.message.includes("birth_date_locked")) throw new Error("birth_date_locked");
         // 23505 = unikt värde upptaget (användarnamnet är redan taget), 23514 = ogiltigt format
         if (changes.username !== undefined && error.code === "23505") throw new Error("username_taken");

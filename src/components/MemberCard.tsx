@@ -99,7 +99,8 @@ export function MemberCard({
   onCardPress?: () => void;
   /** Någon annans kort (deras profilsida): bara framsidan, inget tryck och ingen uppmaning att köpa. */
   readOnly?: boolean;
-  /** Inte medlem: kortet har ändå en baksida, men den är låst (så man ser vad passet låser upp) */
+  /** Inte medlem: kortet visar en låst baksida (så man ser vad passet låser upp). Den går inte att
+   *  vända; ett tryck gör samma sak som för andra icke-medlemmar (onBuyPress). */
   lockedBack?: boolean;
   /** Kortet vänder sig själv fram och tillbaka (köpsidan) */
   autoFlip?: boolean;
@@ -283,7 +284,8 @@ export function MemberCard({
 
   const handlePress = () => {
     if (swiping.current || readOnly) return;
-    if (!isMember && !locked) { onBuyPress(); return; }
+    // Inte medlem: kortet vänds aldrig, ett tryck (även på den låsta baksidan) leder till köpet
+    if (!isMember) { onBuyPress(); return; }
     if (disableFlip) { onCardPress?.(); return; }
     flip();
   };
@@ -301,7 +303,7 @@ export function MemberCard({
   const onSwipeStart = useCallback(() => swipeHandlers.current.startSwipe(), []);
   const onSwipeLand = useCallback((side: boolean) => swipeHandlers.current.landOn(side), []);
   const onSwipeEnd = useCallback(() => swipeHandlers.current.endSwipe(), []);
-  const swipeEnabled = (isMember || locked) && !disableFlip && !showBackOnly && !readOnly && !autoFlip;
+  const swipeEnabled = isMember && !disableFlip && !showBackOnly && !readOnly && !autoFlip;
   const swipe = useMemo(() => Gesture.Pan()
     .enabled(swipeEnabled)
     .activeOffsetX([-16, 16])

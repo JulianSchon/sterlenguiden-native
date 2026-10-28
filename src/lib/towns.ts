@@ -18,15 +18,3 @@ function normalizeTown(name: string): string {
 export function splitTowns(raw: string): string[] {
   return raw.split(/,|&|\boch\b/i).map(normalizeTown).filter(Boolean);
 }
-
-/** Alla orter ur en lista fält, utan dubbletter (skiftläge ignoreras) och sorterade. */
-export function uniqueTowns(rawValues: string[]): string[] {
-  const seen = new Map<string, string>();
-  for (const raw of rawValues) {
-    for (const town of splitTowns(raw)) {
-      const key = town.toLowerCase();
-      if (!seen.has(key)) seen.set(key, town);
-    }
-  }
-  return [...seen.values()].sort((a, b) => a.localeCompare(b, "sv"));
-}

@@ -546,32 +546,17 @@ export type Database = {
       }
       notification_preferences: {
         Row: {
-          events: boolean
-          news: boolean
-          offers: boolean
-          pass: boolean
-          scope: string
-          towns: string[]
+          enabled: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
-          events?: boolean
-          news?: boolean
-          offers?: boolean
-          pass?: boolean
-          scope?: string
-          towns?: string[]
+          enabled?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
-          events?: boolean
-          news?: boolean
-          offers?: boolean
-          pass?: boolean
-          scope?: string
-          towns?: string[]
+          enabled?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -1246,6 +1231,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           display_name_changed_at: string | null
+          username_changed_at: string | null
           id: string
           interests: string[] | null
           is_member: boolean | null
@@ -1276,6 +1262,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           display_name_changed_at?: string | null
+          username_changed_at?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
@@ -1306,6 +1293,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           display_name_changed_at?: string | null
+          username_changed_at?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
