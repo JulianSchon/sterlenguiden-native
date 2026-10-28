@@ -7,7 +7,7 @@
  * När månaden visas poppar bildcirklarna in en i taget (kort efter varandra).
  */
 import { memo, useMemo } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Reanimated, { ZoomIn } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { Heart } from "lucide-react-native";
@@ -18,6 +18,7 @@ import { dayKey } from "@/lib/events";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
 
 const RED = "#EF4444";
 /** MÅN … SÖN / MON … SUN / MO … SO */
@@ -114,7 +115,7 @@ const DayCell = memo(function DayCell({
             entering={ZoomIn.delay(order * 18).duration(280)}
             style={[s.photo, { width: circle, height: circle, borderRadius: circle / 2 }]}
           >
-            {first.image_url ? <Image source={{ uri: first.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+            {first.image_url ? <ExpoImage source={{ uri: first.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
             {/* Mörkare så siffran alltid går att läsa, oavsett bild */}
             <View style={[StyleSheet.absoluteFill, s.shade]} />
           </Reanimated.View>

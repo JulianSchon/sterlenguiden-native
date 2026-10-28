@@ -29,6 +29,8 @@ import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { isNetworkError } from "@/lib/network";
+import { Image as ExpoImage } from "expo-image";
+import { imageSource } from "@/lib/imageSource";
 
 
 const HERO_MARGIN = 24;
@@ -159,7 +161,7 @@ export default function MemoryDetailScreen() {
                     <Polygon points={heroZigzag} fill={POLAROID_PAPER} />
                   </Svg>
                   <View style={[s.heroPhotoWrap, { left: HERO_FRAME_PAD, top: HERO_FRAME_PAD, width: heroPhotoSize, height: heroPhotoSize }]}>
-                    <LoadingImage source={{ uri: photos[0] }} style={s.heroPhoto} resizeMode="cover" />
+                    <LoadingImage uri={photos[0]} style={s.heroPhoto} />
                   </View>
                   <View style={[s.heroCaption, { left: HERO_FRAME_PAD, right: HERO_FRAME_PAD, top: HERO_FRAME_PAD + heroPhotoSize, height: HERO_CAPTION_H }]}>
                     <Text style={s.heroCaptionTitle} numberOfLines={2}>{memory.title}</Text>
@@ -211,7 +213,7 @@ export default function MemoryDetailScreen() {
               <View style={s.gallery}>
                 {photos.slice(1).map((uri, i) => (
                   <TouchableOpacity key={uri} onPress={() => setLightbox(i + 1)} activeOpacity={0.92}>
-                    <LoadingImage source={{ uri }} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} resizeMode="cover" />
+                    <LoadingImage uri={uri} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -270,7 +272,7 @@ export default function MemoryDetailScreen() {
               getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
               keyExtractor={(uri) => uri}
               renderItem={({ item }) => (
-                <Image source={{ uri: item }} style={{ width, height }} resizeMode="contain" />
+                <ExpoImage source={imageSource(item)} style={{ width, height }} contentFit="contain" />
               )}
             />
           )}
@@ -292,7 +294,7 @@ function MemoryPlaceCard({ place, onPress }: { place: { id: number; name: string
   return (
     <TouchableOpacity style={s.placeCard} activeOpacity={0.85} onPress={onPress}>
       {img ? (
-        <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <ExpoImage source={imageSource(img)} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, s.placeImageEmpty]}>
           <MapPin size={26} color={colors.goldText} strokeWidth={2} />

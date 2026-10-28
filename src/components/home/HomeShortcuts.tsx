@@ -6,7 +6,7 @@
  *   och hur många som är kvar.
  */
 import { memo, useMemo } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -20,6 +20,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { withAlpha } from "@/theme/categories";
 import { TILES, TINT, openSearch, type Shortcut } from "@/lib/searchShortcuts";
 import { daySeed } from "@/lib/homeFeed";
+import { Image as ExpoImage } from "expo-image";
 
 const NO_PLACES: Place[] = [];
 const NO_IDS: number[] = [];
@@ -127,7 +128,7 @@ export const DiscoverCard = memo(function DiscoverCard() {
                 transform: [{ translateX: f.x }, { translateY: f.y }, { rotate: `${f.rot}deg` }],
               }]}
             >
-              {preview[i] && <Image source={{ uri: preview[i] }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
+              {preview[i] && <ExpoImage source={{ uri: preview[i] }} style={StyleSheet.absoluteFill} contentFit="cover" />}
             </View>
           ))}
         </View>

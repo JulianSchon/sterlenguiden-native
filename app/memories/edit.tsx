@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import {
-  View, Text, Image, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform,
+  View, Text, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform,
   useWindowDimensions, StyleSheet,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,6 +21,8 @@ import { swedishDay } from "@/lib/streak";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
+import { imageSource } from "@/lib/imageSource";
 
 
 export default function EditMemoryScreen() {
@@ -237,7 +239,7 @@ function PhotoTile({ uri, size, onRemove }: { uri: string | undefined; size: num
   return (
     <View style={{ width: size, height: size }}>
       {uri ? (
-        <Image source={{ uri }} style={s.photo} resizeMode="cover" />
+        <ExpoImage source={imageSource(uri)} style={s.photo} contentFit="cover" />
       ) : (
         <View style={[s.photo, { backgroundColor: colors.fill }]} />
       )}

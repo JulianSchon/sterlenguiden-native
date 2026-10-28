@@ -48,20 +48,25 @@ export function useCollectibles() {
   });
 }
 
+/** Upphittade stickers som de sparas: vanlig data (sparas i telefonen som JSON), id → när (ISO) */
+type CollectedRows = Record<string, string>;
+const toCollectedMap = (rows: CollectedRows) => new Map(Object.entries(rows));
+
 /** Vilka stickers användaren har: samlarobjektets id → när den låstes upp (ISO). */
 export function useCollected() {
   return useQuery({
     queryKey: ["collected"],
-    queryFn: async (): Promise<Map<string, string>> => {
+    queryFn: async (): Promise<CollectedRows> => {
       const user = await signedInUser();
-      if (!user) return new Map();
+      if (!user) return {};
       const { data, error } = await supabase
         .from("user_collectibles")
         .select("collectible_id, collected_at")
         .eq("user_id", user.id);
       if (error) throw error;
-      return new Map((data ?? []).map((r) => [r.collectible_id, r.collected_at]));
+      return Object.fromEntries((data ?? []).map((r) => [r.collectible_id, r.collected_at]));
     },
+    select: toCollectedMap,
   });
 }
 

@@ -630,13 +630,28 @@ export interface OpenInfo { open: boolean; label: string }
 const hoursOf = (place: Place) => place.opening_hours as Hours;
 
 /** "Öppet till 17", "Öppnar 10", "Stängt", "Stängt i dag" — null om dagens öppettider inte är kända */
+/**
+ * Samma få texter ("Öppet till 17", "Öppnar 10") byggs för hundratals platser varje gång Sök räknar
+ * sina rutor: varje text översätts en gång per språk och klockslag och återanvänds sen.
+ */
+const hoursLabels = new Map<string, string>();
+function hoursLabel(key: "hours.allDay" | "hours.openUntil" | "hours.opensAt" | "hours.closedToday" | "hours.closed", time?: string): string {
+  const cacheKey = `${i18n.language}|${key}|${time ?? ""}`;
+  let label = hoursLabels.get(cacheKey);
+  if (label === undefined) {
+    label = time === undefined ? i18n.t(key) : i18n.t(key, { time });
+    hoursLabels.set(cacheKey, label);
+  }
+  return label;
+}
+
 export function openInfo(place: Place, now = new Date()): OpenInfo | null {
   const h = todayHours(hoursOf(place), now);
   if (!h) return null;
-  if (h.open) return { open: true, label: h.allDay ? i18n.t("hours.allDay") : i18n.t("hours.openUntil", { time: String(clock(h.closes!)) }) };
-  if (h.opens != null) return { open: false, label: i18n.t("hours.opensAt", { time: String(clock(h.opens)) }) };
+  if (h.open) return { open: true, label: h.allDay ? hoursLabel("hours.allDay") : hoursLabel("hours.openUntil", String(clock(h.closes!))) };
+  if (h.opens != null) return { open: false, label: hoursLabel("hours.opensAt", String(clock(h.opens))) };
   const closedAllDay = parseDay(hoursOf(place)?.[DAY_NAMES[now.getDay()]]) === "closed";
-  return { open: false, label: i18n.t(closedAllDay ? "hours.closedToday" : "hours.closed") };
+  return { open: false, label: hoursLabel(closedAllDay ? "hours.closedToday" : "hours.closed") };
 }
 
 /** Har öppet efter 21 den dagen (i dag om inget annat sägs) */

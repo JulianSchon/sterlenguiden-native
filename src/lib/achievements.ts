@@ -189,11 +189,23 @@ const GROUPS: GroupDef[] = [
 ];
 
 /** En text om gruppen eller nivån, på appens språk */
+// Troféernas texter räknas om varje gång någon siffra ändras, på flera sidor samtidigt: varje text
+// översätts en gång per språk och sparas (de har inga värden som ändras)
+const texts = new Map<string, string>();
+const text = (key: string, make: () => string) => {
+  const cacheKey = `${i18n.language}|${key}`;
+  let value = texts.get(cacheKey);
+  if (value === undefined) {
+    value = make();
+    texts.set(cacheKey, value);
+  }
+  return value;
+};
 const groupText = (groupId: string, field: "theme" | "tagline") =>
-  i18n.t(`trophies.${groupId}.${field}` as "trophies.kom-igang.theme");
+  text(`${groupId}.${field}`, () => i18n.t(`trophies.${groupId}.${field}` as "trophies.kom-igang.theme"));
 const tierText = (groupId: string, tier: Tier, field: "requirement" | "name" | "unitOne" | "unitOther" | "part1" | "part2" | "part3") =>
-  i18n.t(`trophies.${groupId}.${tier}.${field}` as "trophies.kom-igang.bronze.name", { total: TOTAL_CATEGORY_COUNT });
-const tierLabel = (tier: Tier) => i18n.t(`trophies.tiers.${tier}`);
+  text(`${groupId}.${tier}.${field}`, () => i18n.t(`trophies.${groupId}.${tier}.${field}` as "trophies.kom-igang.bronze.name", { total: TOTAL_CATEGORY_COUNT }));
+const tierLabel = (tier: Tier) => text(`tiers.${tier}`, () => i18n.t(`trophies.tiers.${tier}`));
 
 export const GROUP_ORDER = GROUPS.map((g) => g.id);
 

@@ -25,7 +25,7 @@
  * Panelen går medvetet inte att stänga medan bekräftelse- eller aktiv vy ligger ovanpå.
  */
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert, useWindowDimensions } from "react-native";
 import Animated, {
   Easing, useAnimatedReaction, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
   withTiming, type SharedValue,
@@ -56,6 +56,7 @@ import { OfferConfirmDialog } from "./OfferConfirmDialog";
 import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE, EDGE_STROKE } from "./tear";
 import { useArmedTicketImage } from "./OfferTicket";
 import { isNetworkError } from "@/lib/network";
+import { Image as ExpoImage } from "expo-image";
 
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
 export interface OriginRect { x: number; y: number; w: number; h: number }
@@ -366,7 +367,7 @@ export const OfferDrawer = memo(function OfferDrawer({
         <Pressable style={s.header} onPress={onOpenPlace} disabled={!onOpenPlace}>
           <View style={s.logoCircle}>
             {place?.logo_url ? (
-              <Image source={{ uri: place.logo_url }} style={s.logo} resizeMode="cover" />
+              <ExpoImage source={{ uri: place.logo_url }} style={s.logo} contentFit="cover" />
             ) : (
               <Text style={s.logoFallback}>{(place?.name ?? "?").charAt(0).toUpperCase()}</Text>
             )}

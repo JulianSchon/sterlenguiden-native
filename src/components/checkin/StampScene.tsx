@@ -17,7 +17,7 @@
  * tillbaka". `skip` (tryck under animationen) hoppar till slutläget.
  */
 import { useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, interpolate, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue,
   withDelay, withSequence, withTiming, type SharedValue,
@@ -31,6 +31,7 @@ import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { formatClock } from "@/lib/checkin";
 import { playSound } from "@/lib/sounds";
 import { Confetti, INK, PassStamp } from "./CelebrationFx";
+import { Image as ExpoImage } from "expo-image";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.72)";
@@ -259,7 +260,7 @@ export function StampScene({
       <Reanimated.View style={[{ width: cardW, height: cardH }, cardStyle]}>
         <View style={s.cardClip}>
           {image ? (
-            <Image source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : (
             <View style={[StyleSheet.absoluteFill, s.noImage]} />
           )}
@@ -277,7 +278,7 @@ export function StampScene({
           <View style={s.info}>
             {logo && (
               <Reanimated.View style={[s.logoWrap, logoStyle]}>
-                <Image source={{ uri: logo }} style={s.logo} resizeMode="contain" />
+                <ExpoImage source={{ uri: logo }} style={s.logo} contentFit="contain" />
               </Reanimated.View>
             )}
             <View style={{ flex: 1 }}>

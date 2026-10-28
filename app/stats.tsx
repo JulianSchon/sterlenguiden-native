@@ -50,6 +50,7 @@ import { formatDate, weekdayShort } from "@/i18n/dates";
 import { decimal } from "@/i18n/numbers";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
 
 // Österlenlegendens guldtrofé — den man får för att klara allt
 const TROPHY_ART = require("../assets/badges/osterlenlegend-gold.png");
@@ -213,7 +214,7 @@ export default function StatsScreen() {
               <TouchableOpacity style={[s.card, s.topPlace]} activeOpacity={0.8} onPress={() => pushOnce(router, `/place/${stats.topPlace!.place.id}?from=profile`)}>
                 <View style={s.topThumb}>
                   {firstImageUrl(stats.topPlace.place.image_url)
-                    ? <Image source={{ uri: firstImageUrl(stats.topPlace.place.image_url)! }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    ? <ExpoImage source={{ uri: firstImageUrl(stats.topPlace.place.image_url)! }} style={StyleSheet.absoluteFill} contentFit="cover" />
                     : null}
                 </View>
                 <View style={{ flex: 1 }}>

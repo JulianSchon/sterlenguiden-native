@@ -7,7 +7,7 @@
  * Raden sköter sin egen data (vädret, orten), så den ritar inte om resten av Hem.
  */
 import { memo, useMemo } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,8 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { distanceMeters } from "@/lib/checkin";
 import { formatDate } from "@/i18n/dates";
+import { Image as ExpoImage } from "expo-image";
+import { imageSource } from "@/lib/imageSource";
 
 const AVATAR = 52;
 /** Simrishamn: vädret visas därifrån om man inte är på Österlen */
@@ -78,7 +80,7 @@ export function HomeAvatar({ size }: { size: number }) {
     <AvatarRing ring={profile?.avatar_ring} size={size}>
       <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: color }]}>
         {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <ExpoImage source={imageSource(avatarUrl)} style={StyleSheet.absoluteFill} contentFit="cover" />
         ) : (
           <Text style={[s.initials, { fontSize: size * 0.36, color: toneOnTone(color) }]}>{initialsOf(profile?.display_name ?? "") || "?"}</Text>
         )}

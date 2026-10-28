@@ -19,7 +19,7 @@
  */
 import { useEffect, useState } from "react";
 import {
-  View, Text, Image, TouchableOpacity, Alert, ActionSheetIOS, Platform, Share, ActivityIndicator, StyleSheet,
+  View, Text, TouchableOpacity, Alert, ActionSheetIOS, Platform, Share, ActivityIndicator, StyleSheet,
   Linking, useWindowDimensions,
 } from "react-native";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
@@ -48,6 +48,7 @@ import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { isNetworkError } from "@/lib/network";
+import { Image as ExpoImage } from "expo-image";
 
 // Spotify-omslaget ligger INTE kant till kant (det gjorde Lovable-versionen, som Viktor
 // uttryckligen inte ville ha) — en stor kvadrat med luft runt om i stället.
@@ -411,7 +412,7 @@ function PlaceRow({
       onPress={onPress}
       disabled={isActive}
     >
-      {place.image_url ? <Image source={{ uri: place.image_url }} style={s.thumb} /> : <View style={s.thumb} />}
+      {place.image_url ? <ExpoImage source={{ uri: place.image_url }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
       {/* Tre våningar som fyller bildens höjd: vem + Österlenpasset överst, namnet i mitten,
           ort + öppet/stängt underst — i stället för fem rader staplade tätt på varandra */}
       <View style={s.placeBody}>

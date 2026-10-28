@@ -107,7 +107,7 @@ function BigStop({ stop, onPress }: { stop: NextStop; onPress: () => void }) {
   return (
     <PressableScale style={s.big} scale={0.98} onPress={onPress}>
       {image ? (
-        <LoadingImage source={{ uri: image }} resizeMode="cover" style={StyleSheet.absoluteFill} tone="dark" />
+        <LoadingImage uri={image} style={StyleSheet.absoluteFill} tone="dark" />
       ) : (
         <View style={[StyleSheet.absoluteFill, s.noImage]}>
           <MapPin size={30} color={GOLD} strokeWidth={2} />
@@ -143,7 +143,7 @@ function SmallStop({ stop, onPress }: { stop: NextStop; onPress: () => void }) {
   return (
     <PressableScale style={s.small} scale={0.98} onPress={onPress}>
       {image ? (
-        <LoadingImage source={{ uri: image }} resizeMode="cover" style={s.thumb} tone="dark" />
+        <LoadingImage uri={image} style={s.thumb} tone="dark" />
       ) : (
         <View style={[s.thumb, s.noImage]}><MapPin size={20} color={GOLD} strokeWidth={2} /></View>
       )}

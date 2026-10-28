@@ -1,8 +1,9 @@
 /**
  * Platssidan — allt om en plats på ett ställe.
  *
- * Öppnas direkt: platserna finns redan i telefonen (Karta och Sök hämtar dem), så namn, bilder,
- * öppettider och länkar syns från första bildrutan; hela raden hämtas om i bakgrunden.
+ * Öppnas direkt: platserna finns redan i telefonen (Karta och Sök hämtar dem, med alla kolumner sidan
+ * visar), så allt syns från första bildrutan. Bara en plats som inte finns i listan (en länk utifrån,
+ * listan inte hämtad än) hämtas för sig.
  *
  * Uppifrån: bilderna (svep, tryck = helskärm med zoom), loggan, namnet och läget just nu
  * ("Öppet · stänger 17"), knapparna (Ring, Hemsida, Karta …), "Jag är här!" när man står på
@@ -56,7 +57,7 @@ import { dayKey, lastDay } from "@/lib/events";
 import { openEvent } from "@/lib/eventSheet";
 import { distanceLabel, parseAmenities, PRACTICAL } from "@/lib/mapFilters";
 import { offerEligibility, type Offer, type RedemptionRow } from "@/lib/offers";
-import { hoursStatus, weekRows } from "@/lib/openingHours";
+import { hasWeekHours, hoursStatus } from "@/lib/openingHours";
 import { openInfo, placeCategories } from "@/lib/search";
 import { pushOnce } from "@/lib/navigateOnce";
 import { placeSource, sourceFromParam, trackDirections, trackPlaceLink, trackPlaceView } from "@/lib/placeTracking";
@@ -111,11 +112,11 @@ const imagesOf = (imageUrl: string | null | undefined) =>
 /** Bildens höjd överst */
 const heroHeight = (width: number) => Math.round(Math.min(width * 0.95, 420));
 
-/** Hela raden (även det listan inte hämtar), om i bakgrunden */
-function usePlaceDetail(id: number) {
+/** Platsen för sig, när den inte finns i listan */
+function usePlaceDetail(id: number, enabled: boolean) {
   return useQuery({
     queryKey: ["place", id],
-    enabled: Number.isFinite(id),
+    enabled: enabled && Number.isFinite(id),
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from("places").select("*").eq("id", id).single();
@@ -130,8 +131,9 @@ export default function PlaceScreen() {
   const placeId = Number(id);
   const { data: places = NO_PLACES } = usePlaces();
   const listed = useMemo(() => places.find((p) => p.id === placeId), [places, placeId]);
-  const { data: detail, isError } = usePlaceDetail(placeId);
-  const place = detail ?? listed;
+  // Medan listan hämtas (första starten) eller om platsen saknas i den
+  const { data: detail, isError } = usePlaceDetail(placeId, !listed);
+  const place = listed ?? detail;
 
   if (!place) return isError ? <NotFound /> : <PlaceSkeleton />;
   return <PlacePage place={place} places={places} />;
@@ -310,7 +312,7 @@ const PlaceContent = memo(function PlaceContent({
   const isHotel = catIds.length > 0 && catIds.every((c) => c === "hotell-bb");
   const hours = place.opening_hours as Record<string, string> | null;
   const status = isHotel ? null : hoursStatus(hours);
-  const hasHours = weekRows(hours).length > 0;
+  const hasHours = hasWeekHours(hours);
   const myKm = me && hasCoords ? distanceMeters(me.lat, me.lng, place.lat!, place.lng!) / 1000 : null;
   const website = place.website_url;
 

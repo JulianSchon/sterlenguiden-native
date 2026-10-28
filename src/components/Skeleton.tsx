@@ -4,7 +4,9 @@
  * appen pulserar i takt (en gemensam puls), så en sida full av dem andas som en enda yta.
  */
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, View, type DimensionValue, type ImageProps, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
+import { Image as ExpoImage, type ImageContentFit } from "expo-image";
+import { imageSource } from "@/lib/imageSource";
 import Reanimated, {
   Easing, cancelAnimation, makeMutable, runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
 } from "react-native-reanimated";
@@ -53,13 +55,14 @@ export function Skeleton({
 /**
  * En bild som är en grå platshållare tills den hunnit laddas, och sen tonar in. Minnenas foton
  * ligger i en privat bucket bakom signerade länkar, så väntan är verklig — utan platshållaren
- * syns bara en tom, nästan svart yta som lätt läses som att något gått sönder.
+ * syns bara en tom, nästan svart yta som lätt läses som att något gått sönder. Finns bilden redan i
+ * telefonen visas den direkt, utan platshållare och toning.
  */
 export function LoadingImage({
-  source, resizeMode, style, tone,
+  uri, contentFit = "cover", style, tone,
 }: {
-  source: ImageProps["source"];
-  resizeMode?: ImageProps["resizeMode"];
+  uri: string;
+  contentFit?: ImageContentFit;
   style: StyleProp<ViewStyle>;
   tone?: "dark" | "light";
 }) {
@@ -70,12 +73,17 @@ export function LoadingImage({
     <View style={[style, { overflow: "hidden" }]}>
       {!loaded && <Skeleton tone={tone} radius={0} style={StyleSheet.absoluteFill} />}
       <Reanimated.View style={[StyleSheet.absoluteFill, fade]}>
-        <Image
-          source={source}
-          resizeMode={resizeMode}
+        <ExpoImage
+          source={imageSource(uri)}
+          contentFit={contentFit}
           style={StyleSheet.absoluteFill}
           // Platshållaren tas bort först när bilden helt täcker den
-          onLoad={() => {
+          onLoad={(e) => {
+            if (e.cacheType !== "none") {
+              opacity.value = 1;
+              setLoaded(true);
+              return;
+            }
             opacity.value = withTiming(1, { duration: 220 }, (done) => {
               if (done) runOnJS(setLoaded)(true);
             });

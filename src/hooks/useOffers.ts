@@ -4,28 +4,31 @@
  * Utgångna och avstängda erbjudanden filtreras bort redan i queryn,
  * så inget som inte får visas kommer ens hem till klienten.
  */
+import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Offer } from "@/lib/offers";
 import { signedInUser } from "@/lib/session";
 
+/**
+ * Alla giltiga erbjudanden, eller en plats egna. En plats erbjudanden plockas ur samma lista (den är
+ * liten och finns redan för Hem och Förmåner), så platssidan visar dem direkt utan en egen hämtning.
+ */
 export function useOffers(placeId?: number) {
+  const select = useCallback((all: Offer[]) => all.filter((o) => o.place_id === placeId), [placeId]);
   return useQuery<Offer[]>({
-    queryKey: ["offers", placeId ?? "all"],
+    queryKey: ["offers", "all"],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("offers")
         .select("*, place:places(name, logo_url, categories, nearest_town)")
         .eq("is_active", true)
         .or(`expires_at.gte.${new Date().toISOString()},expires_at.is.null`)
         .order("created_at", { ascending: false });
-
-      if (placeId != null) query = query.eq("place_id", placeId);
-
-      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as Offer[];
     },
+    select: placeId == null ? undefined : select,
   });
 }
 

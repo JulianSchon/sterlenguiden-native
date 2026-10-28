@@ -1,6 +1,6 @@
 /** Sök bland platserna och välj en. Används av listor och minnen. */
 import { useState } from "react";
-import { View, Text, TextInput, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { Check, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { useSearchPlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
@@ -8,6 +8,7 @@ import { Sheet, useSheetInput } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import i18n from "i18next";
+import { Image as ExpoImage } from "expo-image";
 
 export function PlacePickerSheet({
   visible, onClose, title, selectedIds, onPick,
@@ -52,7 +53,7 @@ export function PlacePickerSheet({
                 onPick(p);
               }}
             >
-              {image ? <Image source={{ uri: image }} style={s.thumb} /> : <View style={s.thumb} />}
+              {image ? <ExpoImage source={{ uri: image }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
               <View style={{ flex: 1 }}>
                 <Text style={s.name} numberOfLines={1}>{p.name}</Text>
                 {p.nearest_town ? <Text style={s.sub} numberOfLines={1}>{p.nearest_town}</Text> : null}

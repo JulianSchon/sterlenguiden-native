@@ -11,14 +11,8 @@ import { PERSIST_MAX_AGE, queryClient, queryPersister, shouldPersistQuery } from
 import { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
+import { PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold } from "@expo-google-fonts/playfair-display";
 import {
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_500Medium,
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_700Bold,
-} from "@expo-google-fonts/playfair-display";
-import {
-  Inter_300Light,
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
@@ -33,7 +27,7 @@ import { forgetGoogleAccount } from "@/lib/socialAuth";
 import { tabsEnterFromBelow } from "@/lib/tabsEntrance";
 import { clearOutbox, startOutbox } from "@/lib/outbox";
 import { OfflineNotice } from "@/components/OfflineNotice";
-import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
+import { loadSavedTheme, ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import i18n from "i18next";
 import { LogBox } from "react-native";
 
@@ -56,11 +50,8 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_500Medium,
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
-    Inter_300Light,
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -120,10 +111,11 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Ett tidigare valt språk läses in innan appen visas, så ingen ser fel språk blinka förbi
-  const [languageReady, setLanguageReady] = useState(false);
+  // Ett tidigare valt språk och tema läses in innan appen visas, så ingen ser fel språk eller ett
+  // mörkt blink (i ljust läge) förbi
+  const [settingsReady, setSettingsReady] = useState(false);
   useEffect(() => {
-    loadSavedLanguage().finally(() => setLanguageReady(true));
+    Promise.all([loadSavedLanguage(), loadSavedTheme()]).finally(() => setSettingsReady(true));
   }, []);
 
   // Sparad data läses in vid start; buster = kontot, så ett annat kontos sparade data kastas
@@ -134,8 +126,8 @@ export default function RootLayout() {
     dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
   }), [userId]);
 
-  // Vänta på typsnitt, auth och språk innan appen visas
-  if (!fontsLoaded || !authReady || !languageReady) return null;
+  // Vänta på typsnitt, auth, språk och tema innan appen visas
+  if (!fontsLoaded || !authReady || !settingsReady) return null;
 
   return (
     <ThemeProvider>
@@ -161,6 +153,8 @@ function AppStack() {
   return (
     <NavigationThemeProvider value={navigationTheme}>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+      {/* Inte freezeOnBlur: att frysa sidorna under (Hem under platssidan …) mättes och gjorde varje
+          sidbyte långsammare — hela den dolda sidan göms och visas då på nytt varje gång */}
       <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         {/* Efter onboardingen glider Hem upp underifrån (lib/tabsEntrance) */}

@@ -34,7 +34,7 @@
  */
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Modal, View, Text, TextInput, Image, FlatList, Pressable, Keyboard, Platform,
+  Modal, View, Text, TextInput, FlatList, Pressable, Keyboard, Platform,
   StyleSheet, useWindowDimensions,
 } from "react-native";
 import Reanimated, {
@@ -51,6 +51,7 @@ import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronLeft, ChevronRight, MapPin, Plus, Search, X } from "lucide-react-native";
 import { usePlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
+import { Image as ExpoImage } from "expo-image";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
 import { useAddPlaceToList, useRemovePlaceFromListByPlace } from "@/hooks/useLists";
@@ -663,7 +664,7 @@ const PlaceCard = memo(function PlaceCard({
     <PressableScale scale={0.97} onPress={add}>
       <View style={s.card}>
         {uri && !failed ? (
-          <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setFailed(true)} />
+          <ExpoImage source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" onError={() => setFailed(true)} />
         ) : (
           <>
             <LinearGradient colors={[colors.goldSoft, colors.bg]} locations={[0, 0.7]} style={StyleSheet.absoluteFill} />
@@ -699,7 +700,7 @@ const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place;
     <Pressable onPress={add}>
       <View style={s.row}>
         {uri && !failed ? (
-          <Image source={{ uri }} style={s.rowImg} resizeMode="cover" onError={() => setFailed(true)} />
+          <ExpoImage source={{ uri }} style={s.rowImg} contentFit="cover" onError={() => setFailed(true)} />
         ) : (
           <View style={[s.rowImg, s.rowImgFallback]}><MapPin size={20} color={colors.faint} strokeWidth={2} /></View>
         )}

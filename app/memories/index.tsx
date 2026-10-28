@@ -280,7 +280,7 @@ function MemoryBead({
           {/* Fotot, centrerat innanför mellanrummet */}
           <View style={{ position: "absolute", top: gap, left: gap, width: photoSize, height: photoSize, borderRadius: photoSize / 2, overflow: "hidden", backgroundColor: colors.border }}>
             {cover ? (
-              <LoadingImage source={{ uri: cover }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              <LoadingImage uri={cover} style={StyleSheet.absoluteFillObject} />
             ) : (
               <View style={s.noCover}>
                 <ImageIcon size={Math.round(maxSize * 0.22)} color={colors.faint} strokeWidth={1.5} />

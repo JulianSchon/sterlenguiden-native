@@ -15,10 +15,10 @@
  * Profilbilden på kortet syns bara för vänner (migration 032 öppnar exakt den bilden för dem);
  * alla andra ser initialerna.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  View, Text, Image, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, Alert,
-  Animated, Easing, useWindowDimensions, type StyleProp, type ViewStyle,
+  View, Text, ScrollView, TouchableOpacity, Pressable, Modal, StyleSheet, Alert,
+  useWindowDimensions, type StyleProp, type ViewStyle,
 } from "react-native";
 import Svg, { Circle as SvgCircle, Text as SvgText, Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,7 +31,7 @@ import {
 import { StreakFlame } from "@/components/streak/StreakFlame";
 import { StickerArt } from "@/components/stickers/StickerArt";
 import { useCollectibles } from "@/hooks/useCollectibles";
-import Reanimated, { ZoomIn, Easing as REasing } from "react-native-reanimated";
+import Reanimated, { ZoomIn, Easing as REasing, useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
 import { PressableScale } from "@/components/PressableScale";
 import { openEvent } from "@/lib/eventSheet";
 import { Skeleton } from "@/components/Skeleton";
@@ -55,6 +55,7 @@ import { useTranslation } from "react-i18next";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
 
 const RED   = "#B83434"; // samma röd som hjärtat på platssidan när den är favoritmarkerad
 
@@ -512,19 +513,16 @@ function VisitedRingBox({ visitsTotal, totalPlaces }: { visitsTotal: number; tot
 // i stället för Playfair på siffran (Playfair är bara för personnamn i den här filen).
 const RING_SIZE = 84, RING_CENTER = 42, RING_R = 35, RING_STROKE = 6;
 const RING_CIRC = 2 * Math.PI * RING_R;
-const AnimatedSvgCircle = Animated.createAnimatedComponent(SvgCircle);
+const AnimatedSvgCircle = Reanimated.createAnimatedComponent(SvgCircle);
 
 function ProgressRing({ percent, centerValue }: { percent: number; centerValue: number }) {
   const { colors } = useTheme();
-  const anim = useRef(new Animated.Value(RING_CIRC)).current;
+  // Ringen fylls på UI-tråden (förr bildruta för bildruta från JS, mitt i att sidan gled in)
+  const offset = useSharedValue(RING_CIRC);
   useEffect(() => {
-    Animated.timing(anim, {
-      toValue: RING_CIRC * (1 - percent / 100),
-      duration: 1000,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [percent]);
+    offset.value = withTiming(RING_CIRC * (1 - percent / 100), { duration: 1000, easing: REasing.out(REasing.cubic) });
+  }, [percent, offset]);
+  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: offset.value }));
 
   return (
     <Svg width={RING_SIZE} height={RING_SIZE}>
@@ -532,7 +530,7 @@ function ProgressRing({ percent, centerValue }: { percent: number; centerValue: 
       <AnimatedSvgCircle
         cx={RING_CENTER} cy={RING_CENTER} r={RING_R}
         stroke={colors.goldText} strokeWidth={RING_STROKE} fill="none" strokeLinecap="round"
-        strokeDasharray={RING_CIRC} strokeDashoffset={anim}
+        strokeDasharray={RING_CIRC} animatedProps={ringProps}
         transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
       />
       <SvgText x={RING_CENTER} y={RING_CENTER + 7} textAnchor="middle" fontSize={20} fontFamily="Montserrat_700Bold" fill={colors.text}>
@@ -574,7 +572,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
         // i Samlarobjekt-rutnätet och på kartan.
         <StickerArt imagePath={activity.imagePath} size={44} silhouette={false} />
       ) : photoUri ? (
-        <Image source={{ uri: photoUri }} style={s.activityThumb} resizeMode="cover" />
+        <ExpoImage source={{ uri: photoUri }} style={s.activityThumb} contentFit="cover" />
       ) : (
         <View style={s.activityIcon}>
           {activity.kind === "visit" ? <MapPin size={18} color={colors.goldText} strokeWidth={2} /> : <Heart size={18} color={colors.goldText} strokeWidth={2} />}

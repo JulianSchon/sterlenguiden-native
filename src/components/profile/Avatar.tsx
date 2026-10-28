@@ -4,10 +4,12 @@
  * då hämtas en tillfällig länk här. Sökvägen kommer från servern bara för en själv och för vänner
  * (migration 032/034), så för alla andra blir det initialer.
  */
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { initialsOf, toneOnTone } from "@/lib/color";
 import { AvatarRing } from "@/components/profile/AvatarRing";
 import { useOtherAvatarUrl } from "@/hooks/useAvatarUrl";
+import { Image as ExpoImage } from "expo-image";
+import { imageSource } from "@/lib/imageSource";
 
 export function Avatar({
   size, uri: givenUri, path, name, color = "#2A2A2A", textColor, ring,
@@ -18,7 +20,7 @@ export function Avatar({
     <AvatarRing ring={ring} size={size}>
       <View style={[s.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: color }]}>
         {uri ? (
-          <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <ExpoImage source={imageSource(uri)} style={StyleSheet.absoluteFill} contentFit="cover" />
         ) : (
           <Text style={[s.initials, { fontSize: size * 0.36, color: textColor ?? toneOnTone(color) }]}>
             {initialsOf(name) || "?"}

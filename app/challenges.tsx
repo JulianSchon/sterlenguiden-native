@@ -130,8 +130,12 @@ function TrophyBadge({
 
   // Medaljen faller ner i sin plats: in uppifrån och stor, smäller ner, trycks ihop och studsar,
   // glöden blinkar till — samma känsla som stämpeln vid incheckningen
+  // Glöden blinkar bara när medaljen landar; dess Skia-yta finns bara då (en osynlig yta per medalj
+  // gjorde sidan tung att öppna)
+  const [flashing, setFlashing] = useState(false);
   useEffect(() => {
     if (placement !== "dropping") return;
+    setFlashing(true);
     drop.setValue(0);
     Animated.timing(drop, { toValue: 1, duration: DROP_MS, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
       if (!finished) return;
@@ -144,7 +148,7 @@ function TrophyBadge({
       Animated.sequence([
         Animated.timing(glow, { toValue: 1, duration: 120, useNativeDriver: true }),
         Animated.timing(glow, { toValue: 0, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      ]).start();
+      ]).start(() => setFlashing(false));
       setTimeout(onLanded, 700);
     });
   }, [placement]);
@@ -165,12 +169,14 @@ function TrophyBadge({
         }}
       >
         <View ref={badgeRef} style={{ width: medalSize, height: medalSize }}>
-          <Animated.View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { opacity: glow, transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.25] }) }] }]}
-          >
-            <GlowCanvas size={medalSize} color={colors.goldText} opacity={0.6} radiusRatio={0.8} blurRatio={0.22} />
-          </Animated.View>
+          {flashing && (
+            <Animated.View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { opacity: glow, transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.25] }) }] }]}
+            >
+              <GlowCanvas size={medalSize} color={colors.goldText} opacity={0.6} radiusRatio={0.8} blurRatio={0.22} />
+            </Animated.View>
+          )}
           <Animated.View style={{ transform: [{ scale: squash }] }}>
             <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} onLoad={onLoad} />
           </Animated.View>
@@ -429,11 +435,16 @@ function SectionLabel({ text, ready, order, check }: {
     if (!ready) return;
     Animated.timing(opacity, { toValue: 1, duration: 300, delay: TRAIN_START + order * TRAIN_STEP, useNativeDriver: true }).start();
   }, [ready]);
+  // Bocken startar redan i rätt läge: första gången sätts inget (att sätta ett värde i onödan ritade om
+  // hela sidan en gång per grupp när sidan öppnades)
+  const firstCheck = useRef(true);
   useEffect(() => {
-    if (check === "shown") { checkIn.setValue(1); return; }
-    if (check !== "landing") { checkIn.setValue(0); return; }
+    const first = firstCheck.current;
+    firstCheck.current = false;
+    if (check === "shown") { if (!first) checkIn.setValue(1); return; }
+    if (check !== "landing") { if (!first) checkIn.setValue(0); return; }
     // Medaljen faller i 420 ms — bocken smäller in när den landar
-    checkIn.setValue(0);
+    if (!first) checkIn.setValue(0);
     Animated.sequence([
       Animated.delay(DROP_MS),
       Animated.spring(checkIn, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 14 }),

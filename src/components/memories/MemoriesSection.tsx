@@ -202,7 +202,7 @@ function MemoryPolaroid({
           </Svg>
           <View style={s.photoWrap}>
             {cover ? (
-              <LoadingImage source={{ uri: cover }} style={s.photo} resizeMode="cover" />
+              <LoadingImage uri={cover} style={s.photo} />
             ) : (
               <View style={[s.photo, s.noPhoto]}>
                 <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />

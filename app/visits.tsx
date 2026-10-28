@@ -14,7 +14,7 @@
  * Besök utan matchande plats göms. Header som Mitt Österlen.
  */
 import { useMemo } from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import Reanimated, {
   Extrapolation, FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, type SharedValue,
 } from "react-native-reanimated";
@@ -31,6 +31,7 @@ import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
 
 
 // Tidslinjens mått: sidmarginal, datumspalten, prickens storlek och linjens läge (prickens mitt)
@@ -233,7 +234,7 @@ function VisitRow({ visit, index, last, scrollY, focusY, onPress }: {
       {/* Bilden och texten krymper mot linjen (vänsterkanten står still) */}
       <Reanimated.View style={[s.content, focusStyle]}>
         <View style={s.thumb}>
-          {image ? <Image source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+          {image ? <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.name} numberOfLines={2}>{visit.place.name}</Text>

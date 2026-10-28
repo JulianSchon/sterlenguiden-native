@@ -13,7 +13,7 @@
  */
 import { memo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Reanimated, {
   Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
 } from "react-native-reanimated";
@@ -26,6 +26,7 @@ import type { LanguageCode } from "@/i18n";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
 
 const RED = "#EF4444";
 const LIVE = "#FF8000";
@@ -63,7 +64,7 @@ export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved,
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(event.id)}>
       <View style={s.heroImage}>
-        {event.image_url ? <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        {event.image_url ? <ExpoImage source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         <DateBox event={event} style={s.heroDate} />
       </View>
       <View style={s.heroInfo}>
@@ -88,7 +89,7 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
   return (
     <TouchableOpacity style={[s.row, past && { opacity: 0.55 }]} activeOpacity={0.9} onPress={() => onOpen(event.id)}>
       <View style={s.thumb}>
-        {event.image_url ? <Image source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        {event.image_url ? <ExpoImage source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         <DateBox event={event} small style={s.thumbDate} />
       </View>
       <View style={{ flex: 1, gap: 4 }}>

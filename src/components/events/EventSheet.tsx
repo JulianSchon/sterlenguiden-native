@@ -36,7 +36,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Canvas, LinearGradient, Rect, vec } from "@shopify/react-native-skia";
+// Toningarna står still: vanliga inbyggda toningar, inte egna Skia-ytor
+import { LinearGradient } from "expo-linear-gradient";
 import {
   CalendarCheck, CalendarDays, CalendarPlus, Car, ChevronRight, Globe, Home, MapPin,
   Store, Sun, Ticket, UtensilsCrossed, X, type LucideIcon,
@@ -367,16 +368,14 @@ export function EventSheetHost() {
                     />
                   )}
                   {/* Riktig mjuk toning ner i panelens bakgrund, så rubriken ligger på mörkret */}
-                  <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-                    <Rect x={0} y={0} width={width} height={heroH}>
-                      <LinearGradient
-                        start={vec(0, heroH * 0.35)}
-                        end={vec(0, heroH)}
-                        colors={[withAlpha(colors.bg, 0), withAlpha(colors.bg, 0.72), colors.bg]}
-                        positions={[0, 0.6, 1]}
-                      />
-                    </Rect>
-                  </Canvas>
+                  <LinearGradient
+                    style={StyleSheet.absoluteFill}
+                    pointerEvents="none"
+                    start={{ x: 0, y: 0.35 }}
+                    end={{ x: 0, y: 1 }}
+                    colors={[withAlpha(colors.bg, 0), withAlpha(colors.bg, 0.72), colors.bg]}
+                    locations={[0, 0.6, 1]}
+                  />
                   <View style={s.handle} />
                   {event && <HeroText event={event} onShare={share} />}
                 </View>
@@ -398,11 +397,12 @@ export function EventSheetHost() {
         {/* ── Alltid synligt längst ner: kalender, spara, stäng ── */}
         <View style={[s.bar, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
           {/* Tona i bakgrundens färg: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */}
-          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Rect x={0} y={0} width={width} height={BAR_H + insets.bottom + 40}>
-              <LinearGradient start={vec(0, 0)} end={vec(0, BAR_H + insets.bottom + 22)} colors={[withAlpha(colors.bg, 0), withAlpha(colors.bg, 0.7), withAlpha(colors.bg, 0.97)]} positions={[0, 0.45, 1]} />
-            </Rect>
-          </Canvas>
+          <LinearGradient
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+            colors={[withAlpha(colors.bg, 0), withAlpha(colors.bg, 0.7), withAlpha(colors.bg, 0.97)]}
+            locations={[0, 0.45, 1]}
+          />
           {/* Egen behållare som växer: PressableScale lägger stilen på sitt inre lager, så flex: 1
               där fick aldrig knappen att ta platsen */}
           <View style={{ flex: 1 }}>

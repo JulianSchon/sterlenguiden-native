@@ -7,10 +7,11 @@
  * Mitt Österlens listrad och "Spara i lista"-arket hade sin egen separata rendering som aldrig
  * uppdaterades när coverImageUrl lades till.
  */
-import { View, Image, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { MapPin } from "lucide-react-native";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
 
 /** width/height för en rektangulär yta (t.ex. listans stora Spotify-liknande header) — annars
  * en kvadrat på size×size, som i listöversikten och den gamla "Ny lista"-panelen. */
@@ -24,7 +25,7 @@ export function ListCover({
   const box = { width: w, height: h, borderRadius: radius };
 
   if (coverImageUrl) {
-    return <Image source={{ uri: coverImageUrl }} style={box} resizeMode="cover" />;
+    return <ExpoImage source={{ uri: coverImageUrl }} style={box} contentFit="cover" />;
   }
 
   if (images.length === 0) {
@@ -36,7 +37,7 @@ export function ListCover({
   }
 
   if (images.length < 4) {
-    return <Image source={{ uri: images[0] }} style={box} resizeMode="cover" />;
+    return <ExpoImage source={{ uri: images[0] }} style={box} contentFit="cover" />;
   }
 
   const cellW = (w - 1) / 2;
@@ -44,7 +45,7 @@ export function ListCover({
   return (
     <View style={[s.grid, box]}>
       {images.slice(0, 4).map((uri, i) => (
-        <Image key={i} source={{ uri }} style={{ width: cellW, height: cellH }} resizeMode="cover" />
+        <ExpoImage key={i} source={{ uri }} style={{ width: cellW, height: cellH }} contentFit="cover" />
       ))}
     </View>
   );

@@ -102,16 +102,18 @@ export function useLists() {
     queryKey: ["lists", "mine"],
     queryFn: async (): Promise<ListSummary[]> => {
       const userId = await requireUserId();
-      const { data, error } = await supabase
-        .from("lists")
-        .select("*, list_places(place_id, created_at, places(image_url)), list_members(user_id, status)")
-        .order("created_at", { ascending: false });
+      // Listorna och när man senast öppnade dem hämtas samtidigt
+      const [{ data, error }, { data: opens, error: opensError }] = await Promise.all([
+        supabase
+          .from("lists")
+          .select("*, list_places(place_id, created_at, places(image_url)), list_members(user_id, status)")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("list_opens")
+          .select("list_id, opened_at")
+          .eq("user_id", userId),
+      ]);
       if (error) throw error;
-
-      const { data: opens, error: opensError } = await supabase
-        .from("list_opens")
-        .select("list_id, opened_at")
-        .eq("user_id", userId);
       if (opensError) console.error("list_opens misslyckades:", opensError);
       const openedAt = new Map((opens ?? []).map((o) => [o.list_id, o.opened_at as string]));
 
@@ -308,12 +310,14 @@ export function useFriendListDetail(listId: string | undefined, ownerId: string 
     enabled: !!listId && !!ownerId,
     queryFn: async (): Promise<ListDetail | null> => {
       const userId = await requireUserId();
-      const { data: lists, error } = await supabase.rpc("rpc_friend_lists", { target_user_id: ownerId! });
+      // Listans uppgifter och dess platser hämtas samtidigt
+      const [{ data: lists, error }, { data: rows, error: rowsError }] = await Promise.all([
+        supabase.rpc("rpc_friend_lists", { target_user_id: ownerId! }),
+        supabase.rpc("rpc_friend_list_places", { target_list_id: listId! }),
+      ]);
       if (error) throw error;
       const meta = (lists ?? []).find((l) => l.id === listId);
       if (!meta) return null;
-
-      const { data: rows, error: rowsError } = await supabase.rpc("rpc_friend_list_places", { target_list_id: listId! });
       if (rowsError) throw rowsError;
       const placeIds = [...new Set((rows ?? []).map((r) => Number(r.place_id)))];
       const addedByIds = [...new Set((rows ?? []).map((r) => r.added_by))];

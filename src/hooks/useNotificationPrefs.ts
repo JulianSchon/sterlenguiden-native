@@ -3,10 +3,12 @@
  * användare) och vilka orter som finns att välja mellan. Själva utskicket görs av
  * servern som läser samma tabell. Saknas raden gäller standardvärdena: allt på, hela Österlen.
  */
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { uniqueTowns } from "@/lib/towns";
 import { signedInUser } from "@/lib/session";
+import { usePlaces } from "@/hooks/usePlaces";
 
 export interface NotificationPrefs {
   events: boolean;
@@ -67,15 +69,9 @@ export function useUpdateNotificationPrefs() {
   });
 }
 
-/** Orterna som finns bland platserna, för valet av område. */
-export function usePlaceTowns() {
-  return useQuery({
-    queryKey: ["place-towns"],
-    staleTime: 60 * 60 * 1000,
-    queryFn: async (): Promise<string[]> => {
-      const { data, error } = await supabase.from("places").select("nearest_town").not("nearest_town", "is", null);
-      if (error) throw error;
-      return uniqueTowns((data ?? []).map((r) => r.nearest_town as string));
-    },
-  });
+/** Orterna som finns bland platserna, för valet av område (ur platslistan appen redan har). */
+export function usePlaceTowns(): { data: string[] } {
+  const { data: places } = usePlaces();
+  const data = useMemo(() => uniqueTowns((places ?? []).flatMap((p) => (p.nearest_town ? [p.nearest_town] : []))), [places]);
+  return { data };
 }

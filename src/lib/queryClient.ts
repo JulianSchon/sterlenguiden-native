@@ -39,14 +39,14 @@ export const queryClient = new QueryClient({
  */
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: "query-cache:v3",
+  key: "query-cache:v4",
   throttleTime: 2000,
-  // Som JSON, men Map och Set (t.ex. hittade skatter) överlever: vanlig JSON gör dem till tomma {}
-  serialize: (data) => JSON.stringify(data, (_, v) =>
-    v instanceof Map ? { __map: [...v] } : v instanceof Set ? { __set: [...v] } : v),
-  deserialize: (text) => JSON.parse(text, (_, v) =>
-    v && typeof v === "object" ? ("__map" in v ? new Map(v.__map) : "__set" in v ? new Set(v.__set) : v) : v),
+  // Sparas som vanlig JSON (den inbyggda, snabba vägen). Därför är det en frågas data som sparas
+  // alltid vanliga listor och objekt — aldrig Map eller Set, som blir tomma {} i JSON. Behöver en
+  // sida en Map byggs den med select (se useCollected).
 });
+// Den förra versionen sparade Map/Set på ett eget sätt; den kopian behövs inte längre
+AsyncStorage.removeItem("query-cache:v3").catch(() => {});
 
 /** Hur gammal sparad data får vara för att visas vid start */
 export const PERSIST_MAX_AGE = 1000 * 60 * 60 * 24 * 7;
@@ -54,7 +54,7 @@ export const PERSIST_MAX_AGE = 1000 * 60 * 60 * 24 * 7;
 // Det som visas när appen startar. Inte det som styr engångsögonblick (paketen med nya kort,
 // listinbjudningarna): sparat och gammalt kunde de visas en gång till. Inte heller företagsportalen.
 const PERSISTED = new Set([
-  "places", "events", "news", "offers", "service-points", "collectibles", "place-towns", "pass-products",
+  "places", "events", "news", "offers", "service-points", "collectibles", "pass-products",
   "reward-cards", "business-stories", "profile", "favorites", "visits", "lists", "memories", "app-days",
   "achievements", "collected", "offer-redemptions", "discovery_likes", "discovery_dismissals",
   "avatar-url", "card-photo-url", "friends", "leaderboard",

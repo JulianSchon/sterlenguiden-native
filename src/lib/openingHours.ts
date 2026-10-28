@@ -255,14 +255,28 @@ interface WeekRow {
 }
 
 /** Veckodagens namn på appens språk (DAY_NAMES är nycklarna i databasen). 4 jan 2026 är en söndag */
+// Veckodagarnas namn formateras en gång per språk (att formatera ett datum är långsamt i telefonen,
+// och tabellen visas på varje platssida)
+const dayNames = new Map<string, string>();
 const dayName = (day: number) => {
-  const name = formatDate(new Date(2026, 0, 4 + day), "EEEE");
-  return name.charAt(0).toUpperCase() + name.slice(1);
+  const key = `${i18n.language}|${day}`;
+  let name = dayNames.get(key);
+  if (name === undefined) {
+    const formatted = formatDate(new Date(2026, 0, 4 + day), "EEEE");
+    name = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    dayNames.set(key, name);
+  }
+  return name;
 };
+
+/** Har platsen angett öppettider för någon dag alls */
+export function hasWeekHours(hours: Hours): boolean {
+  return !!hours && DAY_NAMES.some((d) => hours[d]?.trim());
+}
 
 /** Veckans rader, måndag först. Tomt om platsen inte angett några öppettider alls */
 export function weekRows(hours: Hours, now = new Date()): WeekRow[] {
-  if (!hours || !DAY_NAMES.some((d) => hours[d]?.trim())) return [];
+  if (!hours || !hasWeekHours(hours)) return [];
   return [1, 2, 3, 4, 5, 6, 0].map((day) => {
     const raw = hours[DAY_NAMES[day]]?.trim() ?? "";
     const parsed = parseDay(raw);

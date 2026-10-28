@@ -19,7 +19,7 @@
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Image, Share,
+  View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Share,
 } from "react-native";
 import Reanimated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -44,6 +44,7 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { signedInUser } from "@/lib/session";
 import { saveEventFavorite, savePlaceFavorite } from "@/hooks/useFavorites";
+import { Image as ExpoImage } from "expo-image";
 
 
 type FavKind = "place" | "event";
@@ -379,7 +380,7 @@ const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, on
     <Reanimated.View entering={enterAt(index)}>
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.cardImage}>
-        {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         {item.date && <DateBox event={item.date} style={s.cardDate} />}
       </View>
       <View style={s.cardInfo}>
@@ -402,7 +403,7 @@ const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onTo
     <Reanimated.View entering={enterAt(index)}>
     <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.thumb}>
-        {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+        {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         {item.date && <DateBox event={item.date} small style={s.thumbDate} />}
       </View>
       <View style={{ flex: 1, gap: 2 }}>

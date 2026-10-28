@@ -23,6 +23,17 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+/** Det sparade valet, inläst innan appen visas (loadSavedTheme) så att ljust läge inte blinkar mörkt vid start */
+let savedMode: ThemeMode = "dark";
+export async function loadSavedTheme(): Promise<void> {
+  try {
+    // Ett äldre sparat "system" ignoreras och blir förvalet mörkt
+    if ((await SecureStore.getItemAsync(STORAGE_KEY)) === "light") savedMode = "light";
+  } catch {
+    // Inget sparat val: mörkt
+  }
+}
+
 /**
  * `forced`: en del av appen som alltid har samma läge (t.ex. startsidan, som ligger över ett mörkt
  * foto). Den läser och ändrar inte det sparade valet och rör inte telefonens tangentbord och menyer.
@@ -39,22 +50,14 @@ function ForcedTheme({ mode, children }: { mode: ThemeMode; children: ReactNode 
 }
 
 function AppTheme({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>("dark");
-
-  useEffect(() => {
-    SecureStore.getItemAsync(STORAGE_KEY)
-      .then((stored) => {
-        // Ett äldre sparat "system" ignoreras och blir förvalet mörkt
-        if (stored === "light") setModeState(stored);
-      })
-      .catch(() => {});
-  }, []);
+  const [mode, setModeState] = useState<ThemeMode>(savedMode);
 
   // Systemets egna delar (tangentbord, menyer) följer appens val i stället för telefonens
   useEffect(() => Appearance.setColorScheme(mode), [mode]);
 
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);
+    savedMode = next;
     SecureStore.setItemAsync(STORAGE_KEY, next).catch(() => {});
   }, []);
 

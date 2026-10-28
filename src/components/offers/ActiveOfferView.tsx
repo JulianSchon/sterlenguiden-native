@@ -14,7 +14,7 @@
  * Skärmen är alltid svart (även i ljust läge) och alltid på svenska: den är till för personalen.
  */
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, Image, StyleSheet, Animated as RNAnimated, Easing as RNEasing } from "react-native";
+import { View, Text, StyleSheet, Animated as RNAnimated, Easing as RNEasing } from "react-native";
 import Animated, {
   Easing, FadeIn, ZoomIn, useDerivedValue, useSharedValue, withTiming,
 } from "react-native-reanimated";
@@ -32,6 +32,7 @@ import { findCategory, withAlpha } from "@/theme/categories";
 import { serverNow } from "@/lib/serverClock";
 import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
+import { Image as ExpoImage } from "expo-image";
 
 // Personalen läser skärmen: alltid svenska, vilket språk appen än har
 const sv = (key: "rewards.member" | "rewards.offerExpired" | "rewards.offerActive" | "rewards.secondsLeft") => i18n.t(key, { lng: "sv" });
@@ -177,7 +178,7 @@ export function ActiveOfferView({
       <View style={a.identity}>
         <View style={a.logoWrap}>
           {placeLogoUrl ? (
-            <Image source={{ uri: placeLogoUrl }} style={a.logo} resizeMode="cover" />
+            <ExpoImage source={{ uri: placeLogoUrl }} style={a.logo} contentFit="cover" />
           ) : (
             <Text style={a.logoFallback}>{placeName.charAt(0).toUpperCase()}</Text>
           )}

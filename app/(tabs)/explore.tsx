@@ -143,9 +143,10 @@ export default function ExploreScreen() {
     if (params.ask) changeQuery(params.ask);
   }, [params.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Öppet nu (och siffrorna i rutorna) räknas om varje gång man kommer tillbaka till sidan
-  const [tick, setTick] = useState(0);
-  useFocusEffect(useCallback(() => { setTick((t) => t + 1); }, []));
+  // Öppet nu (och siffrorna i rutorna) räknas om när man kommer tillbaka till sidan — om klockan
+  // hunnit slå om en minut sedan sist (samma minut ger samma svar, och då räknas inget i onödan)
+  const [tick, setTick] = useState(() => Math.floor(Date.now() / 60_000));
+  useFocusEffect(useCallback(() => { setTick(Math.floor(Date.now() / 60_000)); }, []));
 
   const index = useMemo(() => buildIndex(places), [places]);
   const towns = useMemo(() => buildTowns(places), [places]);

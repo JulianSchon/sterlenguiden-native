@@ -11,13 +11,15 @@
  * man en lista som fortfarande glider (för att stoppa den) räknas det inte heller (scrollAt).
  */
 import { memo, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import Reanimated, { runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Check, Clock, Crown } from "lucide-react-native";
-import { Canvas, Fill, LinearGradient, Line, Path, DashPathEffect, vec } from "@shopify/react-native-skia";
+import { Canvas, Path } from "@shopify/react-native-skia";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Line as SvgLine } from "react-native-svg";
 import { offerSavingsLabel, splitSavings, type Offer } from "@/lib/offers";
 import type { OriginRect, TearEdge } from "./OfferDrawer";
 import { tornEdgeLine, tornCutRegion, TEAR_DEPTH, EDGE_STROKE } from "./tear";
@@ -26,6 +28,7 @@ import type { LanguageCode } from "@/i18n";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { Image as ExpoImage } from "expo-image";
 
 // Måtten måste stämma med OfferDrawer (bandet som rivs loss har samma mått)
 export const TICKET_H = 190;
@@ -36,7 +39,6 @@ const LOGO = 34;
 const LOGO_TOP = 10;
 const LOGO_RIGHT = 12;
 const LOGO_SLOP = 8;
-const BLEED = 6;
 
 // ── Bilden till pappersbitarna ──
 // Läses in så fort fingret nuddar en biljett. Hålls här (inte i sidans state) så att bara panelen
@@ -75,26 +77,21 @@ function offerBadge(offer: Offer, used: boolean): "redeemed" | "endingSoon" | "n
   return null;
 }
 
-/** Lodrät toning över hela biljettens höjd (den är fast, så Skia behöver inte mäta något) */
-function VerticalGradient({ colors }: { colors: string[] }) {
-  return (
-    // Ritytan sticker ut förbi kanten (klipps av biljettens form) så ingen remsa blir kvar längst ner
-    <Canvas style={{ position: "absolute", left: 0, right: 0, top: -BLEED, bottom: -BLEED }} pointerEvents="none">
-      <Fill>
-        <LinearGradient start={vec(0, BLEED)} end={vec(0, BLEED + TICKET_H)} colors={colors} />
-      </Fill>
-    </Canvas>
-  );
+// Toningarna och den perforerade linjen är vanliga inbyggda vyer, inte Skia: de står still, och en
+// egen Skia-yta för varje (tre per biljett) gjorde Förmåner tung att öppna. Skia används bara till
+// den rivna kanten, som rör sig.
+
+/** Lodrät toning över hela biljettens höjd */
+function VerticalGradient({ colors }: { colors: [string, string, ...string[]] }) {
+  return <LinearGradient colors={colors} style={StyleSheet.absoluteFill} pointerEvents="none" />;
 }
 
 /** Perforerad linje mellan sidobandet och bilden */
 function Perforation() {
   return (
-    <Canvas style={{ position: "absolute", left: STUB_W - 1, top: 0, width: 2, height: TICKET_H }} pointerEvents="none">
-      <Line p1={vec(1, NOTCH / 2)} p2={vec(1, TICKET_H - NOTCH / 2)} color="rgba(255,255,255,0.55)" style="stroke" strokeWidth={1.5}>
-        <DashPathEffect intervals={[3, 5]} />
-      </Line>
-    </Canvas>
+    <Svg style={{ position: "absolute", left: STUB_W - 1, top: 0 }} width={2} height={TICKET_H} pointerEvents="none">
+      <SvgLine x1={1} y1={NOTCH / 2} x2={1} y2={TICKET_H - NOTCH / 2} stroke="rgba(255,255,255,0.55)" strokeWidth={1.5} strokeDasharray={[3, 5]} />
+    </Svg>
   );
 }
 
@@ -190,7 +187,7 @@ export const OfferTicket = memo(function OfferTicket({
         </Reanimated.View>
 
         <View style={s.body}>
-          {imageUrl && <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />}
+          {imageUrl && <ExpoImage source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
 
           {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
           <VerticalGradient colors={["rgba(6,6,10,0.1)", "rgba(6,6,10,0.35)", "rgba(6,6,10,0.92)"]} />
@@ -206,7 +203,7 @@ export const OfferTicket = memo(function OfferTicket({
           {offer.place?.logo_url && (
             // Loggan öppnar platssidan; resten av biljetten öppnar erbjudandet (se trycket ovan)
             <View style={s.logoWrap}>
-              <Image source={{ uri: offer.place.logo_url }} style={s.logo} resizeMode="cover" />
+              <ExpoImage source={{ uri: offer.place.logo_url }} style={s.logo} contentFit="cover" />
             </View>
           )}
 

@@ -11,10 +11,10 @@
  * Låg i app/(tabs)/profile.tsx tidigare — utflyttad hit för att aktiva
  * erbjudande-vyn ska kunna visa samma baksida.
  */
-import { useState, useRef, useEffect, useMemo, type ComponentType, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, type ComponentType, type ReactNode } from "react";
 import {
-  View, Text, Image, ImageBackground, TouchableOpacity, StyleSheet,
-  Dimensions, Animated, Platform, Easing,
+  View, Text, ImageBackground, TouchableOpacity, StyleSheet,
+  Dimensions, Animated, Platform, Easing, type StyleProp, type TextStyle,
 } from "react-native";
 import Svg, {
   Defs,
@@ -37,6 +37,8 @@ import Reanimated, {
 import { format } from "date-fns";
 import { serverNow } from "@/lib/serverClock";
 import i18n from "i18next";
+import { Image as ExpoImage } from "expo-image";
+import { imageSource } from "@/lib/imageSource";
 
 const { width: SW } = Dimensions.get("window");
 /** Kortets standardstorlek (hela skärmbredden minus sidomarginaler) */
@@ -125,7 +127,6 @@ export function MemberCard({
   const [clockOn, setClockOn]                = useState(showBackOnly || (startOnBack && isMember));
   // Vilken sida kortet är på väg mot; uppdateras direkt
   const flippedRef                          = useRef(showBackOnly || (startOnBack && (isMember || locked)));
-  const [time, setTime]                     = useState(() => new Date(serverNow()));
   const gradRotAnim                         = useRef(new Animated.Value(0)).current;
   // Vald design — en vanlig eller ett belöningskort (som hämtas från servern)
   const cardVariant                         = useCardVariant(cardColor);
@@ -147,8 +148,14 @@ export function MemberCard({
   const colors  = cardColors(variant);
   const baseBg  = variant.bg;
 
-  // Byter kortet design ska den nya bilden tonas in på nytt
-  useEffect(() => { bgFade.setValue(variant && shownBackgrounds.has(variant.id) ? 1 : 0); }, [variant?.id]);
+  // Byter kortet design ska den nya bilden tonas in på nytt. Första gången står värdet redan rätt (att
+  // sätta det ändå gav en extra uppritning av hela skärmen för varje kort som visades)
+  const shownVariant = useRef(variant.id);
+  useEffect(() => {
+    if (shownVariant.current === variant.id) return;
+    shownVariant.current = variant.id;
+    bgFade.setValue(shownBackgrounds.has(variant.id) ? 1 : 0);
+  }, [variant.id, bgFade]);
 
   // Medlemskapet laddas efter första bilden; då ska kortet ändå landa på baksidan
   useEffect(() => {
@@ -244,10 +251,7 @@ export function MemberCard({
   };
 
   /** Klockan börjar gå och visar rätt tid direkt, så den inte står still medan kortet vänds mot baksidan. */
-  const startClock = () => {
-    setTime(new Date(serverNow()));
-    setClockOn(true);
-  };
+  const startClock = () => setClockOn(true);
 
   const flip = () => {
     startClock();
@@ -290,13 +294,21 @@ export function MemberCard({
   // på. Ett tryck vänder fortfarande, och lodräta drag lämnas åt sidan som scrollar.
   const swipeRange = cardW * 0.7;
   const startProgress = useSharedValue(0);
-  const swipe = Gesture.Pan()
-    .enabled((isMember || locked) && !disableFlip && !showBackOnly && !readOnly && !autoFlip)
+  // Gesten byggs bara om när något som styr den ändras (en ny gest skickas till UI-tråden på nytt);
+  // funktionerna den anropar nås via en ref, så den alltid anropar de senaste
+  const swipeHandlers = useRef({ startSwipe, landOn, endSwipe });
+  swipeHandlers.current = { startSwipe, landOn, endSwipe };
+  const onSwipeStart = useCallback(() => swipeHandlers.current.startSwipe(), []);
+  const onSwipeLand = useCallback((side: boolean) => swipeHandlers.current.landOn(side), []);
+  const onSwipeEnd = useCallback(() => swipeHandlers.current.endSwipe(), []);
+  const swipeEnabled = (isMember || locked) && !disableFlip && !showBackOnly && !readOnly && !autoFlip;
+  const swipe = useMemo(() => Gesture.Pan()
+    .enabled(swipeEnabled)
     .activeOffsetX([-16, 16])
     .failOffsetY([-24, 24])
     .onStart(() => {
       startProgress.value = flipProgress.value;
-      runOnJS(startSwipe)();
+      runOnJS(onSwipeStart)();
     })
     .onUpdate((e) => {
       flipProgress.value = Math.min(1, Math.max(0, startProgress.value + e.translationX / swipeRange));
@@ -304,11 +316,11 @@ export function MemberCard({
     .onEnd((e) => {
       const side = flipProgress.value + e.velocityX / (swipeRange * 5) > 0.5;
       flipProgress.value = withSpring(side ? 1 : 0, FLIP_SPRING);
-      runOnJS(landOn)(side);
+      runOnJS(onSwipeLand)(side);
     })
     .onFinalize(() => {
-      runOnJS(endSwipe)();
-    });
+      runOnJS(onSwipeEnd)();
+    }), [swipeEnabled, swipeRange, flipProgress, startProgress, onSwipeStart, onSwipeLand, onSwipeEnd]);
 
   // Roterande guldgradient — körs så länge baksidan är eller kan bli synlig (se clockOn). Den startar redan när en
   // vändning börjar, innan baksidan syns, så inget hopp märks
@@ -334,12 +346,6 @@ export function MemberCard({
     outputRange: ["0deg", "360deg"],
   });
 
-  // Live clock — only when back is showing
-  useEffect(() => {
-    if (!clockOn || locked) return;
-    const id = setInterval(() => setTime(new Date(serverNow())), 1000);
-    return () => clearInterval(id);
-  }, [clockOn, locked]);
 
   // Köpsidan: kortet vänder sig själv, lugnt, och visar den låsta baksidan en stund
   useEffect(() => {
@@ -427,7 +433,7 @@ export function MemberCard({
             <Ring ring={avatarRing} size={64 * k}>
               <View style={mc.avatarRing}>
                 {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={mc.avatarImg} />
+                  <ExpoImage source={imageSource(avatarUrl)} style={mc.avatarImg} contentFit="cover" />
                 ) : (
                   <View style={[mc.avatarInner, { backgroundColor: circleColor ?? colors.avatarBg }]}>
                     <Text style={[mc.avatarInitials, { color: circleColor ? toneOnTone(circleColor) : colors.avatarInitials }]}>
@@ -472,7 +478,6 @@ export function MemberCard({
   );
 
   // ── Back ──────────────────────────────────────────────────────────────────
-  const clockStr = format(time, "HH:mm:ss");
 
   // ── Låst baksida (inte medlem) ────────────────────────────────────────────
   const LockedBack = (
@@ -543,7 +548,7 @@ export function MemberCard({
         {/* Kortfotot ändras under Österlenpasset (en gång i månaden), inte här */}
         <View style={mc.backCircle}>
           {profileImageUrl ? (
-            <Image source={{ uri: profileImageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <ExpoImage source={imageSource(profileImageUrl)} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : (
             <View style={mc.backCirclePlaceholder}>
               <Camera size={24 * k} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />
@@ -553,7 +558,7 @@ export function MemberCard({
         </View>
 
         <Text style={mc.backMemberName} numberOfLines={1}>{displayName}</Text>
-        <Text style={mc.liveClock}>{clockStr}</Text>
+        <LiveClock running={clockOn && !locked} style={mc.liveClock} />
 
         {/* Instruktion — i flex-flödet, samma gap som övriga element */}
         <Text style={mc.liveInstruction}>{i18n.t("rewards.instruction")}</Text>
@@ -747,3 +752,16 @@ const createStyles = (k: number, cardW: number, cardH: number) => StyleSheet.cre
   lockedTitle: { fontFamily: "Montserrat_700Bold", fontSize: 15 * k, letterSpacing: 0.2 * k, color: "#F7EBD0", textAlign: "center" },
   lockedSub: { fontFamily: "Inter_400Regular", fontSize: 11.5 * k, lineHeight: 16 * k, color: "rgba(247,235,208,0.72)", textAlign: "center" },
 });
+
+/** Baksidans klocka. Bara den ritas om varje sekund, inte hela kortet. */
+function LiveClock({ running, style }: { running: boolean; style: StyleProp<TextStyle> }) {
+  const [time, setTime] = useState(() => new Date(serverNow()));
+  useEffect(() => {
+    if (!running) return;
+    // Rätt tid direkt när den börjar gå, så den inte står still medan kortet vänds mot baksidan
+    setTime(new Date(serverNow()));
+    const id = setInterval(() => setTime(new Date(serverNow())), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+  return <Text style={style}>{format(time, "HH:mm:ss")}</Text>;
+}
