@@ -717,7 +717,7 @@ export const en: typeof sv = {
   },
   stories: {
     ago: { now: "now", minutes: "{{count}} min", hours: "{{count}} h", yesterday: "yesterday" },
-    interaction: { write: "Write an answer …", sent: "Thanks! Your answer has been sent.", send: "Send", placeholder: "Your answer", failed: "It couldn’t be sent. Please try again.", anonymous: "The business sees your answer but not who you are." },
+    interaction: { votes: "{{count}} votes", write: "Write an answer …", sent: "Thanks! Your answer has been sent.", send: "Send", placeholder: "Your answer", failed: "It couldn’t be sent. Please try again.", anonymous: "The business sees your answer but not who you are." },
   },
   search: {
     title: "Search",

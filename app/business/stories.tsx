@@ -4,14 +4,17 @@
  * och frågans svar (utan vem som svarat); där kan man ta bort den. Nya
  * skapas med Ny story (business/story), som ligger fast längst ner.
  */
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Image as ExpoImage } from "expo-image";
 import { Camera, ChartColumn, Eye, MessageCircleQuestionMark, Trash2, Video, X } from "lucide-react-native";
+import Reanimated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { StoryVideo, videoAvailable } from "@/components/stories/StoryVideo";
+import { InteractionOverlay, storyFrame } from "@/components/stories/StoryInteractions";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
@@ -116,71 +119,115 @@ export default function BusinessStories() {
   );
 }
 
-/** Storyn i helskärm, som gästerna ser den — med hur många som sett den, och Ta bort */
+/**
+ * Storyn i helskärm, som gästerna ser den: enkäten eller frågan på sin plats (med resultatet), hur
+ * många som sett den, och Ta bort. Växer in när den öppnas; dra nedåt för att stänga (den krymper
+ * med fingret, som gästernas visare), och krysset låter den glida ner och tona bort.
+ */
 function StoryPreview({ story, onClose, onRemove }: {
   story: BusinessStory | null; onClose: () => void; onRemove: (st: BusinessStory) => void;
 }) {
   const insets = useSafeAreaInsets();
   const s = useThemedStyles(createStyles);
+  const { width: W, height: H } = useWindowDimensions();
+  const frame = storyFrame(W, H);
+  const open = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const closing = useRef(false);
+
+  useEffect(() => {
+    if (!story) return;
+    closing.current = false;
+    dragY.value = 0;
+    open.value = 0;
+    open.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
+  }, [story, open, dragY]);
+
+  const close = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    open.value = withTiming(0, { duration: 230, easing: Easing.in(Easing.quad) }, (done) => {
+      if (done) runOnJS(onClose)();
+    });
+  }, [open, onClose]);
+
+  const pan = useMemo(() => Gesture.Pan()
+    .activeOffsetY(10)
+    .failOffsetX([-30, 30])
+    .onUpdate((e) => { dragY.value = Math.max(0, e.translationY); })
+    .onEnd((e) => {
+      if (dragY.value > 120 || e.velocityY > 900) runOnJS(close)();
+      else dragY.value = withSpring(0, { stiffness: 380, damping: 36 });
+    }), [dragY, close]);
+
+  // Öppning: växer från 92 % och tonar in. Stängning: glider ner och tonar bort. Drag: krymper med fingret
+  const cardStyle = useAnimatedStyle(() => {
+    const drag = Math.min(1, dragY.value / H);
+    return {
+      opacity: open.value,
+      borderRadius: drag * 60 + (1 - open.value) * 30,
+      transform: [
+        { translateY: dragY.value * 0.9 + (1 - open.value) * 60 },
+        { scale: (0.92 + 0.08 * open.value) * (1 - drag * 0.35) },
+      ],
+    };
+  });
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: open.value * (1 - Math.min(1, dragY.value / H) * 0.8) }));
+  const chrome = useAnimatedStyle(() => ({ opacity: 1 - Math.min(1, dragY.value / 80) }));
+
   return (
-    <Modal visible={!!story} animationType="fade" transparent statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={!!story} animationType="none" transparent statusBarTranslucent onRequestClose={close}>
       <StatusBar style="light" />
       {story && (
-        <View style={s.preview}>
-          <ExpoImage source={{ uri: story.image_url }} style={StyleSheet.absoluteFill} contentFit="contain" />
-          {!!story.video_url && videoAvailable() && (
-            <View style={[StyleSheet.absoluteFill, s.center]} pointerEvents="none">
-              <View style={{ width: "100%", aspectRatio: 9 / 16, maxHeight: "100%" }}>
-                <StoryVideo uri={story.video_url} playing loop />
-                {!!story.overlay_url && <ExpoImage source={{ uri: story.overlay_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
-              </View>
-            </View>
-          )}
-          <View style={[s.previewTop, { paddingTop: insets.top + 10 }]}>
-            <View style={s.previewInfo}>
-              <Eye size={16} color="#FFFFFF" strokeWidth={2.2} />
-              <Text style={s.previewText}>{story.views} {tb("har sett den ·")} {when(story)}</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} hitSlop={12} style={s.round} accessibilityLabel={tb("Stäng")}>
-              <X size={22} color="#FFFFFF" strokeWidth={2.2} />
-            </TouchableOpacity>
-          </View>
-          <View style={[s.previewBottom, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
-            {/* Enkätens röster och frågans svar */}
-            {story.interaction?.kind === "poll" && story.votes && (
-              <View style={s.result}>
-                <Text style={s.resultTitle}>{story.interaction.question || tb("Enkät")}</Text>
-                {story.interaction.options.map((o, i) => {
-                  const total = story.votes![0] + story.votes![1];
-                  const share = total ? story.votes![i] / total : 0;
-                  return (
-                    <View key={i} style={s.voteRow}>
-                      <View style={[s.voteFill, { width: `${Math.round(share * 100)}%` }]} />
-                      <Text style={s.voteText}>{o}</Text>
-                      <Text style={s.voteText}>{tb("{{0}} röster", { 0: story.votes![i] })} · {Math.round(share * 100)} %</Text>
+        <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+          <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: "#000000" }, backdropStyle]} />
+          <GestureDetector gesture={pan}>
+            <Reanimated.View style={[StyleSheet.absoluteFill, s.preview, cardStyle]}>
+              <ExpoImage source={{ uri: story.image_url }} style={StyleSheet.absoluteFill} contentFit="contain" />
+              {!!story.video_url && videoAvailable() && (
+                <View style={[s.media, { left: frame.left, top: frame.top, width: frame.w, height: frame.h }]} pointerEvents="none">
+                  <StoryVideo uri={story.video_url} playing loop />
+                  {!!story.overlay_url && <ExpoImage source={{ uri: story.overlay_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+                </View>
+              )}
+              {/* Enkäten eller frågan på samma plats som hos gästerna, med resultatet */}
+              {story.interaction && (
+                <InteractionOverlay interaction={story.interaction} frame={frame} counts={story.votes} showResults />
+              )}
+
+              <Reanimated.View style={[StyleSheet.absoluteFill, chrome]} pointerEvents="box-none">
+                <View style={[s.previewTop, { paddingTop: insets.top + 10 }]}>
+                  <View style={s.previewInfo}>
+                    <Eye size={16} color="#FFFFFF" strokeWidth={2.2} />
+                    <Text style={s.previewText}>{story.views} {tb("har sett den ·")} {when(story)}</Text>
+                  </View>
+                  <TouchableOpacity onPress={close} hitSlop={12} style={s.round} accessibilityLabel={tb("Stäng")}>
+                    <X size={22} color="#FFFFFF" strokeWidth={2.2} />
+                  </TouchableOpacity>
+                </View>
+                <View style={[s.previewBottom, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+                  {/* Frågans svar (utan vem som skrivit) */}
+                  {story.interaction?.kind === "question" && story.answers && (
+                    <View style={[s.result, { maxHeight: 240 }]}>
+                      <Text style={s.resultTitle}>{tb("Svar")} · {story.answers.length}</Text>
+                      {story.answers.length === 0 ? (
+                        <Text style={s.answerEmpty}>{tb("Inga svar än.")}</Text>
+                      ) : (
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                          {story.answers.map((ans, i) => <Text key={i} style={s.answer}>{ans}</Text>)}
+                        </ScrollView>
+                      )}
                     </View>
-                  );
-                })}
-              </View>
-            )}
-            {story.interaction?.kind === "question" && story.answers && (
-              <View style={[s.result, { maxHeight: 260 }]}>
-                <Text style={s.resultTitle}>{story.interaction.prompt}</Text>
-                {story.answers.length === 0 ? (
-                  <Text style={s.answerEmpty}>{tb("Inga svar än.")}</Text>
-                ) : (
-                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                    {story.answers.map((a, i) => <Text key={i} style={s.answer}>{a}</Text>)}
-                  </ScrollView>
-                )}
-              </View>
-            )}
-            <TouchableOpacity style={s.removeBtn} onPress={() => onRemove(story)} activeOpacity={0.8}>
-              <Trash2 size={18} color="#FFFFFF" strokeWidth={2.2} />
-              <Text style={s.removeText}>{tb("Ta bort storyn")}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+                  )}
+                  <TouchableOpacity style={s.removeBtn} onPress={() => onRemove(story)} activeOpacity={0.8}>
+                    <Trash2 size={18} color="#FFFFFF" strokeWidth={2.2} />
+                    <Text style={s.removeText}>{tb("Ta bort storyn")}</Text>
+                  </TouchableOpacity>
+                </View>
+              </Reanimated.View>
+            </Reanimated.View>
+          </GestureDetector>
+        </GestureHandlerRootView>
       )}
     </Modal>
   );
@@ -197,22 +244,16 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   tileViews: { position: "absolute", bottom: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 4 },
   tileViewsText: { fontFamily: "Inter_700Bold", fontSize: 13, color: "#FFFFFF", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
   none: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, paddingHorizontal: 4 },
-  preview: { flex: 1, backgroundColor: "#000000" },
+  preview: { backgroundColor: "#000000", overflow: "hidden" },
+  media: { position: "absolute", overflow: "hidden" },
   previewTop: { position: "absolute", top: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
   previewInfo: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18 },
   previewText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#FFFFFF" },
   round: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.45)" },
   previewBottom: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center", gap: 12, paddingHorizontal: 16 },
-  center: { alignItems: "center", justifyContent: "center" },
   tileKinds: { position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 4 },
   result: { alignSelf: "stretch", borderRadius: 18, backgroundColor: "rgba(17,17,17,0.82)", padding: 14, gap: 8 },
   resultTitle: { fontFamily: "Montserrat_700Bold", fontSize: 15, color: "#FFFFFF" },
-  voteRow: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center", height: 40, borderRadius: 10,
-    paddingHorizontal: 12, backgroundColor: "rgba(255,255,255,0.1)", overflow: "hidden",
-  },
-  voteFill: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: "rgba(201,162,78,0.55)" },
-  voteText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: "#FFFFFF" },
   answer: {
     fontFamily: "Inter_500Medium", fontSize: 14, lineHeight: 19, color: "#111111", backgroundColor: "#FFFFFF",
     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, overflow: "hidden",

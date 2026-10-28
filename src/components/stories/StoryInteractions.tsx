@@ -7,18 +7,75 @@
  */
 import { StyleSheet, Text, View } from "react-native";
 import i18n from "i18next";
+import type { StoryInteraction } from "@/lib/business";
 
 export const INTERACTION_W = 240;
+
+/** Var en story i 9:16 hamnar på skärmen (den visas hel, mitt på) */
+export function storyFrame(W: number, H: number) {
+  let w = W;
+  let h = (W * 16) / 9;
+  if (h > H) { h = H; w = (H * 9) / 16; }
+  return { left: (W - w) / 2, top: (H - h) / 2, w, h };
+}
+
+/** Andelarna av rösterna (0–1); inga röster = 0 och 0 */
+export function pollShares(counts: [number, number]): [number, number] {
+  const total = counts[0] + counts[1];
+  return total ? [counts[0] / total, counts[1] / total] : [0, 0];
+}
+
+/**
+ * Enkäten eller frågan på sin plats i storyn (samma ställe, storlek och vridning som företaget gav
+ * den). Används av gästens visare och av företagets förhandsvisning, så de ser likadana ut.
+ */
+export function InteractionOverlay({ interaction: inter, frame, counts, mine, answered, showResults }: {
+  interaction: StoryInteraction;
+  frame: { left: number; top: number; w: number; h: number };
+  /** Rösterna [första, andra] */
+  counts?: [number, number] | null;
+  mine?: number | null;
+  answered?: boolean;
+  /** Visa resultatet (gästen har röstat, eller företaget tittar) */
+  showResults: boolean;
+}) {
+  const scale = (inter.w * frame.w) / INTERACTION_W;
+  return (
+    <View
+      pointerEvents="none"
+      style={[s.place, {
+        left: frame.left + inter.x * frame.w - INTERACTION_W / 2,
+        // Mitten på sin plats: kortets egen höjd (före skalningen) räknas ut ur den sparade storleken
+        top: frame.top + inter.y * frame.h - (inter.h * frame.h) / scale / 2,
+        transform: [{ rotate: `${inter.r}rad` }, { scale }],
+      }]}
+    >
+      {inter.kind === "poll" ? (
+        <PollCard
+          question={inter.question}
+          options={inter.options}
+          mine={mine ?? null}
+          results={showResults && counts ? pollShares(counts) : null}
+          total={showResults && counts ? counts[0] + counts[1] : null}
+        />
+      ) : (
+        <QuestionCard prompt={inter.prompt} sent={answered} />
+      )}
+    </View>
+  );
+}
 
 /**
  * Enkäten: frågan överst och två svar bredvid varandra. Med `results` (andelar 0–1) visas staplar
  * och procent, och det man själv valt (`mine`) är markerat.
  */
-export function PollCard({ question, options, results, mine }: {
+export function PollCard({ question, options, results, mine, total }: {
   question: string;
   options: [string, string];
   results?: [number, number] | null;
   mine?: number | null;
+  /** Antal röster totalt, under svaren */
+  total?: number | null;
 }) {
   return (
     <View style={s.card}>
@@ -35,6 +92,7 @@ export function PollCard({ question, options, results, mine }: {
           );
         })}
       </View>
+      {total != null && <Text style={s.total}>{i18n.t("stories.interaction.votes", { count: total })}</Text>}
     </View>
   );
 }
@@ -56,6 +114,8 @@ export function QuestionCard({ prompt, sent }: { prompt: string; sent?: boolean 
 }
 
 const s = StyleSheet.create({
+  place: { position: "absolute", width: INTERACTION_W },
+  total: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: "#6B6B70", textAlign: "center" },
   card: {
     width: INTERACTION_W, borderRadius: 20, backgroundColor: "#FFFFFF", padding: 12, gap: 10,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 10,

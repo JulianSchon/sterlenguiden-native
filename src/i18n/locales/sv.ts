@@ -720,7 +720,7 @@ export const sv = {
   },
   stories: {
     ago: { now: "nu", minutes: "{{count}} min", hours: "{{count}} h", yesterday: "i går" },
-    interaction: { write: "Skriv ett svar …", sent: "Tack! Ditt svar är skickat.", send: "Skicka", placeholder: "Ditt svar", failed: "Det gick inte att skicka. Försök igen.", anonymous: "Företaget ser ditt svar men inte vem du är." },
+    interaction: { votes: "{{count}} röster", write: "Skriv ett svar …", sent: "Tack! Ditt svar är skickat.", send: "Skicka", placeholder: "Ditt svar", failed: "Det gick inte att skicka. Försök igen.", anonymous: "Företaget ser ditt svar men inte vem du är." },
   },
   search: {
     title: "Sök",

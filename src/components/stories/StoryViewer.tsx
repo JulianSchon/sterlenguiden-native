@@ -39,7 +39,7 @@ import type { BusinessStory } from "@/hooks/useBusinessStories";
 import { markStoryViewed } from "@/hooks/useStoryViews";
 import { supabase } from "@/integrations/supabase/client";
 import { StoryVideo, videoAvailable } from "@/components/stories/StoryVideo";
-import { INTERACTION_W, PollCard, QuestionCard } from "@/components/stories/StoryInteractions";
+import { InteractionOverlay, storyFrame } from "@/components/stories/StoryInteractions";
 
 /** Enkätens läge för en story: röster per svar och vad man själv valt */
 interface PollState { counts: [number, number]; mine: number | null }
@@ -73,13 +73,6 @@ function ago(iso: string): string {
   return h < 24 ? i18n.t("stories.ago.hours", { count: h }) : i18n.t("stories.ago.yesterday");
 }
 
-/** Var en berättelse i 9:16 hamnar på skärmen (den visas hel, mitt på) */
-function storyFrame(W: number, H: number) {
-  let w = W;
-  let h = (W * 16) / 9;
-  if (h > H) { h = H; w = (H * 9) / 16; }
-  return { left: (W - w) / 2, top: (H - h) / 2, w, h };
-}
 
 export type StoryLinkTarget = NonNullable<BusinessStory["link"]>;
 
@@ -490,26 +483,14 @@ const StoryPage = memo(function StoryPage({
       )}
       {/* Enkäten eller frågan, levande på sin plats */}
       {inter && (
-        <View
-          pointerEvents="none"
-          style={[s.inter, {
-            left: frame.left + inter.x * frame.w - INTERACTION_W / 2,
-            // Mitten på sin plats: kortets egen höjd (före skalningen) räknas ut ur den sparade storleken
-            top: frame.top + inter.y * frame.h - (inter.h * frame.h) / ((inter.w * frame.w) / INTERACTION_W) / 2,
-            transform: [{ rotate: `${inter.r}rad` }, { scale: (inter.w * frame.w) / INTERACTION_W }],
-          }]}
-        >
-          {inter.kind === "poll" ? (
-            <PollCard
-              question={inter.question}
-              options={inter.options}
-              mine={poll?.mine ?? null}
-              results={poll && poll.mine != null ? shares(poll.counts) : null}
-            />
-          ) : (
-            <QuestionCard prompt={inter.prompt} sent={answered} />
-          )}
-        </View>
+        <InteractionOverlay
+          interaction={inter}
+          frame={frame}
+          counts={poll?.counts ?? null}
+          mine={poll?.mine ?? null}
+          answered={answered}
+          showResults={poll?.mine != null}
+        />
       )}
       <LinearGradient colors={["rgba(0,0,0,0.45)", "rgba(0,0,0,0)"]} style={[s.topShade, { height: insets.top + 110 }]} pointerEvents="none" />
 
@@ -537,12 +518,6 @@ const StoryPage = memo(function StoryPage({
     </Reanimated.View>
   );
 });
-
-/** Andelarna av rösterna (0–1); inga röster = 0 och 0 */
-function shares(counts: [number, number]): [number, number] {
-  const total = counts[0] + counts[1];
-  return total ? [counts[0] / total, counts[1] / total] : [0, 0];
-}
 
 /** Ett streck överst. fill: 1 = sedd, 0 = kommer, null = den som visas (följer tiden) */
 function Bar({ fill, progress, active }: { fill: number | null; progress: SharedValue<number>; active: boolean }) {
@@ -575,7 +550,6 @@ const s = StyleSheet.create({
   time: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: "rgba(255,255,255,0.75)" },
   dim: { backgroundColor: "rgba(0,0,0,0.35)" },
   media: { position: "absolute", overflow: "hidden" },
-  inter: { position: "absolute", width: INTERACTION_W },
 
   answerWrap: { justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 14 },
   answerCard: { borderRadius: 22, backgroundColor: "#FFFFFF", padding: 16, gap: 10 },
