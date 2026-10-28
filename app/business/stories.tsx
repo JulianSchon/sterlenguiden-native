@@ -101,7 +101,8 @@ export default function BusinessStories() {
               </Rise>
             )}
           </>
-        )}      </SettingsScreen>
+        )}
+      </SettingsScreen>
       <StoryPreview story={open} onClose={() => setOpen(null)} onRemove={remove} menu={actionMenu.element} />
       <PortalToast ref={toast} />
     </>

@@ -108,7 +108,8 @@ export default function BusinessEvents() {
               </Pressable>
             </Rise>
           ))
-        )}      </SettingsScreen>
+        )}
+      </SettingsScreen>
       {actionMenu.element}
       <PortalToast ref={toast} />
     </>

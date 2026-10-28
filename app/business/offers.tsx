@@ -115,7 +115,7 @@ export default function BusinessOffers() {
                   <Text style={s.meta}>
                     {tb(RULE[o.offer.redemption_interval ?? "once"])}
                     {" · "}
-                    {o.offer.expires_at ? `${tab === "ended" ? "slutade" : "till"} ${rangeText(o.offer.expires_at.slice(0, 10))}` : tb("tills vidare")}
+                    {o.offer.expires_at ? tb(tab === "ended" ? "slutade {{0}}" : "till {{0}}", { 0: rangeText(o.offer.expires_at.slice(0, 10)) }) : tb("tills vidare")}
                   </Text>
                   <Text style={s.used}>
                     {o.redemptions === 0 ? tb("Ingen har använt det än") : tb(o.redemptions === 1 ? "Använt 1 gång av 1 person" : o.people === 1 ? "Använt {{0}} gånger av 1 person" : "Använt {{0}} gånger av {{1}} personer", { 0: o.redemptions, 1: o.people })}
