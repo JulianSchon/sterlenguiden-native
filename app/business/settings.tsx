@@ -41,9 +41,9 @@ export default function BusinessSettings() {
 
   const leave = (e: GestureResponderEvent) => {
     if (!user || !mine) return;
-    const y = e.nativeEvent.pageY;
-    const fail = (title: string, message: string) => actionMenu.ask(y, { title, message, actions: [] });
-    actionMenu.ask(y, {
+    const at = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+    const fail = (title: string, message: string) => actionMenu.ask(at, { title, message, actions: [] });
+    actionMenu.ask(at, {
       title: tb("Lämna {{0}}?", { 0: mine.name }), message: tb("Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka."),
       actions: [{
         label: tb("Lämna"), destructive: true,

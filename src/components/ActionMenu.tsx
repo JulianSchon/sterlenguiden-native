@@ -1,19 +1,21 @@
 /**
- * Appens egen meny i stället för telefonens (ActionSheet/Alert): den öppnas vid raden man tryckte
- * på, och en fråga som "Ta bort?" visas i samma ruta i stället för som en ruta mitt på skärmen.
+ * Appens egen meny i stället för telefonens (ActionSheet/Alert). Den öppnas där man tryckte (under
+ * fingret, eller ovanför om den inte får plats), och en fråga som "Ta bort?" visas i samma ruta.
  *
  *   const menu = useActionMenu();
  *   <Pressable onPress={(e) => menu.open(e, { title, items: [...] })} />
  *   {menu.element}
  *
- * Ett val med `confirm` frågar först; svaren där kan vara ett eller flera (t.ex. "Bara det här" /
- * "Alla kommande"). Rutan tonas in av Modalen själv: Reanimateds in- och uttoningar startar inte
- * inuti en Modal, och då syntes bara den mörka bakgrunden.
+ * Rubriken är en liten grå text överst, så den inte ser ut som ett val. Valen är rader att trycka
+ * på; i en fråga är svaren knappar. Ett val med `confirm` frågar först; svaren där kan vara ett
+ * eller flera (t.ex. "Bara det här" / "Alla kommande"). Rutan tonas in av Modalen själv:
+ * Reanimateds in- och uttoningar startar inte inuti en Modal.
  */
 import { useCallback, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
@@ -36,26 +38,35 @@ export interface MenuSpec {
   items: MenuItem[];
 }
 
-const WIDTH = 270;
-const MARGIN = 16;
+/** Var menyn ska öppnas: trycket (fingret), en punkt, eller bara en höjd (då mitt i sidled) */
+export type MenuAnchor = GestureResponderEvent | { x: number; y: number } | number;
+
+const WIDTH = 264;
+const MARGIN = 14;
+const GAP = 10;
+
+const pointOf = (a: MenuAnchor): { x: number | null; y: number } =>
+  typeof a === "number" ? { x: null, y: a }
+  : "nativeEvent" in a ? { x: a.nativeEvent.pageX, y: a.nativeEvent.pageY }
+  : a;
 
 export function useActionMenu() {
-  const [state, setState] = useState<{ spec: MenuSpec; y: number } | null>(null);
-  const open = useCallback((e: GestureResponderEvent | number, spec: MenuSpec) => {
+  const [state, setState] = useState<{ spec: MenuSpec; at: { x: number | null; y: number } } | null>(null);
+  const open = useCallback((anchor: MenuAnchor, spec: MenuSpec) => {
     if (spec.items.length === 0) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setState({ spec, y: typeof e === "number" ? e : e.nativeEvent.pageY });
+    setState({ spec, at: pointOf(anchor) });
   }, []);
   const close = useCallback(() => setState(null), []);
   /** Bara en fråga (utan meny först), t.ex. från en knapp */
-  const ask = useCallback((e: GestureResponderEvent | number, confirm: NonNullable<MenuItem["confirm"]>) => {
-    open(e, { items: [{ label: "", confirm }] });
+  const ask = useCallback((anchor: MenuAnchor, confirm: NonNullable<MenuItem["confirm"]>) => {
+    open(anchor, { items: [{ label: "", confirm }] });
   }, [open]);
-  const element = <ActionMenu spec={state?.spec ?? null} y={state?.y ?? 0} onClose={close} />;
+  const element = <ActionMenu spec={state?.spec ?? null} at={state?.at ?? { x: null, y: 0 }} onClose={close} />;
   return { open, ask, close, element };
 }
 
-function ActionMenu({ spec, y, onClose }: { spec: MenuSpec | null; y: number; onClose: () => void }) {
+function ActionMenu({ spec, at, onClose }: { spec: MenuSpec | null; at: { x: number | null; y: number }; onClose: () => void }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -69,9 +80,12 @@ function ActionMenu({ spec, y, onClose }: { spec: MenuSpec | null; y: number; on
   const close = () => { setAsking(null); setHeight(0); onClose(); };
   const run = (fn: () => void) => { close(); setTimeout(fn, 120); };
 
-  // Under fingret om det får plats, annars ovanför; alltid inom skärmen
-  const top = Math.max(insets.top + 8, Math.min(y + 12, winH - insets.bottom - 12 - height));
-  const left = Math.max(MARGIN, winW - WIDTH - MARGIN);
+  // Under fingret om den får plats, annars ovanför; i sidled centrerad på fingret, alltid inom skärmen
+  const minTop = insets.top + 8;
+  const maxTop = winH - insets.bottom - 12 - height;
+  const below = at.y + GAP;
+  const top = Math.max(minTop, below <= maxTop ? below : Math.min(maxTop, at.y - GAP - height));
+  const left = Math.min(winW - WIDTH - MARGIN, Math.max(MARGIN, (at.x ?? winW / 2) - WIDTH / 2));
 
   return (
     <Modal visible={!!spec} transparent animationType="fade" onRequestClose={close}>
@@ -84,29 +98,41 @@ function ActionMenu({ spec, y, onClose }: { spec: MenuSpec | null; y: number; on
           style={[s.menu, { top, left, width: WIDTH, opacity: height ? 1 : 0 }]}
         >
           {confirm ? (
-            <>
-              <View style={s.head}>
-                <Text style={s.title}>{confirm.title}</Text>
-                {confirm.message ? <Text style={s.message}>{confirm.message}</Text> : null}
+            <View style={s.confirm}>
+              <Text style={s.confirmTitle}>{confirm.title}</Text>
+              {confirm.message ? <Text style={s.confirmMessage}>{confirm.message}</Text> : null}
+              <View style={s.buttons}>
+                {confirm.actions.map((a) => (
+                  <Pressable
+                    key={a.label}
+                    onPress={() => run(a.onPress)}
+                    style={({ pressed }) => [s.button, a.destructive ? s.buttonDanger : s.buttonGold, pressed && { opacity: 0.8 }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[s.buttonText, a.destructive ? { color: colors.danger } : { color: colors.onGold }]}>{a.label}</Text>
+                  </Pressable>
+                ))}
+                {/* Utan val är det bara ett besked: då stänger OK */}
+                <Pressable onPress={close} style={({ pressed }) => [s.button, s.buttonQuiet, pressed && { opacity: 0.7 }]} accessibilityRole="button">
+                  <Text style={[s.buttonText, { color: colors.text }]}>{confirm.actions.length ? i18n.t("common.cancel") : i18n.t("common.ok")}</Text>
+                </Pressable>
               </View>
-              {confirm.actions.map((a) => (
-                <Row key={a.label} label={a.label} destructive={a.destructive} onPress={() => run(a.onPress)} />
-              ))}
-              {/* Utan val är det bara ett besked: då stänger OK */}
-              <Row label={confirm.actions.length ? "Avbryt" : "OK"} muted={confirm.actions.length > 0} onPress={close} />
-            </>
+            </View>
           ) : (
             <>
-              {spec.title ? <View style={s.head}><Text style={s.title} numberOfLines={2}>{spec.title}</Text></View> : null}
-              {spec.items.map((item, i) => (
-                <Row
-                  key={item.label}
-                  first={i === 0 && !spec.title}
-                  label={item.label}
-                  destructive={item.destructive}
-                  onPress={() => (item.confirm ? setAsking(item.confirm) : run(item.onPress ?? (() => {})))}
-                />
-              ))}
+              {spec.title ? <Text style={s.title} numberOfLines={2}>{spec.title}</Text> : null}
+              <View style={s.rows}>
+                {spec.items.map((item, i) => (
+                  <Pressable
+                    key={item.label}
+                    onPress={() => (item.confirm ? setAsking(item.confirm) : run(item.onPress ?? (() => {})))}
+                    style={({ pressed }) => [s.row, i > 0 && s.rowBorder, pressed && { backgroundColor: item.destructive ? `${colors.danger}1F` : colors.fill }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[s.rowText, item.destructive && { color: colors.danger }]}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
             </>
           )}
         </View>
@@ -115,25 +141,29 @@ function ActionMenu({ spec, y, onClose }: { spec: MenuSpec | null; y: number; on
   );
 }
 
-function Row({ label, destructive, muted, first, onPress }: { label: string; destructive?: boolean; muted?: boolean; first?: boolean; onPress: () => void }) {
-  const { colors } = useTheme();
-  const s = useThemedStyles(createStyles);
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.row, first && { borderTopWidth: 0 }, pressed && { backgroundColor: colors.fill }]} accessibilityRole="button">
-      <Text style={[s.rowText, destructive && { color: colors.danger }, muted && { color: colors.muted }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   menu: {
-    position: "absolute", borderRadius: 18, overflow: "hidden",
+    position: "absolute", borderRadius: 20, overflow: "hidden",
     backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 12,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.3, shadowRadius: 26, elevation: 12,
   },
-  head: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, gap: 4 },
-  title: { fontFamily: "Montserrat_600SemiBold", fontSize: 14.5, color: c.text },
-  message: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, color: c.muted },
-  row: { paddingHorizontal: 16, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
-  rowText: { fontFamily: "Inter_500Medium", fontSize: 15, color: c.text },
+  // Rubriken: liten och grå, mitt över valen, så den inte kan tas för ett val
+  title: {
+    fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.3, color: c.muted, textAlign: "center",
+    paddingHorizontal: 16, paddingTop: 13, paddingBottom: 11, backgroundColor: c.fill,
+  },
+  rows: {},
+  row: { paddingHorizontal: 18, paddingVertical: 15 },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
+  rowText: { fontFamily: "Inter_600SemiBold", fontSize: 15.5, color: c.text },
+
+  confirm: { padding: 16, gap: 6 },
+  confirmTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, lineHeight: 21, color: c.text, textAlign: "center" },
+  confirmMessage: { fontFamily: "Inter_400Regular", fontSize: 13.5, lineHeight: 19, color: c.muted, textAlign: "center" },
+  buttons: { gap: 8, marginTop: 10 },
+  button: { height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
+  buttonDanger: { backgroundColor: `${c.danger}1F` },
+  buttonGold: { backgroundColor: c.gold },
+  buttonQuiet: { backgroundColor: c.fill },
+  buttonText: { fontFamily: "Inter_700Bold", fontSize: 15 },
 });
