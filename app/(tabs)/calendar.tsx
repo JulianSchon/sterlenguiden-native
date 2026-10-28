@@ -46,12 +46,9 @@ import { Skeleton } from "@/components/Skeleton";
 import { useMyPlaceIds } from "@/hooks/useBusiness";
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { darkColors } from "@/theme/colors";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
-const GOLD_LT = "#E8C674";
 
 type Mode = "foryou" | "all";
 const MODES: { id: Mode; readonly label: string }[] = [
@@ -66,6 +63,7 @@ const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).dur
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function CalendarScreen() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { i18n: { language } } = useTranslation();
   const [mode, setMode] = useState<Mode>("foryou");
@@ -182,8 +180,8 @@ export default function CalendarScreen() {
   const bottomPad = FLOATING_NAV_HEIGHT + insets.bottom + 110;
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={{ paddingTop: Math.max(insets.top, 44), paddingHorizontal: 16, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ paddingTop: Math.max(insets.top, 44), paddingHorizontal: 16, backgroundColor: colors.bg }}>
         <ModeTabs value={mode} onChange={setMode} />
       </View>
 
@@ -230,6 +228,7 @@ export default function CalendarScreen() {
  * trycker, det andra nedtonat.
  */
 function ModeTabs({ value, onChange }: { value: Mode; onChange: (m: Mode) => void }) {
+  const s = useThemedStyles(createStyles);
   const layouts = useRef<Partial<Record<Mode, { x: number; w: number }>>>({});
   const barX = useSharedValue(0);
   const barW = useSharedValue(0);
@@ -275,6 +274,7 @@ function ModeTabs({ value, onChange }: { value: Mode; onChange: (m: Mode) => voi
 function ModeLabel({ label, active, onPress, onLayout }: {
   label: string; active: boolean; onPress: () => void; onLayout: (x: number, w: number) => void;
 }) {
+  const s = useThemedStyles(createStyles);
   const on = useSharedValue(active ? 1 : 0);
   useEffect(() => {
     on.value = withTiming(active ? 1 : 0, { duration: 220 });
@@ -309,13 +309,15 @@ interface ListProps {
 function ForYouView({
   scrollRef, loading, picks, firstName, savedIds, bottomPad, onOpen, onToggleSave, onBurst, onShowAll,
 }: ListProps & { picks: EventPick[]; firstName: string | null; onShowAll: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   if (loading) return <ForYouSkeleton />;
 
   if (picks.length === 0) {
     return (
       <Reanimated.View entering={FadeInDown.duration(300)} style={s.empty}>
         <View style={s.emptyIcon}>
-          <CalendarHeart size={28} color={GOLD} strokeWidth={1.5} />
+          <CalendarHeart size={28} color={colors.goldText} strokeWidth={1.5} />
         </View>
         <Text style={s.emptyTitle}>{i18n.t("calendar.quietTitle")}</Text>
         <Text style={s.emptyText}>{i18n.t("calendar.quietText")}</Text>
@@ -380,13 +382,13 @@ function ForYouView({
 function ForYouSkeleton() {
   return (
     <View style={{ paddingHorizontal: 16, paddingTop: 10 }} pointerEvents="none">
-      <Skeleton tone="dark" width={130} height={26} radius={8} />
-      <Skeleton tone="dark" width={230} height={26} radius={8} style={{ marginTop: 6 }} />
-      <Skeleton tone="dark" width="100%" radius={22} style={{ aspectRatio: 1.3, marginTop: 22 }} />
+      <Skeleton width={130} height={26} radius={8} />
+      <Skeleton width={230} height={26} radius={8} style={{ marginTop: 6 }} />
+      <Skeleton width="100%" radius={22} style={{ aspectRatio: 1.3, marginTop: 22 }} />
       <View style={{ gap: 8, marginTop: 14 }}>
-        <Skeleton tone="dark" width="45%" height={12} radius={5} />
-        <Skeleton tone="dark" width="70%" height={20} radius={6} />
-        <Skeleton tone="dark" width="55%" height={13} radius={5} />
+        <Skeleton width="45%" height={12} radius={5} />
+        <Skeleton width="70%" height={20} radius={6} />
+        <Skeleton width="55%" height={13} radius={5} />
       </View>
     </View>
   );
@@ -397,6 +399,7 @@ function ForYouSkeleton() {
 function AllEventsView({
   scrollRef, loading, events, savedIds, bottomPad, onOpen, onToggleSave, onBurst,
 }: ListProps & { events: Event[] }) {
+  const s = useThemedStyles(createStyles);
   const { width, height } = useWindowDimensions();
   const { i18n: { language } } = useTranslation();
   const today = dayKey(new Date());
@@ -542,7 +545,7 @@ function AllEventsView({
 
         {loading ? (
           <View style={{ gap: 12 }} pointerEvents="none">
-            {[0, 1, 2].map((i) => <Skeleton key={i} tone="dark" height={108} radius={18} />)}
+            {[0, 1, 2].map((i) => <Skeleton key={i} height={108} radius={18} />)}
           </View>
         ) : listEvents.length === 0 ? (
           <Reanimated.View key={`none-${selected ?? monthKey}`} entering={FadeIn.duration(200)}>
@@ -577,6 +580,8 @@ function AllEventsView({
 }
 
 function ArrowButton({ dir, disabled, onPress }: { dir: 1 | -1; disabled: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const Icon = dir === 1 ? ChevronRight : ChevronLeft;
   return (
     <TouchableOpacity
@@ -586,46 +591,46 @@ function ArrowButton({ dir, disabled, onPress }: { dir: 1 | -1; disabled: boolea
       hitSlop={6}
       accessibilityLabel={i18n.t(dir === 1 ? "calendar.nextMonth" : "calendar.prevMonth")}
     >
-      <Icon size={20} color={FG} strokeWidth={2} />
+      <Icon size={20} color={colors.text} strokeWidth={2} />
     </TouchableOpacity>
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   // Lägena som rubrik — samma typsnitt och storlek som PROFIL
   tabs: { flexDirection: "row", alignItems: "center", gap: 26, height: 44, marginBottom: 10 },
-  tabText: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: FG },
-  tabBar: { position: "absolute", left: 0, bottom: 2, height: 3, borderRadius: 1.5, backgroundColor: GOLD_LT },
+  tabText: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: 2, textTransform: "uppercase", color: c.text },
+  tabBar: { position: "absolute", left: 0, bottom: 2, height: 3, borderRadius: 1.5, backgroundColor: c.goldText },
 
-  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: FG },
-  greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: GOLD_LT },
-  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG, marginTop: 30, marginBottom: 12 },
+  greeting: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: c.text },
+  greetingLine: { fontFamily: "Montserrat_700Bold", fontSize: 24, lineHeight: 30, letterSpacing: -0.5, color: c.goldText },
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: c.text, marginTop: 30, marginBottom: 12 },
 
   monthHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
-  monthTitle: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.4, color: FG },
-  monthYear: { fontFamily: "Montserrat_700Bold", fontSize: 24, color: "rgba(245,241,232,0.35)" },
+  monthTitle: { fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.4, color: c.text },
+  monthYear: { fontFamily: "Montserrat_700Bold", fontSize: 24, color: c.faint },
   monthActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   arrowBtn: {
     width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
   },
   todayBtn: {
     height: 38, paddingHorizontal: 14, borderRadius: 19, justifyContent: "center",
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.45)",
+    borderWidth: 1, borderColor: c.goldBorder,
   },
-  todayText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: GOLD_LT },
-  none: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: MUTED },
+  todayText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.goldText },
+  none: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: c.muted },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40, paddingBottom: 120 },
   emptyIcon: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(197,160,89,0.10)",
+    width: 72, height: 72, borderRadius: 36, backgroundColor: c.goldSoft,
     alignItems: "center", justifyContent: "center",
   },
-  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: FG, textAlign: "center" },
-  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: MUTED, textAlign: "center" },
+  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: c.text, textAlign: "center" },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: c.muted, textAlign: "center" },
   emptyBtn: {
     marginTop: 6, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 999,
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.45)",
+    borderWidth: 1, borderColor: c.goldBorder,
   },
-  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD_LT },
+  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
 });

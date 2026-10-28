@@ -24,11 +24,9 @@ import type { Event } from "@/hooks/useEvents";
 import { dateBadge, eventWhen, type Reason, type ReasonKind } from "@/lib/events";
 import type { LanguageCode } from "@/i18n";
 import { HeartButton, type BurstFn } from "@/components/LikeHeart";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const CARD = "#1A1A1D";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD_LT = "#E8C674";
 const RED = "#EF4444";
 const LIVE = "#FF8000";
 
@@ -60,6 +58,7 @@ interface CardProps {
 const where = (e: Event) => e.location ?? e.place?.name ?? null;
 
 export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved, onOpen, onToggleSave, onBurst }: CardProps) {
+  const s = useThemedStyles(createStyles);
   useTranslation(); // datumen på appens språk
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(event.id)}>
@@ -82,6 +81,8 @@ export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved,
 });
 
 export const EventRow = memo(function EventRow({ event, reason, saved, past, onOpen, onToggleSave, onBurst }: CardProps) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   useTranslation(); // datumen på appens språk
   const place = where(event);
   return (
@@ -95,7 +96,7 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
         <Text style={s.rowTitle} numberOfLines={2}>{event.title}</Text>
         {(reason || place) && (
           <View style={s.rowMeta}>
-            {!reason && <MapPin size={12} color={MUTED} strokeWidth={2} />}
+            {!reason && <MapPin size={12} color={colors.muted} strokeWidth={2} />}
             <Text style={s.rowMetaText} numberOfLines={1}>
               {reason ? [eventWhen(event), place].filter(Boolean).join("  ·  ") : place}
             </Text>
@@ -113,6 +114,7 @@ export function DateBox({ event, small, style, lng }: {
   /** Ett bestämt språk (Mitt företag är alltid svenska) */
   lng?: LanguageCode;
 }) {
+  const s = useThemedStyles(createStyles);
   const badge = dateBadge(event, lng);
   if (!badge) return null;
   return (
@@ -125,9 +127,11 @@ export function DateBox({ event, small, style, lng }: {
 
 /** Varför eventet visas. "I dag" och "Pågår nu" får en lugnt pulserande prick i stället för en ikon */
 function ReasonLine({ reason, size }: { reason: Reason; size: number }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const live = reason.kind === "today" || reason.kind === "ongoing";
   const Icon = REASON_ICON[reason.kind];
-  const color = live ? LIVE : GOLD_LT;
+  const color = live ? LIVE : colors.goldText;
   return (
     <View style={s.reason}>
       {live ? <LiveDot /> : Icon ? (
@@ -144,6 +148,7 @@ function ReasonLine({ reason, size }: { reason: Reason; size: number }) {
 }
 
 function LiveDot() {
+  const s = useThemedStyles(createStyles);
   const pulse = useSharedValue(0);
   useEffect(() => {
     pulse.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) }), -1, false);
@@ -157,32 +162,32 @@ function LiveDot() {
   );
 }
 
-const s = StyleSheet.create({
-  heroImage: { width: "100%", aspectRatio: 1.3, borderRadius: 22, overflow: "hidden", backgroundColor: "#2A2A2A" },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  heroImage: { width: "100%", aspectRatio: 1.3, borderRadius: 22, overflow: "hidden", backgroundColor: c.fill },
   heroDate: { position: "absolute", top: 12, right: 12 },
   thumbDate: { position: "absolute", top: 5, left: 5 },
   date: {
     minWidth: 54, paddingHorizontal: 10, paddingTop: 7, paddingBottom: 8, borderRadius: 14, alignItems: "center",
-    backgroundColor: "#121212", borderWidth: 1, borderColor: "rgba(197,160,89,0.30)",
+    backgroundColor: c.bg, borderWidth: 1, borderColor: c.goldBorder,
   },
   dateSmall: { minWidth: 34, paddingHorizontal: 5, paddingTop: 3, paddingBottom: 4, borderRadius: 9 },
-  dateDay: { fontFamily: "Montserrat_700Bold", fontSize: 22, lineHeight: 26, color: FG },
+  dateDay: { fontFamily: "Montserrat_700Bold", fontSize: 22, lineHeight: 26, color: c.text },
   dateDaySmall: { fontSize: 14, lineHeight: 17 },
-  dateMonth: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.5, color: GOLD_LT },
+  dateMonth: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.5, color: c.goldText },
   dateMonthSmall: { fontSize: 8, letterSpacing: 1 },
   heroInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 14, paddingHorizontal: 2 },
-  heroTitle: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.3, color: FG, marginTop: 6 },
-  heroMeta: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 6 },
+  heroTitle: { fontFamily: "Montserrat_700Bold", fontSize: 22, letterSpacing: -0.3, color: c.text, marginTop: 6 },
+  heroMeta: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, marginTop: 6 },
 
   row: {
     flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 18,
-    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border,
   },
-  thumb: { width: 84, height: 84, borderRadius: 14, overflow: "hidden", backgroundColor: "#2A2A2A" },
-  rowWhen: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1, color: GOLD_LT },
-  rowTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG },
+  thumb: { width: 84, height: 84, borderRadius: 14, overflow: "hidden", backgroundColor: c.fill },
+  rowWhen: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1, color: c.goldText },
+  rowTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: c.text },
   rowMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  rowMetaText: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
+  rowMetaText: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted },
 
   reason: { flexDirection: "row", alignItems: "center", gap: 6 },
   reasonText: { flexShrink: 1, fontFamily: "Inter_600SemiBold" },

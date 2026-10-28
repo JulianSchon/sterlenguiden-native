@@ -52,22 +52,17 @@ import { addEventToCalendar } from "@/lib/addToCalendar";
 import { eventWhen, lastDay } from "@/lib/events";
 import { useAppSettled } from "@/lib/appSettled";
 import { DateBox } from "@/components/events/EventCards";
+import { withAlpha } from "@/theme/categories";
 import { HeartButton, LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import { PressableScale } from "@/components/PressableScale";
 import { ShareIcon } from "@/components/ShareIcon";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const CARD = "#1A1A1D";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
-const GOLD_LT = "#E8C674";
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 900;
 /** Bottenradens höjd (knapparna + luft), så sista texten aldrig hamnar bakom den */
 const BAR_H = 56 + 32;
-/** Bottenradens tona: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */
-const BAR_FADE = ["rgba(18,18,18,0)", "rgba(18,18,18,0.7)", "rgba(18,18,18,0.97)"];
 /** Minsta och längsta stund mellan tryck och att panelen börjar glida upp */
 const MIN_WAIT_MS = 200;
 const MAX_WAIT_MS = 400;
@@ -106,6 +101,8 @@ function relativeDay(e: Event): { text: string; live: boolean } | null {
 }
 
 export function EventSheetHost() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { height: winH, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -254,7 +251,7 @@ export function EventSheetHost() {
     });
   };
   const xBtnStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(xAnim.value, [0, 1], [CARD, "rgba(220,38,38,0.75)"]),
+    backgroundColor: interpolateColor(xAnim.value, [0, 1], [colors.card, "rgba(220,38,38,0.75)"]),
   }));
   const xIconStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${xAnim.value * 180}deg` }] }));
 
@@ -375,7 +372,7 @@ export function EventSheetHost() {
                       <LinearGradient
                         start={vec(0, heroH * 0.35)}
                         end={vec(0, heroH)}
-                        colors={["rgba(18,18,18,0)", "rgba(18,18,18,0.72)", BG]}
+                        colors={[withAlpha(colors.bg, 0), withAlpha(colors.bg, 0.72), colors.bg]}
                         positions={[0, 0.6, 1]}
                       />
                     </Rect>
@@ -400,16 +397,17 @@ export function EventSheetHost() {
 
         {/* ── Alltid synligt längst ner: kalender, spara, stäng ── */}
         <View style={[s.bar, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
+          {/* Tona i bakgrundens färg: helt genomskinlig överst, aldrig helt täckande — man ser texten bakom */}
           <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
             <Rect x={0} y={0} width={width} height={BAR_H + insets.bottom + 40}>
-              <LinearGradient start={vec(0, 0)} end={vec(0, BAR_H + insets.bottom + 22)} colors={BAR_FADE} positions={[0, 0.45, 1]} />
+              <LinearGradient start={vec(0, 0)} end={vec(0, BAR_H + insets.bottom + 22)} colors={[withAlpha(colors.bg, 0), withAlpha(colors.bg, 0.7), withAlpha(colors.bg, 0.97)]} positions={[0, 0.45, 1]} />
             </Rect>
           </Canvas>
           {/* Egen behållare som växer: PressableScale lägger stilen på sitt inre lager, så flex: 1
               där fick aldrig knappen att ta platsen */}
           <View style={{ flex: 1 }}>
             <PressableScale style={s.calBtn} scale={0.97} onPress={addToCalendar}>
-              <CalendarPlus size={20} color={BG} strokeWidth={2} />
+              <CalendarPlus size={20} color={colors.onGold} strokeWidth={2} />
               <Text style={s.calText}>{t("calendar.sheet.addToCalendar")}</Text>
             </PressableScale>
           </View>
@@ -420,7 +418,7 @@ export function EventSheetHost() {
           <Pressable onPress={pressX} hitSlop={6} accessibilityLabel={t("calendar.sheet.close")}>
             <Reanimated.View style={[s.roundBtn, xBtnStyle]}>
               <Reanimated.View style={xIconStyle}>
-                <X size={20} color={FG} strokeWidth={2} />
+                <X size={20} color={colors.text} strokeWidth={2} />
               </Reanimated.View>
             </Reanimated.View>
           </Pressable>
@@ -434,13 +432,14 @@ export function EventSheetHost() {
 
 /** Eventets bild. Klar innan panelen börjar glida: syns direkt. Klar först under rörelsen: tonar in */
 function HeroImage({ uri, onReady }: { uri: string | null; onReady: () => boolean }) {
+  const { colors } = useTheme();
   const opacity = useSharedValue(0);
   const fade = useAnimatedStyle(() => ({ opacity: opacity.value }));
   const loaded = () => {
     opacity.value = onReady() ? withTiming(1, { duration: 220 }) : 1;
   };
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: "#2A2A2A" }]}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.fill }]}>
       {uri && (
         <Reanimated.View style={[StyleSheet.absoluteFill, fade]}>
           <Image
@@ -457,6 +456,8 @@ function HeroImage({ uri, onReady }: { uri: string | null; onReady: () => boolea
 }
 
 const HeroText = memo(function HeroText({ event, onShare }: { event: Event; onShare: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { t } = useTranslation();
   return (
     <>
@@ -471,7 +472,7 @@ const HeroText = memo(function HeroText({ event, onShare }: { event: Event; onSh
           <Text style={s.title} numberOfLines={3}>{event.title}</Text>
         </View>
         <PressableScale style={s.shareBtn} scale={0.9} onPress={onShare} accessibilityLabel={t("calendar.sheet.share")}>
-          <ShareIcon size={19} color={FG} strokeWidth={2} />
+          <ShareIcon size={19} color={colors.text} strokeWidth={2} />
         </PressableScale>
       </View>
     </>
@@ -487,6 +488,8 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
   onOpenMaps: () => void;
   onPartReady: (key: number) => boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const place = event.place ?? null;
   const websiteHost = event.website_url
@@ -532,21 +535,21 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
                   onError={() => onPartReady(openKey)}
                 />
               )
-              : <Store size={20} color={FG} strokeWidth={2} />}
+              : <Store size={20} color={colors.text} strokeWidth={2} />}
             title={place.name}
             sub={t("calendar.sheet.organizer")}
             onPress={onGoToPlace}
           />
         ) : websiteHost ? (
           <InfoRow
-            icon={<Globe size={20} color={FG} strokeWidth={2} />}
+            icon={<Globe size={20} color={colors.text} strokeWidth={2} />}
             title={websiteHost}
             sub={t("calendar.sheet.organizerSite")}
             onPress={() => Linking.openURL(event.website_url!).catch(() => {})}
           />
         ) : null}
         <InfoRow
-          icon={<CalendarDays size={20} color={FG} strokeWidth={2} />}
+          icon={<CalendarDays size={20} color={colors.text} strokeWidth={2} />}
           title={dateLong(event)}
           sub={[event.time, relative?.text].filter(Boolean).join("  ·  ") || null}
           subLive={relative?.live}
@@ -554,7 +557,7 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
         />
         {hasAddress && (
           <InfoRow
-            icon={<MapPin size={20} color={FG} strokeWidth={2} />}
+            icon={<MapPin size={20} color={colors.text} strokeWidth={2} />}
             title={event.location ?? place!.name}
             sub={t("calendar.sheet.showOnMap")}
             onPress={onOpenMaps}
@@ -567,7 +570,7 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
       <View style={s.strip}>
         {facts.map(({ Icon, label, has }, i) => (
           <View key={label} style={[s.stripItem, i > 0 && s.stripDivider]}>
-            <Icon size={22} color={has ? GOLD_LT : "rgba(245,241,232,0.28)"} strokeWidth={1.8} />
+            <Icon size={22} color={has ? colors.goldText : colors.faint} strokeWidth={1.8} />
             <Text style={[s.stripText, !has && s.stripTextOff]} numberOfLines={2}>{label}</Text>
           </View>
         ))}
@@ -580,8 +583,8 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
           disabled={ticketState !== "buy"}
           onPress={() => event.ticket_url && Linking.openURL(event.ticket_url).catch(() => {})}
         >
-          <Ticket size={18} color={ticketState === "buy" ? GOLD_LT : MUTED} strokeWidth={2.2} />
-          <Text style={[s.ticketText, ticketState !== "buy" && { color: MUTED }]}>
+          <Ticket size={18} color={ticketState === "buy" ? colors.goldText : colors.muted} strokeWidth={2.2} />
+          <Text style={[s.ticketText, ticketState !== "buy" && { color: colors.muted }]}>
             {ticketState === "buy" ? t("calendar.sheet.buy")
               : ticketState === "soldOut" ? t("calendar.sheet.soldOut")
               : t("calendar.sheet.release", { date: formatDate(releaseAt!, "d MMM").replace(/\./g, ""), time: format(releaseAt!, "HH:mm") })}
@@ -602,6 +605,8 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
 function InfoRow({ icon, title, sub, subLive, onPress, last }: {
   icon: React.ReactNode; title: string; sub?: string | null; subLive?: boolean; onPress?: () => void; last?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const content = (
     <View style={[s.row, !last && s.rowDivider]}>
       <View style={s.rowIcon}>{icon}</View>
@@ -609,23 +614,23 @@ function InfoRow({ icon, title, sub, subLive, onPress, last }: {
         <Text style={s.rowTitle} numberOfLines={2}>{title}</Text>
         {!!sub && <Text style={[s.rowSub, subLive && { color: "#FF8000" }]} numberOfLines={1}>{sub}</Text>}
       </View>
-      {onPress && <ChevronRight size={18} color={MUTED} strokeWidth={2} />}
+      {onPress && <ChevronRight size={18} color={colors.muted} strokeWidth={2} />}
     </View>
   );
   if (!onPress) return content;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && { backgroundColor: "rgba(255,255,255,0.04)" }}>
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && { backgroundColor: colors.fill }}>
       {content}
     </Pressable>
   );
 }
 
-const s = StyleSheet.create({
-  backdrop: { backgroundColor: "rgba(0,0,0,0.65)" },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  backdrop: { backgroundColor: c.overlay },
   sheet: {
-    position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: BG,
+    position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: c.bg,
     borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden",
-    borderTopWidth: 1, borderColor: "rgba(255,255,255,0.08)",
+    borderTopWidth: 1, borderColor: c.border,
   },
   handle: {
     position: "absolute", top: 10, alignSelf: "center", width: 40, height: 5, borderRadius: 3,
@@ -635,53 +640,54 @@ const s = StyleSheet.create({
   heroText: { position: "absolute", left: 20, right: 16, bottom: 14, flexDirection: "row", alignItems: "flex-end", gap: 14 },
   shareBtn: {
     width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
-    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.borderStrong,
   },
-  featured: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: GOLD },
-  featuredText: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 1.4, color: BG },
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.4, color: "#FFFFFF" },
+  featured: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.gold },
+  featuredText: { fontFamily: "Inter_700Bold", fontSize: 10.5, letterSpacing: 1.4, color: c.onGold },
+  // Ligger där bilden tonat ut i panelens bakgrund: temats textfärg
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 27, lineHeight: 33, letterSpacing: -0.4, color: c.text },
 
   body: { paddingHorizontal: 20, paddingTop: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14 },
-  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.12)" },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.borderStrong },
   // Neutrala (vit på grått) — guldet sparas till faktaremsan och datumrutan
-  rowIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.07)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  rowIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.fill, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   logo: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#FFFFFF" },
-  rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
-  rowSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 2 },
+  rowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
+  rowSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted, marginTop: 2 },
 
-  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG, marginBottom: 14 },
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: c.text, marginBottom: 14 },
   // Faktaremsan: fyra lika breda kolumner, ikon över ett eller två ord, tunna streck emellan
   strip: {
     flexDirection: "row", marginTop: 22, paddingVertical: 16, borderRadius: 20,
-    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(197,160,89,0.22)",
+    backgroundColor: c.card, borderWidth: 0.5, borderColor: c.goldBorder,
   },
   // Mitt i höjdled: en kolumn med ett ord står mitt för grannarna med två rader
   stripItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 4 },
-  stripDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: "rgba(255,255,255,0.12)" },
-  stripText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, lineHeight: 16, color: FG, textAlign: "center" },
-  stripTextOff: { fontFamily: "Inter_500Medium", color: "rgba(245,241,232,0.4)" },
+  stripDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: c.borderStrong },
+  stripText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, lineHeight: 16, color: c.text, textAlign: "center" },
+  stripTextOff: { fontFamily: "Inter_500Medium", color: c.faint },
 
   ticketBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 52, marginTop: 22,
-    borderRadius: 16, backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.45)",
+    borderRadius: 16, backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder,
   },
-  ticketBtnOff: { backgroundColor: CARD, borderColor: "rgba(255,255,255,0.08)" },
-  ticketText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: GOLD_LT },
+  ticketBtnOff: { backgroundColor: c.card, borderColor: c.border },
+  ticketText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.goldText },
 
-  aboutText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, color: "rgba(245,241,232,0.72)" },
+  aboutText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 23, color: c.muted },
 
   bar: {
     position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10,
     paddingHorizontal: 16, paddingTop: 22,
   },
   calBtn: {
-    height: 56, borderRadius: 28, backgroundColor: GOLD,
+    height: 56, borderRadius: 28, backgroundColor: c.gold,
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
   },
-  calText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: BG },
+  calText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.onGold },
   roundBtn: {
     width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center",
-    backgroundColor: CARD, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.borderStrong,
   },
 });

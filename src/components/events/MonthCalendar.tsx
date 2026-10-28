@@ -16,10 +16,9 @@ import { weekdayShort } from "@/i18n/dates";
 import type { Event } from "@/hooks/useEvents";
 import { dayKey } from "@/lib/events";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const FG = "#F5F1E8";
-const GOLD = "#C5A059";
 const RED = "#EF4444";
 /** MÅN … SÖN / MON … SUN / MO … SO */
 const weekdays = () => Array.from({ length: 7 }, (_, i) => weekdayShort(i).toUpperCase());
@@ -39,6 +38,7 @@ export function MonthCalendar({
   matches: (e: Event) => boolean;
   onSelect: (day: string) => void;
 }) {
+  const s = useThemedStyles(createStyles);
   const cell = Math.floor(width / 7);
   const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
   // Veckan börjar på måndag
@@ -88,6 +88,7 @@ const DayCell = memo(function DayCell({
   isToday: boolean; isPast: boolean; isSelected: boolean; saved: boolean; order: number;
   onPress: (day: string) => void;
 }) {
+  const s = useThemedStyles(createStyles);
   // Filtret: matchar inget av dagens event dämpas dagen (men bilden ligger kvar)
   const visible = useMemo(() => all.filter(matches), [all, matches]);
   const events = visible.length > 0 ? visible : all;
@@ -169,27 +170,27 @@ function TodayRing({ size }: { size: number }) {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   weekRow: { flexDirection: "row", marginBottom: 6 },
-  weekday: { textAlign: "center", fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1, color: "rgba(245,241,232,0.45)" },
+  weekday: { textAlign: "center", fontFamily: "Inter_600SemiBold", fontSize: 10.5, letterSpacing: 1, color: c.faint },
   grid: { flexDirection: "row", flexWrap: "wrap" },
-  photo: { position: "absolute", overflow: "hidden", backgroundColor: "rgba(197,160,89,0.35)" },
+  photo: { position: "absolute", overflow: "hidden", backgroundColor: c.goldBorder },
   shade: { backgroundColor: "rgba(0,0,0,0.28)" },
-  num: { fontFamily: "Inter_500Medium", fontSize: 14, color: "rgba(245,241,232,0.8)" },
+  num: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.muted },
   numOnPhoto: {
     fontFamily: "Inter_700Bold", fontSize: 15, color: "#FFFFFF",
     textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
   },
-  numToday: { fontFamily: "Inter_700Bold", color: FG },
+  numToday: { fontFamily: "Inter_700Bold", color: c.text },
   ringAnchor: { position: "absolute" },
-  selectedRing: { borderWidth: 2, borderColor: "#FFFFFF" },
+  selectedRing: { borderWidth: 2, borderColor: c.text },
   count: {
     position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4,
-    alignItems: "center", justifyContent: "center", backgroundColor: GOLD, borderWidth: 1.5, borderColor: BG,
+    alignItems: "center", justifyContent: "center", backgroundColor: c.gold, borderWidth: 1.5, borderColor: c.bg,
   },
-  countText: { fontFamily: "Inter_700Bold", fontSize: 9.5, color: BG },
+  countText: { fontFamily: "Inter_700Bold", fontSize: 9.5, color: c.onGold },
   saved: {
     position: "absolute", bottom: -2, right: -2, width: 16, height: 16, borderRadius: 8,
-    alignItems: "center", justifyContent: "center", backgroundColor: BG,
+    alignItems: "center", justifyContent: "center", backgroundColor: c.bg,
   },
 });
