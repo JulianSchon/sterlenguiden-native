@@ -10,11 +10,13 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 export function ActivityRow({
-  icon: Icon, tone = "neutral", title, subtitle, right,
+  icon: Icon, tone = "neutral", iconTone, title, subtitle, right,
 }: {
   icon: LucideIcon;
   /** Ikonrutans ton: neutral (köp), guld (gåvor du gett) eller grön (pengar in) */
   tone?: "neutral" | "gold" | "success";
+  /** Bara symbolens färg, när rutan ska vara neutral (köphistoriken); annars följer den rutans ton */
+  iconTone?: "gold" | "success";
   title: string;
   /** Text eller eget innehåll (t.ex. CardLine) under rubriken */
   subtitle?: ReactNode;
@@ -26,7 +28,7 @@ export function ActivityRow({
     <GradientCard radius={30}>
       <View style={s.row}>
         <View style={[s.circle, tone === "gold" && s.circleGold, tone === "success" && s.circleSuccess]}>
-          <Icon size={20} color={tone === "gold" ? colors.goldText : tone === "success" ? colors.success : colors.muted} strokeWidth={1.7} />
+          <Icon size={20} color={(iconTone ?? tone) === "gold" ? colors.goldText : (iconTone ?? tone) === "success" ? colors.success : colors.muted} strokeWidth={1.7} />
         </View>
         <View style={{ flex: 1, gap: 5 }}>
           <Text style={s.title} numberOfLines={1}>{title}</Text>

@@ -223,6 +223,7 @@ export default function PassHub() {
               <ActivityRow
                 key={`purchase-${entry.id}`}
                 icon={entry.purchase.kind === "gift" ? Gift : ArrowUp}
+                iconTone={entry.purchase.kind === "gift" ? "gold" : "success"}
                 title={periodLabel(entry.purchase.period)}
                 subtitle={entry.purchase.cardLast4
                   ? <CardLine brand={entry.purchase.cardBrand} last4={entry.purchase.cardLast4} />
@@ -233,7 +234,7 @@ export default function PassHub() {
               <ActivityRow
                 key={`redeemed-${entry.id}`}
                 icon={ArrowDown}
-                tone="success"
+                iconTone="success"
                 title={periodLabel(entry.gift.period)}
                 subtitle={t("pass.history.redeemed")}
                 right={<AmountColumn positive amount={`+ ${entry.gift.priceSek} kr`} date={formatDate(entry.at, "d MMM yyyy")} />}
@@ -251,7 +252,7 @@ export default function PassHub() {
               <ActivityRow
                 key={g.id}
                 icon={Gift}
-                tone="gold"
+                tone={g.claimed ? "success" : "gold"}
                 title={g.recipientName || t("pass.given.fallbackName")}
                 subtitle={(
                   <View style={{ gap: 4 }}>
