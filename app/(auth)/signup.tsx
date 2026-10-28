@@ -19,7 +19,6 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight } from "react-native-reanimated";
 import * as Location from "expo-location";
-import { Image as ExpoImage } from "expo-image";
 import { useTranslation } from "react-i18next";
 import type { AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,7 +33,6 @@ import { BirthdayStep, HomeStep, NameStep, UsernameStep } from "@/components/onb
 import { FavoritesStep, InterestsStep } from "@/components/onboarding/TasteSteps";
 import { LocationStep, WelcomeStep } from "@/components/onboarding/FinishSteps";
 import { AppearanceStep } from "@/components/onboarding/AppearanceStep";
-import { categoryPhotos } from "@/components/onboarding/InterestGrid";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
   EMPTY_DRAFT, deferLocationAsk, enterApp, finishOnboarding, isOnboarded, loadDraft, saveDraft,
@@ -189,15 +187,10 @@ export default function SignupScreen() {
     return () => clearTimeout(timer);
   }, [userId, ready, mode, step, draft]);
 
-  // ── Platserna (för orterna, kategoriernas foton och favoriterna) ──
+  // ── Platserna (för orterna och favoriterna) ──
   const placesQuery = usePlaces();
   const places = useMemo(() => (userId ? placesQuery.data ?? [] : []), [userId, placesQuery.data]);
   const placesLoading = !userId || !placesQuery.isFetched || (placesQuery.isFetching && places.length === 0);
-  const photos = useMemo(() => categoryPhotos(places), [places]);
-  useEffect(() => {
-    const urls = Object.values(photos).filter((u): u is string => !!u);
-    if (urls.length > 0) ExpoImage.prefetch(urls).catch(() => {});
-  }, [photos]);
   // Siffrorna under välkomsten (bara det som faktiskt finns i appen)
   const offersQuery = useOffers();
   const eventsQuery = useEvents();
@@ -503,7 +496,7 @@ export default function SignupScreen() {
       content = <HomeStep lives={draft.livesInOsterlen} city={draft.city} near={nearTown} away={awayCity} onChange={(livesInOsterlen, city) => set({ livesInOsterlen, city })} onSubmit={nextStep} />;
       break;
     case "interests":
-      content = <InterestsStep selected={draft.interests} onToggle={toggleInterest} photos={photos} loading={placesLoading} onSubmit={nextStep} />;
+      content = <InterestsStep selected={draft.interests} onToggle={toggleInterest} onSubmit={nextStep} />;
       break;
     case "favorites":
       content = (

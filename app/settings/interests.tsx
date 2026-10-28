@@ -2,14 +2,13 @@
  * Inställningar › Intressen: kategorierna man gillar — samma bildrutor som i onboardingen. Ett tryck
  * sparas direkt, och Hem och Kalender tipsar efter det ("Eftersom du gillar …").
  */
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
 import { useUpdateProfile } from "@/hooks/useAccount";
-import { usePlaces } from "@/hooks/usePlaces";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
-import { InterestGrid, categoryPhotos } from "@/components/onboarding/InterestGrid";
+import { InterestGrid } from "@/components/onboarding/InterestGrid";
 import { Rise } from "@/components/Rise";
 import type { CategoryId } from "@/theme/categories";
 import { useThemedStyles } from "@/theme/ThemeProvider";
@@ -22,9 +21,7 @@ export default function InterestsSettings() {
   const { t } = useTranslation();
   const s = useThemedStyles(createStyles);
   const { data: profile } = useProfile();
-  const { data: places = [], isFetched } = usePlaces();
   const updateProfile = useUpdateProfile();
-  const photos = useMemo(() => categoryPhotos(places), [places]);
   // Det man tryckt på gäller direkt, även innan servern svarat
   const [picked, setPicked] = useState<CategoryId[] | null>(null);
   const selected = picked ?? ((profile?.interests ?? []) as CategoryId[]);
@@ -41,7 +38,7 @@ export default function InterestsSettings() {
         <Text style={s.lead}>{t("interests.subtitle")}</Text>
       </Rise>
       <Rise index={1}>
-        <InterestGrid selected={selected} onToggle={toggle} photos={photos} loading={!isFetched} gutter={GUTTER} />
+        <InterestGrid selected={selected} onToggle={toggle} gutter={GUTTER} />
       </Rise>
     </SettingsScreen>
   );

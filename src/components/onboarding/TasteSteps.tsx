@@ -21,12 +21,10 @@ import type { ThemeColors } from "@/theme/colors";
 // ── Vad gillar du? ───────────────────────────────────────────────────────────
 
 export function InterestsStep({
-  selected, onToggle, photos, loading, onSubmit,
+  selected, onToggle, onSubmit,
 }: {
   selected: CategoryId[];
   onToggle: (id: CategoryId) => void;
-  photos: Partial<Record<CategoryId, string>>;
-  loading: boolean;
   onSubmit: () => void;
 }) {
   const { t } = useTranslation();
@@ -37,7 +35,7 @@ export function InterestsStep({
       subtitle={t("onboarding.interests.subtitle")}
       footer={<AuthButton label={selected.length > 0 ? t("onboarding.next") : t("onboarding.skip")} onPress={onSubmit} />}
     >
-      <InterestGrid selected={selected} onToggle={onToggle} photos={photos} loading={loading} gutter={AUTH_GUTTER} />
+      <InterestGrid selected={selected} onToggle={onToggle} gutter={AUTH_GUTTER} />
     </StepLayout>
   );
 }
