@@ -90,7 +90,7 @@ export default function BusinessEvents() {
             <Rise key={e.id} index={Math.min(i + 1, 8)}>
               <Pressable onPress={(ev) => menu(ev, e)} style={({ pressed }) => [s.card, tab === "past" && { opacity: 0.6 }, pressed && { opacity: 0.8 }]}>
                 <View style={s.image}>
-                  {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+                  {!!e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
                   <DateBox event={e} small style={s.date} lng="sv" />
                 </View>
                 <View style={{ flex: 1, gap: 4 }}>

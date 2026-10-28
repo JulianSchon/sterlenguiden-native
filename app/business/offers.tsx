@@ -110,7 +110,7 @@ export default function BusinessOffers() {
                 ) : <View style={s.image} />}
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={s.title} numberOfLines={2}>{o.offer.title}</Text>
-                  {o.offer.savings_label && <Text style={s.label}>{o.offer.savings_label}</Text>}
+                  {!!o.offer.savings_label && <Text style={s.label}>{o.offer.savings_label}</Text>}
                   <Text style={s.meta}>
                     {RULE[o.offer.redemption_interval ?? "once"]}
                     {" · "}

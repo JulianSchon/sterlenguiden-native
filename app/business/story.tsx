@@ -442,7 +442,7 @@ function StoryEditor() {
           <GestureDetector gesture={background}>
             <Reanimated.View style={[StyleSheet.absoluteFill, s.center]}>
               <Reanimated.View style={[{ width: cw, height: frameH, overflow: fit === "fill" ? "visible" : "hidden" }, imageStyle]}>
-                {shown && <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
+                {!!shown && <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
               </Reanimated.View>
             </Reanimated.View>
           </GestureDetector>

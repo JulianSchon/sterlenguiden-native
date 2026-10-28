@@ -18,8 +18,13 @@ export function IconSwitch({ value, onChange }: { value: boolean; onChange: (val
   const { scheme } = useTheme();
   const offTrack = scheme === "dark" ? "#3A3A3C" : "#E5E5EA";
   const position = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const shown = useRef(value);
 
+  // Bara när värdet faktiskt ändras: en animation vid start (till samma läge) kostade en extra
+  // omritning, och fyra reglage i en panel som glider upp fick den att hacka
   useEffect(() => {
+    if (shown.current === value) return;
+    shown.current = value;
     Animated.timing(position, { toValue: value ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [value, position]);
 

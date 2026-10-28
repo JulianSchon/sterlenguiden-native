@@ -136,8 +136,8 @@ export function ScrubChart({
   // Pricken (och glöden) växer fram i samma rörelse som kurvans sista bit, i stället för att
   // dyka upp på en gång när den är klar
   const dotR = useDerivedValue(() => interpolate(draw.value, [0.82, 1], [0, 6], Extrapolation.CLAMP));
-  const glowR = useDerivedValue(() => interpolate(draw.value, [0.88, 1], [0, 13], Extrapolation.CLAMP));
-  const glowOpacity = useDerivedValue(() => interpolate(draw.value, [0.88, 1], [0, 1], Extrapolation.CLAMP));
+  const glowR = useDerivedValue(() => interpolate(draw.value, [0.88, 1], [0, 8.5], Extrapolation.CLAMP));
+  const glowOpacity = useDerivedValue(() => interpolate(draw.value, [0.88, 1], [0, 0.7], Extrapolation.CLAMP));
 
   // Hålla in och dra
   const select = (i: number | null) => {
@@ -236,7 +236,7 @@ export function ScrubChart({
               <Path path={geo.line} style="stroke" strokeWidth={3} strokeCap="round" strokeJoin="round" color={colors.goldText} start={0} end={draw} />
               {/* Den senaste punkten: en lysande prick i slutet av kurvan */}
               <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={glowR} color="rgba(232,198,116,0.45)" opacity={glowOpacity}>
-                <BlurMask blur={5} style="normal" />
+                <BlurMask blur={3} style="normal" />
               </Circle>
               <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={dotR} color={colors.goldText} />
             </Canvas>

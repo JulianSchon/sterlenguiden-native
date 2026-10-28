@@ -36,7 +36,7 @@ export default function ManagePass() {
         ) : membership.until ? (
           <SettingsRow dense label={t("pass.manage.validUntil")} value={longDate(membership.until)} />
         ) : null}
-        {profile?.member_started_at && (
+        {!!profile?.member_started_at && (
           <SettingsRow dense label={t("pass.manage.since")} value={longDate(profile.member_started_at)} />
         )}
       </SettingsGroup>

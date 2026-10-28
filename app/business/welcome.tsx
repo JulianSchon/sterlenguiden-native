@@ -54,7 +54,7 @@ export default function BusinessWelcome() {
     <View style={s.root}>
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false} bounces={false}>
         <View style={[s.hero, { paddingTop: insets.top }]}>
-          {image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />}
+          {!!image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />}
           <LinearGradient colors={["rgba(0,0,0,0.35)", "rgba(0,0,0,0)", colors.bg]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
           <TouchableOpacity style={[s.close, { top: insets.top + 10 }]} onPress={() => router.back()} hitSlop={10} accessibilityLabel="Stäng">
             <X size={22} color="#FFFFFF" strokeWidth={2.2} />

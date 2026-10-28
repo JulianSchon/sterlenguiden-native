@@ -131,7 +131,7 @@ export default function BusinessTeam() {
                     {team.requests.map((r, i) => (
                       <View key={r.id} style={[s.request, i > 0 && s.border]}>
                         <Text style={s.requestName}>{r.name ?? "Någon"}{r.role_title ? ` · ${r.role_title}` : ""}</Text>
-                        {r.message && <Text style={s.requestMsg}>”{r.message}”</Text>}
+                        {!!r.message && <Text style={s.requestMsg}>”{r.message}”</Text>}
                         <View style={s.requestButtons}>
                           <TouchableOpacity style={[s.reqBtn, { backgroundColor: colors.gold }]} onPress={() => result(actions.answerJoin(r.id, true), `${r.name ?? "Personen"} är med`)}>
                             <Text style={[s.reqBtnText, { color: colors.onGold }]}>Godkänn</Text>

@@ -98,7 +98,7 @@ export default function BusinessStart() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.hitName} numberOfLines={1}>{p.name}</Text>
-                      {p.nearest_town && <Text style={s.hitTown}>{p.nearest_town}</Text>}
+                      {!!p.nearest_town && <Text style={s.hitTown}>{p.nearest_town}</Text>}
                     </View>
                     <ChevronRight size={17} color={colors.faint} strokeWidth={2} />
                   </TouchableOpacity>

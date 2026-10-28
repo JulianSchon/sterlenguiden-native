@@ -386,7 +386,7 @@ function PlaceCard({ info }: { info: ClaimInfo }) {
       {image ? <ExpoImage source={{ uri: image }} style={s.placeImage} contentFit="cover" transition={150} /> : <View style={s.placeImage} />}
       <View style={s.placeBody}>
         <Text style={s.placeName}>{info.place.name}</Text>
-        {info.place.town && <Text style={s.placeTown}>{info.place.town}</Text>}
+        {!!info.place.town && <Text style={s.placeTown}>{info.place.town}</Text>}
       </View>
     </View>
   );

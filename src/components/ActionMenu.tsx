@@ -7,11 +7,11 @@
  *   {menu.element}
  *
  * Ett val med `confirm` frågar först; svaren där kan vara ett eller flera (t.ex. "Bara det här" /
- * "Alla kommande").
+ * "Alla kommande"). Rutan tonas in av Modalen själv: Reanimateds in- och uttoningar startar inte
+ * inuti en Modal, och då syntes bara den mörka bakgrunden.
  */
 import { useCallback, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
-import Reanimated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -74,46 +74,42 @@ function ActionMenu({ spec, y, onClose }: { spec: MenuSpec | null; y: number; on
   const left = Math.max(MARGIN, winW - WIDTH - MARGIN);
 
   return (
-    <Modal visible={!!spec} transparent animationType="none" onRequestClose={close}>
+    <Modal visible={!!spec} transparent animationType="fade" onRequestClose={close}>
+      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]} onPress={close} />
       {spec && (
-        <>
-          <Reanimated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(120)} style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-          </Reanimated.View>
-          <Reanimated.View
-            key={confirm ? "confirm" : "menu"}
-            entering={ZoomIn.duration(160)}
-            onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
-            style={[s.menu, { top, left, width: WIDTH, opacity: height ? 1 : 0 }]}
-          >
-            {confirm ? (
-              <>
-                <View style={s.head}>
-                  <Text style={s.title}>{confirm.title}</Text>
-                  {confirm.message ? <Text style={s.message}>{confirm.message}</Text> : null}
-                </View>
-                {confirm.actions.map((a) => (
-                  <Row key={a.label} label={a.label} destructive={a.destructive} onPress={() => run(a.onPress)} />
-                ))}
-                {/* Utan val är det bara ett besked: då stänger OK */}
-                <Row label={confirm.actions.length ? "Avbryt" : "OK"} muted={confirm.actions.length > 0} onPress={close} />
-              </>
-            ) : (
-              <>
-                {spec.title ? <View style={s.head}><Text style={s.title} numberOfLines={2}>{spec.title}</Text></View> : null}
-                {spec.items.map((item, i) => (
-                  <Row
-                    key={item.label}
-                    first={i === 0 && !spec.title}
-                    label={item.label}
-                    destructive={item.destructive}
-                    onPress={() => (item.confirm ? setAsking(item.confirm) : run(item.onPress ?? (() => {})))}
-                  />
-                ))}
-              </>
-            )}
-          </Reanimated.View>
-        </>
+        // Osynlig tills höjden är mätt, så rutan aldrig hoppar till sin plats
+        <View
+          key={confirm ? "confirm" : "menu"}
+          onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
+          style={[s.menu, { top, left, width: WIDTH, opacity: height ? 1 : 0 }]}
+        >
+          {confirm ? (
+            <>
+              <View style={s.head}>
+                <Text style={s.title}>{confirm.title}</Text>
+                {confirm.message ? <Text style={s.message}>{confirm.message}</Text> : null}
+              </View>
+              {confirm.actions.map((a) => (
+                <Row key={a.label} label={a.label} destructive={a.destructive} onPress={() => run(a.onPress)} />
+              ))}
+              {/* Utan val är det bara ett besked: då stänger OK */}
+              <Row label={confirm.actions.length ? "Avbryt" : "OK"} muted={confirm.actions.length > 0} onPress={close} />
+            </>
+          ) : (
+            <>
+              {spec.title ? <View style={s.head}><Text style={s.title} numberOfLines={2}>{spec.title}</Text></View> : null}
+              {spec.items.map((item, i) => (
+                <Row
+                  key={item.label}
+                  first={i === 0 && !spec.title}
+                  label={item.label}
+                  destructive={item.destructive}
+                  onPress={() => (item.confirm ? setAsking(item.confirm) : run(item.onPress ?? (() => {})))}
+                />
+              ))}
+            </>
+          )}
+        </View>
       )}
     </Modal>
   );
@@ -135,7 +131,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.borderStrong,
     shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 12,
   },
-  head: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, gap: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  head: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, gap: 4 },
   title: { fontFamily: "Montserrat_600SemiBold", fontSize: 14.5, color: c.text },
   message: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, color: c.muted },
   row: { paddingHorizontal: 16, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },

@@ -357,7 +357,7 @@ export default function EventComposer() {
           </>}>
           <Pressable style={({ pressed }) => [s.preview, pressed && { opacity: 0.85 }]} onPress={showSheet} accessibilityRole="button">
             <View style={s.previewImage}>
-              {payload.image_url && <ExpoImage source={{ uri: payload.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+              {!!payload.image_url && <ExpoImage source={{ uri: payload.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
               <DateBox event={preview} style={s.previewDate} lng="sv" />
             </View>
             <View style={{ padding: 14, gap: 4 }}>

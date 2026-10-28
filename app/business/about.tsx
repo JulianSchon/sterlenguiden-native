@@ -52,7 +52,7 @@ export default function BusinessAbout() {
               <View style={{ flex: 1 }}>
                 <Text style={s.previewName} numberOfLines={1}>{draft.name || "Ert namn"}</Text>
                 <Text style={s.previewShort} numberOfLines={2}>{draft.short || "En kort mening om er syns här."}</Text>
-                {place.nearest_town && <Text style={s.previewTown}>{place.nearest_town}</Text>}
+                {!!place.nearest_town && <Text style={s.previewTown}>{place.nearest_town}</Text>}
               </View>
             </View>
           </GradientCard>
