@@ -1,19 +1,23 @@
 /**
- * Ny berättelse — som i Instagram.
+ * Ny story — så likt Instagram som möjligt, så företagaren känner igen sig.
  *
  *  1. Ta en bild, välj en ur telefonen eller använd en av platsens egna.
- *  2. Svep åt sidan för filter. Tryck på bilden för att skriva (typsnitt, färg, bakgrund). Lägg till
- *     emoji, platsens namn och en länk till ett erbjudande eller evenemang (gästen trycker på den i
- *     berättelsen och kommer dit). Dra, nyp och vrid allt; dra till papperskorgen för att ta bort.
- *     Två fingrar på bilden flyttar och zoomar den.
- *  3. Publicera: berättelsen fotograferas precis som den syns (med text och klistermärken inbakade),
- *     laddas upp och syns överst på Hem i 24 timmar.
+ *  2. Filtren ligger som små förhandsbilder längst ner (eller svep åt sidan på bilden). Formatet
+ *     (stående, liggande, kvadrat) byts uppe till höger; liggande och kvadrat får bilden suddig
+ *     bakom. Tryck på bilden för att skriva (typsnitt, färg, bakgrund). Lägg till emoji,
+ *     klistermärken, en bild till, platsens namn och en länk till ett erbjudande eller evenemang
+ *     (gästen trycker på den i storyn och kommer dit). Platsen, länken och klistermärkena byter
+ *     stil vid tryck. Dra, nyp och vrid allt; dra till papperskorgen för att ta bort. Två fingrar
+ *     på bilden flyttar och zoomar den.
+ *  3. Publicera: storyn fotograferas precis som den syns (med text och klistermärken inbakade),
+ *     laddas upp och syns överst på Hem i 24 timmar. Skärmen blir mörk och guldcirkeln kommer
+ *     fram, som när ett evenemang eller erbjudande läggs ut.
  *
  * Allt rör sig på UI-tråden. Filtren ritas av Skia i telefonen (lib/storyFilters).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
+  Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions,
 } from "react-native";
 import Reanimated, {
   FadeIn, FadeOut, makeMutable, runOnJS, useAnimatedKeyboard, useAnimatedStyle, useSharedValue, withSequence, withTiming, withDelay,
@@ -26,11 +30,17 @@ import { Image as ExpoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { ImageFormat, makeImageFromView } from "@shopify/react-native-skia";
-import { CalendarDays, Camera, Check, ImageIcon, MapPin, Smile, Ticket, Trash2, Type, X } from "lucide-react-native";
+import {
+  CalendarDays, Camera, Clock, ImageIcon, ImagePlus, MapPin, RectangleHorizontal, RectangleVertical, Smile, Square,
+  Ticket, Trash2, Type, X,
+} from "lucide-react-native";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { Sheet } from "@/components/Sheet";
+import { useActionMenu } from "@/components/ActionMenu";
+import { DoneMoment } from "@/components/business/WizardParts";
 import {
-  FONTS, MovableItem, TEXT_COLORS, contrastOn, type FontId, type ItemMotion, type StoryItem, type TextBg,
+  BADGES, FONTS, MovableItem, TEXT_COLORS, TOUCH_PAD, contrastOn, nextLook,
+  type FontId, type ItemMotion, type StoryItem, type TextBg,
 } from "@/components/business/StoryItems";
 import { useBusinessOffers, useBusinessPlace, usePlaceEvents, usePortalPlace, useStoryActions } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
@@ -41,9 +51,18 @@ import { eventWhen } from "@/lib/events";
 
 const EMOJIS = ["❤️", "🔥", "😍", "✨", "⭐", "☀️", "🌊", "🌿", "🍎", "🍷", "🍺", "☕", "🍰", "🦞", "🐟", "🧀", "🍕", "🎉", "🎶", "🛍️", "🌸", "🌻", "🍂", "❄️", "🥂", "👋", "🙌", "💛"];
 const GOLD = "#E4C67A";
-const BAR_H = 86;
+/** Nedre raden: filtren och Publicera */
+const BAR_H = 148;
+const THUMB = 52;
 
 type Phase = "pick" | "edit" | "publishing" | "done";
+/** Hur bilden ligger i storyn: fyller hela (stående), eller liggande/kvadrat med bilden suddig bakom */
+type Fit = "fill" | "landscape" | "square";
+const FITS: { id: Fit; name: string; Icon: typeof Square; ratio: number }[] = [
+  { id: "fill", name: "Stående", Icon: RectangleVertical, ratio: 9 / 16 },
+  { id: "landscape", name: "Liggande", Icon: RectangleHorizontal, ratio: 4 / 3 },
+  { id: "square", name: "Kvadrat", Icon: Square, ratio: 1 },
+];
 interface Editing { id: string | null; text: string; font: FontId; color: string; bg: TextBg; at: { x: number; y: number } }
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -69,6 +88,7 @@ function StoryEditor() {
   const { data: offers } = useBusinessOffers(placeId);
   const { data: events } = usePlaceEvents(placeId);
   const actions = useStoryActions(placeId);
+  const menu = useActionMenu();
 
   // Bildytan i 9:16, så stor som får plats
   const availH = SH - insets.top - insets.bottom - BAR_H - 8;
@@ -81,10 +101,14 @@ function StoryEditor() {
   const [source, setSource] = useState<string | null>(null);
   const [filterIndex, setFilterIndex] = useState(0);
   const [filtered, setFiltered] = useState<Record<string, string>>({});
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [fit, setFit] = useState<Fit>("fill");
   const [items, setItems] = useState<StoryItem[]>([]);
   const motions = useRef(new Map<string, ItemMotion>());
   const [editing, setEditing] = useState<Editing | null>(null);
   const [stickers, setStickers] = useState(false);
+  // Panelens innehåll byggs först när den glidit upp, så den inte hackar på vägen
+  const [stickersReady, setStickersReady] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [overTrash, setOverTrash] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,9 +121,11 @@ function StoryEditor() {
   const imgScale = useSharedValue(1);
   const imgStart = useSharedValue({ x: 0, y: 0, scale: 1 });
   const flash = useSharedValue(0);
+  const [flashText, setFlashText] = useState("");
 
   const filter = STORY_FILTERS[filterIndex];
   const shown = filtered[filter.id] ?? filtered.none ?? source;
+  const fitDef = FITS.find((f) => f.id === fit) ?? FITS[0];
 
   // Filtret ritas när man byter till det (en gång per filter)
   useEffect(() => {
@@ -110,6 +136,25 @@ function StoryEditor() {
       .catch(() => { if (alive) setError("Filtren fungerar inte på den här telefonen."); });
     return () => { alive = false; };
   }, [source, filter, filtered]);
+
+  // Små förhandsbilder av varje filter, en i taget
+  useEffect(() => {
+    if (!source) return;
+    let alive = true;
+    (async () => {
+      for (const f of STORY_FILTERS) {
+        const r = await renderFiltered(source, f.matrix, 160).catch(() => null);
+        if (!alive) return;
+        if (r) setThumbs((m) => ({ ...m, [f.id]: r.uri }));
+      }
+    })();
+    return () => { alive = false; };
+  }, [source]);
+
+  const showFlash = useCallback((text: string) => {
+    setFlashText(text);
+    flash.value = withSequence(withTiming(1, { duration: 120 }), withDelay(700, withTiming(0, { duration: 300 })));
+  }, [flash]);
 
   // ── Saker på bilden ──
   const addItem = useCallback((item: StoryItem, at?: { x: number; y: number }) => {
@@ -122,7 +167,7 @@ function StoryEditor() {
       h: makeMutable(0),
     });
     setItems((list) => {
-      // Bara en länk per berättelse
+      // Bara en länk per story
       const rest = item.kind === "link" ? list.filter((i) => i.kind !== "link") : list;
       return [...rest, item].slice(-14);
     });
@@ -135,18 +180,18 @@ function StoryEditor() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
   }, []);
 
-  const offerLink = useCallback((id: string) => {
+  const offerLink = useCallback((id: string): StoryItem | null => {
     const o = offers?.find((x) => x.offer.id === id)?.offer;
     if (!o) return null;
-    return { id: newId(), kind: "link" as const, link: { kind: "offer" as const, id: o.id }, title: o.title, sub: o.savings_label ?? "Med Österlenpasset" };
+    return { id: newId(), kind: "link", link: { kind: "offer", id: o.id }, title: o.title, sub: o.savings_label ?? "Med Österlenpasset", look: 0 };
   }, [offers]);
-  const eventLink = useCallback((id: string) => {
+  const eventLink = useCallback((id: string): StoryItem | null => {
     const e = events?.find((x) => String(x.id) === id);
     if (!e) return null;
-    return { id: newId(), kind: "link" as const, link: { kind: "event" as const, id: String(e.id) }, title: e.title, sub: eventWhen(e, "sv") };
+    return { id: newId(), kind: "link", link: { kind: "event", id: String(e.id) }, title: e.title, sub: eventWhen(e, "sv"), look: 0 };
   }, [events]);
 
-  // Öppnad från "Berätta om det i en berättelse": länken ligger på plats direkt
+  // Öppnad från "Berätta om det i en story": länken ligger på plats direkt
   useEffect(() => {
     if (phase !== "edit" || autoLinked.current) return;
     const link = params.offer ? offerLink(params.offer) : params.event ? eventLink(params.event) : null;
@@ -157,31 +202,34 @@ function StoryEditor() {
   }, [phase, params.offer, params.event, offerLink, eventLink, addItem, cw, ch]);
 
   // ── Bilden ──
+  /** Kameran eller biblioteket; null om man avbröt eller kameran är avstängd */
+  const pickPhoto = async (kind: "camera" | "library"): Promise<{ uri: string; ratio: number } | null> => {
+    if (kind === "camera") {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        menu.ask(SH / 2 - 120, {
+          title: "Kameran är avstängd", message: "Slå på kameran för Österlenappen i telefonens inställningar.",
+          actions: [{ label: "Öppna inställningar", onPress: () => Linking.openSettings() }],
+        });
+        return null;
+      }
+    }
+    const result = kind === "camera"
+      ? await ImagePicker.launchCameraAsync({ quality: 1 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
+    if (result.canceled) return null;
+    const a = result.assets[0];
+    const uri = await preparePhoto({ uri: a.uri, width: a.width, height: a.height }, 1600);
+    return { uri, ratio: a.width && a.height ? a.width / a.height : 1 };
+  };
+
   const start = async (kind: "camera" | "library" | { url: string }) => {
     try {
-      let uri: string | null = null;
-      if (typeof kind === "object") {
-        uri = kind.url;
-      } else {
-        if (kind === "camera") {
-          const permission = await ImagePicker.requestCameraPermissionsAsync();
-          if (!permission.granted) {
-            Alert.alert("Kameran är avstängd", "Slå på kameran för Österlenappen i telefonens inställningar.", [
-              { text: "Avbryt", style: "cancel" },
-              { text: "Öppna inställningar", onPress: () => Linking.openSettings() },
-            ]);
-            return;
-          }
-        }
-        const result = kind === "camera"
-          ? await ImagePicker.launchCameraAsync({ quality: 1 })
-          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
-        if (result.canceled) return;
-        const a = result.assets[0];
-        uri = await preparePhoto({ uri: a.uri, width: a.width, height: a.height }, 1600);
-      }
+      const uri = typeof kind === "object" ? kind.url : (await pickPhoto(kind))?.uri ?? null;
+      if (!uri) return;
       setSource(uri);
       setFiltered({ none: uri });
+      setThumbs({});
       setFilterIndex(0);
       imgX.value = 0; imgY.value = 0; imgScale.value = 1;
       setPhase("edit");
@@ -190,14 +238,35 @@ function StoryEditor() {
     }
   };
 
-  const changeFilter = useCallback((dir: 1 | -1) => {
-    setFilterIndex((i) => {
-      const next = Math.min(STORY_FILTERS.length - 1, Math.max(0, i + dir));
-      if (next !== i) Haptics.selectionAsync().catch(() => {});
-      return next;
+  /** En bild till, ovanpå storyn */
+  const addPhoto = async () => {
+    setStickers(false);
+    try {
+      const photo = await pickPhoto("library");
+      if (photo) addItem({ id: newId(), kind: "photo", uri: photo.uri, ratio: photo.ratio }, { x: cw / 2, y: ch * 0.45 });
+    } catch (e) {
+      setError(businessError(e));
+    }
+  };
+
+  const chooseFilter = useCallback((i: number) => {
+    setFilterIndex((cur) => {
+      if (i !== cur) Haptics.selectionAsync().catch(() => {});
+      return i;
     });
-    flash.value = withSequence(withTiming(1, { duration: 120 }), withDelay(700, withTiming(0, { duration: 300 })));
-  }, [flash]);
+    showFlash(STORY_FILTERS[i].name);
+  }, [showFlash]);
+  const changeFilter = useCallback((dir: 1 | -1) => {
+    chooseFilter(Math.min(STORY_FILTERS.length - 1, Math.max(0, filterIndex + dir)));
+  }, [chooseFilter, filterIndex]);
+
+  const cycleFit = () => {
+    const next = FITS[(FITS.findIndex((f) => f.id === fit) + 1) % FITS.length];
+    Haptics.selectionAsync().catch(() => {});
+    setFit(next.id);
+    imgX.value = 0; imgY.value = 0; imgScale.value = 1;
+    showFlash(next.name);
+  };
 
   const startText = useCallback((x: number, y: number) => {
     setEditing({ id: null, text: "", font: "classic", color: "#FFFFFF", bg: "none", at: { x, y } });
@@ -207,7 +276,7 @@ function StoryEditor() {
   const background = useMemo(() => {
     const pinch = Gesture.Pinch()
       .onStart(() => { imgStart.value = { x: imgX.value, y: imgY.value, scale: imgScale.value }; })
-      .onUpdate((e) => { imgScale.value = Math.min(4, Math.max(1, imgStart.value.scale * e.scale)); });
+      .onUpdate((e) => { imgScale.value = Math.min(4, Math.max(0.5, imgStart.value.scale * e.scale)); });
     const pan = Gesture.Pan()
       .minPointers(2)
       .onStart(() => { imgStart.value = { x: imgX.value, y: imgY.value, scale: imgScale.value }; })
@@ -223,9 +292,16 @@ function StoryEditor() {
   }));
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
 
+  // Tryck på en sak: texten öppnas för att skrivas om; plats, länk och klistermärke byter stil
   const onTapItem = useCallback((id: string) => {
     const item = items.find((i) => i.id === id);
-    if (item?.kind === "text") setEditing({ id, text: item.text, font: item.font, color: item.color, bg: item.bg, at: { x: 0, y: 0 } });
+    if (!item) return;
+    if (item.kind === "text") {
+      setEditing({ id, text: item.text, font: item.font, color: item.color, bg: item.bg, at: { x: 0, y: 0 } });
+    } else if (item.kind === "place" || item.kind === "link" || item.kind === "badge") {
+      Haptics.selectionAsync().catch(() => {});
+      setItems((list) => list.map((i) => (i.id === id && "look" in i ? { ...i, look: nextLook(i.look) } as StoryItem : i)));
+    }
   }, [items]);
 
   const finishText = () => {
@@ -246,8 +322,9 @@ function StoryEditor() {
     if (!item || item.kind !== "link") return null;
     const m = motions.current.get(item.id);
     if (!m) return null;
-    const w = m.w.value * m.scale.value;
-    const h = m.h.value * m.scale.value;
+    // Det osynliga greppet runt länken räknas inte
+    const w = (m.w.value - TOUCH_PAD * 2) * m.scale.value;
+    const h = (m.h.value - TOUCH_PAD * 2) * m.scale.value;
     const r = m.rot.value;
     const bw = Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r));
     const bh = Math.abs(w * Math.sin(r)) + Math.abs(h * Math.cos(r));
@@ -261,19 +338,16 @@ function StoryEditor() {
 
   const publish = async () => {
     setError(null);
-    setPhase("publishing");
     try {
-      // En bildruta så att knappar och markeringar hunnit försvinna
-      await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 30)));
+      // Fotograferas innan skärmen blir mörk, så inget av det kommer med
       const snapshot = await makeImageFromView(capture);
       if (!snapshot) throw new Error("snapshot");
+      setPhase("publishing");
       const bytes = snapshot.encodeToBytes(ImageFormat.JPEG, 90);
       const url = await uploadPlaceBytes(placeId, bytes);
       const caption = items.filter((i) => i.kind === "text").map((i) => (i as { text: string }).text).join(" · ").slice(0, 300) || null;
       await actions.post(url, caption, linkRect());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setPhase("done");
-      setTimeout(() => router.back(), 1300);
     } catch (e) {
       setPhase("edit");
       setError(e instanceof Error && e.message === "snapshot" ? "Storyn kunde inte sparas. Försök igen." : businessError(e));
@@ -282,16 +356,18 @@ function StoryEditor() {
 
   const close = () => {
     if (phase === "pick" || (items.length === 0 && !source)) { router.back(); return; }
-    Alert.alert("Släng storyn?", "Det du gjort sparas inte.", [
-      { text: "Fortsätt redigera", style: "cancel" },
-      { text: "Släng", style: "destructive", onPress: () => router.back() },
-    ]);
+    menu.ask(insets.top + 56, {
+      title: "Släng storyn?", message: "Det du gjort sparas inte.",
+      actions: [{ label: "Släng", destructive: true, onPress: () => router.back() }],
+    });
   };
 
   const images = placeImages(place?.image_url);
   const activeOffers = (offers ?? []).filter((o) => o.offer.is_active && (!o.offer.expires_at || new Date(o.offer.expires_at).getTime() > Date.now()));
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (events ?? []).filter((e) => (e.end_date ?? e.date ?? "") >= today).slice(0, 8);
+  const now = new Date();
+  const clock = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
   // ── Välj bild ──
   if (phase === "pick") {
@@ -328,21 +404,44 @@ function StoryEditor() {
           )}
           {error && <Text style={s.error}>{error}</Text>}
         </View>
+        {menu.element}
+      </View>
+    );
+  }
+
+  // ── Klart: mörk skärm och guldcirkeln, som för evenemang och erbjudanden ──
+  if (phase === "done") {
+    return (
+      <View style={[s.root, s.doneRoot, { paddingTop: insets.top }]}>
+        <StatusBar style="light" />
+        <DoneMoment
+          title="Storyn är ute!"
+          text="Den syns överst på Hem i 24 timmar – först för dem som sparat er."
+          primary={{ label: "Klart", onPress: () => router.back() }}
+        />
       </View>
     );
   }
 
   // ── Redigera ──
-  const busy = phase === "publishing" || phase === "done";
+  const busy = phase === "publishing";
+  const frameH = fit === "fill" ? ch : cw / fitDef.ratio;
   return (
     <View style={[s.root, { paddingTop: canvasTop }]}>
       <StatusBar style="light" hidden={busy} />
       <View style={[s.canvasWrap, { width: cw, height: ch }]}>
         {/* Det här fotograferas när man publicerar: bilden och allt ovanpå, inget annat */}
         <View ref={capture} collapsable={false} style={{ width: cw, height: ch, backgroundColor: "#000", overflow: "hidden" }}>
+          {/* Liggande och kvadrat: samma bild suddig och lite mörkare bakom */}
+          {fit !== "fill" && shown && (
+            <>
+              <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} transition={0} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.25)" }]} />
+            </>
+          )}
           <GestureDetector gesture={background}>
-            <Reanimated.View style={StyleSheet.absoluteFill}>
-              <Reanimated.View style={[StyleSheet.absoluteFill, imageStyle]}>
+            <Reanimated.View style={[StyleSheet.absoluteFill, s.center]}>
+              <Reanimated.View style={[{ width: cw, height: frameH, overflow: fit === "fill" ? "visible" : "hidden" }, imageStyle]}>
                 {shown && <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
               </Reanimated.View>
             </Reanimated.View>
@@ -371,81 +470,119 @@ function StoryEditor() {
             <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel="Stäng"><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
             <View style={s.toolsRight}>
               <TouchableOpacity onPress={() => startText(cw / 2, ch * 0.4)} hitSlop={8} style={s.round} accessibilityLabel="Text"><Type size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
-              <TouchableOpacity onPress={() => setStickers(true)} hitSlop={8} style={s.round} accessibilityLabel="Klistermärken"><Smile size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setStickersReady(false); setStickers(true); }} hitSlop={8} style={s.round} accessibilityLabel="Lägg till"><Smile size={21} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
+              <TouchableOpacity onPress={cycleFit} hitSlop={8} style={s.round} accessibilityLabel={`Format: ${fitDef.name}`}>
+                <fitDef.Icon size={21} color="#FFFFFF" strokeWidth={2.2} />
+              </TouchableOpacity>
             </View>
           </Reanimated.View>
         )}
         <Reanimated.View pointerEvents="none" style={[s.flash, flashStyle]}>
-          <Text style={s.flashText}>{filter.name}</Text>
+          <Text style={s.flashText}>{flashText}</Text>
         </Reanimated.View>
         {dragging && (
           <View pointerEvents="none" style={[s.trash, overTrash && s.trashOver, { left: cw / 2 - 28, top: ch - 84 }]}>
             <Trash2 size={24} color={overTrash ? "#1A1408" : "#FFFFFF"} strokeWidth={2.2} />
           </View>
         )}
-        {busy && (
-          <Reanimated.View entering={FadeIn.duration(200)} style={[StyleSheet.absoluteFill, s.publishing]}>
-            {phase === "done" ? (
-              <>
-                <View style={s.doneCircle}><Check size={40} color="#1A1408" strokeWidth={3} /></View>
-                <Text style={s.publishText}>Storyn är ute!</Text>
-              </>
-            ) : (
-              <Text style={s.publishText}>Lägger upp …</Text>
-            )}
-          </Reanimated.View>
-        )}
       </View>
 
       <View style={[s.bar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Text style={s.hint} numberOfLines={2}>
-          {error ?? (items.length === 0 ? "Tryck på bilden för att skriva · svep för filter" : `Filter: ${filter.name}`)}
-        </Text>
-        <TouchableOpacity style={[s.publish, busy && { opacity: 0.5 }]} disabled={busy} activeOpacity={0.85} onPress={publish}>
-          <Text style={s.publishBtn}>Publicera</Text>
-        </TouchableOpacity>
+        {/* Filtren som små förhandsbilder: det valda har en guldram */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
+          {STORY_FILTERS.map((f, i) => {
+            const on = i === filterIndex;
+            return (
+              <Pressable key={f.id} onPress={() => chooseFilter(i)} style={s.filter} accessibilityLabel={`Filter: ${f.name}`}>
+                <View style={[s.filterThumb, on && s.filterThumbOn]}>
+                  {thumbs[f.id] ? <ExpoImage source={{ uri: thumbs[f.id] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : null}
+                </View>
+                <Text style={[s.filterName, on && { color: "#FFFFFF" }]} numberOfLines={1}>{f.name}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <View style={s.barRow}>
+          <Text style={s.hint} numberOfLines={2}>
+            {error ?? "Tryck på bilden för att skriva. Tryck på en sak för att byta stil."}
+          </Text>
+          <TouchableOpacity style={[s.publish, busy && { opacity: 0.5 }]} disabled={busy} activeOpacity={0.85} onPress={publish}>
+            <Text style={s.publishBtn}>Publicera</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Medan storyn laddas upp: skärmen mörk */}
+      {busy && (
+        <Reanimated.View entering={FadeIn.duration(200)} style={[StyleSheet.absoluteFill, s.publishing]}>
+          <Text style={s.publishText}>Lägger upp …</Text>
+        </Reanimated.View>
+      )}
 
       {editing && <TextEditor editing={editing} onChange={setEditing} onDone={finishText} />}
 
-      <Sheet visible={stickers} onClose={() => setStickers(false)} title="Lägg till" tall>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12, gap: 14 }}>
-          {place && (
-            <TouchableOpacity style={s.stickerRow} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "place", text: place.name }, { x: cw / 2, y: ch * 0.22 }); }}>
-              <MapPin size={20} color={GOLD} strokeWidth={2.2} />
-              <Text style={s.stickerRowText}>Platsen · {place.name}</Text>
-            </TouchableOpacity>
-          )}
-          {activeOffers.map((o) => (
-            <TouchableOpacity key={o.offer.id} style={s.stickerRow} onPress={() => { setStickers(false); const l = offerLink(o.offer.id); if (l) addItem(l, { x: cw / 2, y: ch * 0.72 }); }}>
-              <Ticket size={20} color={GOLD} strokeWidth={2.2} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.stickerRowText} numberOfLines={1}>Erbjudande · {o.offer.title}</Text>
-                <Text style={s.stickerRowSub}>Gästen trycker och kommer till erbjudandet</Text>
+      <Sheet visible={stickers} onClose={() => setStickers(false)} onShow={() => setStickersReady(true)} title="Lägg till" tall>
+        {stickersReady ? (
+          <Reanimated.View entering={FadeIn.duration(160)} style={{ flex: 1 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12, gap: 14 }}>
+              <View style={s.quickRow}>
+                {place && (
+                  <TouchableOpacity style={s.quick} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "place", text: place.name, look: 0 }, { x: cw / 2, y: ch * 0.22 }); }}>
+                    <MapPin size={22} color={GOLD} strokeWidth={2.2} />
+                    <Text style={s.quickText}>Platsen</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={s.quick} onPress={addPhoto}>
+                  <ImagePlus size={22} color={GOLD} strokeWidth={2.2} />
+                  <Text style={s.quickText}>Bild</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.quick} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "badge", text: `Kl ${clock}`, look: 0 }, { x: cw / 2, y: ch * 0.3 }); }}>
+                  <Clock size={22} color={GOLD} strokeWidth={2.2} />
+                  <Text style={s.quickText}>Klockan</Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          ))}
-          {upcoming.map((e) => (
-            <TouchableOpacity key={e.id} style={s.stickerRow} onPress={() => { setStickers(false); const l = eventLink(String(e.id)); if (l) addItem(l, { x: cw / 2, y: ch * 0.72 }); }}>
-              <CalendarDays size={20} color={GOLD} strokeWidth={2.2} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.stickerRowText} numberOfLines={1}>Evenemang · {e.title}</Text>
-                <Text style={s.stickerRowSub}>{eventWhen(e, "sv")}</Text>
+              {activeOffers.map((o) => (
+                <TouchableOpacity key={o.offer.id} style={s.stickerRow} onPress={() => { setStickers(false); const l = offerLink(o.offer.id); if (l) addItem(l, { x: cw / 2, y: ch * 0.72 }); }}>
+                  <Ticket size={20} color={GOLD} strokeWidth={2.2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.stickerRowText} numberOfLines={1}>Erbjudande · {o.offer.title}</Text>
+                    <Text style={s.stickerRowSub}>Gästen trycker och kommer till erbjudandet</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {upcoming.map((e) => (
+                <TouchableOpacity key={e.id} style={s.stickerRow} onPress={() => { setStickers(false); const l = eventLink(String(e.id)); if (l) addItem(l, { x: cw / 2, y: ch * 0.72 }); }}>
+                  <CalendarDays size={20} color={GOLD} strokeWidth={2.2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.stickerRowText} numberOfLines={1}>Evenemang · {e.title}</Text>
+                    <Text style={s.stickerRowSub}>{eventWhen(e, "sv")}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+              <Text style={s.sheetLabel}>Klistermärken</Text>
+              <View style={s.badges}>
+                {BADGES.map((b) => (
+                  <TouchableOpacity key={b} style={s.badgeBtn} onPress={() => { setStickers(false); addItem({ id: newId(), kind: "badge", text: b, look: 0 }, { x: cw / 2, y: ch * 0.3 }); }}>
+                    <Text style={s.badgeBtnText}>{b.toUpperCase()}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </TouchableOpacity>
-          ))}
-          <View style={s.emojis}>
-            {EMOJIS.map((em) => (
-              <TouchableOpacity key={em} style={s.emojiBtn} onPress={() => {
-                setStickers(false);
-                addItem({ id: newId(), kind: "emoji", text: em }, { x: cw * (0.3 + Math.random() * 0.4), y: ch * (0.3 + Math.random() * 0.3) });
-              }}>
-                <Text style={s.emojiText}>{em}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+              <Text style={s.sheetLabel}>Emoji</Text>
+              <View style={s.emojis}>
+                {EMOJIS.map((em) => (
+                  <TouchableOpacity key={em} style={s.emojiBtn} onPress={() => {
+                    setStickers(false);
+                    addItem({ id: newId(), kind: "emoji", text: em }, { x: cw * (0.3 + Math.random() * 0.4), y: ch * (0.3 + Math.random() * 0.3) });
+                  }}>
+                    <Text style={s.emojiText}>{em}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </Reanimated.View>
+        ) : null}
       </Sheet>
+      {menu.element}
     </View>
   );
 }
@@ -510,6 +647,8 @@ function TextEditor({ editing, onChange, onDone }: { editing: Editing; onChange:
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000000", alignItems: "center" },
+  doneRoot: { alignItems: "stretch", backgroundColor: "#121212" },
+  center: { alignItems: "center", justifyContent: "center" },
   round: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.38)" },
 
   pickTop: { alignSelf: "stretch", paddingHorizontal: 16, paddingTop: 8 },
@@ -539,21 +678,39 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)",
   },
   trashOver: { backgroundColor: GOLD, borderColor: GOLD, transform: [{ scale: 1.15 }] },
-  publishing: { backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center", gap: 14 },
+  publishing: { backgroundColor: "#121212", alignItems: "center", justifyContent: "center" },
   publishText: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: "#FFFFFF" },
-  doneCircle: { width: 84, height: 84, borderRadius: 42, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" },
 
-  bar: { alignSelf: "stretch", flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingTop: 12 },
-  hint: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 18, color: "rgba(255,255,255,0.65)" },
-  publish: { height: 50, paddingHorizontal: 26, borderRadius: 25, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" },
+  bar: { alignSelf: "stretch", gap: 10, paddingTop: 10 },
+  filters: { gap: 12, paddingHorizontal: 16 },
+  filter: { alignItems: "center", gap: 5, width: THUMB + 6 },
+  filterThumb: {
+    width: THUMB, height: THUMB, borderRadius: 14, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 2, borderColor: "transparent",
+  },
+  filterThumbOn: { borderColor: GOLD },
+  filterName: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: "rgba(255,255,255,0.55)" },
+  barRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16 },
+  hint: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.65)" },
+  publish: { height: 48, paddingHorizontal: 24, borderRadius: 24, backgroundColor: GOLD, alignItems: "center", justifyContent: "center" },
   publishBtn: { fontFamily: "Montserrat_700Bold", fontSize: 14, letterSpacing: 1.2, textTransform: "uppercase", color: "#1A1408" },
 
+  quickRow: { flexDirection: "row", gap: 10 },
+  quick: {
+    flex: 1, alignItems: "center", gap: 6, paddingVertical: 14, borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.12)",
+  },
+  quickText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#F5F1E8" },
   stickerRow: {
     flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,0.12)",
   },
   stickerRowText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#F5F1E8" },
   stickerRowSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "rgba(245,241,232,0.55)", marginTop: 2 },
+  sheetLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1.6, textTransform: "uppercase", color: "rgba(245,241,232,0.55)", marginTop: 4 },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  badgeBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: "#FFFFFF" },
+  badgeBtnText: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 0.6, color: "#111111" },
   emojis: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 6 },
   emojiBtn: { width: "14%", aspectRatio: 1, alignItems: "center", justifyContent: "center" },
   emojiText: { fontSize: 34 },
