@@ -6,9 +6,9 @@
  *
  * När månaden visas poppar bildcirklarna in en i taget (kort efter varandra).
  */
-import { memo, useEffect, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import Reanimated, { ZoomIn, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Reanimated, { ZoomIn } from "react-native-reanimated";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { Heart } from "lucide-react-native";
 import { eachDayOfInterval, endOfMonth, format, getDay, startOfMonth } from "date-fns";
@@ -97,14 +97,6 @@ const DayCell = memo(function DayCell({
   const ring = circle + RING_GAP * 2;
   const first = events[0];
 
-  // Vald dag: cirkeln växer lite och får en vit ring
-  const sel = useSharedValue(isSelected ? 1 : 0);
-  useEffect(() => {
-    sel.value = withSpring(isSelected ? 1 : 0, { damping: 15, stiffness: 280 });
-  }, [isSelected, sel]);
-  const grow = useAnimatedStyle(() => ({ transform: [{ scale: 1 + sel.value * 0.07 }] }));
-  const ringStyle = useAnimatedStyle(() => ({ opacity: sel.value, transform: [{ scale: 0.88 + sel.value * 0.12 }] }));
-
   return (
     <Pressable
       onPress={() => onPress(day)}
@@ -115,7 +107,6 @@ const DayCell = memo(function DayCell({
         style={[
           { width: circle, height: circle, alignItems: "center", justifyContent: "center" },
           { opacity: dimmed ? 0.2 : isPast ? 0.4 : 1 },
-          grow,
         ]}
       >
         {first && (
@@ -135,10 +126,13 @@ const DayCell = memo(function DayCell({
             <TodayRing size={ring} />
           </View>
         )}
-        <Reanimated.View
-          pointerEvents="none"
-          style={[s.ringAnchor, s.selectedRing, { width: ring, height: ring, borderRadius: ring / 2, left: -RING_GAP, top: -RING_GAP }, ringStyle]}
-        />
+        {/* Vald dag: en ring i textens färg. Ingen studs — en ring som skalas blir suddig medan den rör sig */}
+        {isSelected && (
+          <View
+            pointerEvents="none"
+            style={[s.ringAnchor, s.selectedRing, { width: ring, height: ring, borderRadius: ring / 2, left: -RING_GAP, top: -RING_GAP }]}
+          />
+        )}
 
         {events.length > 1 && (
           <View style={s.count}>
