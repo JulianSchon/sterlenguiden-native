@@ -92,13 +92,11 @@ const frames = (n = 3) => new Promise<void>((resolve) => {
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 export default function StoryEditorScreen() {
-  // Redigeraren är alltid mörk, som kameran
+  // Startsidan och Klart följer appens läge; själva redigeringen är alltid mörk, som en kamera
   return (
-    <ThemeProvider forced="dark">
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <StoryEditor />
-      </GestureHandlerRootView>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StoryEditor />
+    </GestureHandlerRootView>
   );
 }
 
@@ -113,8 +111,9 @@ function StoryEditor() {
   const { data: events } = usePlaceEvents(placeId);
   const actions = useStoryActions(placeId);
   const menu = useActionMenu();
-  // Startsidan (välj bild) och Klart har appens bakgrund; själva redigeringen är svart som en kamera
-  const { colors } = useTheme();
+  // Startsidan (välj bild) och Klart har appens färger i ljust och mörkt läge; redigeringen är mörk
+  const { colors, scheme } = useTheme();
+  const pick = { color: colors.text };
 
   // Bildytan i 9:16, så stor som får plats
   const availH = SH - insets.top - insets.bottom - BAR_H - 8;
@@ -516,36 +515,36 @@ function StoryEditor() {
   if (phase === "pick") {
     return (
       <View style={[s.root, { backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <StatusBar style="light" />
+        <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <View style={s.pickTop}>
-          <TouchableOpacity onPress={close} hitSlop={10} style={s.round} accessibilityLabel={tb("Stäng")}><X size={22} color="#FFFFFF" strokeWidth={2.2} /></TouchableOpacity>
+          <TouchableOpacity onPress={close} hitSlop={10} style={[s.round, { backgroundColor: colors.fill }]} accessibilityLabel={tb("Stäng")}><X size={22} color={colors.text} strokeWidth={2.2} /></TouchableOpacity>
         </View>
         <View style={s.pickBody}>
-          <Text style={s.pickTitle}>{tb("Ny story")}</Text>
-          <Text style={s.pickLead}>{tb("Visa hur det ser ut hos er just nu. Den syns överst på Hem i 24 timmar.")}</Text>
+          <Text style={[s.pickTitle, pick]}>{tb("Ny story")}</Text>
+          <Text style={[s.pickLead, { color: colors.muted }]}>{tb("Visa hur det ser ut hos er just nu. Den syns överst på Hem i 24 timmar.")}</Text>
           <View style={s.pickButtons}>
             <TouchableOpacity style={[s.pickBtn, { backgroundColor: GOLD }]} activeOpacity={0.85} onPress={() => start("camera")}>
               <Camera size={22} color="#1A1408" strokeWidth={2.2} />
               <Text style={[s.pickBtnText, { color: "#1A1408" }]}>{tb("Ta en bild")}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.pickBtn} activeOpacity={0.85} onPress={() => start("library")}>
-              <ImageIcon size={22} color="#FFFFFF" strokeWidth={2} />
-              <Text style={s.pickBtnText}>{tb("Välj från bilder")}</Text>
+            <TouchableOpacity style={[s.pickBtn, { backgroundColor: colors.card, borderColor: colors.borderStrong }]} activeOpacity={0.85} onPress={() => start("library")}>
+              <ImageIcon size={22} color={colors.text} strokeWidth={2} />
+              <Text style={[s.pickBtnText, pick]}>{tb("Välj från bilder")}</Text>
             </TouchableOpacity>
           </View>
           {images.length > 0 && (
             <>
-              <Text style={s.pickSmall}>{tb("Eller använd en av era bilder")}</Text>
+              <Text style={[s.pickSmall, { color: colors.muted }]}>{tb("Eller använd en av era bilder")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {images.map((url) => (
-                  <Pressable key={url} onPress={() => start({ url })} style={s.pickThumb}>
+                  <Pressable key={url} onPress={() => start({ url })} style={[s.pickThumb, { backgroundColor: colors.fill }]}>
                     <ExpoImage source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   </Pressable>
                 ))}
               </ScrollView>
             </>
           )}
-          {error && <Text style={s.error}>{error}</Text>}
+          {error && <Text style={[s.error, { color: colors.danger }]}>{error}</Text>}
         </View>
         {menu.element}
       </View>
@@ -556,7 +555,7 @@ function StoryEditor() {
   if (phase === "done") {
     return (
       <View style={[s.root, s.doneRoot, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-        <StatusBar style="light" />
+        <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <DoneMoment
           title={tb("Storyn är ute!")}
           text={tb("Den syns överst på Hem i 24 timmar – först för dem som sparat er.")}
@@ -570,6 +569,7 @@ function StoryEditor() {
   const busy = phase === "publishing";
   const frameH = fit === "fill" ? ch : cw / fitDef.ratio;
   return (
+    <ThemeProvider forced="dark">
     <View style={[s.root, { paddingTop: canvasTop }]}>
       <StatusBar style="light" hidden={busy} />
       <View style={[s.canvasWrap, { width: cw, height: ch }]}>
@@ -792,6 +792,7 @@ function StoryEditor() {
       </Sheet>
       {menu.element}
     </View>
+    </ThemeProvider>
   );
 }
 
