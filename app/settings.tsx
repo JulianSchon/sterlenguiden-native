@@ -7,7 +7,7 @@
  * Vill ert företag synas här?
  */
 import { useState } from "react";
-import { Text, TouchableOpacity, Pressable, Image, Linking, StyleSheet } from "react-native";
+import { Alert, Text, TouchableOpacity, Pressable, Image, Linking, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -35,7 +35,6 @@ import { Rise } from "@/components/Rise";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { signedInUser } from "@/lib/session";
-import { appAlert } from "@/components/ActionMenu";
 
 export default function SettingsHub() {
   const { t } = useTranslation();
@@ -59,7 +58,7 @@ export default function SettingsHub() {
     if (!on) return setNotifications.mutate(false);
     const answer = await askNotificationPermission();
     if (answer === "denied") {
-      return appAlert(t("settings.notifications.deniedTitle"), t("settings.notifications.deniedBody"), [
+      return Alert.alert(t("settings.notifications.deniedTitle"), t("settings.notifications.deniedBody"), [
         { text: t("common.cancel"), style: "cancel" },
         { text: t("settings.notifications.openSettings"), onPress: () => Linking.openSettings() },
       ]);
@@ -68,7 +67,7 @@ export default function SettingsHub() {
   };
 
   const openInvite = (invite: MyInvite) => {
-    appAlert(
+    Alert.alert(
       t("settingsBusiness.inviteTitle", { place: invite.place_name }),
       t(invite.role === "owner" ? "settingsBusiness.inviteTextOwner" : "settingsBusiness.inviteText", {
         name: invite.invited_by ?? t("settingsBusiness.someone"), place: invite.place_name,
@@ -84,7 +83,7 @@ export default function SettingsHub() {
               await queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
               router.push(`/business/welcome?place=${invite.place_id}`);
             } catch {
-              appAlert(t("common.error"), t("settingsBusiness.joinFailed"));
+              Alert.alert(t("common.error"), t("settingsBusiness.joinFailed"));
             }
           },
         },
@@ -112,7 +111,8 @@ export default function SettingsHub() {
   };
 
   const confirmSignOut = () => {
-    appAlert(t("settings.signOut.title"), t("settings.signOut.message"), [
+    // Telefonens egen fråga: att logga ut gäller hela kontot (se reglerna i ActionMenu)
+    Alert.alert(t("settings.signOut.title"), t("settings.signOut.message"), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("settings.signOut.action"), style: "destructive", onPress: signOut },
     ]);

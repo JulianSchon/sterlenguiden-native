@@ -255,7 +255,7 @@ function StoryEditor() {
     if (kind === "camera") {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        menu.ask(SH / 2 - 120, {
+        menu.ask({
           title: tb("Kameran är avstängd"), message: tb("Slå på kameran för Österlenappen i telefonens inställningar."),
           actions: [{ label: tb("Öppna inställningar"), onPress: () => Linking.openSettings() }],
         });
@@ -498,7 +498,7 @@ function StoryEditor() {
 
   const close = () => {
     if (phase === "pick" || (items.length === 0 && !source)) { router.back(); return; }
-    menu.ask(insets.top + 56, {
+    menu.ask({
       title: tb("Släng storyn?"), message: tb("Det du gjort sparas inte."),
       actions: [{ label: tb("Släng"), destructive: true, onPress: () => router.back() }],
     });
@@ -546,7 +546,6 @@ function StoryEditor() {
           )}
           {error && <Text style={[s.error, { color: colors.danger }]}>{error}</Text>}
         </View>
-        {menu.element}
       </View>
     );
   }
@@ -790,7 +789,6 @@ function StoryEditor() {
           </View>
         )}
       </Sheet>
-      {menu.element}
     </View>
     </ThemeProvider>
   );

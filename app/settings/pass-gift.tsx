@@ -10,7 +10,7 @@
  */
 import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { Alert, View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Gift, Send, Printer, User, Mail, Calendar, MessageSquareText } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -24,7 +24,6 @@ import { PrimaryButton } from "@/components/Sheet";
 import { LabeledField as Field } from "@/components/LabeledField";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
-import { appAlert } from "@/components/ActionMenu";
 
 type Delivery = "email" | "print";
 
@@ -190,7 +189,7 @@ export default function GiftPassScreen() {
       <PrimaryButton
         label={t("pass.gift.buy", { price: selected ? Math.round(selected.priceSek) : 0 })}
         disabled={!valid}
-        onPress={() => appAlert(t("pass.title"), t("pass.gift.soon"), [{ text: t("common.ok") }])}
+        onPress={() => Alert.alert(t("pass.title"), t("pass.gift.soon"), [{ text: t("common.ok") }])}
       />
     </SettingsScreen>
   );

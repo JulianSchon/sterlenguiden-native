@@ -7,7 +7,7 @@
  * servern först när Ångra inte längre går.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActionSheetIOS, Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as ExpoImage } from "expo-image";
@@ -25,7 +25,6 @@ import { pickPhotos, type PickedPhoto } from "@/lib/photos";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
-import { appAlert } from "@/components/ActionMenu";
 
 const MAX = 10;
 
@@ -33,15 +32,28 @@ interface Item { key: string; url: string | null; local?: string }
 
 const newKey = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-/** Kamera eller bildbiblioteket (appens egen meny) */
+/** Kamera eller bildbiblioteket (systemets egen meny på iPhone) */
 function askSource(title: string, extra?: { label: string; destructive?: boolean; onPress: () => void }): Promise<PhotoSource | null> {
   return new Promise((resolve) => {
-    appAlert(title, undefined, [
-      { text: tb("Välj bilder"), onPress: () => resolve("library") },
-      { text: tb("Ta en bild"), onPress: () => resolve("camera") },
-      ...(extra ? [{ text: extra.label, style: extra.destructive ? "destructive" as const : "default" as const, onPress: () => { extra.onPress(); resolve(null); } }] : []),
-      { text: tb("Avbryt"), style: "cancel", onPress: () => resolve(null) },
-    ]);
+    const options = [tb("Välj bilder"), tb("Ta en bild"), ...(extra ? [extra.label] : []), tb("Avbryt")];
+    const cancel = options.length - 1;
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title, options, cancelButtonIndex: cancel, destructiveButtonIndex: extra?.destructive ? 2 : undefined },
+        (i) => {
+          if (i === 0) resolve("library");
+          else if (i === 1) resolve("camera");
+          else { if (extra && i === 2) extra.onPress(); resolve(null); }
+        },
+      );
+    } else {
+      Alert.alert(title, undefined, [
+        { text: tb("Välj bilder"), onPress: () => resolve("library") },
+        { text: tb("Ta en bild"), onPress: () => resolve("camera") },
+        ...(extra ? [{ text: extra.label, style: extra.destructive ? "destructive" as const : "default" as const, onPress: () => { extra.onPress(); resolve(null); } }] : []),
+        { text: tb("Avbryt"), style: "cancel", onPress: () => resolve(null) },
+      ]);
+    }
   });
 }
 
@@ -86,7 +98,7 @@ export default function BusinessPhotos() {
 
   const showError = (e: unknown) => {
     if (e instanceof Error && e.message === "camera_denied") {
-      appAlert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
+      Alert.alert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
         { text: tb("Avbryt"), style: "cancel" },
         { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings() },
       ]);

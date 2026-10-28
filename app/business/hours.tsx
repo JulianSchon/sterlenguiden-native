@@ -7,7 +7,7 @@
  * räknar med ändringarna (lib/openingHours).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { CalendarClock, CalendarOff, CalendarRange, ChevronRight, Pencil, Sun, Trash2 } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
@@ -28,7 +28,6 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
 import { currentLanguage } from "@/i18n";
-import { appAlert } from "@/components/ActionMenu";
 
 const QUICK: { label: string; days: number[]; from: string; to: string }[] = [
   { label: "Mån–fre 9–17", days: [1, 2, 3, 4, 5], from: "09:00", to: "17:00" },
@@ -160,7 +159,7 @@ export default function BusinessHours() {
             </GradientCard>
             {!empty && (
               <TouchableOpacity
-                onPress={() => appAlert(tb("Visa inga öppettider?"), tb("Då står det inget om öppet eller stängt på er sida."), [
+                onPress={() => Alert.alert(tb("Visa inga öppettider?"), tb("Då står det inget om öppet eller stängt på er sida."), [
                   { text: tb("Avbryt"), style: "cancel" },
                   {
                     text: tb("Ta bort tiderna"), style: "destructive",

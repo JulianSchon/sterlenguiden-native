@@ -10,7 +10,7 @@
  * det också): annars kunde man lova en sak och ge en annan.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSharedValue } from "react-native-reanimated";
 import { CalendarDays, CalendarRange, Infinity as InfinityIcon, Repeat, Sun, Ticket } from "lucide-react-native";
@@ -31,7 +31,6 @@ import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
 import { whole } from "@/i18n/numbers";
-import { appAlert } from "@/components/ActionMenu";
 
 type Step = "title" | "value" | "use" | "time" | "image" | "terms" | "review" | "done";
 const ALL: Step[] = ["title", "value", "use", "time", "image", "terms", "review", "done"];
@@ -131,7 +130,7 @@ export default function OfferComposer() {
   const leave = () => {
     const dirty = !editingId && draft.title.trim().length > 0 && wizard.step !== "done";
     if (!dirty) { router.back(); return; }
-    appAlert(tb("Sluta skapa erbjudandet?"), tb("Det du fyllt i sparas inte."), [
+    Alert.alert(tb("Sluta skapa erbjudandet?"), tb("Det du fyllt i sparas inte."), [
       { text: tb("Fortsätt skriva"), style: "cancel" },
       { text: tb("Sluta"), style: "destructive", onPress: () => router.back() },
     ]);

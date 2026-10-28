@@ -11,9 +11,7 @@
  * går vidare till gåvans uppgifter (settings/pass-gift) med passet redan valt.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions,
-} from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -36,7 +34,6 @@ import { roundedCount, roundedCountText } from "@/lib/roundedCount";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
-import { useActionMenu } from "@/components/ActionMenu";
 
 type Mode = "self" | "gift";
 
@@ -49,8 +46,6 @@ const CARD_RATIO = CARD_W / CARD_H;
 export default function PassPaywall() {
   const { t } = useTranslation();
   const router = useRouter();
-  // Sidan är en egen helskärmsruta: menyn visas i den, inte från appens rot (som hamnar bakom)
-  const menu = useActionMenu();
   const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -110,7 +105,7 @@ export default function PassPaywall() {
       router.push({ pathname: "/settings/pass-gift", params: { period: selected.id } });
       return;
     }
-    menu.ask("center", { title: t("pass.title"), message: t("pass.buy.soon"), actions: [] });
+    Alert.alert(t("pass.title"), t("pass.buy.soon"), [{ text: t("common.ok") }]);
   };
 
   const fine = !selected ? ""
@@ -195,7 +190,6 @@ export default function PassPaywall() {
       </View>
 
       <CloseButton onPress={() => router.back()} top={insets.top + 8} />
-      {menu.element}
     </View>
   );
 }
