@@ -64,6 +64,8 @@ function Tile({
       {/* Guldkanten ligger utanför färgytan, så den syns lika tydligt på alla färger */}
       <View style={[s.frame, { height }, selected && { borderColor: colors.gold }]}>
         <View style={[s.face, { backgroundColor: cat.screen }]}>
+          {/* Ett tunt svart lager gör färgen lite mörkare, lika mycket i ljust och mörkt läge */}
+          <View style={s.dim} />
           <Icon size={Math.round(width * 0.2)} color="#FFFFFF" strokeWidth={1.5} />
         </View>
       </View>
@@ -84,6 +86,7 @@ const styles = StyleSheet.create({
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   frame: { borderRadius: 20, borderWidth: 2.5, borderColor: "transparent", padding: 2.5 },
   face: { flex: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  dim: { ...StyleSheet.absoluteFillObject, borderRadius: 15, backgroundColor: "rgba(0,0,0,0.15)" },
   row: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 9, paddingHorizontal: 2 },
   label: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.text },
   check: {
