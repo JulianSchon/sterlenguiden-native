@@ -53,6 +53,18 @@ export const de: typeof sv = {
   account: {
     title: "Konto",
     details: "Kontodaten",
+    emailChange: {
+      title: "E-Mail ändern",
+      placeholder: "Neue E-Mail-Adresse",
+      hint: "Wir schicken einen Link an {{email}} und an die neue Adresse. Die Adresse wird geändert, sobald du in beiden E-Mails auf den Link getippt hast.",
+      send: "Link senden",
+      sentTitle: "Schau in deine E-Mails",
+      sentBody: "Tippe auf den Link in der E-Mail an {{email}} und in der E-Mail an deine aktuelle Adresse. Dann ist die Adresse geändert.",
+      pending: "Wartet auf Bestätigung: {{email}}",
+      taken: "Es gibt bereits ein Konto mit dieser Adresse.",
+      invalid: "Gib eine gültige E-Mail-Adresse ein.",
+      failed: "Die E-Mail konnte nicht geändert werden. Bitte versuche es erneut.",
+    },
     add: "Hinzufügen",
     email: "E-Mail",
     aboutYou: "Über dich",
@@ -99,6 +111,8 @@ export const de: typeof sv = {
     },
     password: {
       label: "Passwort",
+      current: "Aktuelles Passwort",
+      wrongCurrent: "Das aktuelle Passwort stimmt nicht.",
       change: "Passwort ändern",
       newPassword: "Neues Passwort",
       confirm: "Passwort bestätigen",
@@ -572,7 +586,7 @@ export const de: typeof sv = {
   },
   interests: {
     title: "Interessen",
-    subtitle: "Was du magst. Die App empfiehlt dir danach Orte und Veranstaltungen.",
+    subtitle: "Wähle die Kategorien, die am besten zu dir passen, und wir passen unsere Vorschläge für Orte und Veranstaltungen an dich an.",
   },
   home: {
     forYou: "Für dich",

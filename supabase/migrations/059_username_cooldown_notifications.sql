@@ -1,4 +1,4 @@
--- 059: Användarnamnet kan bytas en gång i månaden, och notiserna är en enda på/av.
+-- 059: Användarnamnet kan bytas en gång i månaden, notiserna är en enda på/av och gamla intressen städas bort.
 --
 -- Användarnamn: samma regel som namnet. Under onboardingen och första gången ett användarnamn sätts
 -- är det fritt; därefter gäller 30 dagar mellan bytena. Databasen sätter tidsstämpeln själv.
@@ -97,3 +97,12 @@ alter table public.notification_preferences
   drop column if exists scope,
   drop column if exists towns;
 comment on table public.notification_preferences is 'Om användaren vill ha notiser (en brytare).';
+
+-- Intressen: gamla värden från webbversionen ("food", "beach" …) är inga kategorier längre och tas bort
+update public.profiles
+set interests = array(
+  select i from unnest(interests) as i
+  where i in ('mat-dryck', 'hotell-bb', 'cafe-bageri', 'butiker', 'natur-upplevelser', 'aktiviteter', 'sevardheter', 'hantverk-service')
+)
+where interests is not null
+  and not interests <@ array['mat-dryck', 'hotell-bb', 'cafe-bageri', 'butiker', 'natur-upplevelser', 'aktiviteter', 'sevardheter', 'hantverk-service'];

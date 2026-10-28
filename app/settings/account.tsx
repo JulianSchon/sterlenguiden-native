@@ -1,8 +1,12 @@
 /**
  * Inställningar › Konto: profilbild med cirkelfärger, sedan uppgifterna rad för rad (en liten rubrik
- * över värdet): namn och användarnamn (går att ändra en gång i månaden), e-post och födelsedatum
- * (låsta), hemort och intressen, lösenord. Raderna med pil öppnar en panel där värdet ändras; ett
+ * över värdet): namn och användarnamn (går att ändra en gång i månaden), e-post, födelsedatum (låst),
+ * hemort och intressen, lösenord. Raderna med pil öppnar en panel där värdet ändras; ett
  * lås betyder att det inte går att ändra. Längst ner raderas kontot.
+ *
+ * Ny e-post: en länk skickas till både den gamla och den nya adressen, och adressen byts först när
+ * båda bekräftats (Supabases "Secure email change"). Nytt lösenord: det nuvarande lösenordet krävs,
+ * så att ingen som lånar en olåst telefon kan ta över kontot.
  *
  * Kortfotot på baksidan av medlemskortet hör till Österlenpasset, inte hit.
  */
@@ -26,7 +30,7 @@ import { useChangeAvatar, useRemoveAvatar, useUpdateProfile, useDeleteAccount } 
 import { formatDate } from "@/i18n/dates";
 import { MIN_AGE, toIsoDate, ageOn } from "@/lib/birthDate";
 import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
-import { categoryLabel, type CategoryId } from "@/theme/categories";
+import { CATEGORIES } from "@/theme/categories";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsGroup";
 import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
@@ -47,7 +51,7 @@ const COLOR_RING = 34;
 const SHEET_GUTTER = 20;
 const TOWN_GAP = 8;
 
-type Editing = "name" | "username" | "birth" | "home" | "password" | null;
+type Editing = "name" | "username" | "email" | "birth" | "home" | "password" | null;
 
 /** När ett värde med månadsspärr kan ändras igen, eller null om det går nu. */
 function nextChange(changedAt: string | null | undefined): Date | null {
@@ -101,6 +105,8 @@ export default function AccountSettings() {
   const [livesDraft, setLivesDraft] = useState(true);
   const [cityDraft, setCityDraft] = useState("");
   const [otherTown, setOtherTown] = useState(false);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
   const [busy, setBusy] = useState(false);
@@ -111,7 +117,9 @@ export default function AccountSettings() {
 
   const towns = OSTERLEN_TOWNS.map((town) => town.name);
   const townW = Math.floor((width - SHEET_GUTTER * 2 - TOWN_GAP * 2) / 3);
-  const interests = ((profile?.interests ?? []) as CategoryId[]).map((id) => categoryLabel(id));
+  // I kategoriordningen; gamla värden från webbversionen som inte längre är kategorier visas inte
+  const interests = CATEGORIES.filter((c) => profile?.interests?.includes(c.id)).map((c) => c.label);
+  const pendingEmail = user?.new_email ?? null;
   const homeValue = profile?.city
     ? `${profile.city} · ${t(profile.lives_in_osterlen === false ? "account.home.visiting" : "account.home.living")}`
     : t("account.add");
@@ -127,7 +135,8 @@ export default function AccountSettings() {
       setCityDraft(city);
       setOtherTown(lives && city.length > 0 && !towns.some((town) => town.toLowerCase() === city.toLowerCase()));
     }
-    if (what === "password") { setNewPw(""); setConfPw(""); }
+    if (what === "email") setEmailDraft("");
+    if (what === "password") { setCurrentPw(""); setNewPw(""); setConfPw(""); }
     setEditing(what);
   };
 
@@ -166,12 +175,34 @@ export default function AccountSettings() {
     ]);
   }
 
+  async function changeEmail() {
+    const email = emailDraft.trim().toLowerCase();
+    if (email === user?.email) return setEditing(null);
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ email });
+    setBusy(false);
+    if (error) {
+      if (isNetworkError(error)) return;
+      const key = error.code === "email_exists" ? "taken" : error.code === "email_address_invalid" ? "invalid" : "failed";
+      return Alert.alert(t("common.error"), t(`account.emailChange.${key}`));
+    }
+    setEditing(null);
+    Alert.alert(t("account.emailChange.sentTitle"), t("account.emailChange.sentBody", { email }));
+  }
+
   async function changePassword() {
     if (newPw !== confPw) return Alert.alert(t("common.error"), t("account.password.mismatch"));
     const rules = passwordChecks(newPw);
     if (!rules.length || !rules.upper || !rules.digit) return Alert.alert(t("common.error"), t("account.password.weak"));
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({ password: newPw });
+    // Det nuvarande lösenordet prövas först, med en vanlig inloggning på samma konto
+    const check = await supabase.auth.signInWithPassword({ email: user?.email ?? "", password: currentPw });
+    if (check.error) {
+      setBusy(false);
+      if (isNetworkError(check.error)) return;
+      return Alert.alert(t("common.error"), t("account.password.wrongCurrent"));
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPw, current_password: currentPw });
     setBusy(false);
     if (error) {
       // Supabases egna (engelska) felmeddelanden visas aldrig
@@ -246,7 +277,14 @@ export default function AccountSettings() {
             right={nextUsernameChange ? lock : undefined}
             onPress={() => (nextUsernameChange ? showCooldown(nextUsernameChange, "username") : open("username"))}
           />
-          <SettingsRow icon={Mail} eyebrow={t("account.email")} label={user?.email ?? ""} right={lock} />
+          <SettingsRow
+            icon={Mail}
+            eyebrow={t("account.email")}
+            label={user?.email ?? ""}
+            subtitle={pendingEmail ? t("account.emailChange.pending", { email: pendingEmail }) : undefined}
+            tint={pendingEmail ? colors.goldText : undefined}
+            onPress={() => open("email")}
+          />
           {profile?.birth_date ? (
             <SettingsRow icon={Cake} eyebrow={t("account.about.birthDate")} label={formatDate(profile.birth_date, "d MMMM yyyy")} right={lock} />
           ) : (
@@ -315,6 +353,25 @@ export default function AccountSettings() {
           </View>
           <Text style={s.hint}>{t("account.username.hint")}</Text>
           <PrimaryButton label={t("common.save")} onPress={() => save({ username: usernameDraft.trim() })} disabled={!usernameOk} loading={busy} />
+        </View>
+      </Sheet>
+
+      <Sheet visible={editing === "email"} onClose={() => setEditing(null)} title={t("account.emailChange.title")}>
+        <View style={s.sheetBody}>
+          <TextInput
+            style={input}
+            value={emailDraft}
+            onChangeText={setEmailDraft}
+            autoFocus
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            placeholder={t("account.emailChange.placeholder")}
+            placeholderTextColor={colors.faint}
+          />
+          <Text style={s.hint}>{t("account.emailChange.hint", { email: user?.email ?? "" })}</Text>
+          <PrimaryButton label={t("account.emailChange.send")} onPress={changeEmail} disabled={!/^\S+@\S+\.\S+$/.test(emailDraft.trim())} loading={busy} />
         </View>
       </Sheet>
 
@@ -395,10 +452,11 @@ export default function AccountSettings() {
 
       <Sheet visible={editing === "password"} onClose={() => setEditing(null)} title={t("account.password.change")}>
         <View style={s.sheetBody}>
-          <TextInput style={input} value={newPw} onChangeText={setNewPw} secureTextEntry autoCapitalize="none" autoFocus placeholder={t("account.password.newPassword")} placeholderTextColor={colors.faint} />
+          <TextInput style={input} value={currentPw} onChangeText={setCurrentPw} secureTextEntry autoCapitalize="none" autoFocus textContentType="password" placeholder={t("account.password.current")} placeholderTextColor={colors.faint} />
+          <TextInput style={input} value={newPw} onChangeText={setNewPw} secureTextEntry autoCapitalize="none" textContentType="newPassword" placeholder={t("account.password.newPassword")} placeholderTextColor={colors.faint} />
           <TextInput style={input} value={confPw} onChangeText={setConfPw} secureTextEntry autoCapitalize="none" placeholder={t("account.password.confirm")} placeholderTextColor={colors.faint} />
           <Text style={s.hint}>{t("account.password.weak")}</Text>
-          <PrimaryButton label={t("account.password.update")} onPress={changePassword} disabled={!newPw || !confPw} loading={busy} />
+          <PrimaryButton label={t("account.password.update")} onPress={changePassword} disabled={!currentPw || !newPw || !confPw} loading={busy} />
         </View>
       </Sheet>
     </>

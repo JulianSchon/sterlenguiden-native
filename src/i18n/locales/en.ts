@@ -53,6 +53,18 @@ export const en: typeof sv = {
   account: {
     title: "Account",
     details: "Account details",
+    emailChange: {
+      title: "Change email",
+      placeholder: "New email address",
+      hint: "We will send a link to both {{email}} and the new address. The address changes once you have tapped the link in both emails.",
+      send: "Send link",
+      sentTitle: "Check your email",
+      sentBody: "Tap the link in the email to {{email}} and in the email to your current address. Then the address is changed.",
+      pending: "Waiting for confirmation: {{email}}",
+      taken: "There is already an account with that address.",
+      invalid: "Enter a valid email address.",
+      failed: "The email could not be changed. Please try again.",
+    },
     add: "Add",
     email: "Email",
     aboutYou: "About you",
@@ -99,6 +111,8 @@ export const en: typeof sv = {
     },
     password: {
       label: "Password",
+      current: "Current password",
+      wrongCurrent: "The current password is not correct.",
       change: "Change password",
       newPassword: "New password",
       confirm: "Confirm password",
@@ -572,7 +586,7 @@ export const en: typeof sv = {
   },
   interests: {
     title: "Interests",
-    subtitle: "What you like. The app suggests places and events based on it.",
+    subtitle: "Choose the categories that suit you best, and we will tailor our suggestions for places and events to you.",
   },
   home: {
     forYou: "For you",

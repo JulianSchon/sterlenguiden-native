@@ -56,6 +56,18 @@ export const sv = {
   account: {
     title: "Konto",
     details: "Kontouppgifter",
+    emailChange: {
+      title: "Byt e-post",
+      placeholder: "Ny e-postadress",
+      hint: "Vi skickar en länk till både {{email}} och den nya adressen. Adressen byts när du tryckt på länken i båda mejlen.",
+      send: "Skicka länk",
+      sentTitle: "Kolla din e-post",
+      sentBody: "Tryck på länken i mejlet till {{email}} och i mejlet till din nuvarande adress. Sedan är adressen bytt.",
+      pending: "Väntar på bekräftelse: {{email}}",
+      taken: "Det finns redan ett konto med den adressen.",
+      invalid: "Skriv en riktig e-postadress.",
+      failed: "Det gick inte att byta e-post. Försök igen.",
+    },
     add: "Lägg till",
     email: "E-post",
     aboutYou: "Om dig",
@@ -102,6 +114,8 @@ export const sv = {
     },
     password: {
       label: "Lösenord",
+      current: "Nuvarande lösenord",
+      wrongCurrent: "Det nuvarande lösenordet stämmer inte.",
       change: "Byt lösenord",
       newPassword: "Nytt lösenord",
       confirm: "Bekräfta lösenord",
@@ -575,7 +589,7 @@ export const sv = {
   },
   interests: {
     title: "Intressen",
-    subtitle: "Det du gillar. Appen tipsar om platser och evenemang efter det.",
+    subtitle: "Välj de kategorier som passar dig bäst, så anpassar vi våra förslag på platser och evenemang efter dig.",
   },
   home: {
     forYou: "För dig",
