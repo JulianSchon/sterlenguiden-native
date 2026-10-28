@@ -12,6 +12,7 @@ import Reanimated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft, ArrowRight, type LucideIcon } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import * as Haptics from "expo-haptics";
 import { PressableScale } from "@/components/PressableScale";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -26,6 +27,9 @@ export const AUTH_GUTTER = 24;
  * (Apples egna regler för sin knapp), outline = tunn kant. Snurran syns bara medan det man just
  * tryckt på pågår.
  */
+/** En lätt knackning när man trycker på en av de stora knapparna (inte medan något pågår) */
+const tap = () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
+
 export function AuthButton({
   label, onPress, variant = "primary", icon, disabled = false, loading = false,
 }: {
@@ -46,7 +50,7 @@ export function AuthButton({
     <PressableScale
       scale={0.97}
       disabled={disabled}
-      onPress={loading ? undefined : onPress}
+      onPress={loading ? undefined : () => { tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled, busy: loading }}
@@ -84,7 +88,7 @@ export function GoldButton({
   return (
     <PressableScale
       scale={0.97}
-      onPress={loading ? undefined : onPress}
+      onPress={loading ? undefined : () => { tap(); onPress(); }}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ busy: loading }}

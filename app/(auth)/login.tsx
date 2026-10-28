@@ -4,6 +4,7 @@
  * eller vidare i onboardingen om kontot inte är klart.
  */
 import { useRef, useState } from "react";
+import * as Haptics from "expo-haptics";
 import {
   KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
@@ -49,6 +50,7 @@ export default function LoginScreen() {
     if (e) {
       setBusy(false);
       setPassword("");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       const msg = (e.message ?? "").toLowerCase();
       if (e.code === "invalid_credentials" || msg.includes("invalid")) setError(t("auth.login.errors.wrong"));
       else if (e.status === 429) setError(t("auth.login.errors.tooMany"));

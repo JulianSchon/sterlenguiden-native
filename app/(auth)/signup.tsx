@@ -19,7 +19,6 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight } from "react-native-reanimated";
 import * as Location from "expo-location";
-import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
 import { useTranslation } from "react-i18next";
 import type { AuthError } from "@supabase/supabase-js";
@@ -452,7 +451,6 @@ export default function SignupScreen() {
       finish();
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setStartPressed(true);
   }, [saving, finish]);
 

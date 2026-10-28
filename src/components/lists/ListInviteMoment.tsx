@@ -75,7 +75,6 @@ export function ListInviteMoment({ invite, onOpenList, onClose }: {
   const respondAccept = async () => {
     if (!ready.current || busy.current || leaving.current) return;
     busy.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     try {
       await accept.mutateAsync(invite.listId);
       // Du är med: omslaget studsar till, konfetti, texterna och knapparna byts

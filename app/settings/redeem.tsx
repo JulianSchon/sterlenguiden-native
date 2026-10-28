@@ -5,6 +5,7 @@
  * medlemsdatum själv. Lyckas det spelas medlemsögonblicket upp (MembershipMoment).
  */
 import { useState } from "react";
+import * as Haptics from "expo-haptics";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -41,6 +42,7 @@ export default function RedeemCodeScreen() {
     const { data, error } = await supabase.rpc("redeem_pass_code", { _code: code.trim().toUpperCase() });
     setBusy(false);
     const result = data as RedeemResult | null;
+    if (error || !result || !result.ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     if (error || !result) return setFailure("failed");
     if (!result.ok) {
       const reasons: Record<string, Failure> = { used: "used", unlimited: "unlimited", too_many: "tooMany" };

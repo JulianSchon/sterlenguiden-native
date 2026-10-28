@@ -4,6 +4,7 @@
  * nätet är tillbaka (lib/outbox) och visar inget.
  */
 import { useEffect, useState } from "react";
+import * as Haptics from "expo-haptics";
 import { StyleSheet, Text } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +18,7 @@ export function OfflineNotice() {
   const [, setShown] = useState(0);
   useEffect(() => onOffline(() => {
     setShown((n) => n + 1);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
     v.value = withSequence(withTiming(1, { duration: 180 }), withDelay(2800, withTiming(0, { duration: 260 })));
   }), [v]);
   const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * -10 }] }));

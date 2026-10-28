@@ -1,5 +1,6 @@
 /** Språkväljare: en lista med runda flaggor som fälls ned från rubriken. */
 import { Modal, Pressable, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Check } from "lucide-react-native";
 import { LANGUAGES, currentLanguage, type LanguageCode } from "@/i18n";
 import { RoundFlag } from "@/components/RoundFlag";
@@ -22,7 +23,7 @@ export function LanguageMenu({
             key={lang.code}
             style={[s.row, i > 0 && s.rowBorder, selected === lang.code && s.rowActive]}
             activeOpacity={0.7}
-            onPress={() => onSelect(lang.code)}
+            onPress={() => { Haptics.selectionAsync().catch(() => {}); onSelect(lang.code); }}
           >
             <RoundFlag code={lang.code} size={30} />
             <Text style={[s.name, selected === lang.code && { color: colors.goldText }]}>{lang.name}</Text>

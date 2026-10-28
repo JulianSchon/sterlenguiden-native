@@ -101,7 +101,6 @@ export default function PassPaywall() {
 
   const proceed = () => {
     if (!selected) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     if (mode === "gift") {
       router.push({ pathname: "/settings/pass-gift", params: { period: selected.id } });
       return;

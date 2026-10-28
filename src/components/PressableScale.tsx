@@ -18,10 +18,10 @@ export function PressableScale({
 
   return (
     <Pressable
+      {...rest}
       disabled={disabled}
       onPressIn={(e) => { press.value = withSpring(scale, { damping: 36, stiffness: 320 }); rest.onPressIn?.(e); }}
       onPressOut={(e) => { press.value = withSpring(1, { damping: 32, stiffness: 260 }); rest.onPressOut?.(e); }}
-      {...rest}
     >
       <Reanimated.View style={[style, pressStyle, disabled && { opacity: 0.5 }]}>
         {children}

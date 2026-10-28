@@ -12,6 +12,7 @@
  * "Skapa minne").
  */
 import { useRef, useState } from "react";
+import * as Haptics from "expo-haptics";
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from "react-native";
 import Reanimated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
@@ -89,6 +90,7 @@ export function CheckInSection({ place }: { place: Place }) {
       const d = distanceMeters(fresh.lat, fresh.lng, place.lat!, place.lng!);
       if (d > CHECKIN_RADIUS_M) {
         setCelebration(null);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
         setMessage(i18n.t("checkin.tooFarDistance", { distance: formatDistance(d) }));
         return;
       }
@@ -96,6 +98,7 @@ export function CheckInSection({ place }: { place: Place }) {
       setCelebration((cur) => (cur ? { ...cur, status: "done", visitId: visit.id } : cur));
     } catch (e) {
       setCelebration(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       setMessage(
         e instanceof CheckInCooldownError
           ? i18n.t("checkin.cooldown")

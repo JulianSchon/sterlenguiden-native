@@ -82,6 +82,7 @@ export default function EditMemoryScreen() {
     try {
       if (memory) {
         await update.mutateAsync({ memory, input, keptPaths, newPhotos: added });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         router.back();
       } else {
         const newId = await create.mutateAsync({ input, photos: added });
