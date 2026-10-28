@@ -7,15 +7,16 @@ import { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useReducedMotion, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
 const PAD = 4;
 const BORDER = 0.5;
 
 export function Segmented<T extends string>({
   options, value, onChange, variant = "secondary",
 }: { options: { id: T; label: string }[]; value: T; onChange: (id: T) => void; variant?: "primary" | "secondary" }) {
+  const s = useThemedStyles(createStyles);
   const primary = variant === "primary";
   const reduceMotion = useReducedMotion();
   const [width, setWidth] = useState(0);
@@ -51,18 +52,18 @@ export function Segmented<T extends string>({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   wrap: {
     flexDirection: "row", padding: PAD, borderRadius: 14, borderWidth: BORDER,
-    backgroundColor: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: c.fill, borderColor: c.border,
   },
   indicator: {
     position: "absolute", top: PAD, bottom: PAD, left: PAD,
-    borderRadius: 10, backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 10, backgroundColor: c.borderStrong,
   },
   item: { flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 4 },
-  text: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
-  textActive: { color: FG },
+  text: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
+  textActive: { color: c.text },
   // Huvudvalet: originalstorleken, och det VALDA segmentet får en neonlila kant med svag glöd
   indicatorPrimary: {
     borderWidth: 1.5, borderColor: "#B57CFF",

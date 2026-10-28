@@ -53,25 +53,24 @@ import { computeStreak, swedishDay } from "@/lib/streak";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDate } from "@/i18n/dates";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG    = "#121212";
-const FG    = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const CARD  = "#1A1A1D";
-const GOLD  = "#C5A059";
 const RED   = "#B83434"; // samma röd som hjärtat på platssidan när den är favoritmarkerad
 
 const noop = () => {};
 
 /** Grå stapel i skelettet — aldrig text, bara form, så den aldrig kan tas för en riktig siffra */
 function SkelBar({ w, h }: { w: number; h: number }) {
-  return <View style={{ width: w, height: h, borderRadius: h / 2, backgroundColor: "rgba(255,255,255,0.10)" }} />;
+  const { colors } = useTheme();
+  return <View style={{ width: w, height: h, borderRadius: h / 2, backgroundColor: colors.borderStrong }} />;
 }
 
 /** Streak/Besök/Favoriter-kolumnen i identitetsboxen: etikett ovanför, ifylld symbol + siffra i en
  * rad under — samma mönster för alla tre (streak-lågan är bara en annan "ikon"). Grå stapel i
  * stället för siffra innan ni är vänner; symbolen är ren dekoration och visas alltid. */
 function IdentityStat({ icon, value, label }: { icon: React.ReactNode; value: number | string | null; label: string }) {
+  const s = useThemedStyles(createStyles);
   return (
     <View style={s.identityCol}>
       <Text style={s.identityLabel}>{label}</Text>
@@ -84,6 +83,8 @@ function IdentityStat({ icon, value, label }: { icon: React.ReactNode; value: nu
 }
 
 export default function FriendProfileScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -127,15 +128,15 @@ export default function FriendProfileScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Sticky igen — okomplicerat nu när det inte längre finns någon foto/toning-bakgrund att
           krocka med. Ligger utanför scrollytan med egen solid bakgrund, samma mönster som
           Mitt Österlen och Vänner — namnet vänsterställt och i versaler precis som "VÄNNER"/
           "MITT ÖSTERLEN", i stället för centrerat. */}
-      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         <View style={s.header}>
           <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("friends.back")}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{who}</Text>
         </View>
@@ -164,21 +165,21 @@ export default function FriendProfileScreen() {
             />
           ) : (
             // Kortet i grått medan profilen hämtas, i kortets storlek så att sidan inte hoppar
-            <Skeleton tone="dark" width={width - 32} height={(width - 32) * (CARD_H / CARD_W)} radius={20} />
+            <Skeleton width={width - 32} height={(width - 32) * (CARD_H / CARD_W)} radius={20} />
           )}
 
           <View style={s.identityCard}>
             {profileLoading && (
               <>
-                <Skeleton tone="dark" width={100} height={12} radius={5} style={{ marginVertical: 2 }} />
-                <Skeleton tone="dark" width={70} height={12} radius={5} style={{ marginTop: 8 }} />
+                <Skeleton width={100} height={12} radius={5} style={{ marginVertical: 2 }} />
+                <Skeleton width={70} height={12} radius={5} style={{ marginTop: 8 }} />
                 <View style={s.identityDivider} />
               </>
             )}
             {friend?.username && <Text style={s.meta}>@{friend.username}</Text>}
             {friend?.city && (
               <View style={[s.metaItem, !friend?.username && { marginTop: 0 }]}>
-                <MapPin size={12} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+                <MapPin size={12} color={colors.muted} strokeWidth={2} />
                 <Text style={s.meta}>{friend.city}</Text>
               </View>
             )}
@@ -214,14 +215,14 @@ export default function FriendProfileScreen() {
               // Aktiviteten och statistiken i grått medan de hämtas
               <View pointerEvents="none">
                 <View style={[s.section, { marginTop: 32 }]}>
-                  <Skeleton tone="dark" width={150} height={16} radius={5} style={{ marginBottom: 12 }} />
-                  <Skeleton tone="dark" width="100%" height={216} radius={16} />
+                  <Skeleton width={150} height={16} radius={5} style={{ marginBottom: 12 }} />
+                  <Skeleton width="100%" height={216} radius={16} />
                 </View>
                 <View style={s.section}>
-                  <Skeleton tone="dark" width={90} height={16} radius={5} style={{ marginBottom: 12 }} />
+                  <Skeleton width={90} height={16} radius={5} style={{ marginBottom: 12 }} />
                   <View style={{ flexDirection: "row", gap: 12 }}>
-                    <Skeleton tone="dark" height={150} radius={16} style={{ flex: 1 }} />
-                    <Skeleton tone="dark" height={150} radius={16} style={{ flex: 1 }} />
+                    <Skeleton height={150} radius={16} style={{ flex: 1 }} />
+                    <Skeleton height={150} radius={16} style={{ flex: 1 }} />
                   </View>
                 </View>
               </View>
@@ -282,6 +283,7 @@ function RealContent({
   topCategory: ReturnType<typeof computeCategoryStats>[number] | null; totalPlaces: number;
   lists: FriendList[]; friendId: string;
 }) {
+  const s = useThemedStyles(createStyles);
   return (
     <>
       {stats.activity.length > 0 && (
@@ -313,6 +315,7 @@ function RealContent({
 // Vännens listor som hen valt att visa för vänner — öppnas på den vanliga listsidan i läget där man
 // bara kan titta (app/lists/[id].tsx, view=friend). Samma kort som Mitt Österlens listrad.
 function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }) {
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const { data: places = [] } = usePlaces();
   const imageOf = useMemo(() => {
@@ -346,6 +349,8 @@ function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }
 // stigande), så vi behöver bara vända listan i stället för att ta med ett eget datumfält.
 // Klick öppnar samma sortens beskrivningskort som på den egna Utmaningar-sidan.
 function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { width: winW } = useWindowDimensions();
   const [selected, setSelected] = useState<FriendStats["trophies"][number] | null>(null);
 
@@ -393,7 +398,7 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
             {selected && meta && (
               <>
                 <TouchableOpacity style={s.modalClose} onPress={() => setSelected(null)}>
-                  <X size={22} color={MUTED} strokeWidth={2} />
+                  <X size={22} color={colors.muted} strokeWidth={2} />
                 </TouchableOpacity>
                 <TrophyMedal size={140} tier={selected.level} Icon={meta.Icon} unlocked groupId={selected.achievementType} />
                 <View style={[s.modalRibbon, { backgroundColor: TIER_PALETTE[selected.level].rim }]}>
@@ -417,6 +422,7 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
 // Senast insamlad först (rpc_friend_stats sorterar redan så). Ett tryck visar skatten stort mitt på
 // en mörk skärm, med namn, ort och kuriosa — inte kartan (den har ingen tillbaka-pil hit).
 function CollectiblesSection({ collectibles }: { collectibles: FriendStats["collectibles"] }) {
+  const s = useThemedStyles(createStyles);
   const { width: winW } = useWindowDimensions();
   const { data: all = [] } = useCollectibles();
   const [selected, setSelected] = useState<FriendStats["collectibles"][number] | null>(null);
@@ -465,16 +471,18 @@ function CollectiblesSection({ collectibles }: { collectibles: FriendStats["coll
 // ─── Statistik: två boxar bredvid varandra ───────────────────────────────────
 
 function TopCategoryBox({ topCategory }: { topCategory: ReturnType<typeof computeCategoryStats>[number] | null }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const color = topCategory ? CATEGORIES.find((c) => c.id === topCategory.id)?.screen : null;
   return (
     <View style={s.statBox}>
       <View style={{ width: 84, height: 84, alignItems: "center", justifyContent: "center" }}>
         {topCategory && color && <RadialGlow size={84} color={color} opacity={0.35} radiusRatio={1.3} />}
-        <View style={[s.categoryCircle, { backgroundColor: color ?? "rgba(255,255,255,0.06)" }]}>
+        <View style={[s.categoryCircle, { backgroundColor: color ?? colors.fill }]}>
           {topCategory ? (
             <topCategory.Icon size={30} color="#FFFFFF" strokeWidth={2} />
           ) : (
-            <Compass size={28} color={MUTED} strokeWidth={2} />
+            <Compass size={28} color={colors.muted} strokeWidth={2} />
           )}
         </View>
       </View>
@@ -485,11 +493,13 @@ function TopCategoryBox({ topCategory }: { topCategory: ReturnType<typeof comput
 }
 
 function VisitedRingBox({ visitsTotal, totalPlaces }: { visitsTotal: number; totalPlaces: number }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const percent = totalPlaces > 0 ? Math.round((visitsTotal / totalPlaces) * 100) : 0;
   return (
     <View style={s.statBox}>
       <View style={{ width: RING_SIZE, height: RING_SIZE, alignItems: "center", justifyContent: "center" }}>
-        <RadialGlow size={RING_SIZE} color={GOLD} opacity={0.3} radiusRatio={1.3} />
+        <RadialGlow size={RING_SIZE} color={colors.goldText} opacity={0.3} radiusRatio={1.3} />
         <ProgressRing percent={percent} centerValue={visitsTotal} />
       </View>
       <Text style={s.statBoxLabel}>{i18n.t("friends.ofTotal", { count: visitsTotal, total: totalPlaces })}</Text>
@@ -505,6 +515,7 @@ const RING_CIRC = 2 * Math.PI * RING_R;
 const AnimatedSvgCircle = Animated.createAnimatedComponent(SvgCircle);
 
 function ProgressRing({ percent, centerValue }: { percent: number; centerValue: number }) {
+  const { colors } = useTheme();
   const anim = useRef(new Animated.Value(RING_CIRC)).current;
   useEffect(() => {
     Animated.timing(anim, {
@@ -517,14 +528,14 @@ function ProgressRing({ percent, centerValue }: { percent: number; centerValue: 
 
   return (
     <Svg width={RING_SIZE} height={RING_SIZE}>
-      <SvgCircle cx={RING_CENTER} cy={RING_CENTER} r={RING_R} stroke="rgba(197,160,89,0.12)" strokeWidth={RING_STROKE} fill="none" />
+      <SvgCircle cx={RING_CENTER} cy={RING_CENTER} r={RING_R} stroke={colors.goldSoft} strokeWidth={RING_STROKE} fill="none" />
       <AnimatedSvgCircle
         cx={RING_CENTER} cy={RING_CENTER} r={RING_R}
-        stroke={GOLD} strokeWidth={RING_STROKE} fill="none" strokeLinecap="round"
+        stroke={colors.goldText} strokeWidth={RING_STROKE} fill="none" strokeLinecap="round"
         strokeDasharray={RING_CIRC} strokeDashoffset={anim}
         transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
       />
-      <SvgText x={RING_CENTER} y={RING_CENTER + 7} textAnchor="middle" fontSize={20} fontFamily="Montserrat_700Bold" fill={FG}>
+      <SvgText x={RING_CENTER} y={RING_CENTER + 7} textAnchor="middle" fontSize={20} fontFamily="Montserrat_700Bold" fill={colors.text}>
         {centerValue}
       </SvgText>
     </Svg>
@@ -532,6 +543,8 @@ function ProgressRing({ percent, centerValue }: { percent: number; centerValue: 
 }
 
 function ActivityRow({ who, activity, bordered }: { who: string; activity: FriendActivity; bordered: boolean }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const date = formatDate(activity.happenedAt, "HH:mm, d MMM");
   // Platsen/saken är fetstilt, inte namnet — det är den man faktiskt bryr sig om i en aktivitetslogg
@@ -557,14 +570,14 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
   const content = (
     <>
       {activity.kind === "sticker" ? (
-        // Ingen fyrkantig CARD-platta bakom — StickerArt är redan en egen cirkel, precis som
+        // Ingen fyrkantig colors.card-platta bakom — StickerArt är redan en egen cirkel, precis som
         // i Samlarobjekt-rutnätet och på kartan.
         <StickerArt imagePath={activity.imagePath} size={44} silhouette={false} />
       ) : photoUri ? (
         <Image source={{ uri: photoUri }} style={s.activityThumb} resizeMode="cover" />
       ) : (
         <View style={s.activityIcon}>
-          {activity.kind === "visit" ? <MapPin size={18} color={GOLD} strokeWidth={2} /> : <Heart size={18} color={GOLD} strokeWidth={2} />}
+          {activity.kind === "visit" ? <MapPin size={18} color={colors.goldText} strokeWidth={2} /> : <Heart size={18} color={colors.goldText} strokeWidth={2} />}
         </View>
       )}
       <View style={s.activityBody}>
@@ -605,6 +618,8 @@ function LockedContent({
   busy: boolean;
   onAdd: () => void; onCancel: () => void; onDecline: () => void; onAccept: () => void;
 }) {
+  const { colors, scheme } = useTheme();
+  const s = useThemedStyles(createStyles);
   return (
     <View style={s.lockedWrap}>
       {/* Skelettet: samma form som den riktiga aktivitetsloggen, men aldrig påhittade siffror.
@@ -622,16 +637,16 @@ function LockedContent({
         </View>
       </View>
 
-      <BlurView intensity={38} tint="dark" style={StyleSheet.absoluteFill} />
+      <BlurView intensity={38} tint={scheme === "dark" ? "dark" : "light"} style={StyleSheet.absoluteFill} />
       {/* Det frostade glaset har inget kvar att sudda ut längst ner (bara tom bakgrund under
           skelettet), så det såg ut att sluta tvärt i en tydlig kant där. Tonar i stället ner mot
           samma bakgrundsfärg där, så övergången aldrig syns som en gräns. */}
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
           <SvgGrad id="lockedFade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={BG} stopOpacity={0} />
-            <Stop offset="65%" stopColor={BG} stopOpacity={0} />
-            <Stop offset="100%" stopColor={BG} stopOpacity={1} />
+            <Stop offset="0%" stopColor={colors.bg} stopOpacity={0} />
+            <Stop offset="65%" stopColor={colors.bg} stopOpacity={0} />
+            <Stop offset="100%" stopColor={colors.bg} stopOpacity={1} />
           </SvgGrad>
         </Defs>
         <SvgRect x="0" y="0" width="100%" height="100%" fill="url(#lockedFade)" />
@@ -640,7 +655,7 @@ function LockedContent({
       <View style={s.lockedCard}>
         {friend.friendStatus === "none" && (
           <GoldButton
-            icon={<UserPlus size={17} color={GOLD} strokeWidth={2.2} />}
+            icon={<UserPlus size={17} color={colors.goldText} strokeWidth={2.2} />}
             label={i18n.t("friends.add")}
             disabled={busy}
             onPress={onAdd}
@@ -659,12 +674,12 @@ function LockedContent({
             <Text style={s.actionHint}>{i18n.t("friends.wantsToBeFriend")}</Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
               <PressableScale style={[s.ghostBtn, { flex: 1 }]} disabled={busy} onPress={onDecline}>
-                <X size={16} color={MUTED} strokeWidth={2.2} />
+                <X size={16} color={colors.muted} strokeWidth={2.2} />
                 <Text style={s.ghostBtnText}>{i18n.t("friends.decline")}</Text>
               </PressableScale>
               <GoldButton
                 style={{ flex: 1 }}
-                icon={<Check size={16} color={GOLD} strokeWidth={2.4} />}
+                icon={<Check size={16} color={colors.goldText} strokeWidth={2.4} />}
                 label={i18n.t("friends.accept")}
                 disabled={busy}
                 onPress={onAccept}
@@ -685,10 +700,12 @@ function LockedContent({
 function GoldButton({
   icon, label, disabled, onPress, style,
 }: { icon: React.ReactNode; label: string; disabled?: boolean; onPress: () => void; style?: StyleProp<ViewStyle> }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   return (
     <View style={style}>
       <View style={s.goldGlowAnchor} pointerEvents="none">
-        <RadialGlow size={48} color={GOLD} opacity={0.18} radiusRatio={1.4} />
+        <RadialGlow size={48} color={colors.goldText} opacity={0.18} radiusRatio={1.4} />
       </View>
       <PressableScale style={s.primaryBtn} disabled={disabled} onPress={onPress}>
         {icon}
@@ -698,18 +715,18 @@ function GoldButton({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   // Samma mönster som Vänner/Mitt Österlen: fast höjd, vänsterställd rubrik i versaler
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   // Samma storlek, form och färg som tillbaka-knappen på Vänner-sidan och resten av appen
   headerBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill,
+    borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
   headerTitle: {
-    flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG,
+    flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text,
     textTransform: "uppercase",
   },
 
@@ -721,24 +738,24 @@ const s = StyleSheet.create({
     alignSelf: "stretch", marginHorizontal: 16, marginTop: 14,
     paddingTop: 18, paddingBottom: 20, paddingHorizontal: 20,
     alignItems: "center", borderRadius: 20,
-    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border,
   },
   // Användarnamn och ort på var sin rad överst i boxen (namnet står på kortet)
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)" },
+  meta: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted },
 
-  identityDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.10)", marginTop: 18 },
+  identityDivider: { alignSelf: "stretch", height: StyleSheet.hairlineWidth, backgroundColor: c.borderStrong, marginTop: 18 },
   identityStats: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", marginTop: 16 },
   identityCol: { flex: 1, alignItems: "center", gap: 6 },
-  identityColDivider: { width: StyleSheet.hairlineWidth, height: 34, backgroundColor: "rgba(255,255,255,0.12)" },
-  identityLabel: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
+  identityColDivider: { width: StyleSheet.hairlineWidth, height: 34, backgroundColor: c.borderStrong },
+  identityLabel: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted },
   // Ifylld symbol till vänster, siffra till höger — samma rad för Streak (lågan), Besök och Favoriter
   identityRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  identityValue: { fontFamily: "Inter_700Bold", fontSize: 17, color: FG },
+  identityValue: { fontFamily: "Inter_700Bold", fontSize: 17, color: c.text },
 
-  errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
+  errorText: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, textAlign: "center", marginTop: 30, paddingHorizontal: 30 },
   // "Medlem sedan ..." längst ner på sidan, efter allt annat innehåll
-  memberSince: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, textAlign: "center", marginTop: 32, paddingHorizontal: 30 },
+  memberSince: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, textAlign: "center", marginTop: 32, paddingHorizontal: 30 },
   // Samma mönster som "Ta bort minnet" (app/memories/[id].tsx) — textlänk längst ner, inte en ikonknapp i headern
   deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, paddingVertical: 14 },
   deleteText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#E57373" },
@@ -746,85 +763,85 @@ const s = StyleSheet.create({
   section: { marginTop: 26, paddingHorizontal: 16 },
   // Playfair är bara för namn (personnamn) — sidans/hub-rubriker (Mitt Österlen, Vänner, Förmåner)
   // och sektionsrubriker som den här delar alla samma Montserrat i stället.
-  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG, marginBottom: 12 },
-  listName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG, marginTop: 8 },
-  listSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 1 },
-  card: { borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: c.text, marginBottom: 12 },
+  listName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text, marginTop: 8 },
+  listSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: c.muted, marginTop: 1 },
+  card: { borderRadius: 16, backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border, overflow: "hidden" },
 
   activityRow: { flexDirection: "row", alignItems: "flex-start", gap: 13, paddingHorizontal: 16, paddingVertical: 14 },
   activityBody: { flex: 1, minHeight: 44, justifyContent: "space-between" },
-  activityRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(255,255,255,0.08)" },
+  activityRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
   activityIcon: {
-    width: 44, height: 44, borderRadius: 11, backgroundColor: "rgba(197,160,89,0.12)",
+    width: 44, height: 44, borderRadius: 11, backgroundColor: c.goldSoft,
     alignItems: "center", justifyContent: "center",
   },
   // Ett riktigt foto (plats/event) fyller rutan; stickers ritar sin egen cirkel (StickerArt) utan denna platta
-  activityThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: CARD },
-  activityText: { fontFamily: "Inter_400Regular", fontSize: 14, color: FG, lineHeight: 19 },
+  activityThumb: { width: 44, height: 44, borderRadius: 11, backgroundColor: c.card },
+  activityText: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.text, lineHeight: 19 },
   activityStrong: { fontFamily: "Inter_700Bold" },
-  activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED },
+  activityDate: { alignSelf: "flex-end", fontFamily: "Inter_400Regular", fontSize: 12, color: c.muted },
 
-  trophyLabel: { fontFamily: "Inter_500Medium", fontSize: 10.5, color: MUTED, textAlign: "center", marginTop: 6 },
+  trophyLabel: { fontFamily: "Inter_500Medium", fontSize: 10.5, color: c.muted, textAlign: "center", marginTop: 6 },
 
   // Beskrivningskortet som öppnas vid klick — samma mönster som troféernas detaljmodal på
   // Utmaningar (app/challenges.tsx), men Montserrat i stället för Playfair på rubriken (Playfair
   // är bara för personnamn i den här appen, se vänprofilens övriga typsnittsbeslut).
   // Skatten i stort: mörk bakgrund, tryck var som helst för att stänga
   treasureOverlay: { flex: 1, backgroundColor: "rgba(8,8,8,0.88)", alignItems: "center", justifyContent: "center", padding: 28 },
-  treasureName: { fontFamily: "Montserrat_700Bold", fontSize: 24, color: FG, textAlign: "center", marginTop: 18 },
-  treasureTown: { fontFamily: "Inter_500Medium", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 4 },
-  treasureText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: "rgba(245,241,232,0.8)", textAlign: "center", marginTop: 14, maxWidth: 340 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center", padding: 24 },
+  treasureName: { fontFamily: "Montserrat_700Bold", fontSize: 24, color: c.text, textAlign: "center", marginTop: 18 },
+  treasureTown: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.muted, textAlign: "center", marginTop: 4 },
+  treasureText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: c.muted, textAlign: "center", marginTop: 14, maxWidth: 340 },
+  modalOverlay: { flex: 1, backgroundColor: c.overlay, alignItems: "center", justifyContent: "center", padding: 24 },
   modalCard: {
     width: "100%", maxWidth: 340, borderRadius: 24,
-    backgroundColor: "#1A1A1A", padding: 24, paddingTop: 32, alignItems: "center",
-    borderWidth: 0.5, borderColor: "rgba(197,160,89,0.25)",
+    backgroundColor: c.card, padding: 24, paddingTop: 32, alignItems: "center",
+    borderWidth: 0.5, borderColor: c.goldBorder,
   },
   modalClose: {
     position: "absolute", top: 14, right: 14, width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center",
+    backgroundColor: c.fill, alignItems: "center", justifyContent: "center",
   },
-  modalRibbon: { marginTop: 20, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.15)" },
+  modalRibbon: { marginTop: 20, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 0.5, borderColor: c.borderStrong },
   modalRibbonText: { fontFamily: "Inter_600SemiBold", fontSize: 9, color: "#fdf6e3", letterSpacing: 1.8, textTransform: "uppercase" },
-  modalIdentity: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: -0.2, color: FG, marginTop: 12, textAlign: "center" },
-  modalLevelName: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: GOLD, letterSpacing: 2.2, textTransform: "uppercase", marginTop: 4 },
-  modalTagline: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.65)", textAlign: "center", maxWidth: 260, marginTop: 12 },
-  modalDivider: { width: 64, height: 1, backgroundColor: "rgba(197,160,89,0.35)", marginVertical: 20 },
-  modalReq: { fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.55)", textAlign: "center" },
+  modalIdentity: { fontFamily: "Montserrat_700Bold", fontSize: 20, letterSpacing: -0.2, color: c.text, marginTop: 12, textAlign: "center" },
+  modalLevelName: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: c.goldText, letterSpacing: 2.2, textTransform: "uppercase", marginTop: 4 },
+  modalTagline: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted, textAlign: "center", maxWidth: 260, marginTop: 12 },
+  modalDivider: { width: 64, height: 1, backgroundColor: c.goldBorder, marginVertical: 20 },
+  modalReq: { fontFamily: "Inter_400Regular", fontSize: 11, color: c.muted, textAlign: "center" },
 
   // Statistik: två boxar sida vid sida (mest besökta kategori / besökta platser)
   statBoxRow: { flexDirection: "row", gap: 12 },
   statBox: {
     flex: 1, alignItems: "center", gap: 4, paddingVertical: 20, paddingHorizontal: 12,
-    borderRadius: 16, backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16, backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border,
     overflow: "hidden", // rymmer glöden (RadialGlow) snyggt inom kortets rundade form
   },
   // Samma synliga diameter som progressringen bredvid (RING_R 35 + halva RING_STROKE 6 = 38 radie)
   // — annars ser kategori-cirkeln större ut trots att båda ligger i en lika stor 84×84-yta.
   categoryCircle: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center" },
-  statBoxLabel: { fontFamily: "Inter_700Bold", fontSize: 14, color: FG, marginTop: 10, textAlign: "center" },
-  statBoxCaption: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: MUTED, textAlign: "center" },
+  statBoxLabel: { fontFamily: "Inter_700Bold", fontSize: 14, color: c.text, marginTop: 10, textAlign: "center" },
+  statBoxCaption: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: c.muted, textAlign: "center" },
 
   lockedWrap: { flex: 1, marginTop: 6 },
   lockedCard: {
     position: "absolute", left: 16, right: 16, top: "45%", transform: [{ translateY: -60 }],
     padding: 16, borderRadius: 18, gap: 12, alignItems: "stretch", overflow: "hidden", // rymmer GoldButtons glöd
-    backgroundColor: "rgba(26,26,29,0.75)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(26,26,29,0.75)", borderWidth: 1, borderColor: c.borderStrong,
   },
-  actionHint: { fontFamily: "Inter_500Medium", fontSize: 13, color: FG, textAlign: "center" },
+  actionHint: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.text, textAlign: "center" },
   // Ytterkant i guld i stället för helt guldfylld — samma mönster som Lägg till vän-knappen i
   // vänlistan (app/friends.tsx). Glöden bakom ligger i GoldButton, se dess goldGlowAnchor.
   primaryBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     height: 48, borderRadius: 12,
-    backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1.5, borderColor: GOLD,
+    backgroundColor: c.goldSoft, borderWidth: 1.5, borderColor: c.gold,
   },
-  primaryBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD },
+  primaryBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
   goldGlowAnchor: { position: "absolute", left: "50%", top: "50%", marginLeft: -24, marginTop: -24, width: 48, height: 48 },
   ghostBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     height: 48, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.10)", borderWidth: 1, borderColor: "rgba(255,255,255,0.20)",
+    backgroundColor: c.borderStrong, borderWidth: 1, borderColor: c.borderStrong,
   },
-  ghostBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG },
+  ghostBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text },
 });

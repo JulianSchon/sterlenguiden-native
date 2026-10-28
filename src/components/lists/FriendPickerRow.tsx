@@ -10,34 +10,36 @@ import { Check } from "lucide-react-native";
 import type { FriendResult } from "@/hooks/useFriends";
 import { Avatar } from "@/components/profile/Avatar";
 import { PressableScale } from "@/components/PressableScale";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const GOLD = "#C5A059";
 
 export function FriendPickerRow({ friend, selected, onToggle }: { friend: FriendResult; selected: boolean; onToggle: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const progress = useSharedValue(selected ? 1 : 0);
   useEffect(() => {
     progress.value = withTiming(selected ? 1 : 0, { duration: 180 });
   }, [selected]);
 
   const rowStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0)", "rgba(197,160,89,0.12)"]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], ["transparent", colors.goldSoft]),
   }));
   const checkStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0)", GOLD]),
-    borderColor: interpolateColor(progress.value, [0, 1], ["rgba(255,255,255,0.25)", GOLD]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], ["transparent", colors.goldText]),
+    borderColor: interpolateColor(progress.value, [0, 1], [colors.borderStrong, colors.goldText]),
   }));
   const checkIconStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
   return (
     <PressableScale style={[s.friendRow, rowStyle]} scale={0.98} onPress={onToggle}>
       <View style={s.avatarBox}>
-        <Avatar size={36} path={friend.avatarPath} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? "#2A2A2A"} ring={friend.avatarRing} />
+        <Avatar size={36} path={friend.avatarPath} name={friend.displayName ?? friend.username ?? "?"} color={friend.circleColor ?? colors.fill} ring={friend.avatarRing} />
       </View>
       <Text style={s.friendName} numberOfLines={1}>{friend.displayName || friend.username}</Text>
       <Reanimated.View style={[s.checkCircle, checkStyle]}>
         <Reanimated.View style={checkIconStyle}>
-          <Check size={13} color="#0B0B0D" strokeWidth={3} />
+          <Check size={13} color={colors.bg} strokeWidth={3} />
         </Reanimated.View>
       </Reanimated.View>
     </PressableScale>
@@ -48,14 +50,14 @@ export function FriendPickerRow({ friend, selected, onToggle }: { friend: Friend
  * kant (negativ marginal + lika mycket padding på sin ScrollView), annars klipps ringen */
 export const RING_ROOM = 14;
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   friendRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
     paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12,
   },
   // Bilden med luft runt sig, så ringen inte går in i namnet
   avatarBox: { width: 60, height: 36, alignItems: "center", justifyContent: "center" },
-  friendName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
+  friendName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: c.text },
   checkCircle: {
     width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center",
     borderWidth: 1.5,

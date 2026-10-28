@@ -13,8 +13,8 @@
 import { View, TouchableOpacity } from "react-native";
 import { Plus } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
+import { useTheme } from "@/theme/ThemeProvider";
 
-const GOLD = "#C5A059";
 
 interface StackMember {
   userId: string;
@@ -32,6 +32,7 @@ interface StackMember {
 export function MemberAvatarStack({
   members, size = 40, overlap = 16, ringColor, onPress, onAddPress,
 }: { members: StackMember[]; size?: number; overlap?: number; ringColor: string; onPress?: () => void; onAddPress?: () => void }) {
+  const { colors } = useTheme();
   const ringSize = size + 4;
 
   return (
@@ -48,7 +49,7 @@ export function MemberAvatarStack({
         >
           {/* Ringen runt ligger kvar i full färg så överlappet fortfarande läses rätt — bara själva cirkeln tonas ned */}
           <View style={m.pending && { opacity: 0.35 }}>
-            <Avatar size={size} uri={m.avatarUri ?? null} path={m.avatarPath} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
+            <Avatar size={size} uri={m.avatarUri ?? null} path={m.avatarPath} name={m.name} color={m.circleColor ?? colors.fill} ring={m.avatarRing} />
           </View>
         </View>
       ))}
@@ -57,14 +58,14 @@ export function MemberAvatarStack({
         <TouchableOpacity
           style={{
             width: ringSize, height: ringSize, borderRadius: ringSize / 2,
-            backgroundColor: "rgba(197,160,89,0.12)", alignItems: "center", justifyContent: "center",
-            borderWidth: 1.5, borderColor: GOLD,
+            backgroundColor: colors.goldSoft, alignItems: "center", justifyContent: "center",
+            borderWidth: 1.5, borderColor: colors.gold,
             marginLeft: members.length > 0 ? -overlap : 0,
           }}
           onPress={onAddPress}
           activeOpacity={0.75}
         >
-          <Plus size={Math.round(size * 0.38)} color={GOLD} strokeWidth={2.4} />
+          <Plus size={Math.round(size * 0.38)} color={colors.goldText} strokeWidth={2.4} />
         </TouchableOpacity>
       )}
     </View>

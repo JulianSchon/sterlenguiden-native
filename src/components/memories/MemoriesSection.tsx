@@ -46,10 +46,9 @@ import { formatMemoryDate } from "@/lib/memories";
 import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
 import { LoadingImage, Skeleton } from "@/components/Skeleton";
 import i18n from "i18next";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 const RECENT = 10;
 
 const CARD_W = 150;
@@ -76,6 +75,7 @@ const TAPE_H = 26;
 const TAPE_POINTS = tornRectPoints(TAPE_W, TAPE_H, 2.5, 6, [false, true, false, true]);
 
 export function MemoriesSection() {
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const { data: memories = [], isLoading } = useMemories();
   const recent = memories.slice(0, RECENT);
@@ -103,7 +103,7 @@ export function MemoriesSection() {
           {[0, 1, 2].map((i) => (
             <Skeleton
               key={i}
-              tone="dark"
+             
               width={CARD_W}
               height={CARD_H}
               radius={3}
@@ -134,6 +134,7 @@ export function MemoriesSection() {
 function MemoryPolaroid({
   memory, cover, tilt, tapeTilt, onOpen,
 }: { memory: Memory; cover: string | undefined; tilt: number; tapeTilt: number; onOpen: () => void }) {
+  const s = useThemedStyles(createStyles);
   const reduceMotion = useReducedMotion();
   const [opening, setOpening] = useState(false);
   // Statisk vilolutning — INTE animerad under rivet (se kommentaren högst upp: en lutning som
@@ -201,7 +202,7 @@ function MemoryPolaroid({
           </Svg>
           <View style={s.photoWrap}>
             {cover ? (
-              <LoadingImage source={{ uri: cover }} style={s.photo} resizeMode="cover" tone="dark" />
+              <LoadingImage source={{ uri: cover }} style={s.photo} resizeMode="cover" />
             ) : (
               <View style={[s.photo, s.noPhoto]}>
                 <ImageIcon size={26} color="rgba(0,0,0,0.2)" strokeWidth={1.5} />
@@ -225,14 +226,14 @@ function MemoryPolaroid({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   section: { marginTop: 32 },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: 16 },
   // Playfair bort — bara för personnamn i appen numera, sektionsrubriker delar Montserrat
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: FG },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: c.text },
   actions: { flexDirection: "row", gap: 16 },
-  action: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
-  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, lineHeight: 21, paddingHorizontal: 16, marginTop: 10 },
+  action: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.goldText },
+  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, lineHeight: 21, paddingHorizontal: 16, marginTop: 10 },
   // Extra luft runt om (padding, inte bara gap) så de lutande/sicksackade korten — och tejpbiten
   // som sticker upp ovanför kortets egen kant — aldrig klipps av radens egna kanter.
   row: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 10, gap: 20, marginTop: 10 },

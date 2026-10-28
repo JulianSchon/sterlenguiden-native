@@ -43,12 +43,9 @@ import { TrophyMedal, GlowCanvas, prefetchBadgeImages } from "@/components/troph
 import { TIER_PALETTE, GROUP_ORDER, type Trophy } from "@/lib/achievements";
 import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG    = "#121212";
-const FG    = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD  = "#C5A059";
-const GOLD_LT = "#E8C674";
 
 // ─── Den stora utmärkelsen överst — senast upplåsta, eller om inget är
 // upplåst än, den du är närmast att klara. Inget kort/ram runt — precis
@@ -71,6 +68,7 @@ const heroSwap = () => {
 };
 
 function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy; medalSize: number; onPress: () => void; onLoad?: () => void }) {
+  const feat = useThemedStyles(createFeatStyles);
   const unlocked = trophy.done;
   const glowColor = TIER_PALETTE[trophy.tier].field[0]; // ljusaste tonen i paletten, mest "glow"-lik
   return (
@@ -112,6 +110,8 @@ function TrophyBadge({
   order: number;
   onLoad: () => void;
 }) {
+  const { colors } = useTheme();
+  const badge = useThemedStyles(createBadgeStyles);
   const scale = useRef(new Animated.Value(1)).current;
   const enter = useRef(new Animated.Value(0)).current;
   const drop = useRef(new Animated.Value(0)).current;
@@ -169,7 +169,7 @@ function TrophyBadge({
             pointerEvents="none"
             style={[StyleSheet.absoluteFill, { opacity: glow, transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.25] }) }] }]}
           >
-            <GlowCanvas size={medalSize} color={GOLD_LT} opacity={0.6} radiusRatio={0.8} blurRatio={0.22} />
+            <GlowCanvas size={medalSize} color={colors.goldText} opacity={0.6} radiusRatio={0.8} blurRatio={0.22} />
           </Animated.View>
           <Animated.View style={{ transform: [{ scale: squash }] }}>
             <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} onLoad={onLoad} />
@@ -343,6 +343,8 @@ const progressColor = (ratio: number) => {
 };
 
 function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose: () => void }) {
+  const { colors } = useTheme();
+  const dm = useThemedStyles(createDmStyles);
   return (
     // Ingen inbyggd toning: den gjorde att ett tryck utanför rutan inte gick fram förrän toningen
     // (och sidans egen inglidning) var klar. Nu tonas innehållet in själv och går att trycka bort direkt.
@@ -353,7 +355,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
           {trophy && (
             <>
               <TouchableOpacity style={dm.closeBtn} onPress={onClose} accessibilityLabel={i18n.t("challengesPage.close")}>
-                <X size={22} color={MUTED} strokeWidth={2} />
+                <X size={22} color={colors.muted} strokeWidth={2} />
               </TouchableOpacity>
 
               <View style={{ marginTop: 8 }}>
@@ -420,6 +422,7 @@ function SectionLabel({ text, ready, order, check }: {
   /** "shown" = gruppen klar, "landing" = blir klar när medaljen som faller nu landar */
   check: "hidden" | "shown" | "landing";
 }) {
+  const sec = useThemedStyles(createSecStyles);
   const opacity = useRef(new Animated.Value(0)).current;
   const checkIn = useRef(new Animated.Value(check === "shown" ? 1 : 0)).current;
   useEffect(() => {
@@ -461,6 +464,7 @@ const TRAIN_STEP = 35;
 const MAX_WAIT = 300;
 
 export default function ChallengesScreen() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { trophies, isLoading } = useTrophies();
@@ -553,7 +557,7 @@ export default function ChallengesScreen() {
   }, [waiting.length, dropping, heroHidden.length]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {isLoading ? (
         <View style={{ flex: 1 }}>
           <ChallengesHeader safeTop={safeTop} onBack={() => router.back()} />
@@ -622,20 +626,20 @@ function ChallengesSkeleton() {
   return (
     <View pointerEvents="none">
       <View style={{ alignItems: "center", paddingTop: 32 }}>
-        <Skeleton tone="dark" width={200} height={13} radius={5} style={{ marginVertical: 2.5 }} />
-        <Skeleton tone="dark" width={heroMedalSize} height={heroMedalSize} radius={heroMedalSize / 2} style={{ marginTop: 28 }} />
-        <Skeleton tone="dark" width={170} height={26} radius={8} style={{ marginTop: 20 }} />
-        <Skeleton tone="dark" width={110} height={14} radius={5} style={{ marginTop: 10 }} />
+        <Skeleton width={200} height={13} radius={5} style={{ marginVertical: 2.5 }} />
+        <Skeleton width={heroMedalSize} height={heroMedalSize} radius={heroMedalSize / 2} style={{ marginTop: 28 }} />
+        <Skeleton width={170} height={26} radius={8} style={{ marginTop: 20 }} />
+        <Skeleton width={110} height={14} radius={5} style={{ marginTop: 10 }} />
       </View>
       <View style={{ paddingHorizontal: 16, paddingTop: 44, gap: 44 }}>
         {GROUP_ORDER.map((groupId) => (
           <View key={groupId}>
-            <Skeleton tone="dark" width={150} height={16} radius={5} style={{ marginVertical: 3 }} />
+            <Skeleton width={150} height={16} radius={5} style={{ marginVertical: 3 }} />
             <View style={{ flexDirection: "row", gap, marginTop: 26 }}>
               {[0, 1, 2].map((i) => (
                 <View key={i} style={{ width: itemWidth, alignItems: "center" }}>
-                  <Skeleton tone="dark" width={medalSize} height={medalSize} radius={medalSize / 2} />
-                  <Skeleton tone="dark" width={itemWidth * 0.62} height={12} radius={5} style={{ marginTop: 14 }} />
+                  <Skeleton width={medalSize} height={medalSize} radius={medalSize / 2} />
+                  <Skeleton width={itemWidth * 0.62} height={12} radius={5} style={{ marginTop: 14 }} />
                 </View>
               ))}
             </View>
@@ -647,11 +651,13 @@ function ChallengesSkeleton() {
 }
 
 function ChallengesHeader({ safeTop, onBack }: { safeTop: number; onBack: () => void }) {
+  const { colors } = useTheme();
+  const hd = useThemedStyles(createHdStyles);
   return (
     <View style={{ paddingTop: safeTop }}>
       <View style={hd.row}>
         <TouchableOpacity style={hd.iconBtn} onPress={onBack} accessibilityLabel={i18n.t("challengesPage.back")}>
-          <ArrowLeft size={24} color={FG} strokeWidth={2} />
+          <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={hd.title}>{i18n.t("challengesPage.title")}</Text>
       </View>
@@ -659,27 +665,27 @@ function ChallengesHeader({ safeTop, onBack }: { safeTop: number; onBack: () => 
   );
 }
 
-const hd = StyleSheet.create({
+const createHdStyles = (c: ThemeColors) => StyleSheet.create({
   row: {
     flexDirection: "row", alignItems: "center",
     height: 64, paddingHorizontal: 16, gap: 12,
   },
   iconBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill,
+    borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
   // Samma rubrik som Mitt Österlen och övriga sidor
-  title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
+  title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text },
 });
 
 // Sektionsrubrik ovanför varje grupps 3 rutor — samma "eyebrow"-mönster
 // (liten ikon + versal guldtext) som används på flera andra sidor i appen.
-const sec = StyleSheet.create({
+const createSecStyles = (c: ThemeColors) => StyleSheet.create({
   labelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   label: {
-    fontFamily: "Inter_600SemiBold", fontSize: 16, color: FG,
+    fontFamily: "Inter_600SemiBold", fontSize: 16, color: c.text,
     letterSpacing: 0.8,
   },
   // Hela gruppen klar
@@ -689,67 +695,67 @@ const sec = StyleSheet.create({
   },
 });
 
-const feat = StyleSheet.create({
+const createFeatStyles = (c: ThemeColors) => StyleSheet.create({
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, color: FG, letterSpacing: 1.4 },
-  name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 26, color: FG, marginTop: 18, textAlign: "center" },
+  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, color: c.text, letterSpacing: 1.4 },
+  name: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 26, color: c.text, marginTop: 18, textAlign: "center" },
   desc: {
-    fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED,
+    fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted,
     marginTop: 6, textAlign: "center",
   },
 });
 
-const badge = StyleSheet.create({
+const createBadgeStyles = (c: ThemeColors) => StyleSheet.create({
   name: {
-    fontFamily: "Inter_600SemiBold", fontSize: 13, color: FG,
+    fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.text,
     marginTop: 12, textAlign: "center",
   },
-  nameLocked: { color: "rgba(255,255,255,0.40)" },
+  nameLocked: { color: c.faint },
   desc: {
-    fontFamily: "Inter_400Regular", fontSize: 11, color: "rgba(255,255,255,0.40)",
+    fontFamily: "Inter_400Regular", fontSize: 11, color: c.faint,
     marginTop: 4, textAlign: "center", lineHeight: 14,
   },
 });
 
-const dm = StyleSheet.create({
+const createDmStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
+    flex: 1, backgroundColor: c.overlay,
     alignItems: "center", justifyContent: "center", padding: 24,
   },
   card: {
     width: "100%", maxWidth: 340, borderRadius: 24,
-    backgroundColor: "#1A1A1A", padding: 24, paddingTop: 32,
+    backgroundColor: c.card, padding: 24, paddingTop: 32,
     alignItems: "center",
-    borderWidth: 0.5, borderColor: "rgba(197,160,89,0.25)",
+    borderWidth: 0.5, borderColor: c.goldBorder,
     shadowColor: "#000", shadowOffset: { width: 0, height: 30 }, shadowOpacity: 0.85, shadowRadius: 40, elevation: 12,
   },
   closeBtn: {
     position: "absolute", top: 14, right: 14,
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: c.fill,
     alignItems: "center", justifyContent: "center",
   },
   ribbon: {
     marginTop: 20, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999,
-    borderWidth: 0.5, borderColor: "rgba(255,255,255,0.15)",
+    borderWidth: 0.5, borderColor: c.borderStrong,
   },
   ribbonText: { fontFamily: "Inter_600SemiBold", fontSize: 9, color: "#fdf6e3", letterSpacing: 1.8, textTransform: "uppercase" },
-  identity: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 22, color: FG, marginTop: 12, textAlign: "center" },
-  levelName: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: GOLD, letterSpacing: 2.2, textTransform: "uppercase", marginTop: 4 },
+  identity: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 22, color: c.text, marginTop: 12, textAlign: "center" },
+  levelName: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: c.goldText, letterSpacing: 2.2, textTransform: "uppercase", marginTop: 4 },
   tagline: {
-    fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.65)",
+    fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted,
     textAlign: "center", maxWidth: 260, marginTop: 12,
   },
-  divider: { width: 64, height: 1, backgroundColor: "rgba(197,160,89,0.35)", marginVertical: 20 },
-  progressText: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 6, textAlign: "center" },
-  progressLine: { fontFamily: "Inter_500Medium", fontSize: 14, color: "rgba(255,255,255,0.7)", marginTop: 8, textAlign: "center" },
+  divider: { width: 64, height: 1, backgroundColor: c.goldBorder, marginVertical: 20 },
+  progressText: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted, marginTop: 6, textAlign: "center" },
+  progressLine: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.muted, marginTop: 8, textAlign: "center" },
   progressNumbers: { fontFamily: "Montserrat_700Bold", fontSize: 15 },
   parts: { gap: 10, marginTop: 4, alignSelf: "center" },
   partRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   partCheck: {
     width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center",
-    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1.5, borderColor: c.borderStrong,
   },
   partCheckDone: { backgroundColor: DONE_GREEN, borderColor: DONE_GREEN },
-  partText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.45)" },
+  partText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.faint },
 });

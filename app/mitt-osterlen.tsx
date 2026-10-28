@@ -13,6 +13,7 @@ import Reanimated, {
   Easing, FadeInDown, useAnimatedStyle, useDerivedValue, useReducedMotion, useSharedValue, withTiming,
 } from "react-native-reanimated";
 import { STORY_GRADIENT } from "@/theme/storyGradient";
+import { withAlpha } from "@/theme/categories";
 import { ArrowLeft } from "lucide-react-native";
 import { Canvas, Circle, Group, LinearGradient, RadialGradient, vec } from "@shopify/react-native-skia";
 import { Users, ChevronRight, X } from "lucide-react-native";
@@ -29,11 +30,9 @@ import { computeStreak, swedishDay, weekDays } from "@/lib/streak";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDate, weekdayShort } from "@/i18n/dates";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const CARD = "#1A1A1D";
 // Gradientringen runt Vänner-ikonen — se friendsIconWrap
 const FRIENDS_RING_SIZE = 56;
 const FRIENDS_RING_R = 25;
@@ -42,6 +41,8 @@ const IGNITE_MS = 1200;
 const IGNITE_FALLBACK_MS = 650;
 
 export default function MittOsterlenScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   useTranslation(); // ritas om när språket byts
@@ -87,12 +88,12 @@ export default function MittOsterlenScreen() {
 
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Fast header — ligger utanför ScrollView så den stannar kvar vid scroll */}
-      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("osterlen.back")}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.title} numberOfLines={1}>{i18n.t("osterlen.title")}</Text>
         </View>
@@ -125,7 +126,7 @@ export default function MittOsterlenScreen() {
           </View>
           <Reanimated.View entering={enterAt(0)} style={{ alignItems: "center" }}>
           <View style={s.numberWrap}>
-            {/* Mörkt, mjukt sken bakom siffran så den syns mot elden. Tonar ut
+            {/* Mjukt sken i bakgrundens färg bakom siffran så den syns mot elden. Tonar ut
                 till helt transparent långt innan ytans kant — ingen synlig ruta. */}
             <Canvas style={s.scrim} pointerEvents="none">
               <Group origin={vec(170, 110)} transform={[{ scaleY: 0.6 }]}>
@@ -133,7 +134,7 @@ export default function MittOsterlenScreen() {
                   <RadialGradient
                     c={vec(170, 110)}
                     r={72}
-                    colors={["rgba(0,0,0,0.65)", "rgba(0,0,0,0.3)", "rgba(0,0,0,0)"]}
+                    colors={[withAlpha(colors.bg, 0.65), withAlpha(colors.bg, 0.3), withAlpha(colors.bg, 0)]}
                     positions={[0, 0.45, 1]}
                   />
                 </Circle>
@@ -169,13 +170,13 @@ export default function MittOsterlenScreen() {
               const missed = !done && d < today;
               return (
                 <View key={d} style={s.weekDay}>
-                  <Text style={[s.weekLabel, isToday && { color: FG }]}>{weekdayShort(i).toUpperCase()}</Text>
+                  <Text style={[s.weekLabel, isToday && { color: colors.text }]}>{weekdayShort(i).toUpperCase()}</Text>
                   <View style={s.weekSlot}>
                     {done ? (
                       <StreakFlame compact size={30} timeOffset={i * 700} />
                     ) : missed ? (
                       <View style={s.missedDay}>
-                        <X size={14} color={MUTED} strokeWidth={2.5} />
+                        <X size={14} color={colors.muted} strokeWidth={2.5} />
                       </View>
                     ) : (
                       <View style={s.emptyDay} />
@@ -204,7 +205,7 @@ export default function MittOsterlenScreen() {
               </Circle>
             </Canvas>
             <View style={s.friendsIcon}>
-              <Users size={20} color={FG} strokeWidth={2} />
+              <Users size={20} color={colors.text} strokeWidth={2} />
             </View>
             {pendingFriendRequests > 0 && (
               <View style={s.friendsBadge}>
@@ -222,7 +223,7 @@ export default function MittOsterlenScreen() {
           </View>
           {/* Utan den här kunde ringen längst till vänster lätt läsas som "dina vänners avatarer
               kommer synas här", inte en ren navigeringsrad */}
-          <ChevronRight size={20} color={MUTED} strokeWidth={2} />
+          <ChevronRight size={20} color={colors.muted} strokeWidth={2} />
         </PressableScale>
         </Reanimated.View>
 
@@ -243,6 +244,7 @@ export default function MittOsterlenScreen() {
 const enterAt = (index: number) => FadeInDown.delay(index * 45).duration(300);
 
 function Stat({ value, label }: { value: string; label: string }) {
+  const s = useThemedStyles(createStyles);
   return (
     <View style={s.stat}>
       <Text style={s.statValue}>{value}</Text>
@@ -251,16 +253,16 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   backBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill,
+    borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
   // Versal geometrisk sans med luft mellan bokstäverna, vänsterställd bredvid tillbaka-knappen
-  title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
+  title: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text },
   // paddingTop 20 är eldens fasta plats (rör inte den) — hero klipper i stället sina egna barn vid
   // sin övre kant (overflow: hidden), exakt där den fasta headern slutar. Glöden får då vara hur
   // stor den vill utan att någonsin synas krocka med headern: allt ovanför klipps helt enkelt bort,
@@ -275,28 +277,28 @@ const s = StyleSheet.create({
   // Siffran sitter över eldens nedre del, som på Whoop
   numberWrap: { marginTop: -69, width: 340, height: 100, alignItems: "center", justifyContent: "center" },
   scrim: { position: "absolute", left: 0, top: -60, width: 340, height: 220 },
-  number: { fontFamily: "Inter_700Bold", fontSize: 92, color: "#FFFFFF", lineHeight: 100 },
-  label: { fontFamily: "Inter_600SemiBold", fontSize: 24, color: FG, marginTop: 20 },
-  hint: { fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED, marginTop: 6 },
+  number: { fontFamily: "Inter_700Bold", fontSize: 92, color: c.text, lineHeight: 100 },
+  label: { fontFamily: "Inter_600SemiBold", fontSize: 24, color: c.text, marginTop: 20 },
+  hint: { fontFamily: "Inter_400Regular", fontSize: 15, color: c.muted, marginTop: 6 },
 
   stats: { flexDirection: "row", alignItems: "center", marginTop: 28, marginHorizontal: 16 },
   stat: { flex: 1, alignItems: "center", gap: 4 },
-  statValue: { fontFamily: "Inter_700Bold", fontSize: 17, color: FG },
-  statLabel: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED },
-  statDivider: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: "rgba(255,255,255,0.18)" },
+  statValue: { fontFamily: "Inter_700Bold", fontSize: 17, color: c.text },
+  statLabel: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: c.borderStrong },
 
   card: {
     marginTop: 20, marginHorizontal: 16, padding: 18, borderRadius: 20,
-    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border,
   },
-  cardTitle: { fontFamily: "Inter_700Bold", fontSize: 13, letterSpacing: 1.4, color: FG },
+  cardTitle: { fontFamily: "Inter_700Bold", fontSize: 13, letterSpacing: 1.4, color: c.text },
   weekRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 16 },
   weekDay: { alignItems: "center", gap: 10, flex: 1 },
   weekSlot: { height: 41, alignItems: "center", justifyContent: "center" },
-  weekLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 0.8, color: MUTED },
+  weekLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 0.8, color: c.muted },
   emptyDay: {
     width: 30, height: 30, borderRadius: 15,
-    borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1, borderStyle: "dashed", borderColor: c.borderStrong,
   },
   // Passerad dag, ingen appöppning — fylld grå med ett kryss, skiljer sig medvetet från den
   // streckade (ännu-inte-hänt) cirkeln ovan
@@ -305,28 +307,28 @@ const s = StyleSheet.create({
   // kännas jämnstor
   missedDay: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center",
+    backgroundColor: c.borderStrong, alignItems: "center", justifyContent: "center",
   },
 
   friendsTile: {
     flexDirection: "row", alignItems: "center", gap: 14,
     marginTop: 28, marginHorizontal: 16, padding: 16, borderRadius: 20,
-    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: c.card, borderWidth: 0.5, borderColor: c.border,
   },
   // Ringen (Canvas) ligger centrerad bakom friendsIcon i den här — se FRIENDS_RING_SIZE/_R ovan
   friendsIconWrap: { width: FRIENDS_RING_SIZE, height: FRIENDS_RING_SIZE, alignItems: "center", justifyContent: "center" },
   friendsIcon: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: "#1E1B16", // varmare/mörkare än korten runt om, så den tunna gradientringen inte tävlar med en grå platta
+    backgroundColor: c.tile, // nedsänkt platta, så den tunna gradientringen inte tävlar med ett kort
     alignItems: "center", justifyContent: "center",
   },
   friendsBadge: {
     position: "absolute", top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9,
     backgroundColor: "#C0392B", alignItems: "center", justifyContent: "center", paddingHorizontal: 4,
-    borderWidth: 2, borderColor: BG,
+    borderWidth: 2, borderColor: c.bg,
   },
   friendsBadgeText: { fontFamily: "Inter_700Bold", fontSize: 10, color: "#FFFFFF" },
   // Playfair bort — bara för personnamn i appen numera, det här är en navigeringsetikett
-  friendsTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG },
-  friendsSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 2 },
+  friendsTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: c.text },
+  friendsSub: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 2 },
 });

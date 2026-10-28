@@ -40,13 +40,9 @@ import { HeartButton, LikeBurst, useLikeBurst, type BurstFn } from "@/components
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { findCategory } from "@/theme/categories";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG     = "#121212";
-const CARD   = "#1C1C1C";
-const FG     = "#F5F1E8";
-const MUTED  = "rgba(245,241,232,0.55)";
-const GOLD   = "#C5A059";
-const BORDER = "rgba(255,255,255,0.06)";
 
 type FavKind = "place" | "event";
 type ViewMode = "cards" | "list";
@@ -159,6 +155,8 @@ function useFavoritesDetailed() {
 }
 
 export default function FavoritesScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   useTranslation(); // ritas om när språket byts
   const router = useRouter();
@@ -263,17 +261,17 @@ export default function FavoritesScreen() {
   const countLabel = visible.length === 1 ? i18n.t("favoritesPage.countOne") : i18n.t("favoritesPage.countOther", { count: visible.length });
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Fast header, samma som Mitt Österlen */}
-      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         <View style={s.header}>
           <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("favoritesPage.back")}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("favoritesPage.title")}</Text>
           {items.length > 0 && (
             <TouchableOpacity style={s.headerBtn} onPress={handleShare} accessibilityLabel={i18n.t("favoritesPage.share")}>
-              <ShareIcon size={20} color={FG} strokeWidth={2} />
+              <ShareIcon size={20} color={colors.text} strokeWidth={2} />
             </TouchableOpacity>
           )}
         </View>
@@ -282,20 +280,20 @@ export default function FavoritesScreen() {
       {/* Sidan i grått medan favoriterna laddas, i den vy (kort/lista) man valt */}
       {isLoading && (
         <View style={s.body} pointerEvents="none">
-          <Skeleton tone="dark" width={170} height={16} radius={6} style={{ alignSelf: "center", marginVertical: 10 }} />
+          <Skeleton width={170} height={16} radius={6} style={{ alignSelf: "center", marginVertical: 10 }} />
           <View style={s.toolbar}>
-            <Skeleton tone="dark" width={90} height={14} radius={5} />
-            <Skeleton tone="dark" width={76} height={34} radius={17} />
+            <Skeleton width={90} height={14} radius={5} />
+            <Skeleton width={76} height={34} radius={17} />
           </View>
           {mode === "cards" ? (
             <View style={s.cards}>
               {[0, 1].map((i) => (
                 <View key={i}>
-                  <Skeleton tone="dark" width="100%" radius={20} style={{ aspectRatio: 1.55 }} />
+                  <Skeleton width="100%" radius={20} style={{ aspectRatio: 1.55 }} />
                   <View style={{ gap: 8, marginTop: 14, paddingHorizontal: 2 }}>
-                    <Skeleton tone="dark" width="60%" height={18} radius={6} />
-                    <Skeleton tone="dark" width="30%" height={12} radius={5} />
-                    <Skeleton tone="dark" width="85%" height={12} radius={5} />
+                    <Skeleton width="60%" height={18} radius={6} />
+                    <Skeleton width="30%" height={12} radius={5} />
+                    <Skeleton width="85%" height={12} radius={5} />
                   </View>
                 </View>
               ))}
@@ -304,11 +302,11 @@ export default function FavoritesScreen() {
             <View style={s.rows}>
               {[0, 1, 2, 3, 4].map((i) => (
                 <View key={i} style={s.row}>
-                  <Skeleton tone="dark" width={64} height={64} radius={12} />
+                  <Skeleton width={64} height={64} radius={12} />
                   <View style={{ flex: 1, gap: 7 }}>
-                    <Skeleton tone="dark" width="65%" height={15} radius={5} />
-                    <Skeleton tone="dark" width="30%" height={11} radius={4} />
-                    <Skeleton tone="dark" width="80%" height={11} radius={4} />
+                    <Skeleton width="65%" height={15} radius={5} />
+                    <Skeleton width="30%" height={11} radius={4} />
+                    <Skeleton width="80%" height={11} radius={4} />
                   </View>
                 </View>
               ))}
@@ -320,7 +318,7 @@ export default function FavoritesScreen() {
       {!isLoading && items.length === 0 && (
         <View style={[s.center, { paddingHorizontal: 40 }]}>
           <View style={s.emptyIcon}>
-            <Heart size={28} color={GOLD} strokeWidth={1.5} />
+            <Heart size={28} color={colors.goldText} strokeWidth={1.5} />
           </View>
           <Text style={s.emptyTitle}>{i18n.t("favoritesPage.emptyTitle")}</Text>
           <Text style={[s.muted, { textAlign: "center", lineHeight: 21 }]}>
@@ -341,10 +339,10 @@ export default function FavoritesScreen() {
             <Text style={s.count}>{countLabel}</Text>
             <View style={s.toggle}>
               <Pressable style={[s.toggleBtn, mode === "cards" && s.toggleBtnOn]} onPress={() => chooseMode("cards")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asCards")}>
-                <Square size={16} color={mode === "cards" ? FG : MUTED} strokeWidth={2.2} />
+                <Square size={16} color={mode === "cards" ? colors.text : colors.muted} strokeWidth={2.2} />
               </Pressable>
               <Pressable style={[s.toggleBtn, mode === "list" && s.toggleBtnOn]} onPress={() => chooseMode("list")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asList")}>
-                <AlignJustify size={16} color={mode === "list" ? FG : MUTED} strokeWidth={2.2} />
+                <AlignJustify size={16} color={mode === "list" ? colors.text : colors.muted} strokeWidth={2.2} />
               </Pressable>
             </View>
           </View>
@@ -384,6 +382,7 @@ interface ItemProps {
 
 /** Kortvyn: stor bild, och under den namn, kategori och kort beskrivning, hjärtat till höger */
 const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
+  const s = useThemedStyles(createStyles);
   return (
     <Reanimated.View entering={enterAt(index)}>
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(item)}>
@@ -406,6 +405,7 @@ const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, on
 
 /** Listvyn: kompakt rad med liten bild */
 const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
+  const s = useThemedStyles(createStyles);
   return (
     <Reanimated.View entering={enterAt(index)}>
     <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={() => onOpen(item)}>
@@ -424,44 +424,44 @@ const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onTo
   );
 });
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   headerBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text },
 
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
-  muted: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED },
+  muted: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted },
   emptyIcon: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(197,160,89,0.10)",
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.22)", alignItems: "center", justifyContent: "center",
+    width: 72, height: 72, borderRadius: 36, backgroundColor: c.goldSoft,
+    borderWidth: 1, borderColor: c.goldBorder, alignItems: "center", justifyContent: "center",
   },
-  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: FG, textAlign: "center" },
+  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: c.text, textAlign: "center" },
   emptyBtn: {
     marginTop: 8, height: 46, paddingHorizontal: 24, borderRadius: 14,
-    backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.25)",
+    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder,
     alignItems: "center", justifyContent: "center",
   },
-  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD },
+  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
 
   body: { paddingHorizontal: 16, paddingTop: 12 },
   toolbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 22, marginBottom: 14 },
-  count: { fontFamily: "Montserrat_700Bold", fontSize: 16, color: FG },
-  toggle: { flexDirection: "row", padding: 3, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.06)" },
+  count: { fontFamily: "Montserrat_700Bold", fontSize: 16, color: c.text },
+  toggle: { flexDirection: "row", padding: 3, borderRadius: 12, backgroundColor: c.fill },
   toggleBtn: { width: 38, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  toggleBtnOn: { backgroundColor: "rgba(255,255,255,0.14)" },
+  toggleBtnOn: { backgroundColor: c.borderStrong },
   noneInFilter: { textAlign: "center", marginTop: 30 },
 
   // Kortvyn
   cards: { gap: 28 },
-  cardImage: { width: "100%", aspectRatio: 1.55, borderRadius: 20, overflow: "hidden", backgroundColor: "#2A2A2A" },
+  cardImage: { width: "100%", aspectRatio: 1.55, borderRadius: 20, overflow: "hidden", backgroundColor: c.fill },
   cardInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 12, paddingHorizontal: 2 },
-  cardTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, letterSpacing: -0.2, color: FG },
-  cardCategory: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: GOLD, marginTop: 3 },
-  cardDesc: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: MUTED, marginTop: 4 },
+  cardTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, letterSpacing: -0.2, color: c.text },
+  cardCategory: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.goldText, marginTop: 3 },
+  cardDesc: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: c.muted, marginTop: 4 },
 
   // Listvyn
   // Eventets datumruta i bildens hörn, samma som på Kalender
@@ -470,11 +470,11 @@ const s = StyleSheet.create({
   rows: { gap: 10 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 12, padding: 10,
-    backgroundColor: CARD, borderRadius: 16, borderWidth: 1, borderColor: BORDER,
+    backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.fill,
   },
-  thumb: { width: 64, height: 64, borderRadius: 12, overflow: "hidden", backgroundColor: "#2A2A2A" },
-  rowTitle: { fontFamily: "Montserrat_700Bold", fontSize: 15.5, color: FG },
-  rowCategory: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: GOLD },
-  rowDesc: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED },
+  thumb: { width: 64, height: 64, borderRadius: 12, overflow: "hidden", backgroundColor: c.fill },
+  rowTitle: { fontFamily: "Montserrat_700Bold", fontSize: 15.5, color: c.text },
+  rowCategory: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: c.goldText },
+  rowDesc: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted },
 
 });

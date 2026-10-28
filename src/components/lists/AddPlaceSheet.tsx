@@ -58,9 +58,9 @@ import { distanceMeters } from "@/lib/checkin";
 import { CATEGORIES, findCategory, type CategoryId } from "@/theme/categories";
 import { PressableScale } from "@/components/PressableScale";
 import { Skeleton } from "@/components/Skeleton";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const GOLD = "#C5A059";
-const FG = "#FFFFFF";
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 900;
 const BUBBLE_MS = 1600;
@@ -102,6 +102,8 @@ function formatDistance(m: number) {
 export function AddPlaceSheet({
   visible, onClose, listId, listName, existingPlaceIds,
 }: { visible: boolean; onClose: () => void; listId: string; listName?: string; existingPlaceIds: number[] }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
@@ -389,12 +391,12 @@ export function AddPlaceSheet({
   return (
     <Modal visible={mounted} transparent animationType="none" onRequestClose={requestClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.8)" }, backdropStyle]}>
+        <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }, backdropStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} accessibilityLabel={t("addPlace.close")} />
         </Reanimated.View>
 
         <Reanimated.View style={[s.sheet, { height: sheetH }, sheetStyle]}>
-          <LinearGradient colors={["#2A2118", "#121212"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={[colors.goldSoft, colors.bg]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
 
           {/* ── Fast huvud ── */}
           <GestureDetector gesture={headerPan}>
@@ -407,23 +409,23 @@ export function AddPlaceSheet({
                   <Text style={s.subtitle}>{subtitle}</Text>
                 </View>
                 <PressableScale style={s.closeBtn} scale={0.9} onPress={requestClose} accessibilityLabel={t("addPlace.close")}>
-                  <X size={20} color="rgba(255,255,255,0.8)" strokeWidth={2} />
+                  <X size={20} color={colors.muted} strokeWidth={2} />
                 </PressableScale>
               </View>
               <View style={s.searchWrap}>
-                <Search size={16} color="rgba(255,255,255,0.4)" strokeWidth={2} style={s.searchIcon} />
+                <Search size={16} color={colors.faint} strokeWidth={2} style={s.searchIcon} />
                 <TextInput
                   style={s.searchInput}
                   value={query}
                   onChangeText={setQuery}
                   placeholder={t("addPlace.search")}
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={colors.faint}
                   returnKeyType="search"
                   autoCorrect={false}
                 />
                 {query.length > 0 && (
                   <Pressable style={s.clearBtn} hitSlop={10} onPress={() => setQuery("")}>
-                    <X size={14} color="rgba(255,255,255,0.6)" strokeWidth={2.4} />
+                    <X size={14} color={colors.muted} strokeWidth={2.4} />
                   </Pressable>
                 )}
               </View>
@@ -443,10 +445,10 @@ export function AddPlaceSheet({
                 <View style={{ paddingTop: 10, paddingHorizontal: SIDE_MARGIN }} pointerEvents="none">
                   {[0, 1, 2, 3, 4, 5].map((i) => (
                     <View key={i} style={s.row}>
-                      <Skeleton tone="dark" width={64} height={64} radius={12} />
+                      <Skeleton width={64} height={64} radius={12} />
                       <View style={{ flex: 1, gap: 8 }}>
-                        <Skeleton tone="dark" width="60%" height={15} radius={5} />
-                        <Skeleton tone="dark" width="40%" height={11} radius={4} />
+                        <Skeleton width="60%" height={15} radius={5} />
+                        <Skeleton width="40%" height={11} radius={4} />
                       </View>
                     </View>
                   ))}
@@ -538,7 +540,7 @@ export function AddPlaceSheet({
                   <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(20,16,10,0.92)" }]} />
                   {bubble.error
                     ? <X size={16} color="#E57373" strokeWidth={2.4} />
-                    : <Check size={16} color={GOLD} strokeWidth={2.4} />}
+                    : <Check size={16} color={colors.goldText} strokeWidth={2.4} />}
                   <Text style={s.bubbleText} numberOfLines={1}>{bubble.text}</Text>
                 </View>
               </Reanimated.View>
@@ -552,12 +554,14 @@ export function AddPlaceSheet({
 
 /** Rubrik i mitten med pilar vänster/höger + prickar — samma komponent-mönster som Förmåner-fliken. */
 function CategoryHeader({ index, labels, onStep }: { index: number; labels: string[]; onStep: (dir: 1 | -1) => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const arrow = (dir: 1 | -1) => {
     const hidden = index + dir < 0 || index + dir >= labels.length;
     const Icon = dir === 1 ? ChevronRight : ChevronLeft;
     return (
       <Pressable onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
-        <Icon size={20} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+        <Icon size={20} color={colors.muted} strokeWidth={2} />
       </Pressable>
     );
   };
@@ -585,6 +589,7 @@ function CategoryHeader({ index, labels, onStep }: { index: number; labels: stri
 const HomePage = memo(function HomePage({
   data, justAdded, onAdd,
 }: { data: { recommended: Card[]; nearby: Card[]; favorites: Card[]; emptyText: string }; justAdded: Set<number>; onAdd: (p: Place) => void }) {
+  const s = useThemedStyles(createStyles);
   const { t } = useTranslation();
   if (data.emptyText) return <Text style={s.emptyText}>{data.emptyText}</Text>;
   return (
@@ -600,6 +605,7 @@ const HomePage = memo(function HomePage({
 const PlaceRows = memo(function PlaceRows({
   places, visibleCount, onShowMore, justAdded, onAdd, emptyText,
 }: { places: Place[]; visibleCount: number; onShowMore: () => void; justAdded: Set<number>; onAdd: (p: Place) => void; emptyText: string }) {
+  const s = useThemedStyles(createStyles);
   const { t } = useTranslation();
   if (places.length === 0) return <Text style={s.emptyText}>{emptyText}</Text>;
   const shown = places.slice(0, visibleCount);
@@ -619,6 +625,7 @@ const PlaceRows = memo(function PlaceRows({
 const Carousel = memo(function Carousel({
   title, cards, justAdded, onAdd,
 }: { title: string; cards: Card[]; justAdded: Set<number>; onAdd: (p: Place) => void }) {
+  const s = useThemedStyles(createStyles);
   return (
     <View style={{ marginBottom: 26 }}>
       <Text style={[s.sectionTitle, { marginHorizontal: 0 }]}>{title}</Text>
@@ -646,6 +653,8 @@ const CardGap = () => <View style={{ width: CARD_GAP }} />;
 const PlaceCard = memo(function PlaceCard({
   place, note, added, onAdd,
 }: { place: Place; note?: string; added: boolean; onAdd: (p: Place) => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const [failed, setFailed] = useState(false);
   const uri = imageOf(place);
   const add = () => onAdd(place);
@@ -657,8 +666,8 @@ const PlaceCard = memo(function PlaceCard({
           <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setFailed(true)} />
         ) : (
           <>
-            <LinearGradient colors={["rgba(197,160,89,0.18)", "#121212"]} locations={[0, 0.7]} style={StyleSheet.absoluteFill} />
-            <View style={s.cardPin}><MapPin size={24} color={GOLD} strokeWidth={2} /></View>
+            <LinearGradient colors={[colors.goldSoft, colors.bg]} locations={[0, 0.7]} style={StyleSheet.absoluteFill} />
+            <View style={s.cardPin}><MapPin size={24} color={colors.goldText} strokeWidth={2} /></View>
           </>
         )}
         {/* Mörk toning nedåt — gör att texten alltid går att läsa, och ger kortet sin svarta fot */}
@@ -679,6 +688,8 @@ const PlaceCard = memo(function PlaceCard({
 
 // ── Rad i en kategorisida / sökresultat ──
 const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place; added: boolean; onAdd: (p: Place) => void }) {
+  const s = useThemedStyles(createStyles);
+  const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
   const uri = imageOf(place);
   const meta = [firstCat(place), place.nearest_town].filter(Boolean).join(" · ");
@@ -690,7 +701,7 @@ const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place;
         {uri && !failed ? (
           <Image source={{ uri }} style={s.rowImg} resizeMode="cover" onError={() => setFailed(true)} />
         ) : (
-          <View style={[s.rowImg, s.rowImgFallback]}><MapPin size={20} color="rgba(255,255,255,0.3)" strokeWidth={2} /></View>
+          <View style={[s.rowImg, s.rowImgFallback]}><MapPin size={20} color={colors.faint} strokeWidth={2} /></View>
         )}
         <View style={{ flex: 1 }}>
           <Text style={s.rowName} numberOfLines={1}>{place.name}</Text>
@@ -707,6 +718,8 @@ const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place;
  * igång efter varandra var precis det som lästes som att den "gungade". withTiming överallt, aldrig
  * withSpring, så den aldrig kan svänga förbi 1 — bara dippa och gå raka vägen tillbaka. */
 function AddButton({ added, onPress }: { added: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { t } = useTranslation();
   const scale = useSharedValue(1);
   const reduceMotion = useReducedMotion();
@@ -733,8 +746,8 @@ function AddButton({ added, onPress }: { added: boolean; onPress: () => void }) 
             <Check size={16} color="#FFFFFF" strokeWidth={2.8} />
           </View>
         ) : (
-          <LinearGradient colors={["#D4B574", "#C5A059"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.addBtn}>
-            <Plus size={16} color="#121212" strokeWidth={2.8} />
+          <LinearGradient colors={["#D4B574", colors.gold]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.addBtn}>
+            <Plus size={16} color={colors.onGold} strokeWidth={2.8} />
           </LinearGradient>
         )}
       </Reanimated.View>
@@ -742,35 +755,35 @@ function AddButton({ added, onPress }: { added: boolean; onPress: () => void }) 
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   sheet: {
     position: "absolute", left: 0, right: 0, bottom: 0,
     borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden",
-    borderWidth: 1, borderBottomWidth: 0, borderColor: "rgba(255,255,255,0.06)",
-    backgroundColor: "#121212",
+    borderWidth: 1, borderBottomWidth: 0, borderColor: c.fill,
+    backgroundColor: c.bg,
   },
   gripWrap: { alignItems: "center", paddingTop: 8, paddingBottom: 4 },
-  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.15)" },
+  grip: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.borderStrong },
 
   headRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 },
-  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.2, textTransform: "uppercase", color: GOLD },
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 25, lineHeight: 29, letterSpacing: -0.3, color: FG, marginTop: 4 },
-  subtitle: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.55)", marginTop: 6 },
+  eyebrow: { fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2.2, textTransform: "uppercase", color: c.goldText },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 25, lineHeight: 29, letterSpacing: -0.3, color: c.text, marginTop: 4 },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: c.muted, marginTop: 6 },
   closeBtn: {
     width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
   },
 
   searchWrap: { marginHorizontal: 20, marginBottom: 6, height: 48, justifyContent: "center" },
   searchIcon: { position: "absolute", left: 14, zIndex: 1 },
   searchInput: {
     height: 48, borderRadius: 24, paddingLeft: 40, paddingRight: 40,
-    backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
-    fontFamily: "Inter_400Regular", fontSize: 16, color: FG,
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
+    fontFamily: "Inter_400Regular", fontSize: 16, color: c.text,
   },
   clearBtn: {
     position: "absolute", right: 12, width: 24, height: 24, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center",
+    backgroundColor: c.borderStrong, alignItems: "center", justifyContent: "center",
   },
 
   // paddingHorizontal krävs nu uttryckligen — innan ärvde den ScrollViewens inset automatiskt,
@@ -779,34 +792,35 @@ const s = StyleSheet.create({
   catRow: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
   catMiddle: { flex: 1, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 6 },
   arrow: { width: 32, alignItems: "center" },
-  rule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "rgba(197,160,89,0.3)" },
-  catTitle: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3, color: FG },
+  rule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.goldBorder },
+  catTitle: { fontFamily: "Montserrat_700Bold", fontSize: 13, letterSpacing: 3, color: c.text },
   dots: { flexDirection: "row", gap: 6, flexWrap: "wrap", justifyContent: "center" },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.18)" },
-  dotActive: { width: 18, backgroundColor: GOLD },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.borderStrong },
+  dotActive: { width: 18, backgroundColor: c.gold },
 
   page: { position: "absolute", top: 0, overflow: "hidden" },
 
   sectionTitle: {
-    fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: GOLD,
+    fontFamily: "Inter_600SemiBold", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: c.goldText,
     marginHorizontal: 20, marginBottom: 10,
   },
 
-  card: { width: CARD_W, height: CARD_H, borderRadius: 16, overflow: "hidden", backgroundColor: "#1A1A1D" },
+  card: { width: CARD_W, height: CARD_H, borderRadius: 16, overflow: "hidden", backgroundColor: c.card },
   cardPin: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   cardText: { position: "absolute", left: 12, right: 0, bottom: 12, paddingRight: 48, gap: 3 },
-  cardName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, lineHeight: 18, letterSpacing: -0.2, color: FG },
-  cardNote: { fontFamily: "Inter_500Medium", fontSize: 10.5, letterSpacing: 0.4, textTransform: "uppercase", color: "rgba(255,255,255,0.65)" },
+  // Korten har en mörk toning över fotot: ljus text i båda lägena
+  cardName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, lineHeight: 18, letterSpacing: -0.2, color: "#FFFFFF" },
+  cardNote: { fontFamily: "Inter_500Medium", fontSize: 10.5, letterSpacing: 0.4, textTransform: "uppercase", color: "rgba(255,255,255,0.75)" },
   cardPlus: { position: "absolute", right: 12, bottom: 12 },
 
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 16 },
-  rowImg: { width: 64, height: 64, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.04)" },
+  rowImg: { width: 64, height: 64, borderRadius: 12, backgroundColor: c.fill },
   rowImgFallback: { alignItems: "center", justifyContent: "center" },
-  rowName: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: -0.2, color: FG },
-  rowMeta: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 3 },
+  rowName: { fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: -0.2, color: c.text },
+  rowMeta: { fontFamily: "Inter_400Regular", fontSize: 11.5, color: c.faint, marginTop: 3 },
 
   showMoreBtn: { alignItems: "center", paddingVertical: 14 },
-  showMoreText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: GOLD },
+  showMoreText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.goldText },
 
   // Ingen skugga längre — upp mot 20 samtidiga skuggor som alla kan animera (tryck, tillägg) var
   // dyrt nog att synas som hack i fps. En tunn kant ger fortfarande avgränsning, nästan gratis.
@@ -816,7 +830,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(0,0,0,0.25)",
   },
 
-  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.55)", textAlign: "center", marginVertical: 40 },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, textAlign: "center", marginVertical: 40 },
 
   bubbleWrap: { position: "absolute", left: 0, right: 0, alignItems: "center" },
   bubbleShadow: {
@@ -827,5 +841,6 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 10,
     borderRadius: 999, overflow: "hidden", borderWidth: 1, borderColor: "#C5A05955",
   },
-  bubbleText: { flexShrink: 1, fontFamily: "Inter_500Medium", fontSize: 13, color: FG },
+  // Bubblan är mörkt glas i båda lägena
+  bubbleText: { flexShrink: 1, fontFamily: "Inter_500Medium", fontSize: 13, color: "#FFFFFF" },
 });

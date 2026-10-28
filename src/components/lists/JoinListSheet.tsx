@@ -4,10 +4,12 @@ import * as Haptics from "expo-haptics";
 import { useJoinList } from "@/hooks/useLists";
 import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
 import i18n from "i18next";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export function JoinListSheet({
   visible, onClose, onJoined,
 }: { visible: boolean; onClose: () => void; onJoined: (listId: string) => void }) {
+  const { colors } = useTheme();
   const [code, setCode] = useState("");
   const join = useJoinList();
   const sheetInput = useSheetInput();
@@ -27,7 +29,7 @@ export function JoinListSheet({
   return (
     <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.joinSheet.title")} centered onShow={() => inputRef.current?.focus()}>
       <View style={{ gap: 12 }}>
-        <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.6)" }}>
+        <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: colors.muted }}>
           {i18n.t("lists.joinSheet.intro")}
         </Text>
         <TextInput

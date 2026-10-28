@@ -20,13 +20,15 @@ import { PressableScale } from "@/components/PressableScale";
 import { FriendPickerRow, RING_ROOM } from "@/components/lists/FriendPickerRow";
 import { Sheet, PrimaryButton } from "@/components/Sheet";
 import i18n from "i18next";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
 
 export function MembersSheet({
   visible, onClose, listId, isOwner, members,
 }: { visible: boolean; onClose: () => void; listId: string; isOwner: boolean; members: ListMember[] }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const { user } = useAuth();
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
@@ -86,11 +88,11 @@ export function MembersSheet({
           {members.map((m) => (
             <PressableScale key={m.userId} style={s.memberRow} scale={0.98} onPress={() => openMember(m)}>
               <View style={[s.avatarBox, m.pending && { opacity: 0.35 }]}>
-                <Avatar size={36} path={m.avatarPath} name={m.name} color={m.circleColor ?? "#2A2A2A"} ring={m.avatarRing} />
+                <Avatar size={36} path={m.avatarPath} name={m.name} color={m.circleColor ?? colors.fill} ring={m.avatarRing} />
               </View>
-              <Text style={[s.memberName, m.pending && { color: MUTED }]} numberOfLines={1}>{m.name}</Text>
+              <Text style={[s.memberName, m.pending && { color: colors.muted }]} numberOfLines={1}>{m.name}</Text>
               {m.pending && <Text style={s.pendingPill}>{i18n.t("lists.membersSheet.pending")}</Text>}
-              {m.userId !== user?.id && <ChevronRight size={18} color={MUTED} strokeWidth={2} />}
+              {m.userId !== user?.id && <ChevronRight size={18} color={colors.muted} strokeWidth={2} />}
             </PressableScale>
           ))}
         </View>
@@ -117,15 +119,15 @@ export function MembersSheet({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   memberRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 12 },
   // Bilden med luft runt sig, så ringen inte går in i namnet
   avatarBox: { width: 60, height: 36, alignItems: "center", justifyContent: "center" },
-  memberName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
+  memberName: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: c.text },
   pendingPill: {
-    fontFamily: "Inter_600SemiBold", fontSize: 11, color: MUTED, overflow: "hidden",
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.07)",
+    fontFamily: "Inter_600SemiBold", fontSize: 11, color: c.muted, overflow: "hidden",
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: c.fill,
   },
-  sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: MUTED, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 },
-  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, paddingVertical: 8 },
+  sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: c.muted, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, paddingVertical: 8 },
 });

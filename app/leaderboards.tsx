@@ -37,11 +37,9 @@ import { PressableScale } from "@/components/PressableScale";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDate } from "@/i18n/dates";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 // Synlig = på, grönt som en påslagen brytare, inte guld
 const ON = "#4ADE80";
 const ROW_GAP = 10;
@@ -63,6 +61,8 @@ const PERIODS: { id: LeaderboardPeriod; readonly label: string }[] = [
 ];
 
 export default function LeaderboardsScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -183,16 +183,16 @@ export default function LeaderboardsScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top }}>
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("leaderboard.back")}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>{i18n.t("leaderboard.title")}</Text>
           {/* Synlighet: tydlig status (Synlig/Dold), ett tryck öppnar reglagen för att synas och visa profilbild */}
           <PressableScale style={[s.visibility, participating && s.visibilityOn]} scale={0.95} onPress={() => setSettingsOpen(true)}>
-            {participating ? <Eye size={16} color={ON} strokeWidth={2.2} /> : <EyeOff size={16} color={MUTED} strokeWidth={2.2} />}
+            {participating ? <Eye size={16} color={ON} strokeWidth={2.2} /> : <EyeOff size={16} color={colors.muted} strokeWidth={2.2} />}
             <Text style={[s.visibilityText, participating && { color: ON }]}>{i18n.t(participating ? "leaderboard.visible" : "leaderboard.hidden")}</Text>
           </PressableScale>
         </View>
@@ -262,36 +262,36 @@ export default function LeaderboardsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   backBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text, textTransform: "uppercase" },
   visibility: {
     flexDirection: "row", alignItems: "center", gap: 6, height: 36, paddingHorizontal: 12, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
   },
   visibilityOn: { backgroundColor: "rgba(74,222,128,0.12)", borderColor: "rgba(74,222,128,0.5)" },
-  visibilityText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
+  visibilityText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
 
   metricTabs: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
   body: { padding: LIST_PAD, paddingBottom: 28 },
   // Stor rubrik för vad listan gäller — det är huvudfokuset på sidan
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.4, color: FG, textAlign: "center", marginTop: 8 },
-  context: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: GOLD, textAlign: "center", marginTop: 4 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 26, lineHeight: 32, letterSpacing: -0.4, color: c.text, textAlign: "center", marginTop: 8 },
+  context: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.goldText, textAlign: "center", marginTop: 4 },
   // Fast minsta höjd så kontrollerna under inte hoppar upp och ner medan en lista laddar
   board: { minHeight: 330, justifyContent: "flex-end", marginTop: 16 },
   controls: { gap: 10, marginTop: 28 },
-  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, textAlign: "center", marginTop: 20, lineHeight: 20 },
+  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, textAlign: "center", marginTop: 20, lineHeight: 20 },
   // Avståndet mellan kontrollerna och första raden — ingår i radernas läge (getItemLayout)
   rowsStart: { marginBottom: HEADER_GAP },
   item: { height: ITEM_H, paddingBottom: ROW_GAP },
 
   footer: {
     paddingHorizontal: 16, paddingTop: 12, gap: 10,
-    backgroundColor: BG, borderTopWidth: 0.5, borderTopColor: "rgba(255,255,255,0.08)",
+    backgroundColor: c.bg, borderTopWidth: 0.5, borderTopColor: c.border,
   },
 });

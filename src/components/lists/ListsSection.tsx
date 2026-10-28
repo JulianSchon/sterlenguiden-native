@@ -10,12 +10,12 @@ import { CreateListSheet } from "./CreateListSheet";
 import { JoinListSheet } from "./JoinListSheet";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 
 export function ListsSection() {
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const { data: lists = [], isLoading } = useLists();
   const [createOpen, setCreateOpen] = useState(false);
@@ -43,9 +43,9 @@ export function ListsSection() {
         <View style={[s.row, { flexDirection: "row" }]} pointerEvents="none">
           {[0, 1, 2].map((i) => (
             <View key={i} style={s.card}>
-              <Skeleton tone="dark" width={140} height={140} radius={14} />
-              <Skeleton tone="dark" width={100} height={13} radius={5} style={{ marginTop: 10 }} />
-              <Skeleton tone="dark" width={70} height={10} radius={4} style={{ marginTop: 6 }} />
+              <Skeleton width={140} height={140} radius={14} />
+              <Skeleton width={100} height={13} radius={5} style={{ marginTop: 10 }} />
+              <Skeleton width={70} height={10} radius={4} style={{ marginTop: 6 }} />
             </View>
           ))}
         </View>
@@ -80,16 +80,16 @@ export function ListsSection() {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   section: { marginTop: 32 },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: 16 },
   // Playfair bort — bara för personnamn i appen numera, sektionsrubriker delar Montserrat
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: FG },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: c.text },
   actions: { flexDirection: "row", gap: 16 },
-  action: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
-  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, lineHeight: 21, paddingHorizontal: 16, marginTop: 10 },
+  action: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.goldText },
+  empty: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, lineHeight: 21, paddingHorizontal: 16, marginTop: 10 },
   row: { paddingHorizontal: 16, gap: 12, marginTop: 14 },
   card: { width: 140 },
-  name: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG, marginTop: 8 },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 1 },
+  name: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text, marginTop: 8 },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 12, color: c.muted, marginTop: 1 },
 });

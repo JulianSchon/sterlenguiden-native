@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Plus, X } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { PrimaryButton, sheetInput } from "@/components/Sheet";
+import { PrimaryButton, useSheetInput } from "@/components/Sheet";
 import { PlacePickerSheet } from "@/components/PlacePickerSheet";
 import { usePlaces } from "@/hooks/usePlaces";
 import { useMemory, useSignedUrls, useCreateMemory, useUpdateMemory } from "@/hooks/useMemories";
@@ -19,13 +19,14 @@ import { MAX_MEMORY_PHOTOS, pickPhotos, type PickedPhoto } from "@/lib/photos";
 import { isValidDay } from "@/lib/memories";
 import { swedishDay } from "@/lib/streak";
 import i18n from "i18next";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 
 export default function EditMemoryScreen() {
+  const { colors } = useTheme();
+  const sheetInput = useSheetInput();
+  const s = useThemedStyles(createStyles);
   const { id, placeId, title: presetTitle } = useLocalSearchParams<{ id?: string; placeId?: string; title?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -93,11 +94,11 @@ export default function EditMemoryScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("memories.back")}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>{i18n.t(id ? "memories.editTitle" : "memories.newTitle")}</Text>
         </View>
@@ -130,7 +131,7 @@ export default function EditMemoryScreen() {
               ))}
               {photoCount < MAX_MEMORY_PHOTOS && (
                 <TouchableOpacity style={[s.addTile, { width: thumb, height: thumb }]} onPress={addPhotos} accessibilityLabel={i18n.t("memories.addPhotos")}>
-                  <Plus size={28} color={GOLD} strokeWidth={1.8} />
+                  <Plus size={28} color={colors.goldText} strokeWidth={1.8} />
                 </TouchableOpacity>
               )}
             </View>
@@ -144,7 +145,7 @@ export default function EditMemoryScreen() {
               onChangeText={setTitle}
               maxLength={80}
               placeholder={i18n.t("memories.titlePlaceholder")}
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={colors.faint}
             />
           </View>
 
@@ -158,7 +159,7 @@ export default function EditMemoryScreen() {
                 maxLength={10}
                 keyboardType="numbers-and-punctuation"
                 placeholder={i18n.t("memories.datePlaceholder")}
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={colors.faint}
               />
               <TouchableOpacity style={s.todayBtn} onPress={() => setDay(swedishDay())}>
                 <Text style={s.todayText}>{i18n.t("memories.today")}</Text>
@@ -176,7 +177,7 @@ export default function EditMemoryScreen() {
               maxLength={3000}
               multiline
               placeholder={i18n.t("memories.storyPlaceholder")}
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={colors.faint}
             />
           </View>
 
@@ -187,12 +188,12 @@ export default function EditMemoryScreen() {
                 <View key={pid} style={s.chip}>
                   <Text style={s.chipText} numberOfLines={1}>{placesById.get(pid)?.name ?? i18n.t("memories.place")}</Text>
                   <TouchableOpacity hitSlop={8} onPress={() => setPlaceIds((prev) => prev.filter((p) => p !== pid))}>
-                    <X size={14} color={MUTED} strokeWidth={2.5} />
+                    <X size={14} color={colors.muted} strokeWidth={2.5} />
                   </TouchableOpacity>
                 </View>
               ))}
               <TouchableOpacity style={s.chipAdd} onPress={() => setPickerOpen(true)}>
-                <Plus size={14} color={GOLD} strokeWidth={2.5} />
+                <Plus size={14} color={colors.goldText} strokeWidth={2.5} />
                 <Text style={s.chipAddText}>{i18n.t("memories.addPlace")}</Text>
               </TouchableOpacity>
             </View>
@@ -205,7 +206,7 @@ export default function EditMemoryScreen() {
               value={peopleText}
               onChangeText={setPeopleText}
               placeholder={i18n.t("memories.whoPlaceholder")}
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={colors.faint}
             />
           </View>
 
@@ -230,12 +231,14 @@ export default function EditMemoryScreen() {
 }
 
 function PhotoTile({ uri, size, onRemove }: { uri: string | undefined; size: number; onRemove: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   return (
     <View style={{ width: size, height: size }}>
       {uri ? (
         <Image source={{ uri }} style={s.photo} resizeMode="cover" />
       ) : (
-        <View style={[s.photo, { backgroundColor: "rgba(255,255,255,0.06)" }]} />
+        <View style={[s.photo, { backgroundColor: colors.fill }]} />
       )}
       <TouchableOpacity style={s.remove} hitSlop={6} onPress={onRemove} accessibilityLabel={i18n.t("memories.removePhoto")}>
         <X size={14} color="#fff" strokeWidth={2.5} />
@@ -244,45 +247,45 @@ function PhotoTile({ uri, size, onRemove }: { uri: string | undefined; size: num
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   backBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
   // Playfair bort, versaler in — samma mönster som Vänner/Mitt Österlen/Listor
-  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
-  label: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 1.2, color: MUTED, marginBottom: 8 },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text, textTransform: "uppercase" },
+  label: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 1.2, color: c.muted, marginBottom: 8 },
   error: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: "#E57373", marginTop: 6 },
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   photo: { width: "100%", height: "100%", borderRadius: 12 },
   remove: {
     position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center",
+    backgroundColor: c.overlay, alignItems: "center", justifyContent: "center",
   },
   addTile: {
     borderRadius: 12, alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(197,160,89,0.5)",
+    borderWidth: 1, borderStyle: "dashed", borderColor: c.goldBorder,
   },
 
   todayBtn: {
     paddingHorizontal: 16, borderRadius: 12, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
   },
-  todayText: { fontFamily: "Inter_500Medium", fontSize: 14, color: FG },
+  todayText: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.text },
 
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "100%",
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: c.border,
   },
-  chipText: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: FG, flexShrink: 1 },
+  chipText: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.text, flexShrink: 1 },
   chipAdd: {
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.5)",
+    borderWidth: 1, borderColor: c.goldBorder,
   },
-  chipAddText: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: GOLD },
+  chipAddText: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.goldText },
 });

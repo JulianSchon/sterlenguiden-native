@@ -18,13 +18,13 @@ import { LeaderboardRow, LeaderboardRowSkeleton } from "./LeaderboardRow";
 import { JoinLeaderboardButton, LeaderboardConsentSheet } from "./LeaderboardConsentSheet";
 import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 const PREVIEW_COUNT = 5;
 
 export function LeaderboardSection() {
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { data: profile } = useProfile();
@@ -97,14 +97,14 @@ export function LeaderboardSection() {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   section: { marginTop: 32, paddingHorizontal: 16 },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   // Samma sektionsrubrik som Listor/Minnen/Samlarobjekt
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: FG },
-  action: { fontFamily: "Inter_500Medium", fontSize: 13, color: GOLD },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 13, color: MUTED, marginTop: 4 },
-  error: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, marginTop: 16 },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: c.text },
+  action: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.goldText },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 13, color: c.muted, marginTop: 4 },
+  error: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted, marginTop: 16 },
   board: { marginTop: 28 },
   rows: { gap: 8, marginTop: 16 },
   meRow: { marginTop: 8 },

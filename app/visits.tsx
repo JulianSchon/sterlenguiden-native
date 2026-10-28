@@ -29,12 +29,9 @@ import { findCategory } from "@/theme/categories";
 import { pushOnce } from "@/lib/navigateOnce";
 import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG    = "#121212";
-const FG    = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD  = "#C5A059";
-const LINE  = "rgba(255,255,255,0.14)";
 
 // Tidslinjens mått: sidmarginal, datumspalten, prickens storlek och linjens läge (prickens mitt)
 const PAD = 8;
@@ -60,6 +57,8 @@ type Entry =
   | { kind: "visit"; key: string; visit: VisitedPlace; index: number };
 
 export default function VisitsScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { height } = useWindowDimensions();
@@ -92,12 +91,12 @@ export default function VisitsScreen() {
   const visitCount = entries.filter((e) => e.kind === "visit").length;
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Fast header, samma som Mitt Österlen */}
-      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         <View style={s.header}>
           <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("historyPage.back")}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("historyPage.title")}</Text>
         </View>
@@ -106,26 +105,26 @@ export default function VisitsScreen() {
       {/* Tidslinjen i grått medan besöken laddas */}
       {isLoading && (
         <View style={{ paddingTop: 8 }} pointerEvents="none">
-          <Skeleton tone="dark" width={230} height={14} radius={5} style={{ marginLeft: 16, marginBottom: 4 }} />
+          <Skeleton width={230} height={14} radius={5} style={{ marginLeft: 16, marginBottom: 4 }} />
           <View style={s.yearRow}>
-            <Skeleton tone="dark" width={120} height={46} radius={10} />
+            <Skeleton width={120} height={46} radius={10} />
           </View>
           {[0, 1, 2, 3].map((i) => (
             <View key={i} style={s.row}>
               <View style={[s.line, { top: 0, bottom: 0 }]} />
               <View style={[s.dateCol, { gap: 6 }]}>
-                <Skeleton tone="dark" width={24} height={20} radius={5} />
-                <Skeleton tone="dark" width={28} height={11} radius={4} />
+                <Skeleton width={24} height={20} radius={5} />
+                <Skeleton width={28} height={11} radius={4} />
               </View>
               {/* Solid botten så linjen inte syns genom pricken */}
-              <View style={[s.dot, { backgroundColor: BG }]}>
-                <Skeleton tone="dark" width={DOT - 6} height={DOT - 6} radius={(DOT - 6) / 2} />
+              <View style={[s.dot, { backgroundColor: colors.bg }]}>
+                <Skeleton width={DOT - 6} height={DOT - 6} radius={(DOT - 6) / 2} />
               </View>
               <View style={s.content}>
-                <Skeleton tone="dark" width={THUMB} height={THUMB} radius={14} style={{ marginRight: 16 }} />
+                <Skeleton width={THUMB} height={THUMB} radius={14} style={{ marginRight: 16 }} />
                 <View style={{ flex: 1, gap: 9 }}>
-                  <Skeleton tone="dark" width="75%" height={17} radius={6} />
-                  <Skeleton tone="dark" width="50%" height={13} radius={5} />
+                  <Skeleton width="75%" height={17} radius={6} />
+                  <Skeleton width="50%" height={13} radius={5} />
                 </View>
               </View>
             </View>
@@ -136,7 +135,7 @@ export default function VisitsScreen() {
       {!isLoading && visitCount === 0 && (
         <View style={s.empty}>
           <View style={s.emptyIcon}>
-            <Compass size={26} color={GOLD} strokeWidth={1.5} />
+            <Compass size={26} color={colors.goldText} strokeWidth={1.5} />
           </View>
           <Text style={s.emptyTitle}>{i18n.t("historyPage.emptyTitle")}</Text>
           <Text style={s.emptyText}>{i18n.t("historyPage.emptyText")}</Text>
@@ -180,6 +179,7 @@ export default function VisitsScreen() {
 
 /** Årtalet vid ett årsskifte — stort, med linjen som fortsätter förbi */
 function YearDivider({ year, first }: { year: string; first: boolean }) {
+  const s = useThemedStyles(createStyles);
   return (
     <View style={[s.yearRow, first && { paddingTop: 10 }]}>
       {!first && <View style={[s.line, { top: 0, bottom: 0 }]} />}
@@ -193,6 +193,8 @@ function YearDivider({ year, first }: { year: string; first: boolean }) {
 function VisitRow({ visit, index, last, scrollY, focusY, onPress }: {
   visit: VisitedPlace; index: number; last: boolean; scrollY: SharedValue<number>; focusY: SharedValue<number>; onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const when = new Date(visit.visited_at);
   // Radens läge i listan (mätt), och hur långt dess mitt är från fokuslinjen just nu
   const rowY = useSharedValue(0);
@@ -225,7 +227,7 @@ function VisitRow({ visit, index, last, scrollY, focusY, onPress }: {
         <Text style={s.day}>{format(when, "d")}</Text>
         <Text style={s.month}>{formatDate(when, "LLL").replace(".", "")}</Text>
       </Reanimated.View>
-      <Reanimated.View style={[s.dot, { backgroundColor: category?.screen ?? GOLD }, dotStyle]}>
+      <Reanimated.View style={[s.dot, { backgroundColor: category?.screen ?? colors.goldText }, dotStyle]}>
         <Icon size={18} color="#FFFFFF" strokeWidth={2.2} />
       </Reanimated.View>
       {/* Bilden och texten krymper mot linjen (vänsterkanten står still) */}
@@ -258,47 +260,47 @@ function VisitRow({ visit, index, last, scrollY, focusY, onPress }: {
 
 const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   headerBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text },
 
-  summary: { fontFamily: "Inter_500Medium", fontSize: 14, color: MUTED, paddingHorizontal: 16, marginBottom: 4 },
+  summary: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.muted, paddingHorizontal: 16, marginBottom: 4 },
 
   // Tidslinjen: linjen ritas i varje rad, så den löper obruten genom hela listan
-  line: { position: "absolute", left: LINE_X - 1, width: 2, backgroundColor: LINE },
+  line: { position: "absolute", left: LINE_X - 1, width: 2, backgroundColor: c.borderStrong },
   yearRow: { paddingLeft: LINE_X + DOT / 2 + DOT_GAP + 4, paddingTop: 26, paddingBottom: 14 },
-  year: { fontFamily: "Montserrat_700Bold", fontSize: 48, letterSpacing: -1, color: FG, opacity: 0.6 },
+  year: { fontFamily: "Montserrat_700Bold", fontSize: 48, letterSpacing: -1, color: c.text, opacity: 0.6 },
 
   row: { flexDirection: "row", alignItems: "center", paddingLeft: PAD, paddingRight: 16, height: ROW_H },
   content: { flex: 1, flexDirection: "row", alignItems: "center", transformOrigin: "left center" },
   // Dagen och månaden centrerade över varandra
   dateCol: { width: DATE_W, alignItems: "center" },
-  day: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: FG, lineHeight: 25 },
-  month: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED, textTransform: "lowercase" },
+  day: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: c.text, lineHeight: 25 },
+  month: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted, textTransform: "lowercase" },
   dot: {
     width: DOT, height: DOT, borderRadius: DOT / 2, marginLeft: DOT_GAP, marginRight: 14,
-    alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: BG,
+    alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: c.bg,
   },
-  thumb: { width: THUMB, height: THUMB, borderRadius: 14, overflow: "hidden", backgroundColor: "#2A2A2A", marginRight: 16 },
-  name: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: FG },
-  time: { fontFamily: "Inter_500Medium", fontSize: 14, color: MUTED, marginTop: 5 },
+  thumb: { width: THUMB, height: THUMB, borderRadius: 14, overflow: "hidden", backgroundColor: c.fill, marginRight: 16 },
+  name: { fontFamily: "Montserrat_700Bold", fontSize: 17, letterSpacing: -0.2, color: c.text },
+  time: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.muted, marginTop: 5 },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 40 },
   emptyIcon: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(197,160,89,0.10)",
-    borderWidth: 1, borderColor: "rgba(197,160,89,0.22)", alignItems: "center", justifyContent: "center",
+    width: 72, height: 72, borderRadius: 36, backgroundColor: c.goldSoft,
+    borderWidth: 1, borderColor: c.goldBorder, alignItems: "center", justifyContent: "center",
   },
-  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: FG, textAlign: "center" },
-  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: MUTED, textAlign: "center" },
+  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: c.text, textAlign: "center" },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, color: c.muted, textAlign: "center" },
   emptyBtn: {
     marginTop: 8, height: 46, paddingHorizontal: 24, borderRadius: 14,
-    backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.25)",
+    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder,
     alignItems: "center", justifyContent: "center",
   },
-  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD },
+  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
 });

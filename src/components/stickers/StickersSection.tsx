@@ -24,14 +24,15 @@ import { holdTrophyMoments } from "@/lib/trophyMoments";
 import { PressableScale } from "@/components/PressableScale";
 import { StickerArt } from "./StickerArt";
 import i18n from "i18next";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
 const PURPLE = "#A78BFA";
 const COLLAPSED_COUNT = 6;
 const ART = 68;
 
 export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }) {
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const { user } = useAuth();
   const { height: winH } = useWindowDimensions();
@@ -170,6 +171,8 @@ function StickerCell({
   onLoaded: () => void;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const drop = useSharedValue(0);
   const squash = useSharedValue(1);
   // Har klistrats in under det här besöket på sidan: den nedfallna bilden ligger kvar för gott
@@ -223,21 +226,21 @@ function StickerCell({
           <StickerArt imagePath={collectible.imagePath} size={ART} silhouette={!shown} onLoaded={onLoaded} />
         )}
       </View>
-      <Text style={[s.name, (shown || settled) && { color: FG }]} numberOfLines={2}>{collectible.name}</Text>
+      <Text style={[s.name, (shown || settled) && { color: colors.text }]} numberOfLines={2}>{collectible.name}</Text>
     </TouchableOpacity>
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   section: { marginTop: 32 },
   head: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: 16 },
   // Playfair bort — bara för personnamn i appen numera, sektionsrubriker delar Montserrat
-  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: FG },
+  title: { fontFamily: "Montserrat_700Bold", fontSize: 18, letterSpacing: -0.2, color: c.text },
   count: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: PURPLE },
   // 3 per rad (var 4) så 6 stycken blir exakt två rader innan "Visa fler"
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8, marginTop: 14 },
   cell: { width: "33.333%", alignItems: "center", paddingHorizontal: 4, paddingVertical: 8 },
-  name: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: MUTED, textAlign: "center", marginTop: 6 },
+  name: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: c.muted, textAlign: "center", marginTop: 6 },
   moreBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
     marginTop: 6, marginHorizontal: 16, paddingVertical: 12, borderRadius: 12,

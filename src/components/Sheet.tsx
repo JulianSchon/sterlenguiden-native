@@ -187,14 +187,6 @@ export function useSheetInput() {
   } as const;
 }
 
-/** Mörk variant för sidor som inte fått tema än (minnesformuläret). Byts mot useSheetInput när sidan migreras. */
-export const sheetInput = {
-  fontFamily: "Inter_400Regular", fontSize: 16, color: "#F5F1E8",
-  backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 12,
-  paddingHorizontal: 14, paddingVertical: 12,
-  borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
-} as const;
-
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   sheet: {
     backgroundColor: c.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,

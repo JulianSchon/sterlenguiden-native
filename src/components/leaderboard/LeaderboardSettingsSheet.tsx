@@ -12,11 +12,12 @@ import { IconSwitch } from "@/components/IconSwitch";
 import { useProfile } from "@/hooks/useProfile";
 import { useSetLeaderboardAvatar, useSetLeaderboardVisibility } from "@/hooks/useLeaderboard";
 import i18n from "i18next";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.6)";
 
 export function LeaderboardSettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const s = useThemedStyles(createStyles);
   const { data: profile } = useProfile();
   const setVisibility = useSetLeaderboardVisibility();
   const setAvatar = useSetLeaderboardAvatar();
@@ -61,11 +62,11 @@ export function LeaderboardSettingsSheet({ visible, onClose }: { visible: boolea
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 6 },
   texts: { flex: 1 },
-  label: { fontFamily: "Inter_600SemiBold", fontSize: 15.5, color: FG },
-  help: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, color: MUTED, marginTop: 4 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: "rgba(255,255,255,0.12)", marginVertical: 14 },
+  label: { fontFamily: "Inter_600SemiBold", fontSize: 15.5, color: c.text },
+  help: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, color: c.muted, marginTop: 4 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.borderStrong, marginVertical: 14 },
   disabled: { opacity: 0.4 },
 });

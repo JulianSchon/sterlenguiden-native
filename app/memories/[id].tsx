@@ -26,11 +26,9 @@ import { POLAROID_PAPER, POLAROID_TAPE, tornRectPoints } from "@/lib/polaroid";
 import { PressableScale } from "@/components/PressableScale";
 import { LoadingImage, Skeleton } from "@/components/Skeleton";
 import i18n from "i18next";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
 
 const HERO_MARGIN = 24;
 const HERO_FRAME_PAD = 14;
@@ -42,6 +40,8 @@ const HERO_TAPE_H = 34;
 const HERO_TAPE_TILT = -3;
 
 export default function MemoryDetailScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const { id, viaMap } = useLocalSearchParams<{ id: string; viaMap?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -94,8 +94,8 @@ export default function MemoryDetailScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         {/* "Redigera" bort härifrån — ligger nu i åtgärdslistan längst ner på sidan tillsammans
             med Radera, i stället för att delas upp på två olika ställen. Titeln är dock kvar
             (annars står man utan ledtext alls längst upp) — en rad, trunkerad med "…" om den
@@ -113,7 +113,7 @@ export default function MemoryDetailScreen() {
             style={s.backBtn}
             onPress={() => (viaMap ? router.dismissTo("/mitt-osterlen") : router.back())}
           >
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           {memory && <Text style={s.headerTitle} numberOfLines={1} ellipsizeMode="tail">{memory.title}</Text>}
         </View>
@@ -123,13 +123,13 @@ export default function MemoryDetailScreen() {
         // Polaroiden och texten i grått medan minnet laddas
         <View pointerEvents="none">
           <View style={s.heroOuter}>
-            <Skeleton tone="dark" width={heroW} height={heroH} radius={4} />
+            <Skeleton width={heroW} height={heroH} radius={4} />
           </View>
           <View style={{ paddingHorizontal: 16, paddingTop: 24, gap: 10 }}>
-            <Skeleton tone="dark" width={110} height={12} radius={5} />
-            <Skeleton tone="dark" width="100%" height={13} radius={5} />
-            <Skeleton tone="dark" width="90%" height={13} radius={5} />
-            <Skeleton tone="dark" width="60%" height={13} radius={5} />
+            <Skeleton width={110} height={12} radius={5} />
+            <Skeleton width="100%" height={13} radius={5} />
+            <Skeleton width="90%" height={13} radius={5} />
+            <Skeleton width="60%" height={13} radius={5} />
           </View>
         </View>
       ) : !memory ? (
@@ -153,7 +153,7 @@ export default function MemoryDetailScreen() {
                     <Polygon points={heroZigzag} fill={POLAROID_PAPER} />
                   </Svg>
                   <View style={[s.heroPhotoWrap, { left: HERO_FRAME_PAD, top: HERO_FRAME_PAD, width: heroPhotoSize, height: heroPhotoSize }]}>
-                    <LoadingImage source={{ uri: photos[0] }} style={s.heroPhoto} resizeMode="cover" tone="dark" />
+                    <LoadingImage source={{ uri: photos[0] }} style={s.heroPhoto} resizeMode="cover" />
                   </View>
                   <View style={[s.heroCaption, { left: HERO_FRAME_PAD, right: HERO_FRAME_PAD, top: HERO_FRAME_PAD + heroPhotoSize, height: HERO_CAPTION_H }]}>
                     <Text style={s.heroCaptionTitle} numberOfLines={2}>{memory.title}</Text>
@@ -205,7 +205,7 @@ export default function MemoryDetailScreen() {
               <View style={s.gallery}>
                 {photos.slice(1).map((uri, i) => (
                   <TouchableOpacity key={uri} onPress={() => setLightbox(i + 1)} activeOpacity={0.92}>
-                    <LoadingImage source={{ uri }} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} resizeMode="cover" tone="dark" />
+                    <LoadingImage source={{ uri }} style={{ width: galleryW, height: galleryH, borderRadius: 16 }} resizeMode="cover" />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -231,15 +231,15 @@ export default function MemoryDetailScreen() {
           <View style={s.actions}>
             <Text style={s.sectionLabel}>{i18n.t("memories.more")}</Text>
             <View style={{ gap: 8 }}>
-              <ActionRow icon={<Plus size={18} color={FG} strokeWidth={2} />} label={i18n.t("problems.createMemory")} onPress={() => router.push("/memories/edit")} />
+              <ActionRow icon={<Plus size={18} color={colors.text} strokeWidth={2} />} label={i18n.t("problems.createMemory")} onPress={() => router.push("/memories/edit")} />
               {memoryPlaces.length > 0 && (
                 <ActionRow
-                  icon={<MapPin size={18} color={FG} strokeWidth={2} />}
+                  icon={<MapPin size={18} color={colors.text} strokeWidth={2} />}
                   label={i18n.t("memories.showOnMap")}
                   onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } })}
                 />
               )}
-              <ActionRow icon={<Pencil size={18} color={FG} strokeWidth={2} />} label={i18n.t("problems.editMemory")} onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } })} />
+              <ActionRow icon={<Pencil size={18} color={colors.text} strokeWidth={2} />} label={i18n.t("problems.editMemory")} onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } })} />
               <ActionRow icon={<Trash2 size={18} color="#E57373" strokeWidth={2} />} label={i18n.t("problems.deleteMemory")} danger onPress={confirmDelete} />
             </View>
           </View>
@@ -280,6 +280,8 @@ export default function MemoryDetailScreen() {
 /** Ett platskort med platsens egen bild, namnet skrivet direkt i bilden över en mörk fade
  * nedtill (en riktig SVG-gradient, inte expo-linear-gradient, som inte är kompilerad i dev-clienten än). */
 function MemoryPlaceCard({ place, onPress }: { place: { id: number; name: string; image_url: string | null }; onPress: () => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const img = firstImageUrl(place.image_url);
   return (
     <TouchableOpacity style={s.placeCard} activeOpacity={0.85} onPress={onPress}>
@@ -287,7 +289,7 @@ function MemoryPlaceCard({ place, onPress }: { place: { id: number; name: string
         <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, s.placeImageEmpty]}>
-          <MapPin size={26} color={GOLD} strokeWidth={2} />
+          <MapPin size={26} color={colors.goldText} strokeWidth={2} />
         </View>
       )}
       {img && (
@@ -314,6 +316,7 @@ function MemoryPlaceCard({ place, onPress }: { place: { id: number; name: string
 /** Samma rad-stil som listornas ⋮-meny (ListOptionsSheet) — ikon i en cirkel + etikett — fast
  * inline på sidan i stället för i en sheet. */
 function ActionRow({ icon, label, danger, onPress }: { icon: React.ReactNode; label: string; danger?: boolean; onPress: () => void }) {
+  const s = useThemedStyles(createStyles);
   return (
     <PressableScale style={s.actionRow} scale={0.98} onPress={onPress}>
       <View style={s.actionIconWrap}>{icon}</View>
@@ -322,17 +325,17 @@ function ActionRow({ icon, label, danger, onPress }: { icon: React.ReactNode; la
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   backBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
   // Samma versal-konvention som alla andra headers i appen (Nytt minne, Vänner, Mitt
   // Österlen, Listor) — ingen anledning att göra ett undantag här.
-  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG, textTransform: "uppercase" },
-  notFound: { fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED, textAlign: "center", marginTop: 40 },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text, textTransform: "uppercase" },
+  notFound: { fontFamily: "Inter_400Regular", fontSize: 15, color: c.muted, textAlign: "center", marginTop: 40 },
 
   // Försättsfotots egen Polaroid-ram — samma material som förhandsvisningskortet
   // (src/lib/polaroid.ts), bara i stor, stillastående skala. Se kommentaren högst upp i filen.
@@ -353,21 +356,21 @@ const s = StyleSheet.create({
   heroTape: { position: "absolute", top: -HERO_TAPE_H * 0.55, zIndex: 1 },
 
   fallbackHeader: { paddingHorizontal: 16, paddingTop: 18 },
-  fallbackDate: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 1.4, color: GOLD },
-  fallbackTitle: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: FG, marginTop: 6 },
+  fallbackDate: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 1.4, color: c.goldText },
+  fallbackTitle: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: c.text, marginTop: 6 },
 
   story: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 24, color: "rgba(245,241,232,0.85)" },
 
   // Samma etikett-konvention som "Nytt minne"-formuläret (app/memories/edit.tsx): liten,
   // dämpad, versal.
-  sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 1.2, color: MUTED, marginBottom: 10 },
+  sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11.5, letterSpacing: 1.2, color: c.muted, marginBottom: 10 },
 
   // Platser: stora kort (namnet skrivs i bilden, se placeNameWrap/placeName), inte en liten
   // textpill ovanför bilderna.
   placesRow: { gap: 12 },
   placeCard: {
     width: 160, height: 160, borderRadius: 16, overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: c.fill,
   },
   placeImageEmpty: { alignItems: "center", justifyContent: "center" },
   placeNameWrap: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 12 },
@@ -380,9 +383,9 @@ const s = StyleSheet.create({
   peopleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   personPill: {
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    backgroundColor: "rgba(197,160,89,0.14)", borderWidth: 1, borderColor: "rgba(197,160,89,0.35)",
+    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder,
   },
-  personPillText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
+  personPillText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
 
   // Stora bilder i en vertikal rad i stället för ett rutnät av tummar.
   gallery: { paddingHorizontal: 16, marginTop: 4, gap: 14 },
@@ -392,22 +395,22 @@ const s = StyleSheet.create({
   actionRow: {
     flexDirection: "row", alignItems: "center", gap: 12,
     paddingVertical: 12, paddingHorizontal: 12, borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: c.fill,
   },
   actionIconWrap: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.06)",
+    width: 36, height: 36, borderRadius: 18, backgroundColor: c.fill,
     alignItems: "center", justifyContent: "center",
   },
-  actionLabel: { fontFamily: "Inter_500Medium", fontSize: 15, color: FG },
+  actionLabel: { fontFamily: "Inter_500Medium", fontSize: 15, color: c.text },
 
   // Loggan längst ner — en liten, varm avslutning på sidan, inte en ny hero.
   footer: { alignItems: "center", gap: 8, marginTop: 44, paddingHorizontal: 32 },
   footerLogo: { width: 44, height: 50, opacity: 0.8 },
-  footerTagline: { fontFamily: "Inter_500Medium", fontSize: 13, letterSpacing: 0.3, color: MUTED, textAlign: "center" },
+  footerTagline: { fontFamily: "Inter_500Medium", fontSize: 13, letterSpacing: 0.3, color: c.muted, textAlign: "center" },
 
   lightbox: { flex: 1, backgroundColor: "#000" },
   close: {
     position: "absolute", right: 16, width: 44, height: 44, borderRadius: 22,
-    backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center",
+    backgroundColor: c.overlay, alignItems: "center", justifyContent: "center",
   },
 });

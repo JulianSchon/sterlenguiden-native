@@ -6,12 +6,13 @@ import * as Haptics from "expo-haptics";
 import { useUpdateList, type ListDetail } from "@/hooks/useLists";
 import { Sheet, PrimaryButton, useSheetInput } from "@/components/Sheet";
 import i18n from "i18next";
+import { useTheme } from "@/theme/ThemeProvider";
 
-const MUTED = "rgba(245,241,232,0.55)";
 
 export function EditListSheet({
   visible, onClose, list,
 }: { visible: boolean; onClose: () => void; list: ListDetail }) {
+  const { colors } = useTheme();
   const [name, setName] = useState(list.name);
   const [description, setDescription] = useState(list.description ?? "");
   const update = useUpdateList();
@@ -37,11 +38,11 @@ export function EditListSheet({
     <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.edit.title")} centered onShow={() => nameInputRef.current?.focus()}>
       <View style={{ gap: 14 }}>
         <View style={{ gap: 6 }}>
-          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED }}>{i18n.t("lists.create.name")}</Text>
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: colors.muted }}>{i18n.t("lists.create.name")}</Text>
           <TextInput ref={nameInputRef} style={sheetInput} value={name} onChangeText={setName} maxLength={60} placeholderTextColor="rgba(255,255,255,0.35)" />
         </View>
         <View style={{ gap: 6 }}>
-          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED }}>{i18n.t("lists.create.description")}</Text>
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: colors.muted }}>{i18n.t("lists.create.description")}</Text>
           <TextInput
             style={[sheetInput, { minHeight: 80, textAlignVertical: "top" }]}
             value={description}

@@ -36,10 +36,9 @@ import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { LoadingImage, Skeleton } from "@/components/Skeleton";
 import { PressableScale } from "@/components/PressableScale";
 import i18n from "i18next";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const BG = "#121212";
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
 
 const CIRCLE_BASE_LEFT = 20;
 
@@ -65,6 +64,8 @@ function circleCenterX(i: number, width: number, maxSize: number, amplitude: num
 }
 
 export default function MemoriesBookScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -118,7 +119,7 @@ export default function MemoriesBookScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Varm glöd i användarens egen passfärg, ankrad högst upp — bleknar neråt i mörkret. */}
       <View style={{ position: "absolute", top: -width * 1.7 * 0.62, left: (width - width * 1.7) / 2 }} pointerEvents="none">
         <RadialGlow size={width * 1.7} color={glowColor} opacity={0.55} radiusRatio={1} />
@@ -132,12 +133,12 @@ export default function MemoriesBookScreen() {
             const cx = circleCenterX(i, width, MAX_SIZE, WOBBLE_AMPLITUDE);
             return (
               <View key={i} style={{ height: ITEM_H }}>
-                <Skeleton tone="dark" width={size} height={size} radius={size / 2} style={{ position: "absolute", left: cx - size / 2, top: (ITEM_H - size) / 2 }} />
+                <Skeleton width={size} height={size} radius={size / 2} style={{ position: "absolute", left: cx - size / 2, top: (ITEM_H - size) / 2 }} />
                 {i === 0 && (
                   <View style={[s.beadText, { left: cx + MAX_SIZE / 2 + 16, right: 16, gap: 8 }]}>
-                    <Skeleton tone="dark" width="85%" height={19} radius={6} />
-                    <Skeleton tone="dark" width="55%" height={12} radius={5} />
-                    <Skeleton tone="dark" width="45%" height={12} radius={5} />
+                    <Skeleton width="85%" height={19} radius={6} />
+                    <Skeleton width="55%" height={12} radius={5} />
+                    <Skeleton width="45%" height={12} radius={5} />
                   </View>
                 )}
               </View>
@@ -161,7 +162,7 @@ export default function MemoriesBookScreen() {
                 <Polyline
                   points={threadPoints}
                   fill="none"
-                  stroke="rgba(255,255,255,0.14)"
+                  stroke={colors.borderStrong}
                   strokeWidth={2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -198,10 +199,10 @@ export default function MemoriesBookScreen() {
           knappar. Låter glöden och cirklarna börja högre upp, närmare skärmens egen topp. */}
       <View style={[s.floatingRow, { top: insets.top + 8 }]} pointerEvents="box-none">
         <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
-          <ArrowLeft size={22} color={FG} strokeWidth={2} />
+          <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit")}>
-          <Plus size={22} color={FG} strokeWidth={2} />
+          <Plus size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
       </View>
     </View>
@@ -216,6 +217,8 @@ function MemoryBead({
   circleLeft: number; onRight: boolean; screenWidth: number;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   // Cirkelns egen position i scrollytan är konstant (index * itemH); fokuszonen ligger kvar på
   // samma ställe i FÖNSTRET — så avståndet till fokus är helt enkelt skillnaden mellan hur långt
   // cirkeln FLYTTAT (index * itemH) och hur långt man SCROLLAT (scrollY.value).
@@ -271,16 +274,16 @@ function MemoryBead({
       >
         <Animated.View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2 }, circleStyle]}>
           {/* Ringen — tunn, alltid synlig */}
-          <View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)" }]} />
+          <View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2, borderWidth: 1.5, borderColor: colors.borderStrong }]} />
           {/* Mellanrummets fyllning — bara synlig när cirkeln är vald */}
           <Animated.View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2, backgroundColor: "#9A9A9A" }, fillStyle]} />
           {/* Fotot, centrerat innanför mellanrummet */}
-          <View style={{ position: "absolute", top: gap, left: gap, width: photoSize, height: photoSize, borderRadius: photoSize / 2, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.08)" }}>
+          <View style={{ position: "absolute", top: gap, left: gap, width: photoSize, height: photoSize, borderRadius: photoSize / 2, overflow: "hidden", backgroundColor: colors.border }}>
             {cover ? (
-              <LoadingImage source={{ uri: cover }} style={StyleSheet.absoluteFillObject} resizeMode="cover" tone="dark" />
+              <LoadingImage source={{ uri: cover }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
             ) : (
               <View style={s.noCover}>
-                <ImageIcon size={Math.round(maxSize * 0.22)} color="rgba(255,255,255,0.25)" strokeWidth={1.5} />
+                <ImageIcon size={Math.round(maxSize * 0.22)} color={colors.faint} strokeWidth={1.5} />
               </View>
             )}
           </View>
@@ -313,18 +316,18 @@ function MemoryBead({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   floatingRow: {
     position: "absolute", left: 16, right: 16,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   iconBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
   empty: {
-    fontFamily: "Inter_400Regular", fontSize: 15, color: MUTED, textAlign: "center",
+    fontFamily: "Inter_400Regular", fontSize: 15, color: c.muted, textAlign: "center",
     marginTop: 60, paddingHorizontal: 32,
   },
 
@@ -335,7 +338,7 @@ const s = StyleSheet.create({
   // mittpunkt oavsett hur hög titel+datum+antal faktiskt blir, i stället för att bara utgå från
   // cirkelns övre kant (som läste som "ovanför mitten", inte i den).
   beadText: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
-  beadTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, color: FG },
-  beadDate: { fontFamily: "Inter_500Medium", fontSize: 13, color: MUTED, marginTop: 4 },
-  beadMeta: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: MUTED, marginTop: 2 },
+  beadTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, color: c.text },
+  beadDate: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.muted, marginTop: 4 },
+  beadMeta: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 2 },
 });

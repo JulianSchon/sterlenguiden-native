@@ -10,13 +10,15 @@ import { MemberAvatarStack } from "@/components/lists/MemberAvatarStack";
 import { FriendPickerRow, RING_ROOM } from "@/components/lists/FriendPickerRow";
 import { Sheet, PrimaryButton, SecondaryButton, useSheetInput } from "@/components/Sheet";
 import i18n from "i18next";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const MUTED = "rgba(245,241,232,0.55)";
-const CARD = "#1A1A1D";
 
 export function CreateListSheet({
   visible, onClose, onCreated,
 }: { visible: boolean; onClose: () => void; onCreated: (listId: string) => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
@@ -79,7 +81,7 @@ export function CreateListSheet({
               onChangeText={setName}
               maxLength={60}
               placeholder={i18n.t("lists.create.namePlaceholder")}
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={colors.faint}
             />
           </View>
           <View style={{ gap: 6 }}>
@@ -91,13 +93,13 @@ export function CreateListSheet({
               maxLength={180}
               multiline
               placeholder={i18n.t("lists.create.optional")}
-              placeholderTextColor="rgba(255,255,255,0.35)"
+              placeholderTextColor={colors.faint}
             />
           </View>
           <View style={{ gap: 6 }}>
             <Text style={s.label}>{i18n.t("lists.create.members")}</Text>
             <MemberAvatarStack
-              ringColor={CARD}
+              ringColor={colors.card}
               onAddPress={() => setStep("picker")}
               members={[
                 { userId: "me", name: profile?.display_name ?? "?", avatarUri: avatarUrl, circleColor: profile?.circle_color ?? null, avatarRing: profile?.avatar_ring ?? null },
@@ -115,7 +117,7 @@ export function CreateListSheet({
       ) : (
         <Reanimated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={{ gap: 12 }}>
           {friends.length === 0 ? (
-            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED, paddingVertical: 12 }}>
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: colors.muted, paddingVertical: 12 }}>
               {i18n.t("lists.create.noFriends")}
             </Text>
           ) : (
@@ -138,6 +140,6 @@ export function CreateListSheet({
   );
 }
 
-const s = StyleSheet.create({
-  label: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  label: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
 });

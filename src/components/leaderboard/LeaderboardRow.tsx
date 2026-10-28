@@ -14,11 +14,9 @@ import { PressableScale } from "@/components/PressableScale";
 import { Avatar } from "@/components/profile/Avatar";
 import { Skeleton } from "@/components/Skeleton";
 import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric } from "@/hooks/useLeaderboard";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
-const GOLD = "#C5A059";
-const CARD = "#1A1A1D";
 export const ROW_H = 64;
 
 export function LeaderboardRow({
@@ -26,38 +24,41 @@ export function LeaderboardRow({
 }: {
   entry: LeaderboardEntry; metric: LeaderboardMetric; highlight?: boolean; jumpHint?: boolean; onPress?: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const sub = [entry.username ? `@${entry.username}` : null, entry.city].filter(Boolean).join("  ·  ");
   return (
     <Wrapper onPress={onPress} style={[s.row, highlight && s.rowMe]}>
-      <Text style={[s.rank, highlight && { color: GOLD }]} numberOfLines={1}>
+      <Text style={[s.rank, highlight && { color: colors.goldText }]} numberOfLines={1}>
         {entry.placement ?? "–"}
       </Text>
-      <Avatar size={36} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
+      <Avatar size={36} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? colors.fill} />
       <View style={s.who}>
-        <Text style={[s.name, highlight && { color: GOLD }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        <Text style={[s.name, highlight && { color: colors.goldText }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {entry.name}
         </Text>
         {sub !== "" && <Text style={s.sub} numberOfLines={1}>{sub}</Text>}
       </View>
       <Text style={s.value}>{formatLeaderboardValue(metric, entry.value)}</Text>
-      {jumpHint && <ChevronDown size={16} color={GOLD} strokeWidth={2.4} />}
+      {jumpHint && <ChevronDown size={16} color={colors.goldText} strokeWidth={2.4} />}
     </Wrapper>
   );
 }
 
 /** En rad i grått medan topplistan laddas — samma höjd och delar som en riktig rad */
 export function LeaderboardRowSkeleton() {
+  const s = useThemedStyles(createStyles);
   return (
     <View style={s.row} pointerEvents="none">
       <View style={{ width: 40, alignItems: "center" }}>
-        <Skeleton tone="dark" width={18} height={12} radius={4} />
+        <Skeleton width={18} height={12} radius={4} />
       </View>
-      <Skeleton tone="dark" width={36} height={36} radius={18} />
+      <Skeleton width={36} height={36} radius={18} />
       <View style={[s.who, { gap: 7 }]}>
-        <Skeleton tone="dark" width="55%" height={13} radius={5} />
-        <Skeleton tone="dark" width="35%" height={10} radius={4} />
+        <Skeleton width="55%" height={13} radius={5} />
+        <Skeleton width="35%" height={10} radius={4} />
       </View>
-      <Skeleton tone="dark" width={28} height={13} radius={5} />
+      <Skeleton width={28} height={13} radius={5} />
     </View>
   );
 }
@@ -68,20 +69,20 @@ function Wrapper({ onPress, style, children }: { onPress?: () => void; style: St
   return <PressableScale style={style} scale={0.98} onPress={onPress}>{children}</PressableScale>;
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   row: {
     flexDirection: "row", alignItems: "center", gap: 12, height: ROW_H,
     paddingHorizontal: 14, borderRadius: 14,
-    backgroundColor: CARD, borderWidth: 0.5, borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: c.card, borderWidth: 0.5, borderColor: c.fill,
   },
-  rowMe: { backgroundColor: "rgba(197,160,89,0.12)", borderWidth: 1, borderColor: "rgba(197,160,89,0.45)" },
+  rowMe: { backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder },
   // Fast bredd så namnen linjerar under varandra, även när en placering är fyrsiffrig
   rank: {
     width: 40, textAlign: "center",
-    fontFamily: "Montserrat_700Bold", fontSize: 14, color: MUTED, fontVariant: ["tabular-nums"],
+    fontFamily: "Montserrat_700Bold", fontSize: 14, color: c.muted, fontVariant: ["tabular-nums"],
   },
   who: { flex: 1 },
-  name: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG },
-  sub: { fontFamily: "Inter_400Regular", fontSize: 12, color: MUTED, marginTop: 2 },
-  value: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: FG },
+  name: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text },
+  sub: { fontFamily: "Inter_400Regular", fontSize: 12, color: c.muted, marginTop: 2 },
+  value: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.text },
 });

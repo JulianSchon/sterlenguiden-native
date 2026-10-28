@@ -23,9 +23,9 @@ import { RadialGlow } from "@/components/trophies/TrophyMedal";
 import { TIER_PALETTE } from "@/lib/achievements";
 import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric } from "@/hooks/useLeaderboard";
 import i18n from "i18next";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
-const FG = "#F5F1E8";
-const MUTED = "rgba(245,241,232,0.55)";
 
 type Place = 1 | 2 | 3;
 const TIER: Record<Place, keyof typeof TIER_PALETTE> = { 1: "gold", 2: "silver", 3: "bronze" };
@@ -45,6 +45,7 @@ const TOP_INSET = 9;
 export function Podium({
   entries, metric, width, onSelect,
 }: { entries: LeaderboardEntry[]; metric: LeaderboardMetric; width: number; onSelect?: (entry: LeaderboardEntry) => void }) {
+  const s = useThemedStyles(createStyles);
   const colW = Math.floor(width / 3);
   const spot = width * 0.95;
   return (
@@ -63,15 +64,16 @@ export function Podium({
 
 /** Pallen i grått medan topplistan laddas — samma mått, så den riktiga reser sig på samma plats */
 export function PodiumSkeleton({ width }: { width: number }) {
+  const s = useThemedStyles(createStyles);
   const colW = Math.floor(width / 3);
   return (
     <View style={[s.row, { width }]} pointerEvents="none">
       {([2, 1, 3] as Place[]).map((place) => (
         <View key={place} style={[s.column, { width: colW }]}>
-          <Skeleton tone="dark" width={AVATAR[place]} height={AVATAR[place]} radius={AVATAR[place] / 2} />
-          <Skeleton tone="dark" width={colW * 0.55} height={14} radius={5} style={{ marginTop: 14 }} />
-          <Skeleton tone="dark" width={56} height={32} radius={10} style={{ marginTop: 10 }} />
-          <Skeleton tone="dark" width={colW - 4} height={BLOCK_H[place]} radius={6} style={{ marginTop: 14 }} />
+          <Skeleton width={AVATAR[place]} height={AVATAR[place]} radius={AVATAR[place] / 2} />
+          <Skeleton width={colW * 0.55} height={14} radius={5} style={{ marginTop: 14 }} />
+          <Skeleton width={56} height={32} radius={10} style={{ marginTop: 10 }} />
+          <Skeleton width={colW - 4} height={BLOCK_H[place]} radius={6} style={{ marginTop: 14 }} />
         </View>
       ))}
     </View>
@@ -84,6 +86,8 @@ function PodiumColumn({
   place: Place; entry: LeaderboardEntry | undefined; metric: LeaderboardMetric; width: number;
   onSelect?: (entry: LeaderboardEntry) => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const reduceMotion = useReducedMotion();
   const avatar = AVATAR[place];
 
@@ -102,7 +106,7 @@ function PodiumColumn({
       {entry ? (
         <Floating place={place}>
           <View style={{ width: avatar, height: avatar }}>
-            <Avatar size={avatar} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? "#2A2A2A"} />
+            <Avatar size={avatar} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? colors.fill} />
             <View style={[s.badge, { top: -avatar * 0.06, right: -avatar * 0.1 }]}>
               <RankBadge place={place} size={place === 1 ? 32 : 28} />
             </View>
@@ -113,7 +117,7 @@ function PodiumColumn({
       )}
 
       {/* Hela namnet ska alltid synas — två rader och hellre lite mindre text än avklippt */}
-      <Text style={[s.name, !entry && { color: MUTED }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75}>
+      <Text style={[s.name, !entry && { color: colors.muted }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75}>
         {entry ? entry.name : i18n.t("leaderboard.freeSpot")}
       </Text>
       <View style={[s.chip, !entry && { opacity: 0 }]}>
@@ -146,6 +150,7 @@ function Floating({ place, children }: { place: Place; children: ReactNode }) {
 
 /** Taggig bricka (som ett sigill) i guld/silver/brons — samma färgskala som troféerna. */
 function RankBadge({ place, size }: { place: Place; size: number }) {
+  const s = useThemedStyles(createStyles);
   const palette = TIER_PALETTE[TIER[place]];
   const R = size / 2;
   const inner = R * 0.84;
@@ -228,7 +233,7 @@ function PodiumBlock({ place, width }: { place: Place; width: number }) {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", alignSelf: "center" },
   spotAnchor: { position: "absolute" },
   column: { alignItems: "center" },
@@ -236,16 +241,16 @@ const s = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute" },
   badgeText: { fontFamily: "Montserrat_700Bold", includeFontPadding: false },
-  emptyAvatar: { borderWidth: 1.5, borderStyle: "dashed", borderColor: "rgba(255,255,255,0.2)" },
+  emptyAvatar: { borderWidth: 1.5, borderStyle: "dashed", borderColor: c.borderStrong },
   name: {
-    fontFamily: "Inter_600SemiBold", fontSize: 15, color: FG,
+    fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text,
     marginTop: 12, paddingHorizontal: 4, maxWidth: "100%", textAlign: "center",
   },
   // Rektangulär med lätt rundade hörn, inte en rund pill — som i referensen
   chip: {
     flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
   },
-  chipText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: FG },
+  chipText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: c.text },
 });

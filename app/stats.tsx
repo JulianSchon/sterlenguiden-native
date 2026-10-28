@@ -48,18 +48,12 @@ import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDate, weekdayShort } from "@/i18n/dates";
 import { decimal } from "@/i18n/numbers";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import type { ThemeColors } from "@/theme/colors";
 
 // Österlenlegendens guldtrofé — den man får för att klara allt
 const TROPHY_ART = require("../assets/badges/osterlenlegend-gold.png");
 
-const BG     = "#121212";
-const CARD   = "#1A1A1D";
-const FG     = "#F5F1E8";
-const MUTED  = "rgba(245,241,232,0.55)";
-const GOLD   = "#C5A059";
-const GOLD_LT = "#E8C674";
-const BORDER = "rgba(255,255,255,0.08)";
-const TRACK  = "rgba(255,255,255,0.08)";
 // Samma röda som hjärtat på Favoriter
 const HEART_RED = "#EF4444";
 
@@ -68,6 +62,8 @@ const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 interface MonthPoint { label: string; name: string; count: number }
 
 export default function StatsScreen() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data: visits = [], isLoading: visitsLoading } = useVisits();
@@ -130,11 +126,11 @@ export default function StatsScreen() {
   const treasures = collected?.size ?? 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
-      <View style={{ paddingTop: insets.top, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         <View style={s.header}>
           <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} accessibilityLabel={i18n.t("statsPage.back")}>
-            <ArrowLeft size={24} color={FG} strokeWidth={2} />
+            <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("statsPage.title")}</Text>
         </View>
@@ -144,22 +140,22 @@ export default function StatsScreen() {
         // Sidan i grått medan besöken laddas: stora siffran, rutorna och diagrammet
         <View style={s.body} pointerEvents="none">
           <View style={s.hero}>
-            <Skeleton tone="dark" width={180} height={12} radius={5} />
-            <Skeleton tone="dark" width={190} height={52} radius={10} />
-            <Skeleton tone="dark" width="100%" height={10} radius={5} />
-            <Skeleton tone="dark" width={120} height={13} radius={5} />
+            <Skeleton width={180} height={12} radius={5} />
+            <Skeleton width={190} height={52} radius={10} />
+            <Skeleton width="100%" height={10} radius={5} />
+            <Skeleton width={120} height={13} radius={5} />
           </View>
           <View style={s.tiles}>
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <View key={i} style={s.tile}>
-                <Skeleton tone="dark" width={26} height={26} radius={8} />
-                <Skeleton tone="dark" width={42} height={20} radius={6} />
-                <Skeleton tone="dark" width={62} height={11} radius={4} />
+                <Skeleton width={26} height={26} radius={8} />
+                <Skeleton width={42} height={20} radius={6} />
+                <Skeleton width={62} height={11} radius={4} />
               </View>
             ))}
           </View>
-          <Skeleton tone="dark" width={140} height={16} radius={5} style={{ marginTop: 30, marginBottom: 12 }} />
-          <Skeleton tone="dark" width="100%" height={230} radius={18} />
+          <Skeleton width={140} height={16} radius={5} style={{ marginTop: 30, marginBottom: 12 }} />
+          <Skeleton width="100%" height={230} radius={18} />
         </View>
       ) : (
         <ScrollView
@@ -174,7 +170,7 @@ export default function StatsScreen() {
               <Text style={s.heroValue}>{stats.uniqueCount}</Text>
               <Text style={s.heroOf}>{i18n.t("statsPage.ofPlaces", { count: places.length })}</Text>
             </View>
-            <Bar fraction={places.length > 0 ? stats.uniqueCount / places.length : 0} color={GOLD} height={10} delay={60} />
+            <Bar fraction={places.length > 0 ? stats.uniqueCount / places.length : 0} color={colors.goldText} height={10} delay={60} />
             <Text style={s.heroPercent}>{i18n.t("statsPage.percent", { percent })}</Text>
           </View>
 
@@ -237,6 +233,7 @@ export default function StatsScreen() {
 
 /** En ruta: symbol, stort värde, etikett — glider in kort efter varandra */
 function Tile({ icon, value, label, index }: { icon: ReactNode; value: number | string; label: string; index: number }) {
+  const s = useThemedStyles(createStyles);
   return (
     <Reanimated.View entering={FadeInDown.delay(40 + index * 35).duration(280)} style={s.tile}>
       <View style={s.tileIcon}>{icon}</View>
@@ -261,6 +258,7 @@ function MiniPolaroid() {
 
 /** En stapel som fylls från vänster när sidan öppnas */
 function Bar({ fraction, color, height = 8, delay = 0 }: { fraction: number; color: string; height?: number; delay?: number }) {
+  const s = useThemedStyles(createStyles);
   const fill = useSharedValue(0);
   useEffect(() => {
     fill.value = withDelay(delay, withTiming(Math.max(0, Math.min(1, fraction)), { duration: 550, easing: Easing.out(Easing.quad) }));
@@ -275,6 +273,7 @@ function Bar({ fraction, color, height = 8, delay = 0 }: { fraction: number; col
 
 /** Kategorirad: rund ikon i kategorins färg, namn, "3 av 45" och en stapel i samma färg */
 function CategoryRow({ cat, delay }: { cat: CategoryStat; delay: number }) {
+  const s = useThemedStyles(createStyles);
   const Icon = cat.Icon;
   const none = cat.visited === 0;
   return (
@@ -346,6 +345,8 @@ const SAMPLES = 160;
  * sidan som vanligt. Släpper man visas den här månaden igen.
  */
 function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing: (on: boolean) => void }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const [w, setW] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const draw = useSharedValue(0);
@@ -468,13 +469,13 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
       <View style={s.chartHead}>
         <View>
           <Text style={s.legendLabel}>
-            <Text style={{ color: GOLD }}>●</Text> {selected === null ? i18n.t("statsPage.thisMonth") : months[selected].name}
+            <Text style={{ color: colors.goldText }}>●</Text> {selected === null ? i18n.t("statsPage.thisMonth") : months[selected].name}
           </Text>
           <Text style={s.legendValue}>{months[shown].count === 1 ? i18n.t("statsPage.visitsOne") : i18n.t("statsPage.visitsOther", { count: months[shown].count })}</Text>
         </View>
         <View>
-          <Text style={s.legendLabel}><Text style={{ color: MUTED }}>●</Text> {i18n.t("statsPage.average")}</Text>
-          <Text style={[s.legendValue, { color: MUTED }]}>{i18n.t("statsPage.averageValue", { value: decimal(avg) })}</Text>
+          <Text style={s.legendLabel}><Text style={{ color: colors.muted }}>●</Text> {i18n.t("statsPage.average")}</Text>
+          <Text style={[s.legendValue, { color: colors.muted }]}>{i18n.t("statsPage.averageValue", { value: decimal(avg) })}</Text>
         </View>
       </View>
 
@@ -483,17 +484,17 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
           {geo && (
             <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
               <Path path={geo.area} opacity={areaOpacity}>
-                <LinearGradient start={vec(0, 0)} end={vec(0, CHART_H)} colors={["rgba(197,160,89,0.35)", "rgba(197,160,89,0)"]} />
+                <LinearGradient start={vec(0, 0)} end={vec(0, CHART_H)} colors={[colors.goldBorder, "rgba(197,160,89,0)"]} />
               </Path>
-              <Path path={geo.avg} style="stroke" strokeWidth={1.5} color="rgba(245,241,232,0.3)">
+              <Path path={geo.avg} style="stroke" strokeWidth={1.5} color={colors.faint}>
                 <DashPathEffect intervals={[5, 6]} />
               </Path>
-              <Path path={geo.line} style="stroke" strokeWidth={3} strokeCap="round" strokeJoin="round" color={GOLD} start={0} end={draw} />
+              <Path path={geo.line} style="stroke" strokeWidth={3} strokeCap="round" strokeJoin="round" color={colors.goldText} start={0} end={draw} />
               {/* Den här månaden: en lysande prick i slutet av kurvan */}
               <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={glowR} color="rgba(232,198,116,0.45)" opacity={glowOpacity}>
                 <BlurMask blur={5} style="normal" />
               </Circle>
-              <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={dotR} color={GOLD_LT} />
+              <Circle cx={geo.pts[lastIndex].x} cy={geo.pts[lastIndex].y} r={dotR} color={colors.goldText} />
             </Canvas>
           )}
           {/* Markeringen medan man nuddar: lodrät linje och en punkt som glider längs kurvan */}
@@ -507,7 +508,7 @@ function MonthChart({ months, onScrubbing }: { months: MonthPoint[]; onScrubbing
         {geo && months.map((m, i) => (
           <Text
             key={i}
-            style={[s.monthLabel, { left: geo.pts[i].x - 20 }, i === shown && { color: FG, fontFamily: "Inter_700Bold" }]}
+            style={[s.monthLabel, { left: geo.pts[i].x - 20 }, i === shown && { color: colors.text, fontFamily: "Inter_700Bold" }]}
           >
             {m.label}
           </Text>
@@ -521,6 +522,8 @@ const WEEK_H = 90;
 
 /** Besök per veckodag som staplar — höjden efter antalet, den vanligaste dagen i guld */
 function WeekdayBars({ counts }: { counts: number[] }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const top = Math.max(...counts);
   const max = Math.max(1, top);
   // Alla dagar som delar förstaplatsen (1 på lördag och 1 på söndag är lika — då är man inte
@@ -540,16 +543,16 @@ function WeekdayBars({ counts }: { counts: number[] }) {
       {best.length === 0 ? (
         <Text style={s.weekText}>{i18n.t("statsPage.noVisits")}</Text>
       ) : (
-        <Text style={s.weekText}>{before}<Text style={{ color: GOLD }}>{weekend ? i18n.t("statsPage.weekends") : list}</Text>{after}</Text>
+        <Text style={s.weekText}>{before}<Text style={{ color: colors.goldText }}>{weekend ? i18n.t("statsPage.weekends") : list}</Text>{after}</Text>
       )}
       <View style={s.weekRow}>
         {counts.map((c, i) => (
           <View key={i} style={s.weekCol}>
-            <Text style={[s.weekCount, isBest(i) && { color: GOLD }]}>{c}</Text>
+            <Text style={[s.weekCount, isBest(i) && { color: colors.goldText }]}>{c}</Text>
             <View style={s.weekArea}>
               <WeekBar fraction={c / max} highlight={isBest(i)} delay={150 + i * 50} />
             </View>
-            <Text style={[s.weekLabel, isBest(i) && { color: FG }]}>{capitalize(weekdayShort(i))}</Text>
+            <Text style={[s.weekLabel, isBest(i) && { color: colors.text }]}>{capitalize(weekdayShort(i))}</Text>
           </View>
         ))}
       </View>
@@ -559,6 +562,8 @@ function WeekdayBars({ counts }: { counts: number[] }) {
 
 /** En stapel som växer upp från botten. En dag utan besök blir en låg stump, inte en tom stapel. */
 function WeekBar({ fraction, highlight, delay }: { fraction: number; highlight: boolean; delay: number }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
   const grow = useSharedValue(0);
   useEffect(() => {
     grow.value = withDelay(delay, withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) }));
@@ -569,73 +574,73 @@ function WeekBar({ fraction, highlight, delay }: { fraction: number; highlight: 
     <Reanimated.View
       style={[
         s.weekBar,
-        { height: h, backgroundColor: highlight ? GOLD : fraction > 0 ? "rgba(245,241,232,0.35)" : TRACK },
+        { height: h, backgroundColor: highlight ? colors.goldText : fraction > 0 ? colors.faint : colors.border },
         style,
       ]}
     />
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", height: 64, paddingHorizontal: 16, gap: 12 },
   headerBtn: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+    backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: FG },
-  muted: { fontFamily: "Inter_400Regular", fontSize: 14, color: MUTED },
+  headerTitle: { flex: 1, fontFamily: "Montserrat_700Bold", fontSize: 15, letterSpacing: 1.5, color: c.text },
+  muted: { fontFamily: "Inter_400Regular", fontSize: 14, color: c.muted },
 
   body: { paddingHorizontal: 16, paddingTop: 8 },
 
   hero: { gap: 10, marginBottom: 22 },
-  eyebrow: { fontFamily: "Inter_700Bold", fontSize: 12, letterSpacing: 2.2, color: GOLD },
+  eyebrow: { fontFamily: "Inter_700Bold", fontSize: 12, letterSpacing: 2.2, color: c.goldText },
   heroRow: { flexDirection: "row", alignItems: "baseline", gap: 10 },
-  heroValue: { fontFamily: "Montserrat_700Bold", fontSize: 56, letterSpacing: -1.5, color: FG, lineHeight: 62 },
-  heroOf: { fontFamily: "Inter_500Medium", fontSize: 16, color: MUTED },
-  heroPercent: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: GOLD },
-  track: { backgroundColor: TRACK, overflow: "hidden" },
+  heroValue: { fontFamily: "Montserrat_700Bold", fontSize: 56, letterSpacing: -1.5, color: c.text, lineHeight: 62 },
+  heroOf: { fontFamily: "Inter_500Medium", fontSize: 16, color: c.muted },
+  heroPercent: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: c.goldText },
+  track: { backgroundColor: c.border, overflow: "hidden" },
 
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tile: {
     width: "31.6%", flexGrow: 1, borderRadius: 16, padding: 14, gap: 6,
-    backgroundColor: CARD, borderWidth: 1, borderColor: BORDER,
+    backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
   },
   // Lika hög plats för alla symboler, så värdena hamnar i linje
   tileIcon: { height: 26, justifyContent: "center", alignItems: "flex-start" },
-  tileValue: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: FG, marginTop: 2 },
-  tileLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED },
+  tileValue: { fontFamily: "Montserrat_700Bold", fontSize: 22, color: c.text, marginTop: 2 },
+  tileLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.muted },
 
-  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: FG, marginTop: 30, marginBottom: 12 },
-  card: { borderRadius: 18, padding: 16, backgroundColor: CARD, borderWidth: 1, borderColor: BORDER },
+  sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: c.text, marginTop: 30, marginBottom: 12 },
+  card: { borderRadius: 18, padding: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.border },
 
   chartHead: { flexDirection: "row", gap: 28, marginBottom: 8 },
-  legendLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: MUTED },
-  legendValue: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: FG, marginTop: 2 },
-  guide: { position: "absolute", left: 0, top: PAD_TOP - 10, bottom: PAD_BOTTOM, width: 1.5, backgroundColor: "rgba(245,241,232,0.35)" },
+  legendLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.muted },
+  legendValue: { fontFamily: "Montserrat_700Bold", fontSize: 18, color: c.text, marginTop: 2 },
+  guide: { position: "absolute", left: 0, top: PAD_TOP - 10, bottom: PAD_BOTTOM, width: 1.5, backgroundColor: c.faint },
   pick: {
     position: "absolute", left: 0, top: 0, width: 16, height: 16, borderRadius: 8,
-    backgroundColor: GOLD_LT, borderWidth: 3, borderColor: CARD,
+    backgroundColor: c.goldText, borderWidth: 3, borderColor: c.card,
   },
   monthRow: { height: 18, marginTop: 4 },
-  monthLabel: { position: "absolute", width: 40, textAlign: "center", fontFamily: "Inter_500Medium", fontSize: 12, color: MUTED, textTransform: "lowercase" },
+  monthLabel: { position: "absolute", width: 40, textAlign: "center", fontFamily: "Inter_500Medium", fontSize: 12, color: c.muted, textTransform: "lowercase" },
 
-  weekText: { fontFamily: "Inter_500Medium", fontSize: 14.5, color: FG, marginBottom: 14 },
+  weekText: { fontFamily: "Inter_500Medium", fontSize: 14.5, color: c.text, marginBottom: 14 },
   weekRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   weekCol: { flex: 1, alignItems: "center", gap: 6 },
-  weekCount: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: MUTED },
+  weekCount: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: c.muted },
   weekArea: { width: "100%", maxWidth: 30, height: WEEK_H, justifyContent: "flex-end" },
   weekBar: { width: "100%", borderRadius: 8, transformOrigin: "bottom" },
-  weekLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: MUTED },
+  weekLabel: { fontFamily: "Inter_500Medium", fontSize: 12, color: c.muted },
 
   catRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   catDot: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   catTop: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 8 },
-  catName: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: FG },
-  catCount: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: MUTED },
+  catName: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 14.5, color: c.text },
+  catCount: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
 
   topPlace: { flexDirection: "row", alignItems: "center", gap: 14 },
-  topThumb: { width: 72, height: 72, borderRadius: 14, overflow: "hidden", backgroundColor: "#2A2A2A" },
-  topName: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: FG },
-  topCount: { fontFamily: "Inter_500Medium", fontSize: 14, color: GOLD, marginTop: 4 },
+  topThumb: { width: 72, height: 72, borderRadius: 14, overflow: "hidden", backgroundColor: c.fill },
+  topName: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: c.text },
+  topCount: { fontFamily: "Inter_500Medium", fontSize: 14, color: c.goldText, marginTop: 4 },
 });
