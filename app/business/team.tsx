@@ -87,11 +87,11 @@ export default function BusinessTeam() {
     const items: MenuItem[] = [];
     if (m.me) {
       items.push({
-        label: "Lämna företaget", destructive: true,
+        label: tb("Lämna företaget"), destructive: true,
         confirm: {
-          title: `Lämna ${mine?.name}?`, message: "Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka.",
+          title: `Lämna ${mine?.name}?`, message: tb("Du kan inte längre ändra sidan. Någon behöver bjuda in dig igen för att komma tillbaka."),
           actions: [{
-            label: "Lämna", destructive: true,
+            label: tb("Lämna"), destructive: true,
             onPress: () => actions.remove(m.user_id).then((r) => {
               if (r.ok) router.dismissTo("/settings");
               else toast.current?.show(r.reason === "last_owner" ? "Gör någon annan till ägare först" : "Det gick inte");
@@ -101,16 +101,16 @@ export default function BusinessTeam() {
       });
     } else if (owner) {
       if (m.role === "staff") {
-        items.push({ label: "Vad får hen göra?", onPress: () => { setEditPerms(m.permissions ?? PERMISSIONS.map((p) => p.id)); setEditing(m); } });
+        items.push({ label: tb("Vad får hen göra?"), onPress: () => { setEditPerms(m.permissions ?? PERMISSIONS.map((p) => p.id)); setEditing(m); } });
       }
       items.push(m.role === "owner"
-        ? { label: "Gör till personal", onPress: () => result(actions.setRole(m.user_id, "staff"), "Nu personal") }
-        : { label: "Gör till ägare", onPress: () => result(actions.setRole(m.user_id, "owner"), "Nu ägare") });
+        ? { label: tb("Gör till personal"), onPress: () => result(actions.setRole(m.user_id, "staff"), tb("Nu personal")) }
+        : { label: tb("Gör till ägare"), onPress: () => result(actions.setRole(m.user_id, "owner"), tb("Nu ägare")) });
       items.push({
-        label: "Ta bort från företaget", destructive: true,
+        label: tb("Ta bort från företaget"), destructive: true,
         confirm: {
-          title: `Ta bort ${m.name ?? "personen"}?`, message: "Hen kan inte längre ändra er sida.",
-          actions: [{ label: "Ta bort", destructive: true, onPress: () => result(actions.remove(m.user_id), "Borttagen") }],
+          title: `Ta bort ${m.name ?? "personen"}?`, message: tb("Hen kan inte längre ändra er sida."),
+          actions: [{ label: tb("Ta bort"), destructive: true, onPress: () => result(actions.remove(m.user_id), tb("Borttagen")) }],
         },
       });
     }
@@ -134,7 +134,7 @@ export default function BusinessTeam() {
                         <Text style={s.requestName}>{r.name ?? tb("Någon")}{r.role_title ? ` · ${r.role_title}` : ""}</Text>
                         {!!r.message && <Text style={s.requestMsg}>”{r.message}”</Text>}
                         <View style={s.requestButtons}>
-                          <TouchableOpacity style={[s.reqBtn, { backgroundColor: colors.gold }]} onPress={() => result(actions.answerJoin(r.id, true), tb("{{0}} är med", { 0: r.name ?? "Personen" }))}>
+                          <TouchableOpacity style={[s.reqBtn, { backgroundColor: colors.gold }]} onPress={() => result(actions.answerJoin(r.id, true), tb("{{0}} är med", { 0: r.name ?? tb("Personen") }))}>
                             <Text style={[s.reqBtnText, { color: colors.onGold }]}>{tb("Godkänn")}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={s.reqBtn} onPress={() => result(actions.answerJoin(r.id, false), tb("Nekad"))}>

@@ -61,9 +61,9 @@ export default function BusinessEvents() {
 
   const menu = (ev: GestureResponderEvent, e: PlaceEvent) => {
     const items: MenuItem[] = [];
-    if (tab === "upcoming") items.push({ label: "Ändra", onPress: () => pushOnce(router, `/business/event?place=${placeId}&id=${e.id}`) });
-    items.push({ label: "Gör ett likadant", onPress: () => pushOnce(router, `/business/event?place=${placeId}&copy=${e.id}`) });
-    items.push({ label: "Ta bort", destructive: true, confirm: removeQuestion(e) });
+    if (tab === "upcoming") items.push({ label: tb("Ändra"), onPress: () => pushOnce(router, `/business/event?place=${placeId}&id=${e.id}`) });
+    items.push({ label: tb("Duplicera"), onPress: () => pushOnce(router, `/business/event?place=${placeId}&copy=${e.id}`) });
+    items.push({ label: tb("Ta bort"), destructive: true, confirm: removeQuestion(e) });
     actionMenu.open(ev, { title: e.title, items });
   };
 

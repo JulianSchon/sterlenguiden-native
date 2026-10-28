@@ -64,12 +64,12 @@ export default function BusinessOffers() {
   const menu = (e: GestureResponderEvent, o: BusinessOffer) => {
     const t = tabOf(o);
     const items: MenuItem[] = [];
-    if (t !== "ended") items.push({ label: o.redemptions > 0 ? "Ändra bild eller slutdatum" : "Ändra", onPress: () => pushOnce(router, `/business/offer?place=${placeId}&id=${o.offer.id}`) });
-    if (t === "active") items.push({ label: "Pausa", onPress: () => run(o.offer.id, "pause", "Pausat – syns inte förrän ni startar det igen") });
-    if (t === "paused") items.push({ label: "Starta igen", onPress: () => run(o.offer.id, "resume", "Igång igen") });
-    items.push({ label: "Gör ett likadant", onPress: () => pushOnce(router, `/business/offer?place=${placeId}&copy=${o.offer.id}`) });
-    if (t !== "ended") items.push({ label: "Avsluta nu", destructive: true, confirm: { title: "Avsluta erbjudandet?", message: "Det försvinner direkt ur appen.", actions: [{ label: "Avsluta", destructive: true, onPress: () => run(o.offer.id, "end", "Avslutat") }] } });
-    if (o.redemptions === 0) items.push({ label: "Ta bort", destructive: true, confirm: { title: "Ta bort erbjudandet?", message: "Det går inte att ångra.", actions: [{ label: "Ta bort", destructive: true, onPress: () => run(o.offer.id, "delete", "Borttaget") }] } });
+    if (t !== "ended") items.push({ label: o.redemptions > 0 ? tb("Ändra bild eller slutdatum") : tb("Ändra"), onPress: () => pushOnce(router, `/business/offer?place=${placeId}&id=${o.offer.id}`) });
+    if (t === "active") items.push({ label: tb("Pausa"), onPress: () => run(o.offer.id, "pause", tb("Pausat – syns inte förrän ni startar det igen")) });
+    if (t === "paused") items.push({ label: tb("Starta igen"), onPress: () => run(o.offer.id, "resume", tb("Igång igen")) });
+    items.push({ label: tb("Duplicera"), onPress: () => pushOnce(router, `/business/offer?place=${placeId}&copy=${o.offer.id}`) });
+    if (t !== "ended") items.push({ label: tb("Avsluta nu"), destructive: true, confirm: { title: tb("Avsluta erbjudandet?"), message: tb("Det försvinner direkt ur appen."), actions: [{ label: tb("Avsluta"), destructive: true, onPress: () => run(o.offer.id, "end", tb("Avslutat")) }] } });
+    if (o.redemptions === 0) items.push({ label: tb("Ta bort"), destructive: true, confirm: { title: tb("Ta bort erbjudandet?"), message: tb("Det går inte att ångra."), actions: [{ label: tb("Ta bort"), destructive: true, onPress: () => run(o.offer.id, "delete", tb("Borttaget")) }] } });
     actionMenu.open(e, { title: o.offer.title, items });
   };
 
