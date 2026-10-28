@@ -8,7 +8,7 @@
  * på en gång. Utan egen bild får evenemanget platsens första bild.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import {
@@ -32,6 +32,7 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
 import { currentLanguage } from "@/i18n";
+import { appAlert } from "@/components/ActionMenu";
 
 type Step = "title" | "when" | "repeat" | "image" | "about" | "details" | "review" | "done";
 const NEW: Step[] = ["title", "when", "repeat", "image", "about", "details", "review", "done"];
@@ -152,7 +153,7 @@ export default function EventComposer() {
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const leave = () => {
     if (editingId || !draft.title.trim() || wizard.step === "done") { router.back(); return; }
-    Alert.alert(tb("Sluta skapa evenemanget?"), tb("Det du fyllt i sparas inte."), [
+    appAlert(tb("Sluta skapa evenemanget?"), tb("Det du fyllt i sparas inte."), [
       { text: tb("Fortsätt skriva"), style: "cancel" },
       { text: tb("Sluta"), style: "destructive", onPress: () => router.back() },
     ]);
@@ -196,7 +197,7 @@ export default function EventComposer() {
   };
   const onPublish = () => {
     if (editingId && source?.series_id) {
-      Alert.alert(tb("Ändra vilka?"), tb("Evenemanget återkommer. Vill du ändra bara det här tillfället eller alla kommande?"), [
+      appAlert(tb("Ändra vilka?"), tb("Evenemanget återkommer. Vill du ändra bara det här tillfället eller alla kommande?"), [
         { text: tb("Avbryt"), style: "cancel" },
         { text: tb("Bara det här"), onPress: () => publish("one") },
         { text: tb("Alla kommande"), onPress: () => publish("series") },

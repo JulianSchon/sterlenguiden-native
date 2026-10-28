@@ -11,7 +11,7 @@
  * företag kommer man till "För företag" (business/start).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Linking, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -53,6 +53,7 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
 import { currentLanguage } from "@/i18n";
+import { appAlert } from "@/components/ActionMenu";
 
 
 export default function BusinessHome() {
@@ -87,7 +88,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
   const [switchOpen, setSwitchOpen] = useState(false);
 
   const locked = useCallback((page: string) => !!PAGE_PERMISSION[page] && !canDo(mine, PAGE_PERMISSION[page]), [mine]);
-  const askOwner = useCallback(() => Alert.alert(tb("Låst för dig"), tb("Det här har du inte fått tillgång till. Fråga en ägare för {{0}} – de kan ändra det under Personal.", { 0: mine.name })), [mine.name]);
+  const askOwner = useCallback(() => appAlert(tb("Låst för dig"), tb("Det här har du inte fått tillgång till. Fråga en ägare för {{0}} – de kan ändra det under Personal.", { 0: mine.name })), [mine.name]);
   const go = useCallback((page: string, extra = "") => {
     if (locked(page)) { askOwner(); return; }
     pushOnce(router, `/business/${page}?place=${placeId}${extra}`);

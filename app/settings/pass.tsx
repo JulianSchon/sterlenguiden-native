@@ -6,7 +6,7 @@
  * inte alls. I testversionen finns en brytare för att se allt som icke-medlem.
  */
 import { useMemo } from "react";
-import { View, Text, Pressable, TouchableOpacity, Alert, Share, StyleSheet } from "react-native";
+import { View, Text, Pressable, TouchableOpacity, Share, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { differenceInCalendarDays } from "date-fns";
@@ -30,6 +30,7 @@ import { IconSwitch } from "@/components/IconSwitch";
 import { setPreviewNonMember, usePreviewNonMember } from "@/lib/memberPreview";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { appAlert } from "@/components/ActionMenu";
 
 const longDate = (d: Date | string) => formatDate(d, "d MMMM yyyy");
 
@@ -128,7 +129,7 @@ export default function PassHub() {
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()), [purchases, redeemed]);
 
   const changePhoto = () => {
-    if (nextPhotoChange) Alert.alert(t("pass.card.title"), t("pass.card.next", { date: longDate(nextPhotoChange) }));
+    if (nextPhotoChange) appAlert(t("pass.card.title"), t("pass.card.next", { date: longDate(nextPhotoChange) }));
     else openPhotoMenu();
   };
 

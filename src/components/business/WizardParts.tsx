@@ -3,7 +3,7 @@
  * (en guldbock som poppar fram, en rad om vad som hänt och vad man kan göra sen).
  */
 import { useEffect, useState } from "react";
-import { Alert, Linking, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Reanimated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image as ExpoImage } from "expo-image";
@@ -17,6 +17,7 @@ import { pickPhotos, type PickedPhoto } from "@/lib/photos";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
+import { appAlert } from "@/components/ActionMenu";
 
 // ── Bildväljaren ────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ export function ImageChooser({ placeId, images, value, onChange, onError }: {
       if (source === "camera") {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          Alert.alert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
+          appAlert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
             { text: tb("Avbryt"), style: "cancel" },
             { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings() },
           ]);

@@ -260,6 +260,7 @@ export const BUSINESS_EN: Record<string, string> = {
   "Gästerna behöver boka innan": "Guests need to book ahead",
   "Gästerna röstar direkt i storyn och ser resultatet. Ni ser rösterna under Stories.": "Guests vote right in the story and see the result. You see the votes under Stories.",
   "Gästerna skriver ett svar i storyn. Ni läser svaren under Stories, utan att se vem som skrivit.": "Guests write an answer in the story. You read the answers under Stories, without seeing who wrote them.",
+  "Gör någon annan till ägare först": "Make someone else an owner first",
   "Gör till personal": "Make staff",
   "Gör till ägare": "Make owner",
   "Handskrift": "Handwriting",

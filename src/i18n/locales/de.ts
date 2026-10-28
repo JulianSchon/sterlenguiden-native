@@ -175,7 +175,6 @@ export const de: typeof sv = {
       from: "Ab {{price}} SEK",
       unlimited: "Ohne Enddatum",
       bonus: "{{count}} Tage aus einem Geschenkcode sind gespeichert und werden genutzt, sobald sich der Pass nicht mehr verlängert.",
-      manage: "Mitgliedschaft verwalten",
       extend: "Pass verlängern",
       get: "Österlen-Pass freischalten",
       offersWaitingOne: "1 Vorteil wartet",

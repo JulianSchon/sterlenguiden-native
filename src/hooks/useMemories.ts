@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { preparePhoto, type PickedPhoto } from "@/lib/photos";
-import { signedInUser } from "@/lib/session";
+import { requireUserId } from "@/lib/session";
 
 const BUCKET = "memories";
 
@@ -45,12 +45,6 @@ function toMemory(r: {
     people: r.people ?? [],
     createdAt: r.created_at,
   };
-}
-
-async function requireUserId(): Promise<string> {
-  const user = await signedInUser();
-  if (!user) throw new Error("not_authenticated");
-  return user.id;
 }
 
 /** Alla egna minnen, nyast först (efter minnesdatum). */

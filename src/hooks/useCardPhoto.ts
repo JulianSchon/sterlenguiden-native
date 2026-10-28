@@ -9,7 +9,8 @@ import { addDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { preparePhoto } from "@/lib/photos";
 import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
-import { pickSquarePhoto, removeStoredImage, requireUserId, type PhotoSource } from "@/hooks/useAccount";
+import { pickSquarePhoto, removeStoredImage, type PhotoSource } from "@/hooks/useAccount";
+import { requireUserId } from "@/lib/session";
 import type { Profile } from "@/hooks/useProfile";
 
 const CARD_PHOTO_MAX_EDGE = 512;

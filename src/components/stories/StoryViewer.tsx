@@ -44,7 +44,7 @@ import { InteractionOverlay, storyFrame } from "@/components/stories/StoryIntera
 /** Enkätens läge för en story: röster per svar och vad man själv valt */
 interface PollState { counts: [number, number]; mine: number | null }
 
-export type StoryType = "favorite" | "regular";
+type StoryType = "favorite" | "regular";
 
 export interface StoryGroupData {
   placeId: number;

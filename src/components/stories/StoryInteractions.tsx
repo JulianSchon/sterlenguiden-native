@@ -9,7 +9,7 @@ import { StyleSheet, Text, View } from "react-native";
 import i18n from "i18next";
 import type { StoryInteraction } from "@/lib/business";
 
-export const INTERACTION_W = 240;
+const INTERACTION_W = 240;
 
 /** Var en story i 9:16 hamnar på skärmen (den visas hel, mitt på) */
 export function storyFrame(W: number, H: number) {
@@ -20,7 +20,7 @@ export function storyFrame(W: number, H: number) {
 }
 
 /** Andelarna av rösterna (0–1); inga röster = 0 och 0 */
-export function pollShares(counts: [number, number]): [number, number] {
+function pollShares(counts: [number, number]): [number, number] {
   const total = counts[0] + counts[1];
   return total ? [counts[0] / total, counts[1] / total] : [0, 0];
 }

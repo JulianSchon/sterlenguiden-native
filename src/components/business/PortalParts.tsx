@@ -86,7 +86,7 @@ export const PortalField = forwardRef<TextInput, PortalFieldProps>(function Port
           <Text style={[s.counter, over && { color: colors.danger }]}>{length}/{counter}</Text>
         )}
       </View>
-      <View style={[s.inputBox, big && s.inputBig, multiline && s.inputMulti, { borderColor: border }]}>
+      <View style={[s.inputBox, big && s.inputBig, multiline ? s.inputMulti : big ? s.boxBig : s.boxSingle, { borderColor: border }]}>
         {prefix && <Text style={[s.affix, big && s.affixBig]}>{prefix}</Text>}
         <TextInput
           ref={ref}
@@ -292,8 +292,11 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   inputMulti: { alignItems: "flex-start", paddingVertical: 12 },
   // fontSize 16 hindrar iOS från att zooma in vid fokus
   input: { flex: 1, minHeight: 50, fontFamily: "Inter_500Medium", fontSize: 16, color: c.text },
-  // En rad: fast höjd utan egen luft, så texten (och platshållaren) står mitt i rutan
-  inputSingle: { height: 50, paddingVertical: 0 },
+  // En rad: rutan har fast höjd och fältet fyller den helt, så texten (och platshållaren) står mitt
+  // i rutan — samma som inloggningens fält
+  boxSingle: { height: 54 },
+  boxBig: { height: 64 },
+  inputSingle: { height: "100%", minHeight: 0, paddingVertical: 0 },
   inputBigText: { fontFamily: "Montserrat_600SemiBold", fontSize: 20, letterSpacing: -0.3 },
   inputMultiText: { minHeight: 120, textAlignVertical: "top", lineHeight: 22, paddingTop: 0 },
   affix: { fontFamily: "Inter_500Medium", fontSize: 16, color: c.muted },

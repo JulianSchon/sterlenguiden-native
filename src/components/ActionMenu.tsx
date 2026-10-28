@@ -8,18 +8,22 @@
  *
  * Rubriken är en liten grå text överst, så den inte ser ut som ett val. Valen är rader att trycka
  * på; i en fråga är svaren knappar. Ett val med `confirm` frågar först; svaren där kan vara ett
- * eller flera (t.ex. "Bara det här" / "Alla kommande"). Rutan tonas in av Modalen själv:
+ * eller flera (t.ex. "Bara det här" / "Alla kommande").
+ *
+ * appAlert(rubrik, text, knappar) tar samma uppgifter som telefonens Alert.alert och visar frågan
+ * mitt på skärmen, i appens stil (värden finns en gång i appens rot: ActionMenuHost). Används
+ * i stället för Alert, så alla frågor ser likadana ut. Rutan tonas in av Modalen själv:
  * Reanimateds in- och uttoningar startar inte inuti en Modal.
  */
-import { useCallback, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type AlertButton, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-export interface MenuAction {
+interface MenuAction {
   label: string;
   destructive?: boolean;
   onPress: () => void;
@@ -30,23 +34,35 @@ export interface MenuItem {
   destructive?: boolean;
   onPress?: () => void;
   /** Fråga först, i samma ruta */
-  confirm?: { title: string; message?: string; actions: MenuAction[] };
+  confirm?: Confirm;
 }
 
-export interface MenuSpec {
+/** En fråga: rubrik, förklaring, svaren och (om den finns) knappen som avbryter */
+export interface Confirm {
+  title: string;
+  message?: string;
+  actions: MenuAction[];
+  /** Avbryt-knappens text (förvalt "Avbryt"); null = ingen sådan knapp */
+  cancel?: string | null;
+  onCancel?: () => void;
+}
+
+interface MenuSpec {
   title?: string;
   items: MenuItem[];
 }
 
-/** Var menyn ska öppnas: trycket (fingret), en punkt, eller bara en höjd (då mitt i sidled) */
-export type MenuAnchor = GestureResponderEvent | { x: number; y: number } | number;
+/** Var menyn ska öppnas: trycket (fingret), en punkt, en höjd (mitt i sidled) eller mitt på skärmen */
+type MenuAnchor = GestureResponderEvent | { x: number; y: number } | number | "center";
 
 const WIDTH = 264;
 const MARGIN = 14;
 const GAP = 10;
 
+/** y = -1: mitt på skärmen */
 const pointOf = (a: MenuAnchor): { x: number | null; y: number } =>
-  typeof a === "number" ? { x: null, y: a }
+  a === "center" ? { x: null, y: -1 }
+  : typeof a === "number" ? { x: null, y: a }
   : "nativeEvent" in a ? { x: a.nativeEvent.pageX, y: a.nativeEvent.pageY }
   : a;
 
@@ -59,11 +75,47 @@ export function useActionMenu() {
   }, []);
   const close = useCallback(() => setState(null), []);
   /** Bara en fråga (utan meny först), t.ex. från en knapp */
-  const ask = useCallback((anchor: MenuAnchor, confirm: NonNullable<MenuItem["confirm"]>) => {
+  const ask = useCallback((anchor: MenuAnchor, confirm: Confirm) => {
     open(anchor, { items: [{ label: "", confirm }] });
   }, [open]);
   const element = <ActionMenu spec={state?.spec ?? null} at={state?.at ?? { x: null, y: 0 }} onClose={close} />;
   return { open, ask, close, element };
+}
+
+// ── appAlert: frågor och besked från var som helst i appen ──
+
+let alertState: { spec: MenuSpec; at: { x: number | null; y: number } } | null = null;
+const alertListeners = new Set<() => void>();
+const setAlert = (next: typeof alertState) => { alertState = next; alertListeners.forEach((l) => l()); };
+
+/**
+ * Samma uppgifter som Alert.alert. Knappen med style "cancel" blir Avbryt-knappen (med sin egen
+ * text); utan knappar blir det ett besked med OK.
+ */
+export function appAlert(title: string, message?: string, buttons?: AlertButton[]) {
+  const cancel = buttons?.find((b) => b.style === "cancel");
+  const actions = (buttons ?? []).filter((b) => b !== cancel).map((b) => ({
+    label: b.text ?? "", destructive: b.style === "destructive", onPress: () => b.onPress?.(),
+  }));
+  // Bara en vanlig knapp (t.ex. "Okej"): den stänger, ingen Avbryt bredvid
+  const lone = !cancel && actions.length === 1 && !actions[0].destructive;
+  setAlert({
+    at: { x: null, y: -1 },
+    spec: {
+      items: [{
+        label: "",
+        confirm: lone
+          ? { title, message, actions: [], cancel: actions[0].label, onCancel: actions[0].onPress }
+          : { title, message, actions, cancel: cancel ? cancel.text ?? null : actions.length ? null : undefined, onCancel: () => cancel?.onPress?.() },
+      }],
+    },
+  });
+}
+
+/** Läggs en gång i appens rot och visar det appAlert ber om */
+export function ActionMenuHost() {
+  const state = useSyncExternalStore((l) => { alertListeners.add(l); return () => { alertListeners.delete(l); }; }, () => alertState);
+  return <ActionMenu spec={state?.spec ?? null} at={state?.at ?? { x: null, y: -1 }} onClose={() => setAlert(null)} />;
 }
 
 function ActionMenu({ spec, at, onClose }: { spec: MenuSpec | null; at: { x: number | null; y: number }; onClose: () => void }) {
@@ -77,19 +129,29 @@ function ActionMenu({ spec, at, onClose }: { spec: MenuSpec | null; at: { x: num
   const [asking, setAsking] = useState<MenuItem["confirm"] | null>(null);
   const confirm = direct ?? asking;
 
+  // Ett val körs först när menyn stängts helt: öppnar valet något eget (kameran, bildväljaren, en
+  // panel) medan menyn fortfarande tonas bort kan iPhone låsa sig
+  const pending = useRef<(() => void) | null>(null);
+  const flush = () => { const fn = pending.current; pending.current = null; fn?.(); };
   const close = () => { setAsking(null); setHeight(0); onClose(); };
-  const run = (fn: () => void) => { close(); setTimeout(fn, 120); };
+  const run = (fn: () => void) => {
+    pending.current = fn;
+    close();
+    if (Platform.OS !== "ios") setTimeout(flush, 300);
+  };
+  const cancel = () => run(confirm?.onCancel ?? (() => {}));
 
   // Under fingret om den får plats, annars ovanför; i sidled centrerad på fingret, alltid inom skärmen
   const minTop = insets.top + 8;
   const maxTop = winH - insets.bottom - 12 - height;
   const below = at.y + GAP;
-  const top = Math.max(minTop, below <= maxTop ? below : Math.min(maxTop, at.y - GAP - height));
+  const top = at.y < 0 ? Math.max(minTop, (winH - height) / 2)
+    : Math.max(minTop, below <= maxTop ? below : Math.min(maxTop, at.y - GAP - height));
   const left = Math.min(winW - WIDTH - MARGIN, Math.max(MARGIN, (at.x ?? winW / 2) - WIDTH / 2));
 
   return (
-    <Modal visible={!!spec} transparent animationType="fade" onRequestClose={close}>
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]} onPress={close} />
+    <Modal visible={!!spec} transparent animationType="fade" onRequestClose={close} onDismiss={flush}>
+      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]} onPress={confirm ? cancel : close} />
       {spec && (
         // Osynlig tills höjden är mätt, så rutan aldrig hoppar till sin plats
         <View
@@ -112,10 +174,14 @@ function ActionMenu({ spec, at, onClose }: { spec: MenuSpec | null; at: { x: num
                     <Text style={[s.buttonText, a.destructive ? { color: colors.danger } : { color: colors.onGold }]}>{a.label}</Text>
                   </Pressable>
                 ))}
-                {/* Utan val är det bara ett besked: då stänger OK */}
-                <Pressable onPress={close} style={({ pressed }) => [s.button, s.buttonQuiet, pressed && { opacity: 0.7 }]} accessibilityRole="button">
-                  <Text style={[s.buttonText, { color: colors.text }]}>{confirm.actions.length ? i18n.t("common.cancel") : i18n.t("common.ok")}</Text>
-                </Pressable>
+                {/* Avbryt (eller OK för ett besked utan val) — inte när frågan bara har egna svar */}
+                {confirm.cancel !== null && (
+                  <Pressable onPress={cancel} style={({ pressed }) => [s.button, s.buttonQuiet, pressed && { opacity: 0.7 }]} accessibilityRole="button">
+                    <Text style={[s.buttonText, { color: colors.text }]}>
+                      {confirm.cancel ?? (confirm.actions.length ? i18n.t("common.cancel") : i18n.t("common.ok"))}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           ) : (

@@ -178,7 +178,6 @@ export const sv = {
       from: "Från {{price}} kr",
       unlimited: "Utan slutdatum",
       bonus: "{{count}} dagar från en gåvokod är sparade och används när passet slutar förnyas.",
-      manage: "Hantera medlemskap",
       extend: "Förläng passet",
       get: "Lås upp Österlenpasset",
       offersWaitingOne: "1 förmån väntar",

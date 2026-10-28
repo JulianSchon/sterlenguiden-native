@@ -9,16 +9,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { preparePhoto, type PickedPhoto } from "@/lib/photos";
 import type { Profile } from "@/hooks/useProfile";
 import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
-import { signedInUser } from "@/lib/session";
+import { requireUserId } from "@/lib/session";
 
 /** Profilbilder visas som mest ~400 px, så 512 räcker gott */
 const AVATAR_MAX_EDGE = 512;
-
-export async function requireUserId(): Promise<string> {
-  const user = await signedInUser();
-  if (!user) throw new Error("not_authenticated");
-  return user.id;
-}
 
 export type PhotoSource = "library" | "camera";
 

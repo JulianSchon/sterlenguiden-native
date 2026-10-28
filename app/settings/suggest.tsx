@@ -3,7 +3,7 @@
  * Tipsen sparas i place_suggestions och läses i Supabase. Efteråt visas ett tack.
  */
 import { useState } from "react";
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Check, Link2, MapPin, MessageSquareText, Store } from "lucide-react-native";
@@ -16,6 +16,7 @@ import { LabeledField } from "@/components/LabeledField";
 import { PrimaryButton } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { appAlert } from "@/components/ActionMenu";
 
 const CATEGORIES: SuggestionCategory[] = ["food", "stay", "cafe", "shops", "nature", "activities", "sights", "crafts"];
 
@@ -52,7 +53,7 @@ export default function SuggestPlaceScreen() {
       setSent(true);
     } catch (e) {
       const limit = e instanceof Error && e.message === "suggestion_limit";
-      Alert.alert(t("common.error"), limit ? t("suggestForm.limit") : t("suggestForm.failed"));
+      appAlert(t("common.error"), limit ? t("suggestForm.limit") : t("suggestForm.failed"));
     }
   }
 

@@ -34,7 +34,7 @@ export const FONTS: { id: FontId; label: string; family: string; upper?: boolean
 export const TEXT_COLORS = ["#FFFFFF", "#111111", "#E4C67A", "#E5484D", "#F97316", "#2E9E6B", "#3B82F6", "#EC4899"];
 
 /** Stilen på plats, länk och klistermärke: 0 smal vit, 1 kvadrat vit, 2 smal svart, 3 kvadrat svart */
-export type Look = 0 | 1 | 2 | 3;
+type Look = 0 | 1 | 2 | 3;
 export const nextLook = (look: Look): Look => ((look + 1) % 4) as Look;
 
 /** Färdiga klistermärken (klockan läggs till med den aktuella tiden) */

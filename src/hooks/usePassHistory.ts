@@ -36,7 +36,7 @@ interface RedeemedGift {
   claimedAt: string;
 }
 
-async function requireUserId(): Promise<string | null> {
+async function signedInUserId(): Promise<string | null> {
   const user = await signedInUser();
   return user?.id ?? null;
 }
@@ -44,7 +44,7 @@ async function requireUserId(): Promise<string | null> {
 const purchasesQuery = {
   queryKey: ["pass-purchases"],
   queryFn: async (): Promise<PassPurchase[]> => {
-    const userId = await requireUserId();
+    const userId = await signedInUserId();
     if (!userId) return [];
     const { data, error } = await supabase
       .from("pass_purchases")
@@ -64,7 +64,7 @@ export const usePassPurchases = () => useQuery(purchasesQuery);
 const redeemedQuery = {
   queryKey: ["pass-redeemed"],
   queryFn: async (): Promise<RedeemedGift[]> => {
-    const userId = await requireUserId();
+    const userId = await signedInUserId();
     if (!userId) return [];
     const { data, error } = await supabase
       .from("pass_gifts")
@@ -83,7 +83,7 @@ export const useRedeemedGifts = () => useQuery(redeemedQuery);
 const giftsQuery = {
   queryKey: ["pass-gifts"],
   queryFn: async (): Promise<PassGift[]> => {
-    const userId = await requireUserId();
+    const userId = await signedInUserId();
     if (!userId) return [];
     const { data, error } = await supabase
       .from("pass_gifts")

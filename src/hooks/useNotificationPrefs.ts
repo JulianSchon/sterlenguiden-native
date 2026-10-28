@@ -6,16 +6,10 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { signedInUser } from "@/lib/session";
+import { requireUserId } from "@/lib/session";
 
 const KEY = ["notification-prefs"];
 const table = () => supabase.from("notification_preferences");
-
-async function requireUserId(): Promise<string> {
-  const user = await signedInUser();
-  if (!user) throw new Error("not_authenticated");
-  return user.id;
-}
 
 export function useNotificationsEnabled() {
   return useQuery({

@@ -3,7 +3,7 @@
  * förnyas och möjligheten att avsluta förnyelsen. Att avsluta kräver betalningen
  * (som ännu inte är inkopplad); tills dess säger knappen att den öppnar vid lansering.
  */
-import { View, Text, Alert, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
@@ -16,6 +16,7 @@ import { QuietButton } from "@/components/QuietButton";
 import { PrimaryButton } from "@/components/Sheet";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { appAlert } from "@/components/ActionMenu";
 
 const longDate = (d: Date | string) => formatDate(d, "d MMMM yyyy");
 
@@ -49,7 +50,7 @@ export default function ManagePass() {
           </View>
           <QuietButton
             label={t("pass.manage.cancel")}
-            onPress={() => Alert.alert(t("pass.manage.title"), t("pass.manage.soon"), [{ text: t("common.ok") }])}
+            onPress={() => appAlert(t("pass.manage.title"), t("pass.manage.soon"), [{ text: t("common.ok") }])}
           />
         </View>
       ) : (

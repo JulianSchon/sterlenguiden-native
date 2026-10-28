@@ -94,7 +94,7 @@ export default function BusinessTeam() {
             label: tb("Lämna"), destructive: true,
             onPress: () => actions.remove(m.user_id).then((r) => {
               if (r.ok) router.dismissTo("/settings");
-              else toast.current?.show(r.reason === "last_owner" ? "Gör någon annan till ägare först" : "Det gick inte");
+              else toast.current?.show(r.reason === "last_owner" ? tb("Gör någon annan till ägare först") : tb("Det gick inte"));
             }).catch((err) => toast.current?.show(businessError(err))),
           }],
         },

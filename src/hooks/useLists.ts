@@ -12,7 +12,7 @@ import { firstImageUrl } from "@/hooks/usePlaces";
 import { effectiveHours, type HoursException } from "@/lib/openingHours";
 import { preparePhoto } from "@/lib/photos";
 import { pickSquarePhoto, type PhotoSource } from "@/hooks/useAccount";
-import { signedInUser } from "@/lib/session";
+import { requireUserId } from "@/lib/session";
 
 const COVER_BUCKET = "list-covers";
 
@@ -84,12 +84,6 @@ export interface ListDetail {
   lastUpdatedAt: string;
   places: ListPlace[];
   members: ListMember[];
-}
-
-async function requireUserId(): Promise<string> {
-  const user = await signedInUser();
-  if (!user) throw new Error("not_authenticated");
-  return user.id;
 }
 
 /** Listorna där den inloggade är medlem (RLS filtrerar bort resten) — en lista man bara är

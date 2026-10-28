@@ -175,7 +175,6 @@ export const en: typeof sv = {
       from: "From {{price}} SEK",
       unlimited: "No end date",
       bonus: "{{count}} days from a gift code are saved and will be used when the pass stops renewing.",
-      manage: "Manage membership",
       extend: "Extend pass",
       get: "Unlock the Österlen Pass",
       offersWaitingOne: "1 offer waiting",

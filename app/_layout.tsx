@@ -4,6 +4,7 @@ import { ProblemScreen } from "@/components/ProblemScreen";
 import { ActiveOfferHost } from "@/components/offers/ActiveOfferHost";
 import { TrophyHost } from "@/components/trophies/TrophyHost";
 import { EventSheetHost } from "@/components/events/EventSheet";
+import { ActionMenuHost } from "@/components/ActionMenu";
 import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { PersistQueryClientProvider, type PersistQueryClientOptions } from "@tanstack/react-query-persist-client";
@@ -222,6 +223,7 @@ function AppStack() {
       <TrophyHost />
       {/* Eventets panel — evenemang öppnas alltid här, var man än är (se lib/eventSheet) */}
       <EventSheetHost />
+      <ActionMenuHost />
       {/* "Du är utan nät" när något inte gick att spara */}
       <OfflineNotice />
       </GestureHandlerRootView>
