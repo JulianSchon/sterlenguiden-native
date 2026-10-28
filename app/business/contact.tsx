@@ -150,7 +150,7 @@ export default function BusinessContact() {
           {field("facebook_url", "Facebook", FacebookIcon as typeof Phone, { autoCapitalize: "none", placeholder: "Namnet på er sida eller länken" })}
           {field("transit_stop_name", "Närmaste hållplats", Bus, {
             placeholder: "T.ex. Kivik Torget", maxLength: 80,
-            help: "Visas under Hitta hit, för den som kommer med buss.",
+            help: "Visas under Hitta hit, för den som kommer med tåg eller buss.",
           })}
         </View>
       </Rise>

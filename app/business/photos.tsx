@@ -221,7 +221,7 @@ export default function BusinessPhotos() {
           <Text style={s.addText}>Lägg till bilder</Text>
         </TouchableOpacity>
       )}
-      <Note icon={Camera} text="Tips: ljusa bilder i liggande format blir finast. Visa gärna både miljön, maten eller varorna och människorna." />
+      <Note icon={Camera} text="Tips: ljusa bilder i liggande format blir finast. Visa gärna både miljön och maten eller varorna." />
       {auto.error && <Text style={s.error}>{auto.error}</Text>}
     </View>
   );

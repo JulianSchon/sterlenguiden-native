@@ -101,7 +101,6 @@ export interface BusinessPlace {
   instagram_url: string | null;
   book_url: string | null;
   transit_stop_name: string | null;
-  price_level: number | null;
   amenities: Record<string, boolean> | null;
   tastes: string[] | null;
   claim_link_hidden: boolean | null;
@@ -333,11 +332,16 @@ export function cleanFacebook(input: string): string | null | false {
   return cleanUrl(v);
 }
 
-/** Visar en sparad Instagram-/Facebook-länk som det man skrev ("@orumsnygard") */
+/**
+ * Visar en sparad Instagram-/Facebook-länk som det man skrev ("@orumsnygard"). Länkar som inte är
+ * ett enkelt namn (Facebooks "facebook.com/p/Namn-123" och "profile.php?id=…") visas hela, annars
+ * stod bara "p" kvar.
+ */
 export function socialHandle(url: string | null | undefined, site: "instagram" | "facebook"): string {
   if (!url) return "";
-  const m = url.match(new RegExp(`${site}\\.com/([^/?#]+)`, "i"));
-  return m ? (site === "instagram" ? `@${m[1]}` : m[1]) : url;
+  const m = url.match(new RegExp(`${site}\\.com/([^/?#]+)/?$`, "i"));
+  if (!m || m[1] === "p" || m[1].includes(".php")) return url;
+  return site === "instagram" ? `@${m[1]}` : m[1];
 }
 
 export const isPhone = (v: string) => /^\+?[0-9][0-9 ()-]{4,28}$/.test(v.trim());

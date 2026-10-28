@@ -29,7 +29,7 @@ export function SettingsGroup({ label, children }: { label?: string; children: R
 }
 
 export function SettingsRow({
-  icon: Icon, eyebrow, label, labelContent, subtitle, value, onPress, destructive = false, compact = false, dense = false, strong = false, tint, right,
+  icon: Icon, eyebrow, label, labelContent, subtitle, value, onPress, destructive = false, compact = false, dense = false, strong = false, wrap = false, tint, right,
 }: {
   icon?: LucideIcon;
   /** Liten rubrik i versaler ovanför etiketten (uppgiftsrader: "E-POST" över adressen) */
@@ -49,6 +49,8 @@ export function SettingsRow({
   dense?: boolean;
   /** Större, halvfet etikett */
   strong?: boolean;
+  /** Visa hela etiketten och underrubriken (reglage som måste förklaras), inte bara en eller två rader */
+  wrap?: boolean;
   /** Färg på ikonen och underrubriken (etiketten behåller textfärgen) */
   tint?: string;
   /** Eget innehåll till höger (t.ex. ett reglage); ersätter pilen */
@@ -76,11 +78,11 @@ export function SettingsRow({
       <View style={{ flex: 1 }}>
         {eyebrow ? <Text style={s.eyebrow} numberOfLines={1}>{eyebrow}</Text> : null}
         {labelContent ? <View accessible accessibilityLabel={label}>{labelContent}</View> : (
-          <Text style={[s.label, compact && s.labelCompact, strong && s.labelStrong, destructive && { color: colors.danger }]} numberOfLines={1}>
+          <Text style={[s.label, compact && s.labelCompact, strong && s.labelStrong, destructive && { color: colors.danger }]} numberOfLines={wrap ? undefined : 1}>
             {label}
           </Text>
         )}
-        {subtitle ? <Text style={[s.subtitle, tint ? { color: tint } : null]} numberOfLines={2}>{subtitle}</Text> : null}
+        {subtitle ? <Text style={[s.subtitle, tint ? { color: tint } : null]} numberOfLines={wrap ? undefined : 2}>{subtitle}</Text> : null}
       </View>
       {value ? <Text style={s.value} numberOfLines={1}>{value}</Text> : null}
       {right ?? (onPress && !destructive ? <ChevronRight size={18} color={colors.faint} strokeWidth={2} /> : null)}

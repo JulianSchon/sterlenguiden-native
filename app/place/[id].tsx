@@ -399,7 +399,7 @@ const PlaceContent = memo(function PlaceContent({
                 <Text style={[s.metaText, { color: colors.muted }]}>{CATEGORIES.find((d) => d.id === c)?.label}</Text>
               </View>
             ))}
-            {[place.nearest_town, myKm != null ? distanceLabel(myKm) : null, place.price_level ? "$".repeat(place.price_level) : null]
+            {[place.nearest_town, myKm != null ? distanceLabel(myKm) : null]
               .filter(Boolean)
               .map((t, i) => (
                 <Text key={i} style={[s.metaText, { color: colors.muted }]}>

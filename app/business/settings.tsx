@@ -57,6 +57,7 @@ export default function BusinessSettings() {
           <SettingsGroup label="Er sida i appen">
             <SettingsRow
               icon={UserPlus}
+              wrap
               label="Visa ”Är det här ditt företag?”"
               subtitle="Längst ner på er sida. Då kan nyanställda be om att få gå med – ni godkänner själva."
               right={showLink === null ? undefined : (

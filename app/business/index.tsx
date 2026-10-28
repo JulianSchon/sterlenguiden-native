@@ -180,7 +180,7 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
               {activeOffers.length > 0 && (
                 <SettingsRow
                   icon={Ticket}
-                  label={activeOffers.length === 1 ? "1 erbjudande igång" : `${activeOffers.length} erbjudanden igång`}
+                  label={activeOffers.length === 1 ? "1 aktivt erbjudande" : `${activeOffers.length} aktiva erbjudanden`}
                   subtitle={`Använt ${activeOffers.reduce((n, o) => n + o.recent, 0)} gånger senaste 30 dagarna`}
                   right={lockIcon("offers")}
                   onPress={() => go("offers")}
@@ -212,9 +212,9 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
 
         <Rise index={6}>
           <SettingsGroup label="Mer">
-            <SettingsRow icon={Ticket} label="Erbjudanden" value={activeOffers.length ? `${activeOffers.length} igång` : undefined} right={lockIcon("offers")} onPress={() => go("offers")} />
+            <SettingsRow icon={Ticket} label="Erbjudanden" value={activeOffers.length ? `${activeOffers.length} aktiva` : undefined} right={lockIcon("offers")} onPress={() => go("offers")} />
             <SettingsRow icon={CalendarDays} label="Evenemang" value={upcoming.length ? `${upcoming.length} kommande` : undefined} right={lockIcon("events")} onPress={() => go("events")} />
-            <SettingsRow icon={Camera} label="Stories" right={lockIcon("stories")} onPress={() => go("stories")} />
+            <SettingsRow icon={Camera} label="Stories" value={activeStories.length ? `${activeStories.length} live` : undefined} right={lockIcon("stories")} onPress={() => go("stories")} />
             <SettingsRow icon={BarChart3} label="Statistik" onPress={() => go("stats")} />
             <SettingsRow
               icon={Users}

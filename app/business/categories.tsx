@@ -1,7 +1,7 @@
 /**
  * Kategori och meny: vad ni är (högst tre kategorier, den första är huvudkategorin), vilken sorts
  * ställe inom kategorin, vad ni serverar eller säljer (så sökningen hittar er på "fisk", "pizza",
- * "ost" …) och prisnivå. Sparas direkt.
+ * "ost" …). Sparas direkt.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -21,13 +21,6 @@ import i18n from "i18next";
 
 const MAX_CATS = 3;
 const TASTE_CATS: CategoryId[] = ["mat-dryck", "cafe-bageri", "butiker"];
-const PRICE_CATS: CategoryId[] = ["mat-dryck", "cafe-bageri", "hotell-bb"];
-const PRICES = [
-  { n: 1, label: "$", text: "Prisvärt" },
-  { n: 2, label: "$$", text: "Mellan" },
-  { n: 3, label: "$$$", text: "Lite finare" },
-  { n: 4, label: "$$$$", text: "Exklusivt" },
-];
 
 const split = (v: string | null | undefined) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -38,7 +31,7 @@ export default function BusinessCategories() {
   const { data: place } = useBusinessPlace(placeId);
   const auto = usePlaceAutosave(placeId, 300);
   const toast = useRef<PortalToastHandle>(null);
-  const [state, setState] = useState<{ cats: CategoryId[]; subs: string[]; tastes: string[]; price: number | null } | null>(null);
+  const [state, setState] = useState<{ cats: CategoryId[]; subs: string[]; tastes: string[] } | null>(null);
 
   useEffect(() => {
     if (!place || state) return;
@@ -47,7 +40,7 @@ export default function BusinessCategories() {
       const id = findCategory(part)?.id;
       if (id && !cats.includes(id)) cats.push(id);
     }
-    setState({ cats: cats.slice(0, MAX_CATS), subs: split(place.sub_category), tastes: place.tastes ?? [], price: place.price_level });
+    setState({ cats: cats.slice(0, MAX_CATS), subs: split(place.sub_category), tastes: place.tastes ?? [] });
   }, [place, state]);
 
   const save = (next: NonNullable<typeof state>) => {
@@ -58,7 +51,6 @@ export default function BusinessCategories() {
       categories: next.cats.map((c) => CATEGORY_DB_VALUE[c]).join(", ") || null,
       sub_category: next.subs.filter((x) => allowed.has(x)).join(", ") || null,
       tastes: tastesAllowed ? next.tastes : [],
-      price_level: next.cats.some((c) => PRICE_CATS.includes(c)) ? next.price : null,
     });
   };
 
@@ -149,30 +141,6 @@ export default function BusinessCategories() {
           </Rise>
         )}
 
-        {state.cats.some((c) => PRICE_CATS.includes(c)) && (
-          <Rise index={5}>
-            <View>
-              <SectionHeader title="Prisnivå" />
-              <View style={s.prices}>
-                {PRICES.map((p) => {
-                  const on = state.price === p.n;
-                  return (
-                    <Pressable
-                      key={p.n}
-                      onPress={() => { Haptics.selectionAsync().catch(() => {}); save({ ...state, price: on ? null : p.n }); }}
-                      style={[s.price, on && { borderColor: colors.gold, backgroundColor: colors.raised }]}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: on }}
-                    >
-                      <Text style={[s.priceSign, on && { color: colors.goldText }]}>{p.label}</Text>
-                      <Text style={s.priceText}>{p.text}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          </Rise>
-        )}
         {auto.error && <Text style={s.error}>{auto.error}</Text>}
       </SettingsScreen>
       <PortalToast ref={toast} />
@@ -195,12 +163,5 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   catMain: { fontFamily: "Inter_700Bold", fontSize: 11, color: c.onGold },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  prices: { flexDirection: "row", gap: 8 },
-  price: {
-    flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 14,
-    backgroundColor: c.card, borderWidth: 1.5, borderColor: c.border,
-  },
-  priceSign: { fontFamily: "Montserrat_700Bold", fontSize: 16, color: c.text },
-  priceText: { fontFamily: "Inter_500Medium", fontSize: 11.5, color: c.muted, marginTop: 3 },
   error: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.danger, textAlign: "center" },
 });

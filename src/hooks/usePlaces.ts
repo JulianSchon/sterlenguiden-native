@@ -53,9 +53,9 @@ function normalizePlaces(places: Tables<"places">[]): Place[] {
 const PORTAL_COLUMNS = ", hours_exceptions, tastes, claim_link_hidden, is_business";
 
 const LIST_COLUMNS =
-  "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, phone, email, website_url, facebook_url, instagram_url, book_url, price_level, checkin_enabled, amenities, transit_stop_name, info_updated_at" + PORTAL_COLUMNS;
+  "id, name, categories, sub_category, lat, lng, image_url, logo_url, opening_hours, nearest_town, short_description, description, phone, email, website_url, facebook_url, instagram_url, book_url, checkin_enabled, amenities, transit_stop_name, info_updated_at" + PORTAL_COLUMNS;
 const SEARCH_COLUMNS =
-  "id, name, categories, sub_category, lat, lng, image_url, opening_hours, nearest_town, short_description, price_level" + PORTAL_COLUMNS;
+  "id, name, categories, sub_category, lat, lng, image_url, opening_hours, nearest_town, short_description" + PORTAL_COLUMNS;
 
 export function usePlaces() {
   return useQuery({
