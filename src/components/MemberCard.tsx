@@ -536,7 +536,8 @@ export function MemberCard({
       {/* ── Innehåll — centrerad kolumn, alla element med samma gap ── */}
       <View style={mc.backCol}>
 
-        <Text style={mc.liveLabel}>{i18n.t("rewards.live")}</Text>
+        {/* Baksidan visas för personalen vid kassan: svenska. Bara raden till användaren följer appens språk. */}
+        <Text style={mc.liveLabel}>{i18n.t("rewards.live", { lng: "sv" })}</Text>
 
         {/* Profilbild-cirkel */}
         {/* Kortfotot ändras under Österlenpasset (en gång i månaden), inte här */}
@@ -546,7 +547,7 @@ export function MemberCard({
           ) : (
             <View style={mc.backCirclePlaceholder}>
               <Camera size={24 * k} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />
-              <Text style={mc.uploadText}>{i18n.t("rewards.noPhoto")}</Text>
+              <Text style={mc.uploadText}>{i18n.t("rewards.noPhoto", { lng: "sv" })}</Text>
             </View>
           )}
         </View>

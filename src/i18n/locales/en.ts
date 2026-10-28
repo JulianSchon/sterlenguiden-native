@@ -551,6 +551,13 @@ export const en: typeof sv = {
       search: "Search for a place or town",
       none: "We can't find a matching place.",
     },
+    appearance: {
+      title: "Dark or light?",
+      subtitle: "Choose how the app looks. Tap to see how it turns out.",
+      dark: "Dark",
+      light: "Light",
+      note: "You can switch any time under Settings › Appearance.",
+    },
     location: {
       title: "See what's near you",
       subtitle: "With your location, the app is more useful wherever you are.",

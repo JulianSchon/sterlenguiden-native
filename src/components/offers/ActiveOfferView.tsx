@@ -33,6 +33,9 @@ import { serverNow } from "@/lib/serverClock";
 import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
 
+// Personalen läser skärmen: alltid svenska, vilket språk appen än har
+const sv = (key: "rewards.member" | "rewards.offerExpired" | "rewards.offerActive" | "rewards.secondsLeft") => i18n.t(key, { lng: "sv" });
+
 const GOLD    = "#C5A059";
 const GOLD_LT = "#E8C674";
 const GOLD_HI = "#F2D88A";
@@ -143,7 +146,7 @@ export function ActiveOfferView({
   }, [visible]);
   const pulseOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
 
-  const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? i18n.t("rewards.member");
+  const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? sv("rewards.member");
   const memberSince = profile?.created_at ? formatDate(profile.created_at, "MMMM yyyy") : null;
 
   if (!visible) return null;
@@ -184,7 +187,7 @@ export function ActiveOfferView({
         <View style={a.statusRow}>
           <RNAnimated.View style={[a.pulseDot, { opacity: pulseOpacity }, expired && { backgroundColor: WARN }]} />
           <Text style={[a.statusLabel, expired && { color: WARN }]}>
-            {i18n.t(expired ? "rewards.offerExpired" : "rewards.offerActive")}
+            {sv(expired ? "rewards.offerExpired" : "rewards.offerActive")}
           </Text>
         </View>
 
@@ -220,7 +223,7 @@ export function ActiveOfferView({
         </Canvas>
         <View style={a.ringCenter} pointerEvents="none">
           <Text style={[a.seconds, warn && { color: WARN }]}>{remaining}</Text>
-          <Text style={a.secondsLabel}>{i18n.t("rewards.secondsLeft")}</Text>
+          <Text style={a.secondsLabel}>{sv("rewards.secondsLeft")}</Text>
         </View>
       </Animated.View>
 

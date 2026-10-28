@@ -554,6 +554,13 @@ export const sv = {
       search: "Sök plats eller ort",
       none: "Vi hittar ingen plats som matchar.",
     },
+    appearance: {
+      title: "Mörkt eller ljust?",
+      subtitle: "Välj hur appen ska se ut. Tryck för att se hur det blir.",
+      dark: "Mörkt",
+      light: "Ljust",
+      note: "Du kan byta när som helst under Inställningar › Utseende.",
+    },
     location: {
       title: "Se vad som är nära dig",
       subtitle: "Med din plats blir appen mer användbar där du är.",

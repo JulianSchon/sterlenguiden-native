@@ -551,6 +551,13 @@ export const de: typeof sv = {
       search: "Ort oder Stadt suchen",
       none: "Wir finden keinen passenden Ort.",
     },
+    appearance: {
+      title: "Dunkel oder hell?",
+      subtitle: "Wähle, wie die App aussieht. Tippe, um es zu sehen.",
+      dark: "Dunkel",
+      light: "Hell",
+      note: "Du kannst es jederzeit unter Einstellungen › Darstellung ändern.",
+    },
     location: {
       title: "Sieh, was in deiner Nähe ist",
       subtitle: "Mit deinem Standort ist die App dort nützlicher, wo du gerade bist.",

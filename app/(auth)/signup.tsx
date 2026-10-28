@@ -5,7 +5,7 @@
  * - "email" (Fortsätt med e-post): e-post → koden från mejlet → lösenord → resten.
  * - "resume": inloggad men inte klar — efter Apple/Google, eller om appen stängdes mitt i: resten.
  * - "reset" (Glömt lösenordet): e-post → kod → nytt lösenord → in i appen.
- * Resten = namn → användarnamn → födelsedag → platsen (bara om telefonen inte redan svarat) → var man
+ * Resten = mörkt eller ljust → namn → användarnamn → födelsedag → platsen (bara om telefonen inte redan svarat) → var man
  * bor (orten där man är föreslås) → vad man gillar → favoriter → välkommen.
  *
  * Svaren sparas i telefonen efter varje steg och skrivs till servern först i välkomststeget
@@ -34,6 +34,7 @@ import type { CodePhase } from "@/components/onboarding/CodeBoxes";
 import { BirthdayStep, HomeStep, NameStep, UsernameStep } from "@/components/onboarding/ProfileSteps";
 import { FavoritesStep, InterestsStep } from "@/components/onboarding/TasteSteps";
 import { LocationStep, WelcomeStep } from "@/components/onboarding/FinishSteps";
+import { AppearanceStep } from "@/components/onboarding/AppearanceStep";
 import { categoryPhotos } from "@/components/onboarding/InterestGrid";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
@@ -49,11 +50,11 @@ import { useTheme } from "@/theme/ThemeProvider";
 type Mode = "email" | "resume" | "reset";
 type StepId =
   | "email" | "code" | "password"
-  | "name" | "username" | "birthday" | "home" | "interests" | "favorites" | "location" | "welcome";
+  | "appearance" | "name" | "username" | "birthday" | "home" | "interests" | "favorites" | "location" | "welcome";
 
-const PROFILE: StepId[] = ["name", "username", "birthday", "location", "home", "interests", "favorites", "welcome"];
+const PROFILE: StepId[] = ["appearance", "name", "username", "birthday", "location", "home", "interests", "favorites", "welcome"];
 /** Steg utan textfält: tangentbordet åker ner när man kommer dit */
-const NO_KEYBOARD = new Set<StepId>(["birthday", "home", "interests", "favorites", "location", "welcome"]);
+const NO_KEYBOARD = new Set<StepId>(["appearance", "birthday", "home", "interests", "favorites", "location", "welcome"]);
 /** Så här länge måste man vänta mellan två koder (Supabase tillåter en i minuten) */
 const RESEND_MS = 60_000;
 /** Ett konto som skapades så här nyligen skapades av koden man just fick — det är nytt */
@@ -87,7 +88,7 @@ export default function SignupScreen() {
     ...EMPTY_DRAFT, firstName: params.first ?? "", lastName: params.last ?? "",
   }));
   const [ready, setReady] = useState(mode !== "resume");
-  const [step, setStep] = useState<StepId>(mode === "resume" ? "name" : "email");
+  const [step, setStep] = useState<StepId>(mode === "resume" ? "appearance" : "email");
   const [forward, setForward] = useState(true);
   const [locationNeeded, setLocationNeeded] = useState(true);
 
@@ -238,7 +239,7 @@ export default function SignupScreen() {
     ]);
   }, [t]);
 
-  const firstSignedIn: StepId = reset ? "password" : draft.needsPassword ? "password" : "name";
+  const firstSignedIn: StepId = reset ? "password" : draft.needsPassword ? "password" : "appearance";
   const back = useMemo<(() => void) | null>(() => {
     if (step === "welcome" || !ready) return null;
     if (step === "email") return () => router.back();
@@ -370,7 +371,7 @@ export default function SignupScreen() {
       return;
     }
     setDraft((d) => ({ ...d, needsPassword: false }));
-    go("name");
+    go("appearance");
   }, [password, reset, t, go]);
 
   // ── Profilen ──
@@ -480,6 +481,9 @@ export default function SignupScreen() {
       break;
     case "password":
       content = <PasswordStep password={password} onChange={(v) => { setPassword(v); setError(null); }} onSubmit={savePassword} busy={busy} error={error} reset={reset} />;
+      break;
+    case "appearance":
+      content = <AppearanceStep onSubmit={nextStep} />;
       break;
     case "name":
       content = <NameStep first={draft.firstName} last={draft.lastName} onChange={(firstName, lastName) => set({ firstName, lastName })} onSubmit={submitName} />;
