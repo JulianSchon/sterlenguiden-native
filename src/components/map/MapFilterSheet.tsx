@@ -6,7 +6,7 @@
  *
  * Arket byggs första gången det öppnas och ligger sen kvar — det glider bara upp och ner.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming,
@@ -98,6 +98,7 @@ export function MapFilterSheet({
   const sheetH = Math.round(height * 0.88);
 
   const [mounted, setMounted] = useState(open);
+  const scrollRef = useRef<Reanimated.ScrollView>(null);
   const y = useSharedValue(sheetH);
   const backdrop = useSharedValue(0);
   // Stängt med fingret: arket glider redan ner (startat direkt i gesten), inte starta om det
@@ -105,6 +106,9 @@ export function MapFilterSheet({
   useEffect(() => {
     if (open) {
       setMounted(true);
+      // Varje gång arket öppnas står man överst
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      scrollY.value = 0;
       closingByDrag.value = false;
       y.value = withSpring(0, { damping: 30, stiffness: 300, mass: 0.8 });
       backdrop.value = withTiming(1, { duration: 260 });
@@ -112,6 +116,7 @@ export function MapFilterSheet({
       backdrop.value = withTiming(0, { duration: 220 });
       y.value = withTiming(sheetH, { duration: 240, easing: Easing.in(Easing.quad) });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, sheetH, y, backdrop, closingByDrag]);
 
   // Dra ner för att stänga: från greppet och rubriken alltid, från innehållet bara om det står
@@ -186,6 +191,7 @@ export function MapFilterSheet({
 
             <GestureDetector gesture={nativeScroll}>
               <Reanimated.ScrollView
+                ref={scrollRef}
                 onScroll={onScroll}
                 scrollEventThrottle={16}
                 bounces={false}
