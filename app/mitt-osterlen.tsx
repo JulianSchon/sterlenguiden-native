@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import Reanimated, {
   Easing, FadeInDown, useAnimatedStyle, useDerivedValue, useReducedMotion, useSharedValue, withTiming,
 } from "react-native-reanimated";
@@ -87,6 +87,17 @@ export default function MittOsterlenScreen() {
   const stickersY = useRef(0);
   const scrollToSticker = useCallback((y: number) => scrollTo(stickersY.current + y), [scrollTo]);
 
+  // Från Statistik (rutan Skatter): sidan öppnas nere vid skatterna, alla utfällda. Sektionerna
+  // ovanför laddar in sin data efter hand och flyttar skatterna nedåt, så sidan följer med en
+  // kort stund efter att den öppnats
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const toTreasures = focus === "treasures";
+  const openedAt = useRef(Date.now());
+  const followTreasures = useCallback(() => {
+    if (!toTreasures || Date.now() - openedAt.current > 1500) return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, stickersY.current - 8), animated: false });
+  }, [toTreasures]);
+
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -102,6 +113,7 @@ export default function MittOsterlenScreen() {
 
       <ScrollView
         ref={scrollRef}
+        onContentSizeChange={followTreasures}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}
       >
@@ -233,8 +245,8 @@ export default function MittOsterlenScreen() {
         <Reanimated.View entering={enterAt(4)}><LeaderboardSection /></Reanimated.View>
         <Reanimated.View entering={enterAt(5)}><ListsSection /></Reanimated.View>
         <Reanimated.View entering={enterAt(6)}><MemoriesSection /></Reanimated.View>
-        <Reanimated.View entering={enterAt(7)} onLayout={(e) => { stickersY.current = e.nativeEvent.layout.y; }}>
-          <StickersSection scrollTo={scrollToSticker} />
+        <Reanimated.View entering={enterAt(7)} onLayout={(e) => { stickersY.current = e.nativeEvent.layout.y; followTreasures(); }}>
+          <StickersSection scrollTo={scrollToSticker} startExpanded={toTreasures} />
         </Reanimated.View>
       </ScrollView>
     </View>

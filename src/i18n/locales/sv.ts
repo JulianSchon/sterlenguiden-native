@@ -1135,7 +1135,7 @@ export const sv = {
     title: "STATISTIK", back: "Tillbaka", discovered: "UPPTÄCKT AV ÖSTERLEN", ofPlaces: "av {{count}} platser",
     percent: "{{percent}} % av Österlen", visits: "Besök", favorites: "Favoriter", memories: "Minnen", treasures: "Skatter",
     challenges: "Utmaningar", longestStreak: "Längsta streak", perMonth: "Besök per månad", yourDays: "Dina dagar",
-    categories: "Kategorier", topPlace: "Mest besökta platsen", timesOne: "Besökt 1 gång", timesOther: "Besökt {{count}} gånger",
+    categories: "Kategorier", topPlace: "Mest besökta platsen", favoritePlace: "Din favoritplats", timesOne: "Besökt 1 gång", timesOther: "Besökt {{count}} gånger",
     thisMonth: "Den här månaden", visitsOne: "1 besök", visitsOther: "{{count}} besök", averageValue: "{{value}} besök", average: "Snitt", noVisits: "Inga besök än",
     mostlyBefore: "Du är mest ute på ", mostlyAfter: "", equallyBefore: "Du är lika mycket ute på ", equallyAfter: "",
     weekends: "helgerna", weekdayPlural: "måndagar|tisdagar|onsdagar|torsdagar|fredagar|lördagar|söndagar",

@@ -1132,7 +1132,7 @@ export const de: typeof sv = {
     title: "STATISTIK", back: "Zurück", discovered: "VON ÖSTERLEN ENTDECKT", ofPlaces: "von {{count}} Orten",
     percent: "{{percent}} % von Österlen", visits: "Besuche", favorites: "Favoriten", memories: "Erinnerungen", treasures: "Schätze",
     challenges: "Herausforderungen", longestStreak: "Längste Serie", perMonth: "Besuche pro Monat", yourDays: "Deine Tage",
-    categories: "Kategorien", topPlace: "Meistbesuchter Ort", timesOne: "1-mal besucht", timesOther: "{{count}}-mal besucht",
+    categories: "Kategorien", topPlace: "Meistbesuchter Ort", favoritePlace: "Dein Lieblingsort", timesOne: "1-mal besucht", timesOther: "{{count}}-mal besucht",
     thisMonth: "Dieser Monat", visitsOne: "1 Besuch", visitsOther: "{{count}} Besuche", averageValue: "{{value}} Besuche", average: "Schnitt", noVisits: "Noch keine Besuche",
     mostlyBefore: "Du bist am meisten ", mostlyAfter: " unterwegs", equallyBefore: "Du bist gleich oft ", equallyAfter: " unterwegs",
     weekends: "am Wochenende", weekdayPlural: "montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags",

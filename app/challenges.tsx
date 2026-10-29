@@ -71,8 +71,13 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
   const feat = useThemedStyles(createFeatStyles);
   const unlocked = trophy.done;
   const glowColor = TIER_PALETTE[trophy.tier].field[0]; // ljusaste tonen i paletten, mest "glow"-lik
+  // Krymper lite medan man trycker, som troféerna i rastret
+  const scale = useRef(new Animated.Value(1)).current;
+  const onPressIn  = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   return (
-    <Pressable onPress={onPress} style={{ alignItems: "center" }}>
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
+      <Animated.View style={{ alignItems: "center", transform: [{ scale }] }}>
       <View style={feat.eyebrowRow}>
         {/* En traktor på var sida i berättelsernas gradient, vända mot texten */}
         <GradientTractor size={18} />
@@ -87,6 +92,7 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
       <Text style={feat.desc}>
         {unlocked ? trophy.levelName : `${trophy.progress}/${trophy.target} — ${trophy.requirementText}`}
       </Text>
+      </Animated.View>
     </Pressable>
   );
 }

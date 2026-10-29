@@ -34,14 +34,18 @@ const PURPLE = "#A78BFA";
 const COLLAPSED_COUNT = 6;
 const ART = 68;
 
-export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }) {
+export function StickersSection({ scrollTo, startExpanded = false }: {
+  scrollTo?: (y: number) => void;
+  /** Alla skatter utfällda från start (när man kommer från Statistik) */
+  startExpanded?: boolean;
+}) {
   const s = useThemedStyles(createStyles);
   const router = useRouter();
   const { user } = useAuth();
   const { height: winH } = useWindowDimensions();
   const { data: collectibles = [], isSuccess: loaded } = useCollectibles();
   const { data: collected = new Map<string, string>(), isSuccess: collectedLoaded } = useCollected();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(startExpanded);
   const [preview, setPreview] = useState<Collectible | null>(null);
 
   // ─── Inklistringen ─────────────────────────────────────────────────────────

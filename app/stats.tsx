@@ -49,6 +49,7 @@ import { decimal } from "@/i18n/numbers";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { Image as ExpoImage } from "expo-image";
+import { PressableScale } from "@/components/PressableScale";
 
 // Österlenlegendens guldtrofé — den man får för att klara allt
 const TROPHY_ART = require("../assets/badges/osterlenlegend-gold.png");
@@ -175,12 +176,13 @@ export default function StatsScreen() {
 
           {/* 2. Rutorna */}
           <View style={s.tiles}>
-            <Tile index={0} icon={<PlacePin height={25} />} value={stats.visitCount} label={i18n.t("statsPage.visits")} />
-            <Tile index={1} icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label={i18n.t("statsPage.favorites")} />
-            <Tile index={2} icon={<MiniPolaroid />} value={memories.length} label={i18n.t("statsPage.memories")} />
-            <Tile index={3} icon={<TreasurePin height={25} />} value={`${treasures}/${collectibles.length || 24}`} label={i18n.t("statsPage.treasures")} />
-            <Tile index={4} icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label={i18n.t("statsPage.challenges")} />
-            <Tile index={5} icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label={i18n.t("statsPage.longestStreak")} />
+            {/* Varje ruta öppnar sin sida; bakåt därifrån kommer man tillbaka hit */}
+            <Tile index={0} icon={<PlacePin height={25} />} value={stats.visitCount} label={i18n.t("statsPage.visits")} onPress={() => pushOnce(router, "/visits")} />
+            <Tile index={1} icon={<Heart size={21} color={HEART_RED} fill={HEART_RED} strokeWidth={2} />} value={favorites.length} label={i18n.t("statsPage.favorites")} onPress={() => pushOnce(router, "/favorites")} />
+            <Tile index={2} icon={<MiniPolaroid />} value={memories.length} label={i18n.t("statsPage.memories")} onPress={() => pushOnce(router, "/memories")} />
+            <Tile index={3} icon={<TreasurePin height={25} />} value={`${treasures}/${collectibles.length || 24}`} label={i18n.t("statsPage.treasures")} onPress={() => pushOnce(router, "/mitt-osterlen?focus=treasures")} />
+            <Tile index={4} icon={<Image source={TROPHY_ART} style={{ width: 27, height: 27 }} resizeMode="contain" />} value={`${trophiesDone}/${trophies.length}`} label={i18n.t("statsPage.challenges")} onPress={() => pushOnce(router, "/challenges")} />
+            <Tile index={5} icon={<View style={{ marginTop: -4 }}><StreakFlame compact size={22} /></View>} value={longestStreak} label={i18n.t("statsPage.longestStreak")} onPress={() => pushOnce(router, "/mitt-osterlen")} />
           </View>
 
           {/* 3. Besök per månad */}
@@ -215,7 +217,8 @@ export default function StatsScreen() {
           {/* 6. Mest besökta platsen */}
           {stats.topPlace && (
             <>
-              <Text style={s.sectionTitle}>{i18n.t("statsPage.topPlace")}</Text>
+              <Text style={s.sectionTitle}>{i18n.t("statsPage.favoritePlace")}</Text>
+              <Text style={s.sectionSub}>{i18n.t("statsPage.topPlace")}</Text>
               <TouchableOpacity style={[s.card, s.topPlace]} activeOpacity={0.8} onPress={() => pushOnce(router, `/place/${stats.topPlace!.place.id}?from=profile`)}>
                 <View style={s.topThumb}>
                   {firstImageUrl(stats.topPlace.place.image_url)
@@ -237,14 +240,16 @@ export default function StatsScreen() {
   );
 }
 
-/** En ruta: symbol, stort värde, etikett — glider in kort efter varandra */
-function Tile({ icon, value, label, index }: { icon: ReactNode; value: number | string; label: string; index: number }) {
+/** En ruta: symbol, stort värde, etikett — glider in kort efter varandra, tryck öppnar sidan */
+function Tile({ icon, value, label, index, onPress }: { icon: ReactNode; value: number | string; label: string; index: number; onPress: () => void }) {
   const s = useThemedStyles(createStyles);
   return (
-    <Reanimated.View entering={FadeInDown.delay(40 + index * 35).duration(280)} style={s.tile}>
-      <View style={s.tileIcon}>{icon}</View>
-      <Text style={s.tileValue}>{value}</Text>
-      <Text style={s.tileLabel} numberOfLines={1}>{label}</Text>
+    <Reanimated.View entering={FadeInDown.delay(40 + index * 35).duration(280)} style={s.tileSlot}>
+      <PressableScale style={s.tile} scale={0.96} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+        <View style={s.tileIcon}>{icon}</View>
+        <Text style={s.tileValue}>{value}</Text>
+        <Text style={s.tileLabel} numberOfLines={1}>{label}</Text>
+      </PressableScale>
     </Reanimated.View>
   );
 }
@@ -382,8 +387,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   track: { backgroundColor: c.border, overflow: "hidden" },
 
   tiles: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  tileSlot: { width: "31.6%", flexGrow: 1 },
   tile: {
-    width: "31.6%", flexGrow: 1, borderRadius: 16, padding: 14, gap: 6,
+    borderRadius: 16, padding: 14, gap: 6,
     backgroundColor: c.card, borderWidth: 1, borderColor: c.border,
   },
   // Lika hög plats för alla symboler, så värdena hamnar i linje
@@ -392,6 +398,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   tileLabel: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.muted },
 
   sectionTitle: { fontFamily: "Montserrat_700Bold", fontSize: 16, letterSpacing: -0.2, color: c.text, marginTop: 30, marginBottom: 12 },
+  sectionSub: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.muted, marginTop: -8, marginBottom: 12 },
   card: { borderRadius: 18, padding: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.border },
 
 
