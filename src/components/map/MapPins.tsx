@@ -27,6 +27,8 @@ const GOLD = "#D9A441";
 export const PIN_ANCHOR = { x: 0.5, y: 0.8333 };
 /** Klumparna sitter med mitten på sin punkt */
 export const CENTER_ANCHOR = { x: 0.5, y: 0.5 };
+/** Skattkistorna står på marken: platsen är vid kistans fot (skuggan), se scripts/render-chest-pins.js */
+export const CHEST_ANCHOR = { x: 0.5, y: 0.9318 };
 
 /**
  * En färdig bild som nålens ikon. På iPhone som Googles egen ikon (icon) — med image blir den en
@@ -109,6 +111,7 @@ const SERVICE_PINS: Record<"dark" | "light", Record<ServiceKey, ImageRequireSour
     lekplats: require("../../../assets/map-pins/pin-svc-lekplats-light.png"),
   },
 };
+// Skattkistor: stängd = ej hittad, öppen = hittad (scripts/render-chest-pins.js)
 const TREASURE_PINS = {
   "treasure": require("../../../assets/map-pins/pin-treasure.png"),
   "treasure-selected": require("../../../assets/map-pins/pin-treasure-selected.png"),

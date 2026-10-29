@@ -191,6 +191,9 @@ export function MapFilterSheet({
                 scrollEventThrottle={16}
                 bounces={false}
                 showsVerticalScrollIndicator={false}
+                // När "Aktiva filter" dyker upp eller försvinner överst står man kvar där man var
+                // (annars hoppade allt när man t.ex. slog av skatterna). Längst upp syns raden direkt.
+                maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 10 }}
                 contentContainerStyle={s.body}
               >
                 {active.length > 0 && (

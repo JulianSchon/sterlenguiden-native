@@ -65,7 +65,7 @@ import {
 import { TreasureCards } from "@/components/stickers/StickerCard";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
-  CENTER_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
+  CENTER_ANCHOR, CHEST_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
   pinImage, placeLogo, placePinImage, serviceIcon, servicePinImage, serviceType, treasurePinImage,
 } from "@/components/map/MapPins";
 import { NUMBER_ANCHOR, clusterIcon, numberPinIcon, shuffleDotIcon, systemBoldTypeface } from "@/components/map/mapIcons";
@@ -669,7 +669,7 @@ export default function MapScreen() {
           key={key}
           coordinate={{ latitude: c.lat, longitude: c.lng }}
           {...pinImage(treasurePinImage(found, sel))}
-          anchor={PIN_ANCHOR}
+          anchor={CHEST_ANCHOR}
           zIndex={sel ? 2000 : 4}
           tracksViewChanges={false}
           onPress={() => press.current.treasure(c.id)}
