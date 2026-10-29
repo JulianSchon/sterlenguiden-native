@@ -140,6 +140,7 @@ export default function OffersScreen() {
   // Svepet följer fingret och går att avbryta med ett nytt svep mitt i glidet. Ett snabbt
   // kast räknas ut med fart och når flera sidor på en gång, så man snabbt kan ta sig till ändarna.
   const swipe = Gesture.Pan()
+    .enabled(!open)
     .activeOffsetX([-20, 20])
     .failOffsetY([-14, 14])
     .onStart((e) => {
@@ -211,6 +212,9 @@ export default function OffersScreen() {
       title={t("offers.title")}
       page
       scrollRef={scrollRef}
+      // Från trycket tills bandet landat igen står sidan still: rivningen börjar där biljetten satt,
+      // och scrollade man under tiden passade bandet inte längre ihop med sin biljett
+      scrollEnabled={!open}
       overlay={(drawerReady || open) &&
         <OfferDrawer
           visible={open != null}
