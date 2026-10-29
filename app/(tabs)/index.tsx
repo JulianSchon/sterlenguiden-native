@@ -327,7 +327,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const openNews = useCallback((n: NewsItem) => pushOnce(router, `/news/${n.id}`), [router]);
   const openFriend = useCallback((userId: string) => router.push({ pathname: "/friend/[id]", params: { id: userId } }), [router]);
   const openTreasure = useCallback((c: Collectible) => {
-    router.navigate({ pathname: "/(tabs)/map", params: { sticker: c.id } });
+    router.navigate({ pathname: "/(tabs)/map", params: { sticker: c.id, at: String(Date.now()) } });
   }, [router]);
   const showOpenNow = useCallback(() => openSearch(router, i18n.t("search.queries.open")), [router, i18n]);
   const showCalendar = useCallback(() => router.navigate("/(tabs)/calendar"), [router]);

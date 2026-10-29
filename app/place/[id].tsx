@@ -354,7 +354,7 @@ const PlaceContent = memo(function PlaceContent({
   }, [collectibles, place, hasCoords]);
 
   const showOnMap = useCallback(() => {
-    router.dismissTo({ pathname: "/(tabs)/map", params: { place: String(place.id) } });
+    router.dismissTo({ pathname: "/(tabs)/map", params: { place: String(place.id), at: String(Date.now()) } });
   }, [router, place.id]);
 
   // Långt tryck på telefon, e-post och hemsida kopierar
@@ -486,7 +486,7 @@ const PlaceContent = memo(function PlaceContent({
             meters={treasure.m}
             found={collected?.has(treasure.c.id) ?? false}
             name={treasure.c.name}
-            onPress={() => router.dismissTo({ pathname: "/(tabs)/map", params: { sticker: treasure.c.id } })}
+            onPress={() => router.dismissTo({ pathname: "/(tabs)/map", params: { sticker: treasure.c.id, at: String(Date.now()) } })}
           />
         </Section>
       )}

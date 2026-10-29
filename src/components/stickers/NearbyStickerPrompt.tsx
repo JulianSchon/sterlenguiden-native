@@ -36,7 +36,7 @@ export function NearbyStickerPrompt({ lat, lng }: { lat: number | null; lng: num
       style={s.card}
       activeOpacity={0.85}
       // Hem är en flik: byt till kartfliken (inte en ny kopia av flikarna)
-      onPress={() => router.navigate({ pathname: "/(tabs)/map", params: { sticker: nearest.c.id } })}
+      onPress={() => router.navigate({ pathname: "/(tabs)/map", params: { sticker: nearest.c.id, at: String(Date.now()) } })}
     >
       <TreasurePin height={40} found={false} />
       <View style={{ flex: 1 }}>

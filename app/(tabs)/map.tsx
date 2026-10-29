@@ -127,8 +127,8 @@ export default function MapScreen() {
   useTranslation(); // ritas om när språket byts
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { sticker: stickerParam, place: placeParam, from: fromMemoryParam } =
-    useLocalSearchParams<{ sticker?: string; place?: string; from?: string }>();
+  const { sticker: stickerParam, place: placeParam, from: fromMemoryParam, at: targetAt } =
+    useLocalSearchParams<{ sticker?: string; place?: string; from?: string; at?: string }>();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
   const { colors, scheme } = useTheme();
@@ -473,18 +473,30 @@ export default function MapScreen() {
     },
   };
 
-  // Från Hem eller Mitt Österlen: en viss skatt direkt
-  useEffect(() => {
-    if (!stickerParam) return;
-    const c = collectibles.find((x) => x.id === stickerParam);
-    if (c) openSticker(c);
-  }, [stickerParam, collectibles, openSticker]);
-  // Från ett minne ("Visa plats på kartan"): en viss plats direkt
-  useEffect(() => {
-    if (!placeParam) return;
-    const p = places.find((x) => String(x.id) === placeParam);
-    if (p) selectPlace(p);
-  }, [placeParam, places, selectPlace]);
+  // Kommer man hit med ett mål (en skatt från Mitt Österlen, en plats från ett minne) väljs det och
+  // kartan flyger dit och zoomar in. Kameran tar inte emot något förrän kartan är redo (onMapReady),
+  // så målet väntar in den — annars valdes platsen men kartan stod kvar där den var.
+  const mapReady = useRef(false);
+  const pendingTarget = useRef<(() => void) | null>(null);
+  const goToTarget = useCallback(() => {
+    const target = stickerParam
+      ? collectibles.find((x) => x.id === stickerParam)
+      : placeParam ? places.find((x) => String(x.id) === placeParam) : undefined;
+    if (!target) return;
+    const run = () => (stickerParam ? openSticker(target as Collectible) : selectPlace(target as Place));
+    if (mapReady.current) run();
+    else pendingTarget.current = run;
+  // targetAt: när man tryckte (samma mål två gånger i rad är då ändå ett nytt mål)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stickerParam, placeParam, targetAt, collectibles, places, openSticker, selectPlace]);
+  useEffect(() => { goToTarget(); }, [goToTarget]);
+  const onMapReady = useCallback(() => {
+    mapReady.current = true;
+    const run = pendingTarget.current;
+    pendingTarget.current = null;
+    // En bildruta så att kartans första läge hunnit sättas innan den flyger
+    if (run) requestAnimationFrame(run);
+  }, []);
 
   // Varje gång man går in på fliken: kartan runt mig (om man inte kom hit med ett mål). När man
   // lämnar den: filterarket stängs och resten av appen får veta om hjärtan man tryckt på.
@@ -863,6 +875,7 @@ export default function MapScreen() {
     <View style={[s.root, { backgroundColor: colors.bg }]}>
       <AnimatedMapView
         ref={mapRef as never}
+        onMapReady={onMapReady}
         animatedProps={mapAnimatedProps}
         style={StyleSheet.absoluteFill}
         provider={MAP_PROVIDER}

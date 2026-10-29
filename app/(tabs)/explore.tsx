@@ -508,7 +508,7 @@ export default function ExploreScreen() {
                 onTown={chooseTown}
                 onMap={(p) => {
                   addHistory({ kind: "place", id: p.id });
-                  router.navigate({ pathname: "/(tabs)/map", params: { place: String(p.id) } });
+                  router.navigate({ pathname: "/(tabs)/map", params: { place: String(p.id), at: String(Date.now()) } });
                 }}
                 onToggleSave={toggleSave}
                 onBurst={showBurst}

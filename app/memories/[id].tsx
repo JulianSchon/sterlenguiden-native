@@ -245,7 +245,7 @@ export default function MemoryDetailScreen() {
                 <ActionRow
                   icon={<MapPin size={18} color={colors.text} strokeWidth={2} />}
                   label={i18n.t("memories.showOnMap")}
-                  onPress={() => pushOnce(router, { pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } })}
+                  onPress={() => pushOnce(router, { pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id, at: String(Date.now()) } })}
                 />
               )}
               <ActionRow icon={<Pencil size={18} color={colors.text} strokeWidth={2} />} label={i18n.t("problems.editMemory")} onPress={() => pushOnce(router, { pathname: "/memories/edit", params: { id: memory.id } })} />
