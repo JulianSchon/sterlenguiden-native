@@ -1,7 +1,7 @@
 /**
  * En skatt i stort när man trycker på den i samlingen (Mitt Österlen): resten av skärmen mörknar
  * och skatten hamnar i mitten, med namn och ort — och för den som hittat den även när och
- * kuriosan. Två val: Stäng, eller Visa på kartan (kartan flyger dit och zoomar in på skatten).
+ * kuriosan. Ett tryck utanför stänger; knappen Visa på kartan (kartan flyger dit och zoomar in på skatten).
  * Ej hittade visas som samma mörka skymt som i samlingen.
  *
  * Kartan öppnas först när rutan är helt stängd (iOS onDismiss) — öppnas en ny sida medan en
@@ -81,19 +81,11 @@ export function TreasurePreview({
           {found && <Text style={s.found}>{i18n.t("treasure.found", { date: formatDate(foundAt!, "d MMMM yyyy") })}</Text>}
           {found && !!c.description && <Text style={s.description}>{c.description}</Text>}
           <View style={s.buttons}>
-            {/* Varje knapp i en egen ruta som tar halva raden: PressableScale lägger sin stil på den
-                inre vyn, så flex:1 direkt på den gav knappen bredden 0 */}
-            <View style={s.slot}>
-              <PressableScale style={[s.button, s.closeButton]} scale={0.97} onPress={onClose}>
-                <Text style={s.closeText}>{i18n.t("treasure.close")}</Text>
-              </PressableScale>
-            </View>
-            <View style={s.slot}>
-              <PressableScale style={[s.button, s.mapButton]} scale={0.97} onPress={showOnMap}>
-                <MapPin size={17} color="#17121F" strokeWidth={2.2} />
-                <Text style={s.mapText}>{i18n.t("treasure.showOnMap")}</Text>
-              </PressableScale>
-            </View>
+            {/* Bara Visa på kartan — ett tryck var som helst annars stänger */}
+            <PressableScale style={[s.button, s.mapButton]} scale={0.97} onPress={showOnMap}>
+              <MapPin size={17} color="#17121F" strokeWidth={2.2} />
+              <Text style={s.mapText}>{i18n.t("treasure.showOnMap")}</Text>
+            </PressableScale>
           </View>
         </View>
       )}
@@ -111,14 +103,11 @@ const s = StyleSheet.create({
     fontFamily: "Inter_400Regular", fontSize: 14.5, lineHeight: 21, color: MUTED, textAlign: "center",
     marginTop: 12, maxWidth: 340,
   },
-  buttons: { flexDirection: "row", gap: 12, marginTop: 28, alignSelf: "stretch", maxWidth: 360, width: "100%" },
-  slot: { flex: 1 },
+  buttons: { marginTop: 28, alignItems: "center" },
   button: {
-    height: 50, borderRadius: 25, flexDirection: "row", gap: 7,
+    height: 50, borderRadius: 25, paddingHorizontal: 26, flexDirection: "row", gap: 7,
     alignItems: "center", justifyContent: "center",
   },
-  closeButton: { borderWidth: 1, borderColor: "rgba(245,241,232,0.28)" },
-  closeText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: TEXT },
   mapButton: { backgroundColor: PURPLE },
   mapText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#17121F" },
 });

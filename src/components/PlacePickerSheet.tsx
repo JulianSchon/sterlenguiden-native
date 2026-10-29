@@ -1,7 +1,7 @@
 /**
  * Sök bland platserna och välj en (minnen). Utan sökord står förslagen först: platserna man
  * besökt (senast först), sedan favoriterna, sedan alla andra i bokstavsordning — hela listan går
- * att scrolla igenom (FlatList ritar bara det som syns).
+ * att scrolla igenom: 25 i taget, nästa 25 när man scrollat ner till slutet.
  */
 import { useMemo, useState } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet } from "react-native";
@@ -15,6 +15,8 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import i18n from "i18next";
 import { Image as ExpoImage } from "expo-image";
+
+const PAGE = 25;
 
 export function PlacePickerSheet({
   visible, onClose, title, selectedIds, onPick,
@@ -44,7 +46,12 @@ export function PlacePickerSheet({
       return ra !== rb ? ra - rb : a.name.localeCompare(b.name, "sv");
     });
   }, [all, visits, favorites]);
-  const places = searching ? found : suggested;
+  const allPlaces = searching ? found : suggested;
+  // 25 åt gången, nästa sats när man närmar sig slutet; börjar om från 25 när sökordet ändras
+  const [shown, setShown] = useState(PAGE);
+  const [lastQuery, setLastQuery] = useState(query);
+  if (lastQuery !== query) { setLastQuery(query); setShown(PAGE); }
+  const places = allPlaces.slice(0, shown);
   const sheetInput = useSheetInput();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
@@ -63,6 +70,8 @@ export function PlacePickerSheet({
         style={{ marginTop: 12 }}
         data={places}
         initialNumToRender={14}
+        onEndReached={() => { if (shown < allPlaces.length) setShown((n) => n + PAGE); }}
+        onEndReachedThreshold={0.5}
         keyExtractor={(p) => String(p.id)}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item: p }) => {
