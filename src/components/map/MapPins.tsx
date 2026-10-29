@@ -109,7 +109,7 @@ const SERVICE_PINS: Record<"dark" | "light", Record<ServiceKey, ImageRequireSour
     lekplats: require("../../../assets/map-pins/pin-svc-lekplats-light.png"),
   },
 };
-// Skatterna som kryss på en skattkarta: grått = ej hittad, grönt = hittad (scripts/render-treasure-pins.js)
+// Skatterna som kryss på en skattkarta: grått = ej hittad, lila = hittad (scripts/render-treasure-pins.js)
 const TREASURE_PINS = {
   "treasure-dark": require("../../../assets/map-pins/pin-treasure-dark.png"),
   "treasure-light": require("../../../assets/map-pins/pin-treasure-light.png"),
@@ -124,7 +124,7 @@ export const placePinImage = (category: CategoryId | undefined, dark: boolean) =
   PLACE_PINS[dark ? "dark" : "light"][category ?? "other"];
 export const servicePinImage = (type: string, dark: boolean) =>
   SERVICE_PINS[dark ? "dark" : "light"][serviceType(type)?.key ?? "toalett"];
-/** Ej hittade är ljusgrå på den mörka kartan och mörkgrå på den ljusa; hittade är gröna i båda */
+/** Ej hittade är ljusgrå på den mörka kartan och mörkgrå på den ljusa; hittade är lila i båda */
 export const treasurePinImage = (found: boolean, selected: boolean, dark: boolean) =>
   TREASURE_PINS[(found
     ? `treasure-found${selected ? "-selected" : ""}`

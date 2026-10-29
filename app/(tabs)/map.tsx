@@ -3,7 +3,7 @@
  * appens tema (mapStyle.ts).
  *
  * - Nålar i temats färg (svarta i mörkt läge, vita i ljust) med kategorins färg som prick; skatterna
- *   kryss som på en skattkarta (grått = ej hittad, grönt = hittad). Den valda platsen blir en guldnål som studsar in. Med en kategori vald visas
+ *   kryss som på en skattkarta (grått = ej hittad, lila = hittad). Den valda platsen blir en guldnål som studsar in. Med en kategori vald visas
  *   platserna som sina loggor. Nålar som skulle hamna nästan ovanpå varandra slås ihop till
  *   klumpar i samma färger (se lib/mapFilters). En klump som inte går att zooma isär (platserna
  *   ligger på samma ställe) visar platsernas kort direkt.

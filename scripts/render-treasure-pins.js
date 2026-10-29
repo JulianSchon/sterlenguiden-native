@@ -4,7 +4,7 @@
 // Ritar PNG (1x/2x/3x). Namnen ska stämma med TREASURE_PINS i src/components/map/MapPins.tsx.
 //
 // - Ej hittad: ett grått kryss — ljusgrått på den mörka kartan, mörkgrått på den ljusa.
-// - Hittad: ett grönt kryss.
+// - Hittad: ett lila kryss (skatternas och spelens färg i appen).
 // - Vald: samma, 1,4 gånger större.
 // Krysset är två lite ojämna penseldrag utan kant eller skugga, så det ser ritat PÅ kartan ut i
 // stället för inklistrat ovanpå. Samma form som TreasurePin.tsx (STROKES där).
@@ -20,7 +20,7 @@ const cross = (ink) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" hei
   ${STROKES.map((d) => `<path d="${d}" stroke="${ink}" stroke-opacity="0.9" stroke-width="3.8" stroke-linecap="round" fill="none"/>`).join("")}
 </svg>`;
 
-const INK = { dark: "#C9C9CE", light: "#3A3A3F", found: "#2FA864" };
+const INK = { dark: "#C9C9CE", light: "#3A3A3F", found: "#A78BFA" };
 const pins = {};
 for (const theme of ["dark", "light"]) {
   pins[`pin-treasure-${theme}`] = { markup: cross(INK[theme]), scale: 1 };
