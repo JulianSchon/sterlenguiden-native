@@ -1174,7 +1174,7 @@ export const de: typeof sv = {
     changeAnytime: "Du kannst deine Meinung jederzeit ändern.", yes: "Ja, zeig mich", notNow: "Nicht jetzt",
     settingsTitle: "Sichtbarkeit in den Bestenlisten", appear: "In den Bestenlisten erscheinen",
     appearHelp: "Dein Name, Benutzername, Ort und deine Statistik — Besuche, Serie und Schätze — werden anderen in der App gezeigt: in der ganzen App, in deiner Gegend und unter deinen Freunden.",
-    showPhoto: "Profilbild zeigen", showPhotoOn: "Dein Profilbild wird statt eines Kreises mit deinen Initialen gezeigt.", showPhotoOff: "Schalte zuerst \"In den Bestenlisten erscheinen\" ein.",
+    showPhoto: "Profilbild zeigen", showPhotoOn: "Andere sehen dein Profilbild statt eines Kreises mit deinen Initialen. Ist es aus, sehen alle, auch du, den Kreis.", showPhotoOff: "Schalte zuerst \"In den Bestenlisten erscheinen\" ein.",
     showAll: "Alle zeigen", sectionSub: "Meiste besuchte Orte im {{month}} · ganze App", freeSpot: "Freier Platz",
     visitsOne: "1 Besuch", visitsOther: "{{count}} Besuche", daysOne: "1 Tag", daysOther: "{{count}} Tage", treasuresOne: "1 Schatz", treasuresOther: "{{count}} Schätze",
     reset: {

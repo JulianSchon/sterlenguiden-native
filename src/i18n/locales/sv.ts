@@ -1177,7 +1177,7 @@ export const sv = {
     changeAnytime: "Du kan ändra dig när som helst.", yes: "Ja, visa mig", notNow: "Inte nu",
     settingsTitle: "Synlighet i topplistorna", appear: "Synas i topplistorna",
     appearHelp: "Ditt namn, användarnamn, ort och din statistik — besök, streak och skatter — visas för andra i appen: i hela appen, i ditt område och bland dina vänner.",
-    showPhoto: "Visa profilbild", showPhotoOn: "Din profilbild visas i stället för en cirkel med dina initialer.", showPhotoOff: "Slå på \"Synas i topplistorna\" först.",
+    showPhoto: "Visa profilbild", showPhotoOn: "Andra ser din profilbild i stället för en cirkel med dina initialer. När den är av ser alla, även du, cirkeln.", showPhotoOff: "Slå på \"Synas i topplistorna\" först.",
     showAll: "Visa alla", sectionSub: "Flest besökta platser i {{month}} · hela appen", freeSpot: "Ledig plats",
     visitsOne: "1 besök", visitsOther: "{{count}} besök", daysOne: "1 dag", daysOther: "{{count}} dagar", treasuresOne: "1 skatt", treasuresOther: "{{count}} skatter",
     reset: {

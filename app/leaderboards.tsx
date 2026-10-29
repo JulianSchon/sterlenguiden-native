@@ -15,7 +15,7 @@
  * ställning, frågar den om man vill synas (LeaderboardConsentSheet) — av som standard, inget
  * förvalt. Själva listorna går att titta på oavsett svar; att synas i dem kräver ett ja.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, useWindowDimensions,
 } from "react-native";
@@ -78,7 +78,15 @@ export default function LeaderboardsScreen() {
   const [streakPeriod, setStreakPeriod] = useState<LeaderboardPeriod>("all");
   const activePeriod = metric === "streak" ? streakPeriod : period;
   const list = useLeaderboardList(metric, scope, activePeriod);
-  const { entries, me, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } = list;
+  const { me: rawMe, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } = list;
+  // Har jag stängt av min profilbild ser jag själv samma initialcirkel som alla andra ser — annars
+  // såg det ut som att reglaget inte fungerade
+  const hideMyPhoto = profile?.show_leaderboard_avatar !== true;
+  const entries = useMemo(
+    () => (hideMyPhoto ? list.entries.map((e) => (e.userId === rawMe?.userId ? { ...e, avatarUrl: null } : e)) : list.entries),
+    [list.entries, hideMyPhoto, rawMe?.userId],
+  );
+  const me = rawMe && hideMyPhoto ? { ...rawMe, avatarUrl: null } : rawMe;
 
   // Fråga bara en gång per besök på sidan, och bara om man aldrig tagit ställning (null)
   const [consent, setConsent] = useState<null | "first" | "join">(null);
@@ -199,8 +207,8 @@ export default function LeaderboardsScreen() {
         </View>
       </View>
 
-      {/* Huvudvalet — samma segmentkontroll som valen under pallen, men större och med en
-          neonlila kant runt det valda, så det skiljer sig tydligt från de mindre valen */}
+      {/* Huvudvalet — samma segmentkontroll som valen under pallen, men större och med det valda
+          guldfyllt, så det skiljer sig tydligt från de mindre valen */}
       <View style={s.metricTabs}>
         <Segmented options={METRICS} value={metric} onChange={setMetric} variant="primary" />
       </View>

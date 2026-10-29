@@ -1174,7 +1174,7 @@ export const en: typeof sv = {
     changeAnytime: "You can change your mind at any time.", yes: "Yes, show me", notNow: "Not now",
     settingsTitle: "Leaderboard visibility", appear: "Appear on the leaderboards",
     appearHelp: "Your name, username, town and your stats — visits, streak and treasures — are shown to others in the app: across the whole app, in your area and among your friends.",
-    showPhoto: "Show profile photo", showPhotoOn: "Your profile photo is shown instead of a circle with your initials.", showPhotoOff: "Turn on \"Appear on the leaderboards\" first.",
+    showPhoto: "Show profile photo", showPhotoOn: "Others see your profile photo instead of a circle with your initials. When it's off, everyone, including you, sees the circle.", showPhotoOff: "Turn on \"Appear on the leaderboards\" first.",
     showAll: "See all", sectionSub: "Most places visited in {{month}} · whole app", freeSpot: "Open spot",
     visitsOne: "1 visit", visitsOther: "{{count}} visits", daysOne: "1 day", daysOther: "{{count}} days", treasuresOne: "1 treasure", treasuresOther: "{{count}} treasures",
     reset: {

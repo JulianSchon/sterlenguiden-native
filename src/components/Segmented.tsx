@@ -1,6 +1,6 @@
 /**
  * Segmentkontroll med en glidande markering — för de mindre valen på topplistesidan
- * (omfång, tid) och, med variant="primary", huvudvalet överst. Markeringen glider med withTiming,
+ * (omfång, tid) och, med variant="primary" (guldfyllt val), huvudvalet överst. Markeringen glider med withTiming,
  * inte en fjäder, så den aldrig studsar.
  */
 import { useState } from "react";
@@ -45,7 +45,7 @@ export function Segmented<T extends string>({
             onChange(o.id);
           }}
         >
-          <Text style={[s.text, primary && s.textPrimary, o.id === value && s.textActive]} numberOfLines={1}>{o.label}</Text>
+          <Text style={[s.text, primary && s.textPrimary, o.id === value && (primary ? s.textActivePrimary : s.textActive)]} numberOfLines={1}>{o.label}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -64,11 +64,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   item: { flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 4 },
   text: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: c.muted },
   textActive: { color: c.text },
-  // Huvudvalet: originalstorleken, och det VALDA segmentet får en neonlila kant med svag glöd
-  indicatorPrimary: {
-    borderWidth: 1.5, borderColor: "#B57CFF",
-    shadowColor: "#A855F7", shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 6,
-  },
+  // Huvudvalet: lite större, och det VALDA segmentet är guldfyllt (appens accent), utan glöd
+  indicatorPrimary: { backgroundColor: c.gold },
+  textActivePrimary: { color: c.onGold },
   itemPrimary: { paddingVertical: 10 },
   textPrimary: { fontSize: 14 },
 });
