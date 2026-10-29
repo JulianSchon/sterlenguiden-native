@@ -311,6 +311,11 @@ function ForYouView({
 }: ListProps & { picks: EventPick[]; firstName: string | null; onShowAll: () => void }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
+  // Bara eventen som fanns när listan först visades glider in. Ett event som dyker upp i listan
+  // senare (t.ex. när "Ert evenemang" laddats klart) fastnade annars osynligt i sin inglidning och
+  // lämnade ett tomt hål mellan "Mer för dig" och raderna
+  const firstIds = useRef<Set<number> | null>(null);
+  if (!loading && firstIds.current === null) firstIds.current = new Set(picks.map((p) => p.event.id));
   if (loading) return <ForYouSkeleton />;
 
   if (picks.length === 0) {
@@ -361,7 +366,7 @@ function ForYouView({
           </Reanimated.View>
           <View style={{ gap: 12 }}>
             {rest.map((p, i) => (
-              <Reanimated.View key={p.event.id} entering={enterAt(i + 3)}>
+              <Reanimated.View key={p.event.id} entering={firstIds.current?.has(p.event.id) ? enterAt(i + 3) : undefined}>
                 <EventRow
                   event={p.event}
                   reason={liveReason(p, savedIds.has(p.event.id))}
