@@ -32,7 +32,7 @@ import {
 import MapView, { Marker, Polyline, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import * as Haptics from "expo-haptics";
@@ -225,7 +225,7 @@ export default function MapScreen() {
   const serviceMode = filters.service != null;
 
   const filtered = useMemo(() => {
-    if (filters.service || filters.treasures === "only") return [];
+    if (filters.service) return [];
     // Hjärtan som trycks här ändrar inte vad som syns förrän man lämnat kartan (annars hoppar nålar)
     return filterPlaces(places, filters, { favoriteIds: serverSaved, visitedIds, listPlaceIds });
   }, [places, filters, serverSaved, visitedIds, listPlaceIds]);
@@ -244,10 +244,9 @@ export default function MapScreen() {
   listRef.current = listPlaces;
 
   const shownTreasures = useMemo(() => {
-    if (filters.service || filters.treasures === "none") return [];
-    if (filters.treasures === "unfound") return collectibles.filter((c) => !collected.has(c.id));
+    if (filters.service || !filters.treasures) return [];
     return collectibles;
-  }, [collectibles, collected, filters.treasures]);
+  }, [collectibles, filters.treasures]);
   // En plats som också är en skatt visas som skattens lila nål
   const treasurePlaceIds = useMemo(
     () => new Set(shownTreasures.map((c) => c.placeId).filter((id): id is number => id != null)),
@@ -500,20 +499,30 @@ export default function MapScreen() {
 
   // Varje gång man går in på fliken: kartan runt mig (om man inte kom hit med ett mål). När man
   // lämnar den: filterarket stängs och resten av appen får veta om hjärtan man tryckt på.
+  // Kommer man TILLBAKA från en sida som öppnats ovanpå kartan (en plats via kortet, Mitt
+  // Österlen …) står allt kvar som det var: vald plats, kortet och var kartan tittar. Det märks
+  // på att kartan fortfarande var den valda fliken när den lämnades.
+  const tabNavigation = useNavigation();
+  const route = useRoute();
+  const keepOnReturn = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (!placeParam && !stickerParam) {
+      if (keepOnReturn.current) {
+        keepOnReturn.current = false;
+      } else if (!placeParam && !stickerParam) {
         setSelectedId(null);
         setSelectedSticker(null);
         setSelectedService(null);
         if (userLocRef.current) fly(userLocRef.current.latitude, userLocRef.current.longitude, 13, 800);
       }
       return () => {
+        const tabs = tabNavigation.getState();
+        keepOnReturn.current = !!tabs && tabs.routes[tabs.index]?.key === route.key;
         setFilterOpen(false);
         if (overridesRef.current.size === 0) return;
         queryClient.invalidateQueries({ queryKey: ["favorites"] }).then(() => setSavedOverrides(new Map()));
       };
-    }, [placeParam, stickerParam, queryClient, fly]),
+    }, [placeParam, stickerParam, queryClient, fly, tabNavigation, route.key]),
   );
 
   // Filterarket täcker navigeringen — den glider undan så länge arket är uppe

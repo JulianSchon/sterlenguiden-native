@@ -870,7 +870,7 @@ export const en: typeof sv = {
     closedNow: "Closed now",
     weekdays: "Weekdays", saturday: "Saturday", sunday: "Sunday",
     sheet: {
-      active: "Active filters", categories: "Categories", practical: "Practical", mine: "Mine", myLists: "MY LISTS",
+      active: "Active filters", categories: "Categories", practical: "Practical", mine: "Mine", myLists: "MY LISTS", showTreasures: "Show treasures on the map", noTreasures: "No treasures",
       listHint: "A list: the places are numbered in the list's order, with the route between them.",
       service: "SERVICES", serviceOnly: "The map only shows {{what}}. Tap again, or pick another filter, to see the places.",
       serviceHint: "Pick a type and the map shows only that.", treasures: "Treasures", reset: "Reset",
@@ -878,7 +878,6 @@ export const en: typeof sv = {
     },
     practical: { openNow: "Open now", booking: "Booking required" },
     mine: { favorites: "Favourites", visited: "Visited places" },
-    treasureModes: { all: "All treasures", unfound: "Not found yet", only: "Only treasures", none: "No treasures" },
     services: {
       toalett: { label: "Toilets", one: "toilet", many: "toilets" },
       laddning: { label: "EV charging", one: "charging station", many: "charging stations" },

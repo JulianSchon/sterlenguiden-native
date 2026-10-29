@@ -20,10 +20,12 @@ import { Bookmark, X, type LucideIcon } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import type { ListSummary } from "@/hooks/useLists";
 import {
-  ALL_CATEGORIES_ICON, EMPTY_FILTERS, MAP_CATEGORIES, MINE, PRACTICAL, TREASURE_MODES,
+  ALL_CATEGORIES_ICON, EMPTY_FILTERS, MAP_CATEGORIES, MINE, PRACTICAL,
   type MapFilters,
 } from "@/lib/mapFilters";
 import { SERVICE_TYPES, serviceType } from "./MapPins";
+import { IconSwitch } from "@/components/IconSwitch";
+import { TreasurePin } from "@/components/stickers/TreasurePin";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { subcategoryLabel } from "@/theme/categories";
@@ -72,11 +74,8 @@ export function activeFilters(f: MapFilters, lists: ListSummary[]): ActiveFilter
     key: `l-${id}`, label: lists.find((l) => l.id === id)?.name ?? i18n.t("map.sheet.list"),
     remove: (x) => ({ ...x, listIds: toggled(x.listIds, id) }),
   }));
-  if (f.treasures !== "all") {
-    out.push({
-      key: "t", label: TREASURE_MODES.find((t) => t.id === f.treasures)?.label ?? i18n.t("map.sheet.treasures"),
-      remove: (x) => ({ ...x, treasures: "all" }),
-    });
+  if (!f.treasures) {
+    out.push({ key: "t", label: i18n.t("map.sheet.noTreasures"), remove: (x) => ({ ...x, treasures: true }) });
   }
   return out;
 }
@@ -288,9 +287,12 @@ export function MapFilterSheet({
 
                 <View style={[s.group, serviceOn && s.dim]}>
                 <Section title={t("map.sheet.treasures")}>
-                  {TREASURE_MODES.map((t) => (
-                    <Chip key={t.id} label={t.label} on={!serviceOn && filters.treasures === t.id} onPress={() => setPlaces({ ...filters, treasures: t.id })} />
-                  ))}
+                  {/* Bara på eller av: skatterna syns på kartan eller inte */}
+                  <View style={[s.toggleRow, { backgroundColor: colors.fill, borderColor: colors.border }]}>
+                    <TreasurePin height={24} />
+                    <Text style={[s.toggleText, { color: colors.text }]}>{t("map.sheet.showTreasures")}</Text>
+                    <IconSwitch value={!serviceOn && filters.treasures} onChange={(on) => setPlaces({ ...filters, treasures: on })} />
+                  </View>
                 </Section>
                 </View>
               </Reanimated.ScrollView>
@@ -384,6 +386,11 @@ const s = StyleSheet.create({
   sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 2 },
   hint: { fontFamily: "Inter_400Regular", fontSize: 12.5 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  toggleRow: {
+    flex: 1, flexDirection: "row", alignItems: "center", gap: 12,
+    paddingLeft: 14, paddingRight: 10, paddingVertical: 10, borderRadius: 14, borderWidth: 1,
+  },
+  toggleText: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 15 },
   chip: {
     flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, overflow: "hidden",

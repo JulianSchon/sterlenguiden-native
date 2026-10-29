@@ -870,7 +870,7 @@ export const de: typeof sv = {
     closedNow: "Jetzt geschlossen",
     weekdays: "Werktags", saturday: "Samstag", sunday: "Sonntag",
     sheet: {
-      active: "Aktive Filter", categories: "Kategorien", practical: "Praktisches", mine: "Meine", myLists: "MEINE LISTEN",
+      active: "Aktive Filter", categories: "Kategorien", practical: "Praktisches", mine: "Meine", myLists: "MEINE LISTEN", showTreasures: "Schätze auf der Karte zeigen", noTreasures: "Keine Schätze",
       listHint: "Eine Liste: Die Orte sind in der Reihenfolge der Liste nummeriert, mit der Route dazwischen.",
       service: "SERVICE", serviceOnly: "Die Karte zeigt nur {{what}}. Tippe erneut oder wähle einen anderen Filter, um die Orte zu sehen.",
       serviceHint: "Wähle eine Art, dann zeigt die Karte nur diese.", treasures: "Schätze", reset: "Zurücksetzen",
@@ -878,7 +878,6 @@ export const de: typeof sv = {
     },
     practical: { openNow: "Jetzt geöffnet", booking: "Buchung erforderlich" },
     mine: { favorites: "Favoriten", visited: "Besuchte Orte" },
-    treasureModes: { all: "Alle Schätze", unfound: "Noch nicht gefunden", only: "Nur Schätze", none: "Keine Schätze" },
     services: {
       toalett: { label: "Toiletten", one: "Toilette", many: "Toiletten" },
       laddning: { label: "Laden", one: "Ladestation", many: "Ladestationen" },

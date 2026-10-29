@@ -873,7 +873,7 @@ export const sv = {
     closedNow: "Stängt nu",
     weekdays: "Vardagar", saturday: "Lördag", sunday: "Söndag",
     sheet: {
-      active: "Aktiva filter", categories: "Kategorier", practical: "Praktiskt", mine: "Mina", myLists: "MINA LISTOR",
+      active: "Aktiva filter", categories: "Kategorier", practical: "Praktiskt", mine: "Mina", myLists: "MINA LISTOR", showTreasures: "Visa skatter på kartan", noTreasures: "Inga skatter",
       listHint: "En lista: platserna numreras i listans ordning, med rutten emellan.",
       service: "SERVICE", serviceOnly: "Kartan visar bara {{what}}. Tryck igen, eller välj ett annat filter, för att se platserna.",
       serviceHint: "Välj en typ, så visar kartan bara den.", treasures: "Skatter", reset: "Återställ",
@@ -881,7 +881,6 @@ export const sv = {
     },
     practical: { openNow: "Öppet nu", booking: "Bokning krävs" },
     mine: { favorites: "Favoriter", visited: "Besökta platser" },
-    treasureModes: { all: "Alla skatter", unfound: "Ej hittade", only: "Bara skatter", none: "Inga skatter" },
     services: {
       toalett: { label: "Toaletter", one: "toalett", many: "toaletter" },
       laddning: { label: "Laddning", one: "laddstation", many: "laddstationer" },

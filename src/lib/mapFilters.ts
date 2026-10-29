@@ -55,9 +55,6 @@ export const MINE: { id: "favorites" | "visited"; readonly label: string; Icon: 
   { id: "visited", Icon: CheckCircle2, get label() { return i18n.t("map.mine.visited"); } },
 ];
 
-export type TreasureMode = "all" | "unfound" | "only" | "none";
-const mode = (id: TreasureMode) => ({ id, get label() { return i18n.t(`map.treasureModes.${id}`); } });
-export const TREASURE_MODES: { id: TreasureMode; readonly label: string }[] = [mode("all"), mode("unfound"), mode("only"), mode("none")];
 
 export interface MapFilters {
   cats: Set<CategoryId>;
@@ -68,18 +65,19 @@ export interface MapFilters {
   listIds: Set<string>;
   /** Serviceläget: den typ som visas (då visas inget annat), eller null */
   service: string | null;
-  treasures: TreasureMode;
+  /** Skatterna syns på kartan (på eller av) */
+  treasures: boolean;
 }
 
 export const EMPTY_FILTERS: MapFilters = {
-  cats: new Set(), sub: null, practical: new Set(), mine: new Set(), listIds: new Set(), service: null, treasures: "all",
+  cats: new Set(), sub: null, practical: new Set(), mine: new Set(), listIds: new Set(), service: null, treasures: true,
 };
 
 /** Siffran på filterknappen */
 export function countFilters(f: MapFilters): number {
   if (f.service) return 1;
   return f.cats.size + (f.sub ? 1 : 0) + f.practical.size + f.mine.size + f.listIds.size
-    + (f.treasures !== "all" ? 1 : 0);
+    + (f.treasures ? 0 : 1);
 }
 
 export function parseAmenities(raw: unknown): Record<string, boolean> {
