@@ -124,9 +124,6 @@ export const OfferTicket = memo(function OfferTicket({
   const CategoryIcon = category?.icon ?? Crown;
   const [from, to] = ticketColors(offer.category);
   const stubRef = useRef<View>(null);
-  // Biljettens rivkant följer panelens (samma tal som bandet ritas med)
-  const edgePath = useDerivedValue(() => tornEdgeLine(TICKET_H, edge.amt.value, edge.prog.value));
-  const cutPath = useDerivedValue(() => tornCutRegion(TICKET_H, edge.amt.value, edge.prog.value));
 
   // Mät sidobandets plats på skärmen så panelen kan riva loss det därifrån
   const open = useCallback(() => {
@@ -232,17 +229,7 @@ export const OfferTicket = memo(function OfferTicket({
         {!torn && <Perforation />}
 
         {/* Kanten som blir kvar när bandet rivits bort: vit, hackig papperskant (syns först när rivningen börjat) */}
-        {torn && (
-          <View
-            style={{ position: "absolute", left: STUB_W, top: 0, width: TEAR_DEPTH + EDGE_STROKE * 2 + 1, height: TICKET_H }}
-            pointerEvents="none"
-          >
-            <Canvas style={StyleSheet.absoluteFill}>
-              <Path path={cutPath} color={colors.bg} />
-              <Path path={edgePath} color="rgba(244,240,230,0.9)" style="stroke" strokeWidth={EDGE_STROKE} />
-            </Canvas>
-          </View>
-        )}
+        {torn && <TornEdge edge={edge} />}
 
         {/* Hack ur biljetten: halvcirklar i sidans färg mitt på varje kortsida */}
         <View style={[s.notch, s.notchLeft, { backgroundColor: colors.bg }]} />
@@ -252,6 +239,28 @@ export const OfferTicket = memo(function OfferTicket({
     </GestureDetector>
   );
 });
+
+/**
+ * Den rivna kanten (vit, hackig papperskant) på den biljett vars band rivits loss. En egen del, så att
+ * Skia-banorna bara räknas ut för den enda öppna biljetten — inte för alla biljetter på sidan.
+ */
+function TornEdge({ edge }: { edge: TearEdge }) {
+  const { colors } = useTheme();
+  // Kanten följer panelens (samma tal som bandet ritas med)
+  const edgePath = useDerivedValue(() => tornEdgeLine(TICKET_H, edge.amt.value, edge.prog.value));
+  const cutPath = useDerivedValue(() => tornCutRegion(TICKET_H, edge.amt.value, edge.prog.value));
+  return (
+    <View
+      style={{ position: "absolute", left: STUB_W, top: 0, width: TEAR_DEPTH + EDGE_STROKE * 2 + 1, height: TICKET_H }}
+      pointerEvents="none"
+    >
+      <Canvas style={StyleSheet.absoluteFill}>
+        <Path path={cutPath} color={colors.bg} />
+        <Path path={edgePath} color="rgba(244,240,230,0.9)" style="stroke" strokeWidth={EDGE_STROKE} />
+      </Canvas>
+    </View>
+  );
+}
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   ticket: {

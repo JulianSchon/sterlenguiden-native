@@ -7,7 +7,9 @@
  * samma panel som platssidan använder.
  *
  * Kategorierna är sidor bredvid varandra: man sveper åt sidan och ser nästa
- * kategori glida in medan man drar. Rubriken visar var man är, pilarna och
+ * kategori glida in medan man drar. När sidan öppnas byggs bara den första kategorin; de andra
+ * byggs när sidan glidit fram (eller så fort man börjar svepa), så att sidan öppnas lika snabbt
+ * som de andra sidorna i appen. Rubriken visar var man är, pilarna och
  * prickarna visar att det finns fler. Svepet startar inte vid skärmens kant, den zonen
  * är reserverad för iOS "tillbaka".
  */
@@ -59,6 +61,7 @@ const SWIPE_SPEED = 600;   // eller hur snabbt (px/s)
 const AREA_SLACK = 100;    // skärmhöjd minus rubrikfältet, ungefär
 const PAGE_GAP = 16;       // mellanrum mellan sidorna medan man drar
 const SIDE_MARGIN = 16;    // sidans egen sidomarginal (SettingsScreen)
+const FIRST_TICKETS = 4;   // så många biljetter byggs när sidan öppnas (resten strax efter)
 
 interface PageData { available: Offer[]; redeemed: Offer[] }
 
@@ -92,10 +95,14 @@ export default function OffersScreen() {
   // Panelen byggs i förväg (osynlig) strax efter att sidan öppnats, så rivningen alltid syns —
   // men inte medan sidan själv glider fram
   const [drawerReady, setDrawerReady] = useState(false);
+  // De andra kategorisidorna byggs efter öppningen (eller när man börjar svepa, se svepet)
+  const [allPages, setAllPages] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setDrawerReady(true), 450);
-    return () => clearTimeout(t);
+    const pagesTimer = setTimeout(() => setAllPages(true), 450);
+    const drawerTimer = setTimeout(() => setDrawerReady(true), 600);
+    return () => { clearTimeout(pagesTimer); clearTimeout(drawerTimer); };
   }, []);
+  const showAllPages = useCallback(() => setAllPages(true), []);
 
   // Svep mellan kategorier. Alla sidor ligger i en rad och raden förskjuts i sidled; att byta
   // sida är bara att glida till nästa plats, inget innehåll byts ut (annars blinkar det).
@@ -123,6 +130,7 @@ export default function OffersScreen() {
   // Pilarna: glid till grannsidan
   const slideTo = (target: number) => {
     if (target < 0 || target >= FILTER_IDS.length) return;
+    setAllPages(true);
     settleScroll();
     offsetX.value = withTiming(-target * step, { duration: 220 }, (done) => {
       if (done) runOnJS(arrived)(target);
@@ -135,6 +143,7 @@ export default function OffersScreen() {
     .activeOffsetX([-20, 20])
     .failOffsetY([-14, 14])
     .onStart((e) => {
+      runOnJS(showAllPages)();
       cancelAnimation(offsetX);
       startX.value = offsetX.value;
       fromEdge.value = e.absoluteX - e.translationX < EDGE_ZONE;
@@ -280,8 +289,8 @@ export default function OffersScreen() {
           <GestureDetector gesture={swipe}>
             {/* Höjden följer aktuella sidan; alla sidor ligger bredvid varandra, klippta till samma höjd */}
             <Animated.View style={[{ height: areaH }, slideStyle]}>
-              {pages.map((page, i) => (
-                // Alla sidor finns med hela tiden: ett snabbt kast passerar flera sidor
+              {pages.map((page, i) => (allPages || i === active) && (
+                // När alla väl byggts finns de med hela tiden: ett snabbt kast passerar flera sidor
                 (
                   <View
                     key={FILTER_IDS[i]}
@@ -294,7 +303,7 @@ export default function OffersScreen() {
                         setHeights((prev) => (prev[i] === h ? prev : Object.assign([...prev], { [i]: h })));
                       }}
                     >
-                      <OfferPage data={page} openOfferId={open?.origin ? open.offer.id : null} edge={edge} scrollAt={scrollAt} onOpen={openTicket} />
+                      <OfferPage data={page} animate={i === 0} limit={allPages ? undefined : FIRST_TICKETS} openOfferId={open?.origin ? open.offer.id : null} edge={edge} scrollAt={scrollAt} onOpen={openTicket} />
                     </View>
                   </View>
                 )
@@ -310,12 +319,19 @@ export default function OffersScreen() {
 }
 
 /** Snabb inglidning för de första biljetterna, kort efter varandra (samma som korten på Favoriter) */
-const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).duration(300) : undefined);
+const enterAt = (index: number) => (index < 6 ? FadeInDown.delay(index * 45).duration(300) : undefined);
 
 /** En kategorisida: listorna "Att använda" och "Inlösta" (eller ett tomt-meddelande) */
 function OfferPage({
-  data, openOfferId, edge, scrollAt, onOpen,
-}: { data: PageData; openOfferId: string | null; edge: TearEdge; scrollAt: SharedValue<number>; onOpen: (offer: Offer, origin: OriginRect | null) => void }) {
+  data, animate, limit, openOfferId, edge, scrollAt, onOpen,
+}: {
+  data: PageData;
+  /** Biljetterna glider in (bara på sidan som syns när Förmåner öppnas; de andra byggs i bakgrunden) */
+  animate: boolean;
+  /** Bara så här många biljetter (de som syns först); resten byggs strax efter */
+  limit?: number;
+  openOfferId: string | null; edge: TearEdge; scrollAt: SharedValue<number>; onOpen: (offer: Offer, origin: OriginRect | null) => void;
+}) {
   const { t } = useTranslation();
   const s = useThemedStyles(createStyles);
   const empty = data.available.length === 0 && data.redeemed.length === 0;
@@ -324,17 +340,17 @@ function OfferPage({
       {empty && <Text style={[s.muted, s.noneInFilter]}>{t("offers.noneInFilter")}</Text>}
       {data.available.length > 0 && (
         <Section title={t("offers.sections.available")}>
-          {data.available.map((offer, i) => (
-            <Animated.View key={offer.id} entering={enterAt(i)}>
+          {data.available.slice(0, limit).map((offer, i) => (
+            <Animated.View key={offer.id} entering={animate ? enterAt(i) : undefined}>
               <OfferTicket offer={offer} used={false} torn={offer.id === openOfferId} edge={edge} scrollAt={scrollAt} onOpen={onOpen} />
             </Animated.View>
           ))}
         </Section>
       )}
-      {data.redeemed.length > 0 && (
+      {data.redeemed.length > 0 && (limit === undefined || data.available.length < limit) && (
         <Section title={t("offers.sections.redeemed")}>
-          {data.redeemed.map((offer, i) => (
-            <Animated.View key={offer.id} entering={enterAt(data.available.length + i)}>
+          {data.redeemed.slice(0, limit === undefined ? undefined : limit - data.available.length).map((offer, i) => (
+            <Animated.View key={offer.id} entering={animate ? enterAt(data.available.length + i) : undefined}>
               <OfferTicket offer={offer} used torn={offer.id === openOfferId} edge={edge} scrollAt={scrollAt} onOpen={onOpen} />
             </Animated.View>
           ))}
