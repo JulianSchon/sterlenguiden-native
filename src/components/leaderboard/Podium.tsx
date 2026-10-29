@@ -1,18 +1,26 @@
 /**
  * Prispallen: topp 3 som tre block — tvåan till vänster, ettan i mitten (högst), trean till
  * höger, som en riktig prispall. Profilbild bara för den som valt att visa den, annars
- * initialcirkel, var och en med en liten rund bricka i guld, silver eller brons och sin placering.
- * Blocken är enkla och raka: kortets färg med en kant i medaljens färg överst. Deltar färre än
- * tre står blocket kvar som "Ledig plats".
+ * initialcirkel, var och en med en taggig bricka i guld/silver/brons och sin placering. Cirklarna
+ * flyter sakta upp och ner, i olika takt så de aldrig rör sig i takt med varandra. Ett mjukt
+ * strålkastarljus uppifrån ligger bakom ettan. Deltar färre än tre står blocket kvar som
+ * "Ledig plats".
  *
  * Blocken reser sig i tur och ordning — trean, tvåan, sist ettan — när pallen visas. Byts
  * topplista (annan flik/omfång) remountas pallen via sin key hos föräldern, så det spelas igen.
  */
+import { useEffect, type ReactNode } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import Reanimated, { Easing, FadeInUp, useReducedMotion } from "react-native-reanimated";
+import Reanimated, {
+  Easing, FadeInUp, cancelAnimation, interpolate, useAnimatedStyle, useReducedMotion, useSharedValue,
+  withDelay, withRepeat, withTiming,
+} from "react-native-reanimated";
+import Svg, { Defs, LinearGradient, Polygon, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { PressableScale } from "@/components/PressableScale";
 import { Avatar } from "@/components/profile/Avatar";
 import { Skeleton } from "@/components/Skeleton";
+import { RadialGlow } from "@/components/trophies/TrophyMedal";
+import { TIER_PALETTE } from "@/lib/achievements";
 import { formatLeaderboardValue, type LeaderboardEntry, type LeaderboardMetric } from "@/hooks/useLeaderboard";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -20,23 +28,33 @@ import type { ThemeColors } from "@/theme/colors";
 
 
 type Place = 1 | 2 | 3;
-/** Medaljernas färger: guld, silver och brons, raka färger utan toning */
-const MEDAL: Record<Place, { fill: string; ink: string }> = {
-  1: { fill: "#D4AF37", ink: "#2A2108" },
-  2: { fill: "#B8BCC6", ink: "#23262D" },
-  3: { fill: "#C27C4E", ink: "#2B160A" },
-};
+const TIER: Record<Place, keyof typeof TIER_PALETTE> = { 1: "gold", 2: "silver", 3: "bronze" };
 const BLOCK_H: Record<Place, number> = { 1: 150, 2: 112, 3: 88 };
 const AVATAR: Record<Place, number> = { 1: 76, 2: 62, 3: 62 };
 const REVEAL_DELAY: Record<Place, number> = { 3: 0, 2: 140, 1: 280 };
+// Olika takt och startläge per cirkel — rörde de sig i takt såg det mekaniskt ut
+const FLOAT: Record<Place, { duration: number; delay: number }> = {
+  1: { duration: 2200, delay: 0 },
+  2: { duration: 2550, delay: 450 },
+  3: { duration: 2350, delay: 900 },
+};
+const FLOAT_PX = 3;
+const TOP_FACE = 14;
+const TOP_INSET = 9;
 
 export function Podium({
   entries, metric, width, onSelect,
 }: { entries: LeaderboardEntry[]; metric: LeaderboardMetric; width: number; onSelect?: (entry: LeaderboardEntry) => void }) {
   const s = useThemedStyles(createStyles);
   const colW = Math.floor(width / 3);
+  const spot = width * 0.95;
   return (
     <View style={[s.row, { width }]}>
+      {/* Strålkastarljus uppifrån bakom ettan — en riktig radial gradient som tonar ut helt. Lila,
+          appens färg för allt som har med spel och tävling att göra. */}
+      <View style={[s.spotAnchor, { width: spot, height: spot, left: (width - spot) / 2, top: -spot * 0.12 }]} pointerEvents="none">
+        <RadialGlow size={spot} color="#A855F7" opacity={0.24} radiusRatio={0.75} />
+      </View>
       {([2, 1, 3] as Place[]).map((place) => (
         <PodiumColumn key={place} place={place} entry={entries[place - 1]} metric={metric} width={colW} onSelect={onSelect} />
       ))}
@@ -86,13 +104,14 @@ function PodiumColumn({
         onPress={() => entry && onSelect?.(entry)}
       >
       {entry ? (
-        <View style={{ width: avatar, height: avatar }}>
-          <Avatar size={avatar} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? colors.fill} />
-          {/* Placeringen i en liten rund bricka i medaljens färg */}
-          <View style={[s.badge, { backgroundColor: MEDAL[place].fill, borderColor: colors.bg, top: -2, right: -4 }]}>
-            <Text style={[s.badgeText, { color: MEDAL[place].ink }]}>{place}</Text>
+        <Floating place={place}>
+          <View style={{ width: avatar, height: avatar }}>
+            <Avatar size={avatar} uri={entry.avatarUrl} name={entry.name} color={entry.circleColor ?? colors.fill} />
+            <View style={[s.badge, { top: -avatar * 0.06, right: -avatar * 0.1 }]}>
+              <RankBadge place={place} size={place === 1 ? 32 : 28} />
+            </View>
           </View>
-        </View>
+        </Floating>
       ) : (
         <View style={[s.emptyAvatar, { width: avatar, height: avatar, borderRadius: avatar / 2 }]} />
       )}
@@ -106,30 +125,122 @@ function PodiumColumn({
       </View>
       </PressableScale>
 
-      {/* Blocket: kortets färg, med en kant i medaljens färg överst och placeringen i stort */}
-      <View style={[s.block, { width: width - 6, height: BLOCK_H[place], borderTopColor: MEDAL[place].fill }]}>
-        <Text style={[s.blockNumber, { fontSize: place === 1 ? 44 : 36 }]}>{place}</Text>
-      </View>
+      <PodiumBlock place={place} width={width} />
     </Reanimated.View>
+  );
+}
+
+/** Mjuk, oändlig upp-och-ner-rörelse — sinuskurva fram och tillbaka, aldrig en fjäder som studsar. */
+function Floating({ place, children }: { place: Place; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  // Startar i ena ytterläget (0), inte i mitten — withRepeat pendlar mellan STARTVÄRDET och målet,
+  // så en start i mitten hade gett halva rörelsen, bara åt ena hållet
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (reduceMotion) return;
+    const { duration, delay } = FLOAT[place];
+    t.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }), -1, true));
+    return () => cancelAnimation(t);
+  }, [place, reduceMotion, t]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(t.value, [0, 1], [-FLOAT_PX, FLOAT_PX]) }],
+  }));
+  return <Reanimated.View style={style}>{children}</Reanimated.View>;
+}
+
+/** Taggig bricka (som ett sigill) i guld/silver/brons — samma färgskala som troféerna. */
+function RankBadge({ place, size }: { place: Place; size: number }) {
+  const s = useThemedStyles(createStyles);
+  const palette = TIER_PALETTE[TIER[place]];
+  const R = size / 2;
+  const inner = R * 0.84;
+  const spikes = 14;
+  const points = Array.from({ length: spikes * 2 }, (_, i) => {
+    const angle = (Math.PI * i) / spikes - Math.PI / 2;
+    const r = i % 2 === 0 ? R : inner;
+    return `${(R + r * Math.cos(angle)).toFixed(2)},${(R + r * Math.sin(angle)).toFixed(2)}`;
+  }).join(" ");
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <LinearGradient id={`rankBadge${place}`} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={palette.field[0]} />
+            <Stop offset="0.55" stopColor={palette.field[1]} />
+            <Stop offset="1" stopColor={palette.field[2]} />
+          </LinearGradient>
+        </Defs>
+        <Polygon points={points} fill={`url(#rankBadge${place})`} />
+      </Svg>
+      <View style={[StyleSheet.absoluteFill, s.center]}>
+        <Text style={[s.badgeText, { fontSize: size * 0.48, color: palette.ink }]}>{place}</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Själva blocket, som i referensen: ogenomskinlig, sval skiffer (inte genomskinligt vitt som
+ * bakgrunden lyste igenom). Ovansidan är bara lite ljusare än framsidans överkant, så de möts i
+ * en mjuk övergång i stället för en hård kant. Framsidan är ljusast upptill och tonar ner i
+ * bakgrundens mörker nedtill, sidokanterna är lätt skuggade och siffran har en egen gradient
+ * från nästan vitt till grått. */
+function PodiumBlock({ place, width }: { place: Place; width: number }) {
+  const height = BLOCK_H[place];
+  const front = height - TOP_FACE;
+  const fontSize = place === 1 ? 64 : 52;
+  return (
+    <View style={{ width, height, marginTop: 14 }}>
+      <Svg width={width} height={height}>
+        <Defs>
+          <LinearGradient id={`podiumTop${place}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#5E6170" />
+            <Stop offset="1" stopColor="#4A4D5A" />
+          </LinearGradient>
+          <LinearGradient id={`podiumFront${place}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#434654" />
+            <Stop offset="0.35" stopColor="#30323D" />
+            <Stop offset="1" stopColor="#141418" />
+          </LinearGradient>
+          <LinearGradient id={`podiumSides${place}`} x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#000000" stopOpacity={0.22} />
+            <Stop offset="0.18" stopColor="#000000" stopOpacity={0} />
+            <Stop offset="0.82" stopColor="#000000" stopOpacity={0} />
+            <Stop offset="1" stopColor="#000000" stopOpacity={0.22} />
+          </LinearGradient>
+          <LinearGradient id={`podiumNumber${place}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#F2F3F7" />
+            <Stop offset="1" stopColor="#8E909C" />
+          </LinearGradient>
+        </Defs>
+        <Polygon
+          points={`${TOP_INSET},0 ${width - TOP_INSET},0 ${width},${TOP_FACE} 0,${TOP_FACE}`}
+          fill={`url(#podiumTop${place})`}
+        />
+        <Rect x={0} y={TOP_FACE} width={width} height={front} fill={`url(#podiumFront${place})`} />
+        <Rect x={0} y={TOP_FACE} width={width} height={front} fill={`url(#podiumSides${place})`} />
+        <SvgText
+          x={width / 2}
+          y={TOP_FACE + front * 0.42 + fontSize * 0.36}
+          textAnchor="middle"
+          fontFamily="Montserrat_700Bold"
+          fontSize={fontSize}
+          fill={`url(#podiumNumber${place})`}
+        >
+          {place}
+        </SvgText>
+      </Svg>
+    </View>
   );
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", alignSelf: "center" },
+  spotAnchor: { position: "absolute" },
   column: { alignItems: "center" },
   person: { alignItems: "center", width: "100%" },
-  badge: {
-    position: "absolute", width: 26, height: 26, borderRadius: 13, borderWidth: 2.5,
-    alignItems: "center", justifyContent: "center",
-  },
-  badgeText: { fontFamily: "Montserrat_700Bold", fontSize: 13, includeFontPadding: false },
-  block: {
-    marginTop: 14, alignItems: "center", justifyContent: "flex-start", paddingTop: 14,
-    backgroundColor: c.card, borderTopWidth: 3, borderTopLeftRadius: 10, borderTopRightRadius: 10,
-    borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: c.border, borderRightColor: c.border,
-  },
-  blockNumber: { fontFamily: "Montserrat_700Bold", color: c.faint, includeFontPadding: false },
+  center: { alignItems: "center", justifyContent: "center" },
+  badge: { position: "absolute" },
+  badgeText: { fontFamily: "Montserrat_700Bold", includeFontPadding: false },
   emptyAvatar: { borderWidth: 1.5, borderStyle: "dashed", borderColor: c.borderStrong },
   name: {
     fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.text,

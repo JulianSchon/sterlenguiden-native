@@ -66,7 +66,7 @@ export function TreasurePreview({
       transparent
       animationType="fade"
       statusBarTranslucent
-      onShow={() => { grow.value = withSpring(1, { damping: 14, stiffness: 180 }); }}
+      onShow={() => { grow.value = withSpring(1, { damping: 24, stiffness: 240 }); }}
       onDismiss={dismissed}
       onRequestClose={onClose}
     >
@@ -81,13 +81,19 @@ export function TreasurePreview({
           {found && <Text style={s.found}>{i18n.t("treasure.found", { date: formatDate(foundAt!, "d MMMM yyyy") })}</Text>}
           {found && !!c.description && <Text style={s.description}>{c.description}</Text>}
           <View style={s.buttons}>
-            <PressableScale style={[s.button, s.closeButton]} scale={0.97} onPress={onClose}>
-              <Text style={s.closeText}>{i18n.t("treasure.close")}</Text>
-            </PressableScale>
-            <PressableScale style={[s.button, s.mapButton]} scale={0.97} onPress={showOnMap}>
-              <MapPin size={17} color="#17121F" strokeWidth={2.2} />
-              <Text style={s.mapText}>{i18n.t("treasure.showOnMap")}</Text>
-            </PressableScale>
+            {/* Varje knapp i en egen ruta som tar halva raden: PressableScale lägger sin stil på den
+                inre vyn, så flex:1 direkt på den gav knappen bredden 0 */}
+            <View style={s.slot}>
+              <PressableScale style={[s.button, s.closeButton]} scale={0.97} onPress={onClose}>
+                <Text style={s.closeText}>{i18n.t("treasure.close")}</Text>
+              </PressableScale>
+            </View>
+            <View style={s.slot}>
+              <PressableScale style={[s.button, s.mapButton]} scale={0.97} onPress={showOnMap}>
+                <MapPin size={17} color="#17121F" strokeWidth={2.2} />
+                <Text style={s.mapText}>{i18n.t("treasure.showOnMap")}</Text>
+              </PressableScale>
+            </View>
           </View>
         </View>
       )}
@@ -106,8 +112,9 @@ const s = StyleSheet.create({
     marginTop: 12, maxWidth: 340,
   },
   buttons: { flexDirection: "row", gap: 12, marginTop: 28, alignSelf: "stretch", maxWidth: 360, width: "100%" },
+  slot: { flex: 1 },
   button: {
-    flex: 1, height: 50, borderRadius: 25, flexDirection: "row", gap: 7,
+    height: 50, borderRadius: 25, flexDirection: "row", gap: 7,
     alignItems: "center", justifyContent: "center",
   },
   closeButton: { borderWidth: 1, borderColor: "rgba(245,241,232,0.28)" },
