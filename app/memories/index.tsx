@@ -16,6 +16,12 @@
  * grå glöd (en egen "vald"-markering, skild från själva storleksändringen). Allt är direkt
  * kopplat till scrollpositionen (ingen egen timing-animation ovanpå) — det är därför det känns
  * som att MAN SJÄLV drar innehållet förbi en fast punkt, inte att man scrollar en sida.
+ *
+ * Det som gör det till MINA minnen och inte en lista: den aktiva cirkeln får en guldring och två
+ * av minnets andra bilder lagda intill sig som en liten hög, och bredvid står berättelsen (början
+ * av den), platsen och vilka som var med — inte bara antal foton. Tråden är prickad som en
+ * resväg, och där ett nytt år börjar står årtalet på tråden, så man ser åren gå bakåt. Överst
+ * står hur många minnen man har och från vilka år.
  */
 import { useEffect, useMemo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
@@ -27,9 +33,10 @@ import Animated, {
 import Svg, { Polyline } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, Image as ImageIcon } from "lucide-react-native";
+import { ArrowLeft, Plus, Image as ImageIcon, MapPin, Users } from "lucide-react-native";
 import { useMemories, useSignedUrls, type Memory } from "@/hooks/useMemories";
 import { useProfile } from "@/hooks/useProfile";
+import { usePlaces } from "@/hooks/usePlaces";
 import { formatMemoryDate } from "@/lib/memories";
 import { useCardVariant } from "@/hooks/useRewardCards";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
@@ -40,8 +47,17 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { pushOnce } from "@/lib/navigateOnce";
 
-
 const CIRCLE_BASE_LEFT = 20;
+/** Hur många av minnets bilder som syns: omslaget i cirkeln och två till intill den */
+const PHOTOS_SHOWN = 3;
+
+/** "Anna, Erik och Olivia". Äldre minnen kan ha alla namn i ett enda element med kommatecken
+ * (se samma uppdelning i memories/[id].tsx). */
+function peopleLine(people: string[]): string {
+  const names = people.flatMap((p) => p.split(",")).map((n) => n.trim()).filter(Boolean);
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} ${i18n.t("memories.and")} ${names[names.length - 1]}`;
+}
 
 /** Sidledes förskjutning för cirkel `i` INOM sin egen sida — en fast (inte scroll-beroende)
  * sinuskurva, så vägen genom alla minnen slingrar naturligt i stället för att gå i en rak
@@ -72,7 +88,23 @@ export default function MemoriesBookScreen() {
   const { width, height } = useWindowDimensions();
   const { data: memories = [], isLoading } = useMemories();
   const { data: profile } = useProfile();
-  const { data: urls = {} } = useSignedUrls(memories.map((m) => m.photoPaths[0]).filter(Boolean));
+  const { data: places = [] } = usePlaces();
+  const { data: urls = {} } = useSignedUrls(memories.flatMap((m) => m.photoPaths.slice(0, PHOTOS_SHOWN)));
+  const placeName = useMemo(() => new Map(places.map((p) => [p.id, p.name])), [places]);
+
+  // Överst: "12 minnen · 2024–2026" (nyast först, så sista minnet är det äldsta)
+  const summary = useMemo(() => {
+    if (memories.length === 0) return "";
+    const newest = memories[0].memoryDate.slice(0, 4);
+    const oldest = memories[memories.length - 1].memoryDate.slice(0, 4);
+    const count = memories.length === 1 ? i18n.t("memories.countOne") : i18n.t("memories.countOther", { count: memories.length });
+    return `${count} · ${newest === oldest ? newest : `${oldest}–${newest}`}`;
+  }, [memories]);
+  // Där ett nytt (äldre) år börjar står årtalet på tråden. Det första årtalet syns redan överst.
+  const yearStarts = useMemo(
+    () => memories.flatMap((m, i) => (i > 0 && m.memoryDate.slice(0, 4) !== memories[i - 1].memoryDate.slice(0, 4) ? [{ i, year: m.memoryDate.slice(0, 4) }] : [])),
+    [memories]
+  );
 
   // Exakt samma färg som kortet, ingen toning mot vitt — se samma fix i friend/[id].tsx.
   const glowColor = useCardVariant(profile?.card_color).bg;
@@ -147,7 +179,13 @@ export default function MemoriesBookScreen() {
           })}
         </View>
       ) : memories.length === 0 ? (
-        <Text style={s.empty}>{i18n.t("memories.empty")}</Text>
+        <View style={[s.emptyWrap, { paddingTop: insets.top + 120 }]}>
+          <Text style={s.emptyTitle}>{i18n.t("memories.emptyTitle")}</Text>
+          <Text style={s.emptyText}>{i18n.t("memories.emptyText")}</Text>
+          <PressableScale style={s.emptyBtn} onPress={() => pushOnce(router, "/memories/edit")}>
+            <Text style={s.emptyBtnText}>{i18n.t("memories.emptyCta")}</Text>
+          </PressableScale>
+        </View>
       ) : (
         <Animated.ScrollView
           style={{ flex: 1, paddingTop: insets.top }}
@@ -156,27 +194,45 @@ export default function MemoriesBookScreen() {
           contentContainerStyle={{ paddingBottom: scrollPadBottom }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ height: focusY - ITEM_H / 2 }} />
+          {/* Överst, mellan bakåtpilen och +: hur många minnen och från vilka år. Ligger i
+              scrollytan (inte i den flytande raden), så cirklarna aldrig glider in under texten */}
+          <View style={[s.header, { height: focusY - ITEM_H / 2 }]}>
+            <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("memories.yours")}</Text>
+            <Text style={s.headerSub} numberOfLines={1}>{summary}</Text>
+          </View>
           <View style={{ position: "relative", height: memories.length * ITEM_H }}>
             {memories.length > 1 && (
               <Svg width={width} height={memories.length * ITEM_H} style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                {/* Prickad, som en resväg på en karta */}
                 <Polyline
                   points={threadPoints}
                   fill="none"
-                  stroke={colors.borderStrong}
-                  strokeWidth={2}
+                  stroke={colors.faint}
+                  strokeWidth={3}
+                  strokeDasharray="0.1 9"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </Svg>
             )}
+            {/* Årtalet där ett nytt år börjar, på tråden mellan två minnen */}
+            {yearStarts.map(({ i, year }) => (
+              <View key={year} style={[s.yearRow, { top: i * ITEM_H - 13 }]} pointerEvents="none">
+                <View style={s.yearPill}>
+                  <Text style={s.yearText}>{year}</Text>
+                </View>
+              </View>
+            ))}
             {memories.map((m, i) => {
               const cx = circleCenterX(i, width, MAX_SIZE, WOBBLE_AMPLITUDE);
               return (
                 <MemoryBead
                   key={m.id}
                   memory={m}
-                  cover={urls[m.photoPaths[0]]}
+                  photos={m.photoPaths.slice(0, PHOTOS_SHOWN).map((p) => urls[p]).filter((u): u is string => !!u)}
+                  place={m.placeIds.length > 0 ? placeName.get(m.placeIds[0]) : undefined}
+                  morePlaces={m.placeIds.length - 1}
+                  people={peopleLine(m.people)}
                   index={i}
                   scrollY={scrollY}
                   maxSize={MAX_SIZE}
@@ -211,9 +267,10 @@ export default function MemoriesBookScreen() {
 }
 
 function MemoryBead({
-  memory, cover, index, scrollY, maxSize, minSize, itemH, focusRange, gap, circleLeft, onRight, screenWidth, onPress,
+  memory, photos, place, morePlaces, people, index, scrollY, maxSize, minSize, itemH, focusRange, gap, circleLeft, onRight, screenWidth, onPress,
 }: {
-  memory: Memory; cover: string | undefined; index: number; scrollY: SharedValue<number>;
+  memory: Memory; photos: string[]; place: string | undefined; morePlaces: number; people: string;
+  index: number; scrollY: SharedValue<number>;
   maxSize: number; minSize: number; itemH: number; focusRange: number; gap: number;
   circleLeft: number; onRight: boolean; screenWidth: number;
   onPress: () => void;
@@ -228,14 +285,12 @@ function MemoryBead({
     const scale = interpolate(dist, [0, focusRange * 0.5, focusRange], [1, 0.62, minSize / maxSize], Extrapolation.CLAMP);
     return { transform: [{ scale }] };
   });
-  // Ringens mellanrum fylls bara när cirkeln är NÄRA fokus — en snävare zon än storleksfallet,
-  // så det tydligt läses som en egen "vald"-markering, inte bara en spegling av storleken.
-  // backgroundColor nedan är en SOLID grå (inte en rgba med egen alfa) — opaciteten här är den
-  // ENDA platsen som styr synligheten, annars multiplicerar två halvgenomskinliga lager ihop
-  // till nästan ingenting synligt alls.
-  const fillStyle = useAnimatedStyle(() => {
+  // Guldringen (och de extra bilderna) syns bara när cirkeln är NÄRA fokus — en snävare zon än
+  // storleksfallet, så det tydligt läses som en egen "vald"-markering, inte bara en spegling av
+  // storleken.
+  const activeStyle = useAnimatedStyle(() => {
     const dist = Math.abs(index * itemH - scrollY.value);
-    const opacity = interpolate(dist, [0, focusRange * 0.4], [0.22, 0], Extrapolation.CLAMP);
+    const opacity = interpolate(dist, [0, focusRange * 0.4], [1, 0], Extrapolation.CLAMP);
     return { opacity };
   });
   const textStyle = useAnimatedStyle(() => {
@@ -244,9 +299,10 @@ function MemoryBead({
     return { opacity };
   });
 
-  const photoCount = memory.photoPaths.length;
-  const placeCount = memory.placeIds.length;
+  const cover = photos[0];
   const photoSize = maxSize - gap * 2;
+  const radius = maxSize / 2;
+  const align = onRight ? "right" : "left";
 
   // Inladdningen: cirklarna ska droppa in en i taget i stället för att alla bara finnas där
   // direkt. En egen shared value, skild från scroll-läget — kör EN gång vid mount, med en
@@ -276,8 +332,8 @@ function MemoryBead({
         <Animated.View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2 }, circleStyle]}>
           {/* Ringen — tunn, alltid synlig */}
           <View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2, borderWidth: 1.5, borderColor: colors.borderStrong }]} />
-          {/* Mellanrummets fyllning — bara synlig när cirkeln är vald */}
-          <Animated.View style={[StyleSheet.absoluteFillObject, { borderRadius: maxSize / 2, backgroundColor: "#9A9A9A" }, fillStyle]} />
+          {/* Guldringen och ett svagt guldskimmer i mellanrummet — bara när cirkeln är vald */}
+          <Animated.View style={[StyleSheet.absoluteFillObject, s.activeRing, { borderRadius: maxSize / 2 }, activeStyle]} />
           {/* Fotot, centrerat innanför mellanrummet */}
           <View style={{ position: "absolute", top: gap, left: gap, width: photoSize, height: photoSize, borderRadius: photoSize / 2, overflow: "hidden", backgroundColor: colors.border }}>
             {cover ? (
@@ -288,6 +344,21 @@ function MemoryBead({
               </View>
             )}
           </View>
+          {/* Minnets andra bilder, lagda intill cirkeln mot texten som en liten hög foton */}
+          {photos.slice(1).map((uri, k) => {
+            const size = Math.round(maxSize * (k === 0 ? 0.3 : 0.24));
+            const angle = ((k === 0 ? 38 : 72) * Math.PI) / 180;
+            const x = radius + Math.cos(angle) * radius * (onRight ? -1 : 1);
+            const y = radius + Math.sin(angle) * radius;
+            return (
+              <Animated.View
+                key={uri}
+                style={[s.extraPhoto, { width: size, height: size, borderRadius: size / 2, left: x - size / 2, top: y - size / 2 }, activeStyle]}
+              >
+                <LoadingImage uri={uri} style={StyleSheet.absoluteFillObject} />
+              </Animated.View>
+            );
+          })}
         </Animated.View>
       </PressableScale>
 
@@ -306,12 +377,23 @@ function MemoryBead({
         ]}
         pointerEvents="none"
       >
-        <Text style={[s.beadTitle, { textAlign: onRight ? "right" : "left" }]} numberOfLines={2}>{memory.title}</Text>
-        <Text style={[s.beadDate, { textAlign: onRight ? "right" : "left" }]}>{formatMemoryDate(memory.memoryDate)}</Text>
-        <Text style={[s.beadMeta, { textAlign: onRight ? "right" : "left" }]}>
-          {photoCount === 1 ? i18n.t("memories.photoOne") : i18n.t("memories.photoOther", { count: photoCount })}
-          {placeCount > 0 ? ` · ${placeCount === 1 ? i18n.t("lists.placesOne") : i18n.t("lists.placesOther", { count: placeCount })}` : ""}
-        </Text>
+        <Text style={[s.beadDate, { textAlign: align }]}>{formatMemoryDate(memory.memoryDate)}</Text>
+        <Text style={[s.beadTitle, { textAlign: align }]} numberOfLines={2}>{memory.title}</Text>
+        {!!memory.story?.trim() && (
+          <Text style={[s.beadStory, { textAlign: align }]} numberOfLines={2}>{memory.story.trim()}</Text>
+        )}
+        {!!place && (
+          <View style={s.beadLine}>
+            <MapPin size={13} color={colors.muted} strokeWidth={2} />
+            <Text style={s.beadLineText} numberOfLines={1}>{morePlaces > 0 ? `${place} +${morePlaces}` : place}</Text>
+          </View>
+        )}
+        {!!people && (
+          <View style={s.beadLine}>
+            <Users size={13} color={colors.muted} strokeWidth={2} />
+            <Text style={s.beadLineText} numberOfLines={1}>{people}</Text>
+          </View>
+        )}
       </Animated.View>
     </Animated.View>
   );
@@ -327,19 +409,33 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,
     alignItems: "center", justifyContent: "center",
   },
-  empty: {
-    fontFamily: "Inter_400Regular", fontSize: 15, color: c.muted, textAlign: "center",
-    marginTop: 60, paddingHorizontal: 32,
+  header: { alignItems: "center", justifyContent: "center", paddingTop: 8, marginHorizontal: 72 },
+  headerTitle: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: c.text },
+  headerSub: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.muted, marginTop: 2 },
+  emptyWrap: { alignItems: "center", paddingHorizontal: 32, gap: 10 },
+  emptyTitle: { fontFamily: "Montserrat_700Bold", fontSize: 20, color: c.text, textAlign: "center" },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 21, color: c.muted, textAlign: "center" },
+  emptyBtn: { marginTop: 12, backgroundColor: c.gold, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 13 },
+  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: c.onGold },
+  yearRow: { position: "absolute", left: 0, right: 0, alignItems: "center" },
+  yearPill: {
+    paddingHorizontal: 12, height: 26, borderRadius: 13, justifyContent: "center",
+    backgroundColor: c.bg, borderWidth: 1, borderColor: c.borderStrong,
   },
+  yearText: { fontFamily: "Montserrat_700Bold", fontSize: 12, letterSpacing: 1, color: c.muted },
 
   row: { position: "relative", width: "100%" },
   circleOuter: { position: "absolute" },
   noCover: { flex: 1, alignItems: "center", justifyContent: "center" },
+  activeRing: { borderWidth: 2, borderColor: c.gold, backgroundColor: c.goldSoft },
+  extraPhoto: { position: "absolute", overflow: "hidden", borderWidth: 2.5, borderColor: c.bg, backgroundColor: c.border },
   // top/bottom:0 (hela radhöjden) + justifyContent:"center" — centrerar texten mot cirkelns
   // mittpunkt oavsett hur hög titel+datum+antal faktiskt blir, i stället för att bara utgå från
   // cirkelns övre kant (som läste som "ovanför mitten", inte i den).
   beadText: { position: "absolute", top: 0, bottom: 0, justifyContent: "center" },
-  beadTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, color: c.text },
-  beadDate: { fontFamily: "Inter_500Medium", fontSize: 13, color: c.muted, marginTop: 4 },
-  beadMeta: { fontFamily: "Inter_400Regular", fontSize: 12.5, color: c.muted, marginTop: 2 },
+  beadDate: { fontFamily: "Inter_600SemiBold", fontSize: 12, letterSpacing: 0.6, textTransform: "uppercase", color: c.goldText },
+  beadTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, lineHeight: 23, color: c.text, marginTop: 4 },
+  beadStory: { fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 18, color: c.muted, marginTop: 6 },
+  beadLine: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6 },
+  beadLineText: { flexShrink: 1, fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.muted },
 });

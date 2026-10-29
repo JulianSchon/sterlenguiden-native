@@ -1,6 +1,7 @@
 /**
  * "Österlens skatter" (samlarobjekten) på Mitt Österlen: skatterna i ett rutnät, 3 per rad.
- * Hittade i färg, övriga som mörka skymtar. Tryck öppnar kartan med skattens kort.
+ * Hittade i färg, övriga som mörka skymtar. Tryck visar skatten i stort mitt på en mörk skärm
+ * (TreasurePreview), därifrån man stänger eller visar den på kartan.
  *
  * Visar bara 2 rader (6 st) till att börja med — "Visa fler" fäller ut resten.
  *
@@ -23,6 +24,7 @@ import { getTreasuresToPlace, removeTreasureToPlace } from "@/lib/treasurePlacem
 import { holdTrophyMoments } from "@/lib/trophyMoments";
 import { PressableScale } from "@/components/PressableScale";
 import { StickerArt } from "./StickerArt";
+import { TreasurePreview } from "./TreasurePreview";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -40,6 +42,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
   const { data: collectibles = [], isSuccess: loaded } = useCollectibles();
   const { data: collected = new Map<string, string>(), isSuccess: collectedLoaded } = useCollected();
   const [expanded, setExpanded] = useState(false);
+  const [preview, setPreview] = useState<Collectible | null>(null);
 
   // ─── Inklistringen ─────────────────────────────────────────────────────────
   const [waiting, setWaiting] = useState<string[]>([]);
@@ -136,7 +139,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
             onLanded={handleLanded}
             onLayout={(e) => { cellY.current[c.id] = e.nativeEvent.layout.y; }}
             onLoaded={() => markLoaded(c.id)}
-            onPress={() => pushOnce(router, { pathname: "/map", params: { sticker: c.id, at: String(Date.now()) } })}
+            onPress={() => setPreview(c)}
           />
         ))}
       </View>
@@ -150,6 +153,12 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
           )}
         </PressableScale>
       )}
+      <TreasurePreview
+        collectible={preview}
+        foundAt={preview ? collected.get(preview.id) : undefined}
+        onClose={() => setPreview(null)}
+        onShowOnMap={(c) => pushOnce(router, { pathname: "/map", params: { sticker: c.id, at: String(Date.now()) } })}
+      />
     </View>
   );
 }
