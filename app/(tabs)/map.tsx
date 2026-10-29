@@ -3,7 +3,7 @@
  * appens tema (mapStyle.ts).
  *
  * - Nålar i temats färg (svarta i mörkt läge, vita i ljust) med kategorins färg som prick; skatterna
- *   svarta med lila glöd och en lysande stjärna. Den valda platsen blir en guldnål som studsar in. Med en kategori vald visas
+ *   kryss som på en skattkarta (grått = ej hittad, grönt = hittad). Den valda platsen blir en guldnål som studsar in. Med en kategori vald visas
  *   platserna som sina loggor. Nålar som skulle hamna nästan ovanpå varandra slås ihop till
  *   klumpar i samma färger (se lib/mapFilters). En klump som inte går att zooma isär (platserna
  *   ligger på samma ställe) visar platsernas kort direkt.
@@ -65,7 +65,7 @@ import {
 import { TreasureCards } from "@/components/stickers/StickerCard";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
-  CENTER_ANCHOR, CHEST_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
+  CENTER_ANCHOR, LogoMarker, PIN_ANCHOR, PIN_COLORS, SELECTED_ANCHOR, SelectedPin,
   pinImage, placeLogo, placePinImage, serviceIcon, servicePinImage, serviceType, treasurePinImage,
 } from "@/components/map/MapPins";
 import { NUMBER_ANCHOR, clusterIcon, numberPinIcon, shuffleDotIcon, systemBoldTypeface } from "@/components/map/mapIcons";
@@ -247,7 +247,7 @@ export default function MapScreen() {
     if (filters.service || !filters.treasures) return [];
     return collectibles;
   }, [collectibles, filters.treasures]);
-  // En plats som också är en skatt visas som skattens lila nål
+  // En plats som också är en skatt visas som skattens kryss
   const treasurePlaceIds = useMemo(
     () => new Set(shownTreasures.map((c) => c.placeId).filter((id): id is number => id != null)),
     [shownTreasures],
@@ -669,7 +669,7 @@ export default function MapScreen() {
           key={key}
           coordinate={{ latitude: c.lat, longitude: c.lng }}
           {...pinImage(treasurePinImage(found, sel))}
-          anchor={CHEST_ANCHOR}
+          anchor={CENTER_ANCHOR}
           zIndex={sel ? 2000 : 4}
           tracksViewChanges={false}
           onPress={() => press.current.treasure(c.id)}

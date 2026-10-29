@@ -74,9 +74,8 @@ export function activeFilters(f: MapFilters, lists: ListSummary[]): ActiveFilter
     key: `l-${id}`, label: lists.find((l) => l.id === id)?.name ?? i18n.t("map.sheet.list"),
     remove: (x) => ({ ...x, listIds: toggled(x.listIds, id) }),
   }));
-  if (!f.treasures) {
-    out.push({ key: "t", label: i18n.t("map.sheet.noTreasures"), remove: (x) => ({ ...x, treasures: true }) });
-  }
+  // Skatterna står inte här: deras på/av-knapp syns alltid längre ner, och raden här som kom och
+  // gick fick hela arket att hoppa när man slog på eller av dem
   return out;
 }
 

@@ -1,5 +1,5 @@
 /**
- * Skattnålen som symbol — samma som skatterna på kartan (scripts/render-map-pins.js): svart nål
+ * Skatternas symbol: svart nål
  * med lila glöd i kanten och en stjärna som lyser lite. En hittad skatt har guldstjärna.
  * Används där skatter visas som en siffra (Statistik).
  */

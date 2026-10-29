@@ -870,7 +870,7 @@ export const de: typeof sv = {
     closedNow: "Jetzt geschlossen",
     weekdays: "Werktags", saturday: "Samstag", sunday: "Sonntag",
     sheet: {
-      active: "Aktive Filter", categories: "Kategorien", practical: "Praktisches", mine: "Meine", myLists: "MEINE LISTEN", showTreasures: "Schätze auf der Karte zeigen", noTreasures: "Keine Schätze",
+      active: "Aktive Filter", categories: "Kategorien", practical: "Praktisches", mine: "Meine", myLists: "MEINE LISTEN", showTreasures: "Schätze auf der Karte zeigen",
       listHint: "Eine Liste: Die Orte sind in der Reihenfolge der Liste nummeriert, mit der Route dazwischen.",
       service: "SERVICE", serviceOnly: "Die Karte zeigt nur {{what}}. Tippe erneut oder wähle einen anderen Filter, um die Orte zu sehen.",
       serviceHint: "Wähle eine Art, dann zeigt die Karte nur diese.", treasures: "Schätze", reset: "Zurücksetzen",

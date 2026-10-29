@@ -3,7 +3,7 @@
  *
  * - Vanliga nålar: klassiska droppformade nålar i temats färg — svarta i mörkt läge, vita i ljust,
  *   som klumparna — med kategorins färg som prick. Servicenålarna har typens ikon i guld, skatterna
- *   är svarta med lila glöd i kanten och en lysande stjärna. Färdiga bilder (assets/map-pins, scripts/render-map-pins.js) som Google
+ *   är kryss som på en skattkarta. Färdiga bilder (assets/map-pins, scripts/render-map-pins.js och render-treasure-pins.js) som Google
  *   Kartor ritar själv som ikoner — snabbast möjligt, inget ritas om när kartan rör sig.
  *   Klumparna och listans numrerade nålar är också färdiga bilder (mapIcons.ts).
  * - SelectedPin: det man valt (plats eller servicepunkt) — en större guldnål som studsar in.
@@ -27,8 +27,6 @@ const GOLD = "#D9A441";
 export const PIN_ANCHOR = { x: 0.5, y: 0.8333 };
 /** Klumparna sitter med mitten på sin punkt */
 export const CENTER_ANCHOR = { x: 0.5, y: 0.5 };
-/** Skattkistorna står på marken: platsen är vid kistans fot (skuggan), se scripts/render-chest-pins.js */
-export const CHEST_ANCHOR = { x: 0.5, y: 0.9318 };
 
 /**
  * En färdig bild som nålens ikon. På iPhone som Googles egen ikon (icon) — med image blir den en
@@ -111,7 +109,7 @@ const SERVICE_PINS: Record<"dark" | "light", Record<ServiceKey, ImageRequireSour
     lekplats: require("../../../assets/map-pins/pin-svc-lekplats-light.png"),
   },
 };
-// Skattkistor: stängd = ej hittad, öppen = hittad (scripts/render-chest-pins.js)
+// Skatterna som kryss på en skattkarta: grått = ej hittad, grönt = hittad (scripts/render-treasure-pins.js)
 const TREASURE_PINS = {
   "treasure": require("../../../assets/map-pins/pin-treasure.png"),
   "treasure-selected": require("../../../assets/map-pins/pin-treasure-selected.png"),

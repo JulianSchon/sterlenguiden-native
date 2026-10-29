@@ -1,5 +1,5 @@
 /**
- * Kortet som öppnas när man trycker på en skatt (lila nål) på kartan. Tre lägen:
+ * Kortet som öppnas när man trycker på en skatt (ett kryss) på kartan. Tre lägen:
  *  - hittad:   skatten i färg, datum och kuriosa
  *  - framme:   inom 75 m — "Håll in för att öppna" (samma knapp som incheckningen) öppnar
  *              skattkistan (TreasureReveal)
