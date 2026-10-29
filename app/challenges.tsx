@@ -76,14 +76,15 @@ function FeaturedTrophy({ trophy, medalSize, onPress, onLoad }: { trophy: Trophy
   const onPressIn  = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-      <Animated.View style={{ alignItems: "center", transform: [{ scale }] }}>
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ alignItems: "center" }}>
       <View style={feat.eyebrowRow}>
         {/* En traktor på var sida i berättelsernas gradient, vända mot texten */}
         <GradientTractor size={18} />
         <Text style={feat.eyebrow}>{i18n.t(unlocked ? "challengesPage.latest" : "challengesPage.closest")}</Text>
         <GradientTractor size={18} flip />
       </View>
+      {/* Bara trofén och texten under krymper vid tryck, rubriken med traktorerna står still */}
+      <Animated.View style={{ alignItems: "center", transform: [{ scale }] }}>
       <View style={{ marginTop: 28, width: medalSize, height: medalSize, alignItems: "center", justifyContent: "center" }}>
         <GlowCanvas size={medalSize} color={glowColor} opacity={0.1} radiusRatio={0.95} blurRatio={0.4} />
         <TrophyMedal size={medalSize} tier={trophy.tier} Icon={trophy.Icon} unlocked={unlocked} groupId={trophy.groupId} onLoad={onLoad} />
