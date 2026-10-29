@@ -584,6 +584,9 @@ export default function ChallengesScreen() {
       ) : (
         <ScrollView
           ref={scrollRef}
+          // Låst från att man släpper en trofé tills rutan stängts — annars hann man scrolla iväg
+          // medan den öppnades (samma som på Förmåner)
+          scrollEnabled={!selected}
           showsVerticalScrollIndicator={false}
           // Ingen +96 här — den paddingen fanns för att lämna plats åt den
           // flytande bottennavigeringen, men den renderas bara inuti
