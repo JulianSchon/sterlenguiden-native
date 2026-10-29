@@ -927,8 +927,8 @@ export const de: typeof sv = {
     sheet: {
       featured: "EMPFOHLEN", share: "Mit Freunden teilen", addToCalendar: "Zum Kalender hinzufügen", close: "Schließen",
       organizer: "Veranstalter", organizerSite: "Website des Veranstalters", showOnMap: "Auf der Karte zeigen",
-      booking: "Buchung erforderlich", ticket: "Ticket erforderlich", free: "Freier Eintritt", indoor: "Drinnen", outdoor: "Draußen",
-      food: "Essen & Trinken", noFood: "Keine Bewirtung", parking: "Parkplätze", noParking: "Keine Parkplätze", childFriendly: "Kinderfreundlich", dogFriendly: "Hundefreundlich", accessible: "Rollstuhlgerecht",
+      booking: "Buchung erforderlich", ticket: "Ticket erforderlich", free: "Einfach vorbeikommen", indoor: "Drinnen",
+      food: "Essen & Trinken", parking: "Parkplätze", childFriendly: "Kinderfreundlich", dogFriendly: "Hundefreundlich", accessible: "Rollstuhlgerecht",
       buy: "Ticket kaufen", soldOut: "Ausverkauft", release: "Vorverkauf ab {{date}}, {{time}} Uhr",
       about: "Über die Veranstaltung",
       past: "Vorbei", ongoing: "Läuft gerade", today: "Heute", tomorrow: "Morgen", inDays: "In {{count}} Tagen",

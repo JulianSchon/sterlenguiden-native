@@ -40,7 +40,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Accessibility, Baby, CalendarCheck, CalendarDays, CalendarPlus, Car, ChevronRight, Dog, Globe, Home, MapPin,
-  Store, Sun, Ticket, UtensilsCrossed, X, type LucideIcon,
+  Store, Ticket, UtensilsCrossed, X, type LucideIcon,
 } from "lucide-react-native";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import i18n from "i18next";
@@ -498,18 +498,18 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
     : null;
   const relative = relativeDay(event);
 
-  // Fyra snabba fakta, varje sak sagd i klartext. Det som saknas står kvar, nedtonat
-  const facts: { Icon: LucideIcon; label: string; has: boolean }[] = [
+  // Snabba fakta i klartext — BARA det företaget faktiskt valt. En ruta de inte kryssade i
+  // betyder inte "nej" (de kan ha glömt den), så "Ingen parkering", "Utomhus" och liknande
+  // gissningar visas aldrig. Inträdet väljer företaget alltid ett av tre.
+  const facts: { Icon: LucideIcon; label: string }[] = [
     event.booking_required
-      ? { Icon: CalendarCheck, label: t("calendar.sheet.booking"), has: true }
+      ? { Icon: CalendarCheck, label: t("calendar.sheet.booking") }
       : event.tickets_required
-        ? { Icon: Ticket, label: t("calendar.sheet.ticket"), has: true }
-        : { Icon: Ticket, label: t("calendar.sheet.free"), has: true },
-    event.is_indoor
-      ? { Icon: Home, label: t("calendar.sheet.indoor"), has: true }
-      : { Icon: Sun, label: t("calendar.sheet.outdoor"), has: true },
-    { Icon: UtensilsCrossed, label: t(event.has_food_drink ? "calendar.sheet.food" : "calendar.sheet.noFood"), has: !!event.has_food_drink },
-    { Icon: Car, label: t(event.has_parking ? "calendar.sheet.parking" : "calendar.sheet.noParking"), has: !!event.has_parking },
+        ? { Icon: Ticket, label: t("calendar.sheet.ticket") }
+        : { Icon: Ticket, label: t("calendar.sheet.free") },
+    ...(event.is_indoor ? [{ Icon: Home, label: t("calendar.sheet.indoor") }] : []),
+    ...(event.has_food_drink ? [{ Icon: UtensilsCrossed, label: t("calendar.sheet.food") }] : []),
+    ...(event.has_parking ? [{ Icon: Car, label: t("calendar.sheet.parking") }] : []),
   ];
   // Det som bara står när det stämmer (barnvänligt, hundvänligt, rullstol), under remsan
   const extras: { Icon: LucideIcon; label: string }[] = [
@@ -573,12 +573,12 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
         )}
       </View>
 
-      {/* ── Fyra snabba fakta i en remsa, ifyllt av företaget ── */}
+      {/* ── Snabba fakta i en remsa, det företaget valt ── */}
       <View style={s.strip}>
-        {facts.map(({ Icon, label, has }, i) => (
+        {facts.map(({ Icon, label }, i) => (
           <View key={label} style={[s.stripItem, i > 0 && s.stripDivider]}>
-            <Icon size={22} color={has ? colors.goldText : colors.faint} strokeWidth={1.8} />
-            <Text style={[s.stripText, !has && s.stripTextOff]} numberOfLines={2}>{label}</Text>
+            <Icon size={22} color={colors.goldText} strokeWidth={1.8} />
+            <Text style={s.stripText} numberOfLines={2}>{label}</Text>
           </View>
         ))}
       </View>
@@ -686,7 +686,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   extras: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: -6 },
   extra: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 14, backgroundColor: c.goldSoft },
   extraText: { fontFamily: "Inter_600SemiBold", fontSize: 12.5, color: c.goldText },
-  stripTextOff: { fontFamily: "Inter_500Medium", color: c.faint },
 
   ticketBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 52, marginTop: 22,
