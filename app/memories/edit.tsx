@@ -1,10 +1,14 @@
 /**
  * Skapa eller redigera ett minne. Utan `id` skapas ett nytt; `placeId` och
  * `title` fyller i formuläret i förväg (används från incheckningens belöning).
+ *
+ * Sidan scrollar själv så att rutan man skriver i hamnar ovanför tangentbordet, och datumet väljs
+ * med telefonens egen datumväljare (på Android en ruta som öppnas; saknas modulen i appbygget
+ * skriver man datumet som förut).
  */
 import { useEffect, useMemo, useState } from "react";
 import {
-  View, Text, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform,
+  View, Text, ScrollView, TextInput, TouchableOpacity, Pressable, Alert, Platform, TurboModuleRegistry,
   useWindowDimensions, StyleSheet,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,11 +27,26 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { Image as ExpoImage } from "expo-image";
 import { imageSource } from "@/lib/imageSource";
+import { formatDate } from "@/i18n/dates";
+import { currentLanguage } from "@/i18n";
+
+/** Telefonens datumväljare finns i appbygget (på Android måste modulen finnas innan den läses in) */
+const NATIVE_PICKER = Platform.OS === "ios" || !!TurboModuleRegistry.get("RNCDatePicker");
+const picker = NATIVE_PICKER
+  ? (require("@react-native-community/datetimepicker") as typeof import("@react-native-community/datetimepicker"))
+  : null;
+const PICKER_LOCALE = { sv: "sv-SE", en: "en-GB", de: "de-DE" } as const;
+const dateOf = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 
 export default function EditMemoryScreen() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const sheetInput = useSheetInput();
+  const today = useMemo(() => new Date(), []);
   const s = useThemedStyles(createStyles);
   const { id, placeId, title: presetTitle } = useLocalSearchParams<{ id?: string; placeId?: string; title?: string }>();
   const router = useRouter();
@@ -107,11 +126,15 @@ export default function EditMemoryScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 32, gap: 24 }}
-        >
+      {/* Rutan man skriver i hamnar ovanför tangentbordet: scrollytan får tangentbordets höjd som
+          luft nertill och scrollar själv dit (iOS), och man drar ner tangentbordet med listan */}
+      <ScrollView
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 32, gap: 24 }}
+      >
           {/* Foton */}
           <View>
             <Text style={s.label}>FOTON · {photoCount} av {MAX_MEMORY_PHOTOS}</Text>
@@ -154,21 +177,51 @@ export default function EditMemoryScreen() {
 
           <View>
             <Text style={s.label}>{i18n.t("memories.date")}</Text>
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <TextInput
-                style={[sheetInput, { flex: 1 }, !dayOk && { borderColor: "#E57373" }]}
-                value={day}
-                onChangeText={setDay}
-                maxLength={10}
-                keyboardType="numbers-and-punctuation"
-                placeholder={i18n.t("memories.datePlaceholder")}
-                placeholderTextColor={colors.faint}
-              />
-              <TouchableOpacity style={s.todayBtn} onPress={() => setDay(swedishDay())}>
-                <Text style={s.todayText}>{i18n.t("memories.today")}</Text>
-              </TouchableOpacity>
-            </View>
-            {!dayOk && <Text style={s.error}>{i18n.t("memories.dateError")}</Text>}
+            {Platform.OS === "ios" && picker ? (
+              // iPhones egen: datumet i en knapp som öppnar kalendern
+              <View style={s.datePicker}>
+                <picker.default
+                  value={dayOk ? dateOf(day) : today}
+                  mode="date"
+                  display="compact"
+                  maximumDate={today}
+                  locale={PICKER_LOCALE[currentLanguage()]}
+                  themeVariant={scheme}
+                  accentColor={colors.gold}
+                  onChange={(_e, date) => { if (date) setDay(isoOf(date)); }}
+                />
+              </View>
+            ) : picker ? (
+              <Pressable
+                style={[sheetInput, s.dateRow]}
+                onPress={() => picker.DateTimePickerAndroid.open({
+                  value: dayOk ? dateOf(day) : today,
+                  mode: "date",
+                  maximumDate: today,
+                  onChange: (event, date) => { if (event.type === "set" && date) setDay(isoOf(date)); },
+                })}
+              >
+                <Text style={s.dateText}>{dayOk ? formatDate(dateOf(day), "d MMMM yyyy") : ""}</Text>
+              </Pressable>
+            ) : (
+              <>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <TextInput
+                    style={[sheetInput, { flex: 1 }, !dayOk && { borderColor: "#E57373" }]}
+                    value={day}
+                    onChangeText={setDay}
+                    maxLength={10}
+                    keyboardType="numbers-and-punctuation"
+                    placeholder={i18n.t("memories.datePlaceholder")}
+                    placeholderTextColor={colors.faint}
+                  />
+                  <TouchableOpacity style={s.todayBtn} onPress={() => setDay(swedishDay())}>
+                    <Text style={s.todayText}>{i18n.t("memories.today")}</Text>
+                  </TouchableOpacity>
+                </View>
+                {!dayOk && <Text style={s.error}>{i18n.t("memories.dateError")}</Text>}
+              </>
+            )}
           </View>
 
           <View>
@@ -219,8 +272,7 @@ export default function EditMemoryScreen() {
             disabled={!canSave}
             loading={saving}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </ScrollView>
 
       <PlacePickerSheet
         visible={pickerOpen}
@@ -273,6 +325,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
     borderWidth: 1, borderStyle: "dashed", borderColor: c.goldBorder,
   },
 
+  datePicker: { alignItems: "flex-start" },
+  dateRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, minHeight: 50 },
+  dateText: { fontFamily: "Inter_500Medium", fontSize: 16, color: c.text },
   todayBtn: {
     paddingHorizontal: 16, borderRadius: 12, alignItems: "center", justifyContent: "center",
     backgroundColor: c.fill, borderWidth: 1, borderColor: c.borderStrong,

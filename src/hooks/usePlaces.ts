@@ -71,9 +71,10 @@ export function usePlaces() {
   });
 }
 
-export function useSearchPlaces(searchQuery: string) {
+export function useSearchPlaces(searchQuery: string, enabled = true) {
   return useQuery({
     queryKey: ["places", "search", searchQuery],
+    enabled,
     queryFn: async () => {
       if (!searchQuery.trim()) {
         const { data, error } = await supabase.from("places").select(SEARCH_COLUMNS).order("name");

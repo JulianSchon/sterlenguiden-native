@@ -1,9 +1,15 @@
-/** Sök bland platserna och välj en. Används av listor och minnen. */
-import { useState } from "react";
+/**
+ * Sök bland platserna och välj en (minnen). Utan sökord står förslagen först: platserna man
+ * besökt (senast först), sedan favoriterna, sedan alla andra i bokstavsordning — hela listan går
+ * att scrolla igenom (FlatList ritar bara det som syns).
+ */
+import { useMemo, useState } from "react";
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { Check, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { useSearchPlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
+import { usePlaces, useSearchPlaces, firstImageUrl, type Place } from "@/hooks/usePlaces";
+import { useVisits } from "@/hooks/useVisits";
+import { useFavorites } from "@/hooks/useFavorites";
 import { Sheet, useSheetInput } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -21,7 +27,24 @@ export function PlacePickerSheet({
   onPick: (place: Place) => void;
 }) {
   const [query, setQuery] = useState("");
-  const { data: places = [] } = useSearchPlaces(query);
+  const searching = query.trim().length > 0;
+  const { data: found = [] } = useSearchPlaces(query, searching);
+  const { data: all = [] } = usePlaces();
+  const { data: visits = [] } = useVisits();
+  const { data: favorites = [] } = useFavorites();
+  // Förslagen: besökta (senast först), favoriter, sedan resten i bokstavsordning
+  const suggested = useMemo(() => {
+    const rank = new Map<number, number>();
+    visits.forEach((v, i) => { if (!rank.has(v.place_id)) rank.set(v.place_id, i); });
+    const offset = visits.length;
+    favorites.forEach((f, i) => { if (f.place_id != null && !rank.has(f.place_id)) rank.set(f.place_id, offset + i); });
+    return [...all].sort((a, b) => {
+      const ra = rank.get(a.id) ?? Infinity;
+      const rb = rank.get(b.id) ?? Infinity;
+      return ra !== rb ? ra - rb : a.name.localeCompare(b.name, "sv");
+    });
+  }, [all, visits, favorites]);
+  const places = searching ? found : suggested;
   const sheetInput = useSheetInput();
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
@@ -33,12 +56,13 @@ export function PlacePickerSheet({
         value={query}
         onChangeText={setQuery}
         placeholder={i18n.t("problems.searchPlace")}
-        placeholderTextColor="rgba(255,255,255,0.35)"
+        placeholderTextColor={colors.faint}
         autoCorrect={false}
       />
       <FlatList
         style={{ marginTop: 12 }}
-        data={places.slice(0, 50)}
+        data={places}
+        initialNumToRender={14}
         keyExtractor={(p) => String(p.id)}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item: p }) => {
