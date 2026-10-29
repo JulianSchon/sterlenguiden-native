@@ -668,7 +668,7 @@ export default function MapScreen() {
         <Marker
           key={key}
           coordinate={{ latitude: c.lat, longitude: c.lng }}
-          {...pinImage(treasurePinImage(found, sel))}
+          {...pinImage(treasurePinImage(found, sel, dark))}
           anchor={CENTER_ANCHOR}
           zIndex={sel ? 2000 : 4}
           tracksViewChanges={false}

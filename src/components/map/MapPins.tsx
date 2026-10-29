@@ -111,8 +111,10 @@ const SERVICE_PINS: Record<"dark" | "light", Record<ServiceKey, ImageRequireSour
 };
 // Skatterna som kryss på en skattkarta: grått = ej hittad, grönt = hittad (scripts/render-treasure-pins.js)
 const TREASURE_PINS = {
-  "treasure": require("../../../assets/map-pins/pin-treasure.png"),
-  "treasure-selected": require("../../../assets/map-pins/pin-treasure-selected.png"),
+  "treasure-dark": require("../../../assets/map-pins/pin-treasure-dark.png"),
+  "treasure-light": require("../../../assets/map-pins/pin-treasure-light.png"),
+  "treasure-selected-dark": require("../../../assets/map-pins/pin-treasure-selected-dark.png"),
+  "treasure-selected-light": require("../../../assets/map-pins/pin-treasure-selected-light.png"),
   "treasure-found": require("../../../assets/map-pins/pin-treasure-found.png"),
   "treasure-found-selected": require("../../../assets/map-pins/pin-treasure-found-selected.png"),
 } as const;
@@ -122,8 +124,11 @@ export const placePinImage = (category: CategoryId | undefined, dark: boolean) =
   PLACE_PINS[dark ? "dark" : "light"][category ?? "other"];
 export const servicePinImage = (type: string, dark: boolean) =>
   SERVICE_PINS[dark ? "dark" : "light"][serviceType(type)?.key ?? "toalett"];
-export const treasurePinImage = (found: boolean, selected: boolean) =>
-  TREASURE_PINS[`${found ? "treasure-found" : "treasure"}${selected ? "-selected" : ""}` as keyof typeof TREASURE_PINS];
+/** Ej hittade är ljusgrå på den mörka kartan och mörkgrå på den ljusa; hittade är gröna i båda */
+export const treasurePinImage = (found: boolean, selected: boolean, dark: boolean) =>
+  TREASURE_PINS[(found
+    ? `treasure-found${selected ? "-selected" : ""}`
+    : `treasure${selected ? "-selected" : ""}-${dark ? "dark" : "light"}`) as keyof typeof TREASURE_PINS];
 
 /** Bilden en plats visas med i loggläget: loggan, annars platsens första bild */
 export function placeLogo(place: Place): { uri: string; fit: "contain" | "cover" } | null {
