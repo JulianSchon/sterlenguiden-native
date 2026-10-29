@@ -29,6 +29,7 @@ import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { Image as ExpoImage } from "expo-image";
+import { pushOnce } from "@/lib/navigateOnce";
 
 // Måtten måste stämma med OfferDrawer (bandet som rivs loss har samma mått)
 export const TICKET_H = 190;
@@ -131,7 +132,7 @@ export const OfferTicket = memo(function OfferTicket({
     stubRef.current.measureInWindow((x, y, w, h) => onOpen(offer, { x, y, w, h }));
   }, [offer, onOpen]);
   const arm = useCallback(() => armTicketImage(imageUrl), [imageUrl]);
-  const openPlace = useCallback(() => router.push(`/place/${offer.place_id}?from=offers`), [router, offer.place_id]);
+  const openPlace = useCallback(() => pushOnce(router, `/place/${offer.place_id}?from=offers`), [router, offer.place_id]);
 
   // Ett tryck: fingret får inte röra sig mer än 10 punkter, och listan får inte ha glidit nyss. Trycket
   // på loggan (uppe till höger, med lite marginal) öppnar platssidan i stället för erbjudandet

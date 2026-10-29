@@ -25,6 +25,7 @@ import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 
 export default function FriendsScreen() {
@@ -81,7 +82,7 @@ export default function FriendsScreen() {
         </View>
 
         {!profile?.username && (
-          <PressableScale style={s.usernameHint} scale={0.98} onPress={() => router.push("/settings/account")}>
+          <PressableScale style={s.usernameHint} scale={0.98} onPress={() => pushOnce(router, "/settings/account")}>
             <Text style={s.usernameHintText}>{t("friends.noUsername")}</Text>
           </PressableScale>
         )}
@@ -186,7 +187,7 @@ function FriendRow({ friend }: { friend: FriendResult }) {
   const busy = send.isPending || accept.isPending || remove.isPending;
 
   // Ingen fördröjning — lika snabb som Vänner-knappen på Mitt Österlen.
-  const tap = () => router.push({ pathname: "/friend/[id]", params: { id: friend.userId } });
+  const tap = () => pushOnce(router, { pathname: "/friend/[id]", params: { id: friend.userId } });
 
   return (
     <PressableScale style={s.row} scale={0.96} onPress={tap}>

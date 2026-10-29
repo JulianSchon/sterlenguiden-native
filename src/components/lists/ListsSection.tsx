@@ -12,6 +12,7 @@ import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 
 export function ListsSection() {
@@ -22,7 +23,7 @@ export function ListsSection() {
   const [joinOpen, setJoinOpen] = useState(false);
   useTranslation(); // ritas om när språket byts
 
-  const openList = (id: string) => router.push(`/lists/${id}`);
+  const openList = (id: string) => pushOnce(router, `/lists/${id}`);
 
   return (
     <View style={s.section}>

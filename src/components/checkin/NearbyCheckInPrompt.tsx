@@ -15,6 +15,7 @@ import { useVisits } from "@/hooks/useVisits";
 import { CHECKIN_RADIUS_M, placesNear, cooldownEnd } from "@/lib/checkin";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 export function NearbyCheckInPrompt({
   places, lat, lng,
@@ -36,7 +37,7 @@ export function NearbyCheckInPrompt({
     <TouchableOpacity
       style={s.card}
       activeOpacity={0.85}
-      onPress={() => router.push(`/place/${place.id}?from=checkin`)}
+      onPress={() => pushOnce(router, `/place/${place.id}?from=checkin`)}
     >
       <View style={s.iconCircle}>
         <MapPin size={22} color={colors.goldText} strokeWidth={2} />

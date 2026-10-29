@@ -29,6 +29,7 @@ import { TreasureReveal } from "./TreasureReveal";
 import { cardIn, cardOut } from "@/components/map/PlaceCard";
 import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
+import { pushOnce } from "@/lib/navigateOnce";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.62)";
@@ -108,7 +109,7 @@ function StickerCard({
           <Text style={s.name} numberOfLines={2}>{collectible.name}</Text>
           {collectible.town ? <Text style={s.town}>{collectible.town}</Text> : null}
           {collectible.placeId != null && (
-            <TouchableOpacity onPress={() => router.push(`/place/${collectible.placeId}?from=map`)} hitSlop={8}>
+            <TouchableOpacity onPress={() => pushOnce(router, `/place/${collectible.placeId}?from=map`)} hitSlop={8}>
               <Text style={s.placeLink}>{i18n.t("treasure.viewPlace")}</Text>
             </TouchableOpacity>
           )}
@@ -159,7 +160,7 @@ function StickerCard({
           total={collectibles.length}
           haveBefore={revealing.haveBefore}
           standingBefore={standingBefore.current ?? undefined}
-          onNavigate={() => router.push("/mitt-osterlen")}
+          onNavigate={() => pushOnce(router, "/mitt-osterlen")}
           onClose={() => setRevealing(null)}
         />
       )}

@@ -59,6 +59,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { ShareIcon } from "@/components/ShareIcon";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 900;
@@ -294,7 +295,7 @@ export function EventSheetHost() {
   // ── Handlingar (stabila, så innehållet inte ritas om i onödan) ──
   const goToPlace = useCallback(() => {
     const id = shownRef.current?.event.place?.id;
-    if (id != null) close(() => router.push(`/place/${id}?from=event`));
+    if (id != null) close(() => pushOnce(router, `/place/${id}?from=event`));
   }, [close]);
   const openMaps = useCallback(() => {
     const e = shownRef.current?.event;

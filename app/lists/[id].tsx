@@ -49,6 +49,7 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { isNetworkError } from "@/lib/network";
 import { Image as ExpoImage } from "expo-image";
+import { pushOnce } from "@/lib/navigateOnce";
 
 // Spotify-omslaget ligger INTE kant till kant (det gjorde Lovable-versionen, som Viktor
 // uttryckligen inte ville ha) — en stor kvadrat med luft runt om i stället.
@@ -341,7 +342,7 @@ export default function ListDetailScreen() {
                 hasOffer={offerPlaceIds.has(item.place.id)}
                 isActive={isActive}
                 viewOnly={viewOnly}
-                onPress={() => router.push(`/place/${item.place.id}?from=lists`)}
+                onPress={() => pushOnce(router, `/place/${item.place.id}?from=lists`)}
                 onDrag={drag}
                 onRemove={() =>
                   confirm(i18n.t("lists.removePlaceTitle"), i18n.t("lists.removePlaceText", { name: item.place.name }), i18n.t("lists.remove"), () =>

@@ -317,7 +317,7 @@ export default function FavoritesScreen() {
           <Text style={[s.muted, { textAlign: "center", lineHeight: 21 }]}>
             {i18n.t("favoritesPage.emptyText")}
           </Text>
-          <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore")}>
+          <TouchableOpacity style={s.emptyBtn} onPress={() => pushOnce(router, "/(tabs)/explore")}>
             <Text style={s.emptyBtnText}>{i18n.t("favoritesPage.explore")}</Text>
           </TouchableOpacity>
         </View>

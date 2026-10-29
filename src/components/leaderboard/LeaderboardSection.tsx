@@ -20,6 +20,7 @@ import i18n from "i18next";
 import { formatDate } from "@/i18n/dates";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 const PREVIEW_COUNT = 5;
 
@@ -36,7 +37,7 @@ export function LeaderboardSection() {
   const meInTop = !!me && top.some((e) => e.userId === me.userId);
   const participating = profile?.show_in_leaderboard === true;
   const month = formatDate(new Date(), "LLLL");
-  const open = () => router.push("/leaderboards");
+  const open = () => pushOnce(router, "/leaderboards");
 
   return (
     <View style={s.section}>

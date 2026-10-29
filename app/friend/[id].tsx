@@ -56,6 +56,7 @@ import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { Image as ExpoImage } from "expo-image";
+import { pushOnce } from "@/lib/navigateOnce";
 
 const RED   = "#B83434"; // samma röd som hjärtat på platssidan när den är favoritmarkerad
 
@@ -333,7 +334,7 @@ function ListsRow({ lists, friendId }: { lists: FriendList[]; friendId: string }
             key={l.id}
             style={{ width: 140 }}
             activeOpacity={0.8}
-            onPress={() => router.push(`/lists/${l.id}?view=friend&owner=${friendId}`)}
+            onPress={() => pushOnce(router, `/lists/${l.id}?view=friend&owner=${friendId}`)}
           >
             <ListCover coverImageUrl={l.coverImageUrl} images={imageOf(l.placeIds)} size={140} />
             <Text style={s.listName} numberOfLines={1}>{l.name}</Text>
@@ -598,7 +599,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
     <PressableScale
       style={[s.activityRow, bordered && s.activityRowBorder]}
       scale={0.94}
-      onPress={() => (target ? router.push(target as any) : openEvent(activity.eventId!))}
+      onPress={() => (target ? pushOnce(router, target as any) : openEvent(activity.eventId!))}
     >
       {content}
     </PressableScale>

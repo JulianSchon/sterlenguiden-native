@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { findCategory, type CategoryId } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 // ─── Kategorifilter ──────────────────────────────────────────────────────────
 // Sex sidor över de åtta kategorierna. Erbjudanden utan känd kategori syns bara under "Alla".
@@ -90,7 +91,7 @@ export default function OffersScreen() {
   const openTicket = useCallback((offer: Offer, origin: OriginRect | null) => setOpen({ offer, origin }), []);
   const closeDrawer = useCallback(() => setOpen(null), []);
   const openPlace = useCallback(() => {
-    if (open) router.push(`/place/${open.offer.place_id}?from=offers`);
+    if (open) pushOnce(router, `/place/${open.offer.place_id}?from=offers`);
   }, [open, router]);
   // Panelen byggs i förväg (osynlig) strax efter att sidan öppnats, så rivningen alltid syns —
   // men inte medan sidan själv glider fram
@@ -230,7 +231,7 @@ export default function OffersScreen() {
       right={
         <Pressable
           disabled={isMember}
-          onPress={() => router.push("/settings/pass-buy")}
+          onPress={() => pushOnce(router, "/settings/pass-buy")}
           style={[s.status, isMember && s.statusActive]}
         >
           <View style={[s.statusDot, { backgroundColor: isMember ? colors.success : colors.faint }]} />

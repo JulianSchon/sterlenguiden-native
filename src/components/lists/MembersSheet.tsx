@@ -22,6 +22,7 @@ import { Sheet, PrimaryButton } from "@/components/Sheet";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 
 export function MembersSheet({
@@ -53,7 +54,7 @@ export function MembersSheet({
     if (isMe) return;
     const viewProfile = () => {
       onClose();
-      router.push({ pathname: "/friend/[id]", params: { id: member.userId } });
+      pushOnce(router, { pathname: "/friend/[id]", params: { id: member.userId } });
     };
     if (isOwner) {
       Alert.alert(member.name, undefined, [

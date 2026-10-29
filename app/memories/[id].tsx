@@ -31,6 +31,7 @@ import type { ThemeColors } from "@/theme/colors";
 import { isNetworkError } from "@/lib/network";
 import { Image as ExpoImage } from "expo-image";
 import { imageSource } from "@/lib/imageSource";
+import { pushOnce } from "@/lib/navigateOnce";
 
 
 const HERO_MARGIN = 24;
@@ -228,7 +229,7 @@ export default function MemoryDetailScreen() {
               <Text style={s.sectionLabel}>{i18n.t("memories.places")}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.placesRow}>
                 {memoryPlaces.map((p) => (
-                  <MemoryPlaceCard key={p.id} place={p} onPress={() => router.push(`/place/${p.id}?from=profile`)} />
+                  <MemoryPlaceCard key={p.id} place={p} onPress={() => pushOnce(router, `/place/${p.id}?from=profile`)} />
                 ))}
               </ScrollView>
             </View>
@@ -239,15 +240,15 @@ export default function MemoryDetailScreen() {
           <View style={s.actions}>
             <Text style={s.sectionLabel}>{i18n.t("memories.more")}</Text>
             <View style={{ gap: 8 }}>
-              <ActionRow icon={<Plus size={18} color={colors.text} strokeWidth={2} />} label={i18n.t("problems.createMemory")} onPress={() => router.push("/memories/edit")} />
+              <ActionRow icon={<Plus size={18} color={colors.text} strokeWidth={2} />} label={i18n.t("problems.createMemory")} onPress={() => pushOnce(router, "/memories/edit")} />
               {memoryPlaces.length > 0 && (
                 <ActionRow
                   icon={<MapPin size={18} color={colors.text} strokeWidth={2} />}
                   label={i18n.t("memories.showOnMap")}
-                  onPress={() => router.push({ pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } })}
+                  onPress={() => pushOnce(router, { pathname: "/(tabs)/map", params: { place: String(memoryPlaces[0].id), from: memory.id } })}
                 />
               )}
-              <ActionRow icon={<Pencil size={18} color={colors.text} strokeWidth={2} />} label={i18n.t("problems.editMemory")} onPress={() => router.push({ pathname: "/memories/edit", params: { id: memory.id } })} />
+              <ActionRow icon={<Pencil size={18} color={colors.text} strokeWidth={2} />} label={i18n.t("problems.editMemory")} onPress={() => pushOnce(router, { pathname: "/memories/edit", params: { id: memory.id } })} />
               <ActionRow icon={<Trash2 size={18} color="#E57373" strokeWidth={2} />} label={i18n.t("problems.deleteMemory")} danger onPress={confirmDelete} />
             </View>
           </View>

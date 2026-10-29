@@ -26,6 +26,7 @@ import { StickerArt } from "./StickerArt";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 const PURPLE = "#A78BFA";
 const COLLAPSED_COUNT = 6;
@@ -135,7 +136,7 @@ export function StickersSection({ scrollTo }: { scrollTo?: (y: number) => void }
             onLanded={handleLanded}
             onLayout={(e) => { cellY.current[c.id] = e.nativeEvent.layout.y; }}
             onLoaded={() => markLoaded(c.id)}
-            onPress={() => router.push({ pathname: "/map", params: { sticker: c.id } })}
+            onPress={() => pushOnce(router, { pathname: "/map", params: { sticker: c.id } })}
           />
         ))}
       </View>

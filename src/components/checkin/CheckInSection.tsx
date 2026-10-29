@@ -31,6 +31,7 @@ import { CheckInCelebration, type CelebrationExit, type CelebrationState } from 
 import { HoldToCheckIn } from "./HoldToCheckIn";
 import i18n from "i18next";
 import { isNetworkError } from "@/lib/network";
+import { pushOnce } from "@/lib/navigateOnce";
 
 export function CheckInSection({ place }: { place: Place }) {
   // Saknar platsen koordinater kan GPS inte avgöra något (QR-kod kommer senare)
@@ -118,9 +119,9 @@ export function CheckInSection({ place }: { place: Place }) {
   // Belöningen tonar själv ut. En sida som ska öppnas läggs bakom den medan den fortfarande täcker
   // skärmen, så man aldrig skymtar platssidan på vägen
   const handleCelebrationNavigate = (exit: CelebrationExit) => {
-    if (exit === "offers") router.push("/offers");
-    else if (exit === "memory") router.push({ pathname: "/memories/edit", params: { placeId: String(place.id), title: i18n.t("checkin.memoryTitle", { place: place.name }) } });
-    else router.push(`/place/${exit.placeId}?from=checkin`);
+    if (exit === "offers") pushOnce(router, "/offers");
+    else if (exit === "memory") pushOnce(router, { pathname: "/memories/edit", params: { placeId: String(place.id), title: i18n.t("checkin.memoryTitle", { place: place.name }) } });
+    else pushOnce(router, `/place/${exit.placeId}?from=checkin`);
   };
 
   const handleRecheck = async () => {

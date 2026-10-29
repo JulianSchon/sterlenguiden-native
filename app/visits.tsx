@@ -140,7 +140,7 @@ export default function VisitsScreen() {
           </View>
           <Text style={s.emptyTitle}>{i18n.t("historyPage.emptyTitle")}</Text>
           <Text style={s.emptyText}>{i18n.t("historyPage.emptyText")}</Text>
-          <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/(tabs)/explore")}>
+          <TouchableOpacity style={s.emptyBtn} onPress={() => pushOnce(router, "/(tabs)/explore")}>
             <Text style={s.emptyBtnText}>{i18n.t("historyPage.explore")}</Text>
           </TouchableOpacity>
         </View>

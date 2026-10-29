@@ -6,12 +6,13 @@
 import type { useRouter } from "expo-router";
 
 type Router = ReturnType<typeof useRouter>;
+type Href = Parameters<Router["push"]>[0];
 
 let lastAt = 0;
 
-export function pushOnce(router: Router, href: string): void {
+export function pushOnce(router: Router, href: Href | string): void {
   const now = Date.now();
   if (now - lastAt < 700) return;
   lastAt = now;
-  router.push(href as any);
+  router.push(href as Href);
 }

@@ -38,6 +38,7 @@ import { PressableScale } from "@/components/PressableScale";
 import i18n from "i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 
 const CIRCLE_BASE_LEFT = 20;
@@ -186,7 +187,7 @@ export default function MemoriesBookScreen() {
                   circleLeft={cx - MAX_SIZE / 2}
                   onRight={i % 2 === 1}
                   screenWidth={width}
-                  onPress={() => router.push(`/memories/${m.id}`)}
+                  onPress={() => pushOnce(router, `/memories/${m.id}`)}
                 />
               );
             })}
@@ -201,7 +202,7 @@ export default function MemoriesBookScreen() {
         <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/memories/edit")}>
+        <TouchableOpacity style={s.iconBtn} onPress={() => pushOnce(router, "/memories/edit")}>
           <Plus size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
       </View>

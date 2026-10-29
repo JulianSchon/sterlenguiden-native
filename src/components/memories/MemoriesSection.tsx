@@ -48,6 +48,7 @@ import { LoadingImage, Skeleton } from "@/components/Skeleton";
 import i18n from "i18next";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 const RECENT = 10;
 
@@ -87,11 +88,11 @@ export function MemoriesSection() {
         <Text style={s.title}>{i18n.t("memories.yours")}</Text>
         <View style={s.actions}>
           {memories.length > 0 && (
-            <TouchableOpacity onPress={() => router.push("/memories")} hitSlop={8}>
+            <TouchableOpacity onPress={() => pushOnce(router, "/memories")} hitSlop={8}>
               <Text style={s.action}>{i18n.t("memories.all")}</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={() => router.push("/memories/edit")} hitSlop={8}>
+          <TouchableOpacity onPress={() => pushOnce(router, "/memories/edit")} hitSlop={8}>
             <Text style={s.action}>{i18n.t("memories.create")}</Text>
           </TouchableOpacity>
         </View>
@@ -122,7 +123,7 @@ export function MemoriesSection() {
               cover={urls[m.photoPaths[0]]}
               tilt={TILTS[i % TILTS.length]}
               tapeTilt={TAPE_TILTS[i % TAPE_TILTS.length]}
-              onOpen={() => router.push(`/memories/${m.id}`)}
+              onOpen={() => pushOnce(router, `/memories/${m.id}`)}
             />
           ))}
         </ScrollView>

@@ -39,6 +39,7 @@ import { useTranslation } from "react-i18next";
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 // Synlig = på, grönt som en påslagen brytare, inte guld
 const ON = "#4ADE80";
@@ -144,7 +145,7 @@ export default function LeaderboardsScreen() {
   // skicka en vänförfrågan. Min egen rad/plats öppnar ingenting.
   function openProfile(entry: LeaderboardEntry) {
     if (entry.userId === me?.userId) return;
-    router.push({ pathname: "/friend/[id]", params: { id: entry.userId } });
+    pushOnce(router, { pathname: "/friend/[id]", params: { id: entry.userId } });
   }
 
 

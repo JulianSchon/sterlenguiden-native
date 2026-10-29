@@ -32,6 +32,7 @@ import { useTranslation } from "react-i18next";
 import { formatDate, weekdayShort } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import { pushOnce } from "@/lib/navigateOnce";
 
 // Gradientringen runt Vänner-ikonen — se friendsIconWrap
 const FRIENDS_RING_SIZE = 56;
@@ -189,7 +190,7 @@ export default function MittOsterlenScreen() {
         </Reanimated.View>
 
         <Reanimated.View entering={enterAt(3)}>
-        <PressableScale style={s.friendsTile} scale={0.97} onPress={() => router.push("/friends")}>
+        <PressableScale style={s.friendsTile} scale={0.97} onPress={() => pushOnce(router, "/friends")}>
           <View style={s.friendsIconWrap}>
             {/* Gradientring runt ikonen i berättelsernas egna färger och riktning, exakt som ringen
                 runt nya berättelser på Hem: gult nere till vänster → orange uppe till höger. Ingen
