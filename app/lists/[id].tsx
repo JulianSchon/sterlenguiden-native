@@ -17,7 +17,7 @@
  * ingen dra-och-släpp och inga minus-knappar. Data från useFriendListDetail. I stället finns
  * "Spara en kopia", som gör en egen lista av den.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, Alert, ActionSheetIOS, Platform, Share, ActivityIndicator, StyleSheet,
   Linking, useWindowDimensions,
@@ -142,14 +142,20 @@ export default function ListDetailScreen() {
     }
   }
 
-  // Stänga ⋮-menyn och i SAMMA anrop öppna nästa (ActionSheetIOS/Alert/Share, eller ett eget
-  // Sheet) frös appen — två modaler som tävlar om att presenteras/stängas samtidigt är ett känt
-  // sätt att låsa sig på både iOS och Android. Vänta tills stängningen (vår egen 200 ms
-  // avtoningsanimation i Sheet.tsx) faktiskt hunnit klart innan nästa får öppna.
+  // Stänga ⋮-menyn och i SAMMA anrop öppna nästa (ActionSheetIOS/Alert/Share, bildväljaren eller
+  // ett eget Sheet) frös appen — två modaler som tävlar om att presenteras/stängas samtidigt låser
+  // iPhone. Nästa sak öppnas därför först när menyn är helt borta (Sheet onClosed), inte efter en
+  // gissad väntetid.
+  const afterClose = useRef<(() => void) | null>(null);
   function afterOptionsClose(action: () => void) {
+    afterClose.current = action;
     setOptionsOpen(false);
-    setTimeout(action, 260);
   }
+  const optionsClosed = () => {
+    const action = afterClose.current;
+    afterClose.current = null;
+    action?.();
+  };
 
   function confirm(title: string, message: string, action: string, onConfirm: () => void) {
     Alert.alert(title, message, [
@@ -372,6 +378,7 @@ export default function ListDetailScreen() {
             members={list.members}
           />
           <ListOptionsSheet
+            onClosed={optionsClosed}
             visible={optionsOpen}
             onClose={() => setOptionsOpen(false)}
             visibleToFriends={list.visibleToFriends}

@@ -14,9 +14,12 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
 export function Sheet({
-  visible, onClose, title, tall = false, centered = false, onShow, children,
+  visible, onClose, title, tall = false, centered = false, onShow, onClosed, children,
 }: {
   visible: boolean; onClose: () => void; title: string; tall?: boolean; centered?: boolean;
+  /** Körs när panelen är helt borta från skärmen. Ska något eget öppnas efter (telefonens meny,
+   * kameran, bildväljaren) måste det vänta hit — öppnas det medan panelen stängs låser sig iPhone */
+  onClosed?: () => void;
   /** Körs exakt när modalen är klar (Modals onShow) — bättre än en gissad setTimeout-fördröjning
    * för att t.ex. fokusera ett fält: tangentbordet hinner då glida upp SAMTIDIGT som modalen
    * tonar in i stället för som ett synligt andra steg en stund efter. */
@@ -86,7 +89,14 @@ export function Sheet({
     if (mounted) return;
     presented.current = false;
     measured.current = false;
+    // Android har ingen onDismiss: där är panelen borta när den inte längre ritas
+    if (Platform.OS !== "ios" && wasMounted.current) onClosedRef.current?.();
+    wasMounted.current = false;
   }, [mounted]);
+  const wasMounted = useRef(false);
+  if (mounted) wasMounted.current = true;
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
 
   // Tangentbordet ska stänga SAMTIDIGT som modalen börjar tonas bort, inte snärta undan efteråt
   // (vilket såg ut som att rutan "hackade" tillbaka till mitten när man stängde).
@@ -113,6 +123,7 @@ export function Sheet({
         onShow?.();
       }}
       onRequestClose={handleClose}
+      onDismiss={() => onClosedRef.current?.()}
     >
       {/* Bakgrunden ligger som en egen helskärmslager under allt, så den täcker skärmen i båda
           lägena oavsett var innehållet hamnar (nederkant eller mitten). */}

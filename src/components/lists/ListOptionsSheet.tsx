@@ -14,10 +14,12 @@ import type { ThemeColors } from "@/theme/colors";
 
 
 export function ListOptionsSheet({
-  visible, onClose, visibleToFriends, onToggleVisibleToFriends, onChangeCover, onEdit, onShare, onDuplicate, onDelete,
+  visible, onClose, onClosed, visibleToFriends, onToggleVisibleToFriends, onChangeCover, onEdit, onShare, onDuplicate, onDelete,
 }: {
   visible: boolean;
   onClose: () => void;
+  /** Menyn är helt stängd (då får nästa sak öppnas) */
+  onClosed: () => void;
   visibleToFriends: boolean;
   onToggleVisibleToFriends: (visible: boolean) => void;
   onChangeCover: () => void;
@@ -29,7 +31,7 @@ export function ListOptionsSheet({
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   return (
-    <Sheet visible={visible} onClose={onClose} title={i18n.t("lists.options")}>
+    <Sheet visible={visible} onClose={onClose} onClosed={onClosed} title={i18n.t("lists.options")}>
       <View style={{ gap: 8 }}>
         <View style={s.row}>
           <View style={s.iconWrap}><Users size={18} color={colors.text} strokeWidth={2} /></View>
