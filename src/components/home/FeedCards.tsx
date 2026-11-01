@@ -7,14 +7,14 @@
  *
  * Alla kort är memo: de ritas bara om när det egna kortet ändras (ett hjärta), inte när flödet gör det.
  */
-import { memo, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming, type SharedValue } from "react-native-reanimated";
 import { Image as ExpoImage } from "expo-image";
 import { Trans, useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { CalendarDays, Check, ChevronRight, CloudOff, Crown, Heart, Newspaper, Users, type LucideIcon } from "lucide-react-native";
-import { firstImageUrl, type Place } from "@/hooks/usePlaces";
+import { firstImageUrl, placeImages, type Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
 import type { NewsItem } from "@/hooks/useNews";
 import type { FriendVisit } from "@/hooks/useFriendVisits";
@@ -132,17 +132,15 @@ export const FeedPlaceCard = memo(function FeedPlaceCard({ place, reason, km, sa
   onBurst: BurstFn;
 }) {
   const { colors, scheme } = useTheme();
-  useTranslation(); // ritas om när språket byts (öppettiderna, kategorin)
+  const { t } = useTranslation(); // ritas om när språket byts (öppettiderna, kategorin)
   const openColors = useOpenColors();
-  const image = firstImageUrl(place.image_url);
   const open = openInfo(place);
   const cat = findCategory(place.category)?.id;
   return (
     <View style={s.card}>
-      <Eyebrow dot={cat ? CATEGORY_DOT[scheme][cat] : colors.faint} text={reason} color={colors.goldText} />
-      <Pressable onPress={() => onOpen(place)} style={[s.image, { aspectRatio: 1.25, backgroundColor: colors.fill }]}>
-        {image && <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
-      </Pressable>
+      {/* Sparar man platsen byts skälet direkt, som på evenemangen */}
+      <Eyebrow dot={cat ? CATEGORY_DOT[scheme][cat] : colors.faint} text={saved ? t("home.reasons.saved") : reason} color={colors.goldText} />
+      <FeedImages imageUrl={place.image_url} aspectRatio={1.25} onPress={() => onOpen(place)} />
       <View style={s.info}>
         <Pressable style={{ flex: 1, gap: 5 }} onPress={() => onOpen(place)}>
           <Text style={[s.title, { color: colors.text }]} numberOfLines={2}>{place.name}</Text>
@@ -154,6 +152,52 @@ export const FeedPlaceCard = memo(function FeedPlaceCard({ place, reason, km, sa
     </View>
   );
 });
+
+/** Högst så här många bilder går att bläddra mellan i flödet (resten finns på platssidan) */
+const FEED_IMAGES = 5;
+
+/**
+ * Platsens bilder i flödet: har den fler än en sveper man mellan dem (prickarna visar var man är),
+ * ett tryck öppnar platsen. Bara den första laddas direkt, de andra när man börjar svepa.
+ */
+function FeedImages({ imageUrl, aspectRatio, onPress }: { imageUrl: string | null; aspectRatio: number; onPress: () => void }) {
+  const { colors } = useTheme();
+  const images = placeImages(imageUrl).slice(0, FEED_IMAGES);
+  const [width, setWidth] = useState(0);
+  const [index, setIndex] = useState(0);
+  const [swiped, setSwiped] = useState(false);
+  if (images.length <= 1) {
+    return (
+      <Pressable onPress={onPress} style={[s.image, { aspectRatio, backgroundColor: colors.fill }]}>
+        {images[0] && <ExpoImage source={{ uri: images[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={[s.image, { aspectRatio, backgroundColor: colors.fill }]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      {width > 0 && (
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScrollBeginDrag={() => setSwiped(true)}
+          onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
+        >
+          {images.map((uri, i) => (
+            <Pressable key={uri} onPress={onPress} style={{ width, height: "100%" }}>
+              {(i === 0 || swiped) && (
+                <ExpoImage source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />
+              )}
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+      <View style={s.imageDots} pointerEvents="none">
+        {images.map((uri, i) => <View key={uri} style={[s.imageDot, i === index && s.imageDotOn]} />)}
+      </View>
+    </View>
+  );
+}
 
 // ── Nyhet ────────────────────────────────────────────────────────────────────
 
@@ -406,6 +450,9 @@ const s = StyleSheet.create({
   liveDot: { width: 8, height: 8, borderRadius: 4 },
 
   image: { width: "100%", borderRadius: 20, overflow: "hidden" },
+  imageDots: { position: "absolute", bottom: 10, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 6 },
+  imageDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)" },
+  imageDotOn: { backgroundColor: "#FFFFFF" },
   dateBox: { position: "absolute", top: 12, right: 12 },
   info: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 14, paddingHorizontal: 2 },
   titleHero: { fontFamily: "Montserrat_700Bold", fontSize: 23, lineHeight: 28, letterSpacing: -0.4 },

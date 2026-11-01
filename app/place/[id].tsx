@@ -28,7 +28,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Reanimated, {
-  FadeInDown, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useSharedValue, type SharedValue,
+  FadeInDown, runOnJS, useAnimatedReaction, useAnimatedRef, useAnimatedScrollHandler, useSharedValue, type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -43,7 +43,7 @@ import { ProblemScreen } from "@/components/ProblemScreen";
 import { Bus, Globe, Mail, Map as MapIcon, MapPin, Navigation, PenLine, Phone } from "lucide-react-native";
 import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizePlace, usePlaces, type Place } from "@/hooks/usePlaces";
+import { normalizePlace, placeImages, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useEvents, type Event } from "@/hooks/useEvents";
@@ -104,10 +104,6 @@ const LOGO = 76;
 const TREASURE_NEAR_M = 1500;
 const NEARBY_COUNT = 8;
 const EVENTS_SHOWN = 3;
-
-/** Bilderna ur image_url (flera adresser skilda med komma — Wix-adresser har komman i sig) */
-const imagesOf = (imageUrl: string | null | undefined) =>
-  (imageUrl ?? "").split(/,(?=\s*https?:\/\/)/).map((u) => u.trim()).filter(Boolean);
 
 /** Bildens höjd överst */
 const heroHeight = (width: number) => Math.round(Math.min(width * 0.95, 420));
@@ -190,7 +186,10 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
   const edgeActive = useSharedValue(0);
   const edge: TearEdge = useMemo(() => ({ amt: edgeAmt, prog: edgeProg, active: edgeActive }), [edgeAmt, edgeProg, edgeActive]);
   const [openOffer, setOpenOffer] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
-  const onOpenOffer = useCallback((offer: Offer, origin: OriginRect | null) => setOpenOffer({ offer, origin }), []);
+  const onOpenOffer = useCallback((offer: Offer, origin: OriginRect | null) => {
+    setAutoOpenId(null);
+    setOpenOffer({ offer, origin });
+  }, []);
   const closeOffer = useCallback(() => setOpenOffer(null), []);
 
   // Företagets statistik: en visning, och varifrån man kom
@@ -200,24 +199,32 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [place.id]);
 
-  // Erbjudandet från en berättelses klistermärke öppnas när sidan glidit fram
+  // Erbjudandet från en berättelses klistermärke: när sidan glidit fram scrollar den ner till
+  // biljetterna, och sen rivs biljetten som om man tryckt på den. Förut öppnades den överst på sidan,
+  // och rivningen skedde längst ner där man knappt såg den.
+  const scrollRef = useAnimatedRef<Reanimated.ScrollView>();
   const autoOffer = useRef(params.offer ?? null);
+  const [ticketsY, setTicketsY] = useState<number | null>(null);
+  const onTicketsY = useCallback((y: number) => { if (autoOffer.current) setTicketsY(y); }, []);
+  const [autoOpenId, setAutoOpenId] = useState<string | null>(null);
   useEffect(() => {
-    if (!later || !autoOffer.current) return;
+    if (!later || !autoOffer.current || ticketsY == null) return;
     const offer = offers.find((o) => o.id === autoOffer.current);
-    if (offer) {
-      autoOffer.current = null;
-      setOpenOffer({ offer, origin: null });
-    }
-  }, [later, offers]);
+    if (!offer) return;
+    autoOffer.current = null;
+    scrollRef.current?.scrollTo({ y: Math.max(0, ticketsY - insets.top - TOP_BAR_H - 24), animated: true });
+    const t = setTimeout(() => setAutoOpenId(offer.id), 550);
+    return () => clearTimeout(t);
+  }, [later, offers, ticketsY, insets.top, scrollRef]);
 
-  const images = useMemo(() => imagesOf(place.image_url), [place.image_url]);
+  const images = useMemo(() => placeImages(place.image_url), [place.image_url]);
   const HeroIcon = findCategory(place.category)?.icon ?? MapPin;
 
   return (
     <View style={[s.screen, { backgroundColor: colors.bg }]}>
       <PlaceStatusBar scrollY={scrollY} collapseAt={collapseAt} overImage={images.length > 0} />
       <Reanimated.ScrollView
+        ref={scrollRef}
         onScroll={onScroll}
         scrollEventThrottle={16}
         // Låst medan ett erbjudande är öppet (samma som Förmåner), så sidan inte glider iväg bakom det
@@ -243,6 +250,8 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
           scrollAt={scrollAt}
           edge={edge}
           openOfferId={openOffer?.origin ? openOffer.offer.id : null}
+          autoOpenId={autoOpenId}
+          onTicketsY={onTicketsY}
           onOpenOffer={onOpenOffer}
           openSheet={openSheet}
           showToast={showToast}
@@ -280,7 +289,7 @@ const RISE_IN = (i: number) =>
  * paneler eller hjärtat. Allt har hel bakgrund och ligger ovanpå bilden (som glider in under).
  */
 const PlaceContent = memo(function PlaceContent({
-  place, places, later, heroH, scrollY, scrollAt, edge, openOfferId, onOpenOffer, openSheet, showToast,
+  place, places, later, heroH, scrollY, scrollAt, edge, openOfferId, autoOpenId, onTicketsY, onOpenOffer, openSheet, showToast,
 }: {
   place: Place;
   places: Place[];
@@ -291,6 +300,10 @@ const PlaceContent = memo(function PlaceContent({
   edge: TearEdge;
   /** Biljetten vars band är bortrivet just nu */
   openOfferId: string | null;
+  /** Biljetten som ska öppnas av sig själv (från en storys klistermärke) */
+  autoOpenId: string | null;
+  /** Var biljetterna ligger på sidan (för att kunna scrolla dit) */
+  onTicketsY: (y: number) => void;
   onOpenOffer: (offer: Offer, origin: OriginRect | null) => void;
   openSheet: (sheet: PlaceSheet) => void;
   showToast: (text: string) => void;
@@ -438,7 +451,7 @@ const PlaceContent = memo(function PlaceContent({
 
       {ticketList.length > 0 && (
         <Section title={t("pass.title")}>
-          <View style={{ gap: 14 }}>
+          <View style={{ gap: 14 }} onLayout={(e) => onTicketsY(heroH + e.nativeEvent.layout.y)}>
             {ticketList.map(({ offer, used }, i) => (later ? (
               <Reanimated.View key={offer.id} entering={RISE_IN(i)}>
                 <OfferTicket
@@ -448,6 +461,7 @@ const PlaceContent = memo(function PlaceContent({
                   edge={edge}
                   scrollAt={scrollAt}
                   linkPlace={false}
+                  autoOpen={offer.id === autoOpenId}
                   onOpen={onOpenOffer}
                 />
               </Reanimated.View>

@@ -58,11 +58,14 @@ const byKey = (key: string) => TILES.find((x) => x.key === key)!;
  * Evenemang (har en egen rad, Händer snart), men med Spa och Sevärt. Ordningen håller lika
  * färger isär i rutnätet, två i bredd.
  */
+/** Spa (vattenblått badkar) — på Sök och bland Hems genvägar */
+export const SPA_TILE = tile("spa", Bath, TINT.spa);
+
 export const SEARCH_TILES: Shortcut[] = [
   byKey("eat"), byKey("fika"),
   byKey("sleep"), byKey("kids"),
   byKey("late"), tile("sights", Landmark, TINT.sights),
-  byKey("nature"), tile("spa", Bath, TINT.spa),
+  byKey("nature"), SPA_TILE,
 ];
 
 /**

@@ -190,6 +190,18 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const ownPlaceIds = useMyPlaceIds();
   const [seed, setSeed] = useState(newSeed);
   const [shown, setShown] = useState(FIRST_PAGE);
+  // "Visa mer": de grå korten syns en kort stund innan nästa omgång kommer, så man ser att det laddar
+  // (allt finns redan i telefonen, men att det bara dök upp kändes som att inget hände)
+  const [loadingMore, setLoadingMore] = useState(false);
+  const moreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showMore = useCallback(() => {
+    setLoadingMore(true);
+    moreTimer.current = setTimeout(() => {
+      setShown((n) => n + MORE);
+      setLoadingMore(false);
+    }, 700);
+  }, []);
+  useEffect(() => () => { if (moreTimer.current) clearTimeout(moreTimer.current); }, []);
   // Byts språket byggs flödet om, så korten säger sina skäl på det nya språket
   const { i18n } = useTranslation();
   const builtLanguage = useRef(i18n.language);
@@ -416,7 +428,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const footer = offline
     ? <FeedOffline onRetry={onRefresh} />
     : feed
-      ? <FeedFooter hasMore={shown < feed.length} onMore={() => setShown((n) => n + MORE)} onDiscover={openDiscover} />
+      ? (loadingMore ? <FeedSkeleton /> : <FeedFooter hasMore={shown < feed.length} onMore={showMore} onDiscover={openDiscover} />)
       : <FeedSkeleton />;
 
   return (

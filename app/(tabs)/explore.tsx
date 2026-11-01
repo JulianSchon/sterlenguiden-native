@@ -261,11 +261,17 @@ export default function ExploreScreen() {
   const resultsRef = useRef<ScrollView>(null);
   const searchingRef = useRef(searching);
   searchingRef.current = searching;
-  // — och står man redan överst sätts markören i sökfältet (som i Spotify)
+  // — och står man redan överst sätts markören i sökfältet (som i Spotify). Är söket öppet utan
+  // något skrivet (bara senaste sökningarna) går fliken tillbaka till Sök, precis som Avbryt.
   const browseY = useRef(0);
   const onBrowseScroll = useCallback((y: number) => { browseY.current = y; }, []);
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const cancelRef = useRef(cancel);
+  cancelRef.current = cancel;
   useEffect(() => {
     registerScrollCallback("search", () => {
+      if (searchingRef.current && !queryRef.current.trim()) { cancelRef.current(); return; }
       if (!searchingRef.current && browseY.current < 4) { inputRef.current?.focus(); return; }
       (searchingRef.current ? resultsRef : browseRef).current?.scrollTo({ y: 0, animated: true });
     });

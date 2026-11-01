@@ -18,17 +18,17 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { useDismissals } from "@/hooks/useDismissals";
 import { useTheme } from "@/theme/ThemeProvider";
 import { withAlpha } from "@/theme/categories";
-import { TILES, TINT, openSearch, type Shortcut } from "@/lib/searchShortcuts";
+import { SPA_TILE, TILES, TINT, openSearch, type Shortcut } from "@/lib/searchShortcuts";
 import { daySeed } from "@/lib/homeFeed";
 import { Image as ExpoImage } from "expo-image";
 
 const NO_PLACES: Place[] = [];
 const NO_IDS: number[] = [];
 
-/** Hem har "Öppet nu" först (på Sök ligger det som en egen del) */
+/** Hem har "Öppet nu" först (på Sök ligger det som en egen del), och Spa i stället för Med hund */
 const HOME_SHORTCUTS: Shortcut[] = [
   { key: "open", get label() { return i18n.t("shortcuts.open"); }, get query() { return i18n.t("search.queries.open"); }, Icon: Clock, tint: TINT.open },
-  ...TILES,
+  ...TILES.map((x) => (x.key === "dog" ? SPA_TILE : x)),
 ];
 
 /** Raden går ut till skärmens kanter (kortet runt den har sidomarginal) */

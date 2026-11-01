@@ -620,6 +620,7 @@ export const de: typeof sv = {
     },
     reasons: {
       likes: "Weil du {{category}} magst",
+      saved: "Unter deinen Favoriten",
       away: "{{distance}} von dir",
       inTown: "In {{town}}",
       tip: "Tipp für dich",

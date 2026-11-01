@@ -10,7 +10,7 @@
  * Bara ett riktigt tryck öppnar: rör sig fingret mer än några punkter är det en scroll, och rör
  * man en lista som fortfarande glider (för att stoppa den) räknas det inte heller (scrollAt).
  */
-import { memo, useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { memo, useCallback, useMemo, useRef, useSyncExternalStore, useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Reanimated, { runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -98,7 +98,7 @@ function Perforation() {
 
 /** Ritas bara om när den egna biljetten ändras (inte när sidan runt den gör det) */
 export const OfferTicket = memo(function OfferTicket({
-  offer, used, torn, edge, scrollAt, linkPlace = true, onOpen, lng,
+  offer, used, torn, edge, scrollAt, linkPlace = true, autoOpen = false, onOpen, lng,
 }: {
   offer: Offer;
   used: boolean;
@@ -109,6 +109,9 @@ export const OfferTicket = memo(function OfferTicket({
   scrollAt?: SharedValue<number>;
   /** Loggan öppnar platssidan — av när man redan står på den */
   linkPlace?: boolean;
+  /** Öppnas av sig själv (som ett tryck) — erbjudandet från en storys klistermärke, när sidan
+   * scrollat fram till biljetten */
+  autoOpen?: boolean;
   onOpen: (offer: Offer, origin: OriginRect | null) => void;
   /** Ett bestämt språk (förhandsvisningen i Mitt företag är svenska) */
   lng?: LanguageCode;
@@ -132,6 +135,13 @@ export const OfferTicket = memo(function OfferTicket({
     stubRef.current.measureInWindow((x, y, w, h) => onOpen(offer, { x, y, w, h }));
   }, [offer, onOpen]);
   const arm = useCallback(() => armTicketImage(imageUrl), [imageUrl]);
+  useEffect(() => {
+    if (!autoOpen) return;
+    arm();
+    open();
+    // Bara när den ska öppnas
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
   const openPlace = useCallback(() => pushOnce(router, `/place/${offer.place_id}?from=offers`), [router, offer.place_id]);
 
   // Ett tryck: fingret får inte röra sig mer än 10 punkter, och listan får inte ha glidit nyss. Trycket

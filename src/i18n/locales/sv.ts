@@ -623,6 +623,7 @@ export const sv = {
     },
     reasons: {
       likes: "Eftersom du gillar {{category}}",
+      saved: "Bland dina favoriter",
       away: "{{distance}} från dig",
       inTown: "I {{town}}",
       tip: "Tips för dig",
