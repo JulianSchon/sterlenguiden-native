@@ -203,6 +203,12 @@ export const TASTES: Record<string, Taste> = {
   cheese: { get label() { return tasteLabel("cheese"); }, triggers: ["ost", "ostar", "osten", "gardsost", "mejeri", "cheese", "dairy", "kase", "kaserei", "molkerei"], terms: ["ost", "ostar", "osten", "osteri*", "mejeri*", "gardsost*"] },
   apples: { get label() { return tasteLabel("apples"); }, triggers: ["apple", "applen", "musteri", "must", "cider", "appelmust", "apples", "apfel", "apfelsaft"], terms: ["apple*", "musteri*", "must", "cider*", "appelmust*", "apelmust*"] },
   chocolate: { get label() { return tasteLabel("chocolate"); }, triggers: ["choklad", "praliner", "pralin", "chocolate", "pralines", "schokolade", "pralinen"], terms: ["choklad*", "pralin*"] },
+  spa: {
+    get label() { return tasteLabel("spa"); },
+    triggers: ["spa", "spaet", "spabad", "wellness", "bastu", "bastun", "sauna", "massage", "behandling", "behandlingar", "avkoppling",
+      "relax", "treatment", "treatments", "entspannung", "wellnessbereich"],
+    terms: ["spa", "spaet", "spabad*", "spaavdelning*", "wellness*", "bastu*", "sauna*", "massage*", "behandling*"],
+  },
 };
 const TASTE_OF: Record<string, string> = {};
 for (const [key, taste] of Object.entries(TASTES)) taste.triggers.forEach((w) => { TASTE_OF[w] ??= key; });

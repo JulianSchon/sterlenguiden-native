@@ -5,7 +5,7 @@
 import type { useRouter } from "expo-router";
 import i18n from "i18next";
 import {
-  Baby, BedDouble, CalendarDays, Coffee, Dog, Moon, Trees, UtensilsCrossed, type LucideIcon,
+  Baby, Bath, BedDouble, CalendarDays, Coffee, Dog, Landmark, Moon, Trees, UtensilsCrossed, type LucideIcon,
 } from "lucide-react-native";
 
 export type Tint = { dark: string; light: string; ring?: "night" };
@@ -24,6 +24,10 @@ export const TINT = {
   dog: { dark: "#C08A5B", light: "#7C4A21" },
   nature: { dark: "#2BA36A", light: "#064E3B" },
   events: { dark: "#A55BE0", light: "#581C87" },
+  // Spa: en mjuk rosa som inte finns bland kategorierna
+  spa: { dark: "#E08AB4", light: "#9D174D" },
+  // Sevärt: sevärdheternas kategorifärg
+  sights: { dark: "#A55BE0", light: "#581C87" },
   open: { dark: "#4ADE80", light: "#15803D" },
   gold: { dark: "#E8C674", light: "#8A6A2E" },
 } satisfies Record<string, Tint>;
@@ -40,6 +44,25 @@ export const TILES: Shortcut[] = [
   { key: "dog", get label() { return i18n.t("shortcuts.dog"); }, get query() { return i18n.t("search.queries.dog"); }, Icon: Dog, tint: TINT.dog },
   { key: "nature", get label() { return i18n.t("shortcuts.nature"); }, get query() { return i18n.t("search.queries.nature"); }, Icon: Trees, tint: TINT.nature },
   { key: "events", get label() { return i18n.t("shortcuts.events"); }, get query() { return i18n.t("search.queries.events"); }, Icon: CalendarDays, tint: TINT.events },
+];
+
+const tile = (key: "spa" | "sights", Icon: LucideIcon, tint: Tint): Shortcut => ({
+  key, Icon, tint,
+  get label() { return i18n.t(`shortcuts.${key}`); },
+  get query() { return i18n.t(`search.queries.${key}`); },
+});
+const byKey = (key: string) => TILES.find((x) => x.key === key)!;
+
+/**
+ * Sökets åtta rutor (Hem har sina egna genvägar ovan): utan Med hund (finns som ord i söket) och
+ * Evenemang (har en egen rad, Händer snart), men med Spa och Sevärt. Ordningen håller lika
+ * färger isär i rutnätet, två i bredd.
+ */
+export const SEARCH_TILES: Shortcut[] = [
+  byKey("eat"), byKey("fika"),
+  byKey("sleep"), byKey("kids"),
+  tile("spa", Bath, TINT.spa), byKey("late"),
+  tile("sights", Landmark, TINT.sights), byKey("nature"),
 ];
 
 /**

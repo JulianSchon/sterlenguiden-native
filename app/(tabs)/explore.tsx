@@ -1,7 +1,7 @@
 /**
  * Sök.
  *
- * Innan man skriver: "Vad vill du göra?" (sex rutor: Äta nu, Fika, Sova i natt …, med hur många
+ * Innan man skriver: "Vad vill du göra?" (åtta rutor: Äta nu, Fika, Spa, Sevärt …, med hur många
  * som finns just nu), det som har öppet nära mig, evenemang som händer snart, och orterna med små
  * ikoner för vad som finns där. Trycker man i sökfältet: senaste sökningarna (det man öppnat via
  * söket och det man sökt på, som i Spotify). Ett tryck på Sök-fliken när man redan står överst
@@ -53,11 +53,7 @@ import { openEvent } from "@/lib/eventSheet";
 import { pushOnce } from "@/lib/navigateOnce";
 import { openDirections } from "@/lib/placeLinks";
 import { registerScrollCallback } from "@/lib/scrollRefs";
-import { TILES, TINT, type Tint } from "@/lib/searchShortcuts";
-
-/** Sökets rutor: Hems genvägar utom Med hund (finns som ord i söket) och Evenemang (har en egen
- * rad, Händer snart) — sex rutor, tre rader */
-const SEARCH_TILES = TILES.filter((x) => x.key !== "dog" && x.key !== "events");
+import { SEARCH_TILES, TINT, type Tint } from "@/lib/searchShortcuts";
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { Skeleton } from "@/components/Skeleton";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
@@ -302,7 +298,7 @@ export default function ExploreScreen() {
     };
     const n = {
       eat: count("äta nu"), fika: count("fika"), sleep: count("sova"), late: count("öppet sent"),
-      kids: count("familj"), nature: count("natur"),
+      kids: count("familj"), nature: count("natur"), spa: count("spa"), sights: count("sevärdheter"),
     };
     // Är det färre än 5 står en beskrivning i stället — en ensam etta ser tom ut
     const many = (k: number, text: string, few: string) => (k >= FEW ? text : few);
@@ -313,6 +309,8 @@ export default function ExploreScreen() {
       late: many(n.late, t("search.tiles.lateMany", { count: n.late }), t(n.late ? "search.tiles.lateFew" : "search.tiles.lateNone")),
       kids: many(n.kids, t("search.tiles.kidsMany", { count: n.kids }), t("search.tiles.kidsFew")),
       nature: many(n.nature, t("search.tiles.natureMany", { count: n.nature }), t("search.tiles.natureFew")),
+      spa: many(n.spa, t("search.tiles.spaMany", { count: n.spa }), t("search.tiles.spaFew")),
+      sights: many(n.sights, t("search.tiles.sightsMany", { count: n.sights }), t("search.tiles.sightsFew")),
     };
     return subs;
     // eslint-disable-next-line react-hooks/exhaustive-deps

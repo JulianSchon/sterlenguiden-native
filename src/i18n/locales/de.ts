@@ -638,7 +638,7 @@ export const de: typeof sv = {
   },
   shortcuts: {
     open: "Jetzt geöffnet", eat: "Jetzt essen", fika: "Kaffee & Kuchen", sleep: "Heute übernachten", kids: "Familie",
-    late: "Spät geöffnet", dog: "Mit Hund", nature: "Ab in die Natur", events: "Demnächst",
+    late: "Spät geöffnet", dog: "Mit Hund", nature: "Ab in die Natur", events: "Demnächst", spa: "Spa", sights: "Sehenswert",
   },
   time: {
     now: "jetzt",
@@ -759,8 +759,9 @@ export const de: typeof sv = {
       fikaMany: "{{count}} Orte", fikaFew: "Kaffee & Gebäck",
       sleepMany: "{{count}} Unterkünfte", sleepFew: "Hotels & B&Bs",
       lateMany: "{{count}} nach 21 Uhr geöffnet", lateFew: "Nach 21 Uhr", lateNone: "Heute Abend nichts",
-      kidsMany: "{{count}} familienfreundlich", kidsFew: "Für Familien",
+      kidsMany: "{{count}} familienfreundlich", kidsFew: "Kinderfreundlich",
       natureMany: "{{count}} Orte", natureFew: "Strand & Wald",
+      spaMany: "{{count}} Orte", spaFew: "Bad, Sauna & Massage", sightsMany: "{{count}} Sehenswürdigkeiten", sightsFew: "Museen & Altertümer",
     },
     answer: {
       best: "BESTER TREFFER",
@@ -808,7 +809,7 @@ export const de: typeof sv = {
     tastes: {
       fish: "Fisch & Meeresfrüchte", homestyle: "Hausmannskost", pizza: "Pizza", burger: "Burger", asian: "Asiatisch",
       meat: "Fleisch & Grill", sweets: "Gebäck", icecream: "Eis", wine: "Wein", beer: "Bier", cheese: "Käse",
-      apples: "Äpfel & Apfelsaft", chocolate: "Schokolade",
+      apples: "Äpfel & Apfelsaft", chocolate: "Schokolade", spa: "Spa & Wellness",
     },
     at: {
       onDay: "am {{day}}", today: "heute", tomorrow: "morgen", tonight: "heute Abend", atTime: "um {{time}}",
@@ -837,7 +838,7 @@ export const de: typeof sv = {
     },
     queries: {
       open: "jetzt geöffnet", eat: "jetzt essen", fika: "Kaffee", sleep: "übernachten", kids: "Familie",
-      late: "spät geöffnet", dog: "mit Hund", nature: "Natur", events: "Veranstaltungen",
+      late: "spät geöffnet", dog: "mit Hund", nature: "Natur", events: "Veranstaltungen", spa: "Spa", sights: "Sehenswürdigkeiten",
     },
   },
   nav: { home: "Start", search: "Suche", map: "Karte", calendar: "Kalender", profile: "Profil" },

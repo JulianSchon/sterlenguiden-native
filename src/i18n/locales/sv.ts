@@ -641,7 +641,7 @@ export const sv = {
   },
   shortcuts: {
     open: "Öppet nu", eat: "Äta nu", fika: "Fika", sleep: "Sova i natt", kids: "Familj",
-    late: "Öppet sent", dog: "Med hund", nature: "Ut i naturen", events: "Händer snart",
+    late: "Öppet sent", dog: "Med hund", nature: "Ut i naturen", events: "Händer snart", spa: "Spa", sights: "Sevärt",
   },
   time: {
     now: "nu",
@@ -762,8 +762,9 @@ export const sv = {
       fikaMany: "{{count}} ställen", fikaFew: "Kaffe & bakverk",
       sleepMany: "{{count}} boenden", sleepFew: "Hotell & B&B",
       lateMany: "{{count}} öppna efter 21", lateFew: "Efter 21", lateNone: "Inget i kväll",
-      kidsMany: "{{count}} barnvänliga", kidsFew: "För familjer",
+      kidsMany: "{{count}} barnvänliga", kidsFew: "Barnvänligt",
       natureMany: "{{count}} platser", natureFew: "Strand & skog",
+      spaMany: "{{count}} ställen", spaFew: "Bad, bastu & massage", sightsMany: "{{count}} sevärdheter", sightsFew: "Museer & fornminnen",
     },
     answer: {
       best: "BÄSTA TRÄFF",
@@ -811,7 +812,7 @@ export const sv = {
     tastes: {
       fish: "Fisk & skaldjur", homestyle: "Husmanskost", pizza: "Pizza", burger: "Hamburgare", asian: "Asiatiskt",
       meat: "Kött & grill", sweets: "Bakverk", icecream: "Glass", wine: "Vin", beer: "Öl", cheese: "Ost",
-      apples: "Äpplen & must", chocolate: "Choklad",
+      apples: "Äpplen & must", chocolate: "Choklad", spa: "Spa",
     },
     at: {
       onDay: "på {{day}}", today: "i dag", tomorrow: "i morgon", tonight: "i kväll", atTime: "kl {{time}}",
@@ -840,7 +841,7 @@ export const sv = {
     },
     queries: {
       open: "öppet nu", eat: "äta nu", fika: "fika", sleep: "sova", kids: "familj",
-      late: "öppet sent", dog: "med hund", nature: "natur", events: "evenemang",
+      late: "öppet sent", dog: "med hund", nature: "natur", events: "evenemang", spa: "spa", sights: "sevärdheter",
     },
   },
   nav: { home: "Hem", search: "Sök", map: "Karta", calendar: "Kalender", profile: "Profil" },

@@ -638,7 +638,7 @@ export const en: typeof sv = {
   },
   shortcuts: {
     open: "Open now", eat: "Eat now", fika: "Coffee & cake", sleep: "Stay tonight", kids: "Family",
-    late: "Open late", dog: "With a dog", nature: "Into nature", events: "Coming up",
+    late: "Open late", dog: "With a dog", nature: "Into nature", events: "Coming up", spa: "Spa", sights: "Sights",
   },
   time: {
     now: "now",
@@ -759,8 +759,9 @@ export const en: typeof sv = {
       fikaMany: "{{count}} places", fikaFew: "Coffee & pastries",
       sleepMany: "{{count}} places to stay", sleepFew: "Hotels & B&Bs",
       lateMany: "{{count}} open after 9 pm", lateFew: "After 9 pm", lateNone: "Nothing tonight",
-      kidsMany: "{{count}} family-friendly", kidsFew: "For families",
+      kidsMany: "{{count}} family-friendly", kidsFew: "Kid-friendly",
       natureMany: "{{count}} places", natureFew: "Beach & forest",
+      spaMany: "{{count}} places", spaFew: "Baths, sauna & massage", sightsMany: "{{count}} sights", sightsFew: "Museums & ancient sites",
     },
     answer: {
       best: "BEST MATCH",
@@ -808,7 +809,7 @@ export const en: typeof sv = {
     tastes: {
       fish: "Fish & seafood", homestyle: "Swedish home cooking", pizza: "Pizza", burger: "Burgers", asian: "Asian",
       meat: "Meat & grill", sweets: "Pastries", icecream: "Ice cream", wine: "Wine", beer: "Beer", cheese: "Cheese",
-      apples: "Apples & cider", chocolate: "Chocolate",
+      apples: "Apples & cider", chocolate: "Chocolate", spa: "Spa",
     },
     at: {
       onDay: "on {{day}}", today: "today", tomorrow: "tomorrow", tonight: "tonight", atTime: "at {{time}}",
@@ -837,7 +838,7 @@ export const en: typeof sv = {
     },
     queries: {
       open: "open now", eat: "eat now", fika: "coffee", sleep: "stay", kids: "family",
-      late: "open late", dog: "with a dog", nature: "nature", events: "events",
+      late: "open late", dog: "with a dog", nature: "nature", events: "events", spa: "spa", sights: "sights",
     },
   },
   nav: { home: "Home", search: "Search", map: "Map", calendar: "Calendar", profile: "Profile" },
