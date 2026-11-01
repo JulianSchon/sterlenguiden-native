@@ -18,7 +18,7 @@ import { InteractionOverlay, storyFrame } from "@/components/stories/StoryIntera
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
-import { GoldButton } from "@/components/auth/AuthParts";
+import { AuthButton, GoldButton } from "@/components/auth/AuthParts";
 import { Note, PortalToast, SectionHeader, type PortalToastHandle } from "@/components/business/PortalParts";
 import { usePlaceStories, usePortalPlace, useStoryActions } from "@/hooks/useBusiness";
 import { businessError, removePlaceImages, type BusinessStory } from "@/lib/business";
@@ -45,7 +45,8 @@ export default function BusinessStories() {
   const s = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
   const { placeId } = usePortalPlace();
-  const { data: stories } = usePlaceStories(placeId);
+  const { data: storyPages, hasNextPage, isFetchingNextPage, fetchNextPage } = usePlaceStories(placeId);
+  const stories = storyPages ? [...storyPages.pages[0].live, ...storyPages.pages.flatMap((p) => p.old)] : undefined;
   const actions = useStoryActions(placeId);
   const toast = useRef<PortalToastHandle>(null);
   const [open, setOpen] = useState<BusinessStory | null>(null);
@@ -105,8 +106,17 @@ export default function BusinessStories() {
             {old.length > 0 && (
               <Rise index={2}>
                 <View>
-                  <SectionHeader title={tb("Senaste 30 dagarna")} />
-                  <View style={s.grid}>{old.map(tile)}</View>
+                  <SectionHeader title={tb("Tidigare")} />
+                  <View style={s.grid}>
+                    {old.map(tile)}
+                    {/* Nästa omgång: grå rutor medan de hämtas */}
+                    {isFetchingNextPage && [0, 1, 2].map((i) => <Skeleton key={`more${i}`} width={w} height={w * 16 / 9} radius={14} />)}
+                  </View>
+                  {hasNextPage && !isFetchingNextPage && (
+                    <View style={{ marginTop: 14 }}>
+                      <AuthButton label={tb("Visa fler")} variant="outline" onPress={() => fetchNextPage()} />
+                    </View>
+                  )}
                 </View>
               </Rise>
             )}

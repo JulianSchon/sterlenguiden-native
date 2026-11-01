@@ -157,6 +157,14 @@ export type StoryInteraction =
   | { kind: "poll"; question: string; options: [string, string]; x: number; y: number; w: number; h: number; r: number }
   | { kind: "question"; prompt: string; x: number; y: number; w: number; h: number; r: number };
 
+/** En hämtning av företagets stories (business_stories_overview): det som är ute nu (bara i första),
+ * en bit av de gamla, och om det finns fler gamla */
+export interface StoriesPage {
+  live: BusinessStory[];
+  old: BusinessStory[];
+  more: boolean;
+}
+
 export interface BusinessStory {
   id: string;
   image_url: string;

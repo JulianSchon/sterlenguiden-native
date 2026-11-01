@@ -78,7 +78,8 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
   const s = useThemedStyles(createStyles);
   const { data: place } = useBusinessPlace(placeId);
   const { data: offers = [] } = useBusinessOffers(placeId);
-  const { data: stories = [] } = usePlaceStories(placeId);
+  const { data: storyPages } = usePlaceStories(placeId);
+  const stories = storyPages?.pages[0]?.live ?? [];
   const { data: events = [] } = usePlaceEvents(placeId);
   const stats = useBusinessStats(placeId, 7);
   const update = useUpdatePlace(placeId);

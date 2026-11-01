@@ -819,4 +819,5 @@ export const BUSINESS_EN: Record<string, string> = {
   "Ingen": "None",
   "{{0}} år": "{{0}} years",
   "Till exempel 18 år för alkohol på plats och 20 år för alkohol att ta med.": "For example 18 for alcohol on site and 20 for alcohol to take away.",
+  "Visa fler": "Show more",
 };

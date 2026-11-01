@@ -7,7 +7,7 @@
  * efter att man slutat skriva, och direkt när man lämnar sidan.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizePlace, type Place } from "@/hooks/usePlaces";
@@ -16,7 +16,7 @@ import type { Event } from "@/hooks/useEvents";
 import {
   businessError, rpc,
   type AdminRequest, type BusinessOffer, type BusinessOverview, type BusinessPlace, type BusinessStats,
-  type BusinessStory, type ClaimInfo, type MemberRole, type Permission, type PlacePatch, StoryInteraction, type StoryLink, type Team,
+  type BusinessStory, type ClaimInfo, type MemberRole, type Permission, type PlacePatch, StoryInteraction, type StoryLink, type StoriesPage, type Team,
 } from "@/lib/business";
 
 // ── Vad jag sköter ──────────────────────────────────────────────────────────
@@ -295,11 +295,31 @@ export function useEventActions(placeId: number) {
 
 // ── Berättelser ─────────────────────────────────────────────────────────────
 
+/** Så många gamla stories som hämtas först, och sedan för varje "Visa fler" */
+const FIRST_OLD_STORIES = 6;
+const MORE_OLD_STORIES = 12;
+
+/**
+ * Företagets stories: det som är ute nu och alla gamla, en bit i taget (ett företag som postat i
+ * flera år har många). data.pages[0].live = ute nu; alla pages' old = de gamla, nyast först.
+ */
 export function usePlaceStories(placeId: number) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["business", "stories", placeId],
     enabled: placeId > 0,
-    queryFn: () => rpc<BusinessStory[]>("business_stories_overview", { p_place_id: placeId }),
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const page = await rpc<StoriesPage | BusinessStory[]>("business_stories_overview", {
+        p_place_id: placeId, p_before: pageParam, p_limit: pageParam ? MORE_OLD_STORIES : FIRST_OLD_STORIES,
+      });
+      // Innan migration 067 körts svarar databasen med en lista (senaste 30 dagarna)
+      if (Array.isArray(page)) {
+        const live = (s: BusinessStory) => !s.expires_at || new Date(s.expires_at).getTime() > Date.now();
+        return { live: page.filter(live), old: page.filter((s) => !live(s)), more: false };
+      }
+      return page;
+    },
+    getNextPageParam: (last) => (last.more && last.old.length > 0 ? last.old[last.old.length - 1].created_at : undefined),
   });
 }
 
