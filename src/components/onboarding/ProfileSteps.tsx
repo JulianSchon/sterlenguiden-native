@@ -269,7 +269,16 @@ export function HomeStep({
       scroll
       title={t("onboarding.home.title")}
       subtitle={t("onboarding.home.subtitle")}
-      footer={<AuthButton label={t("onboarding.next")} onPress={onSubmit} disabled={!ok} />}
+      // Frivilligt: utan svar (eller med halvt svar) hoppar man över, och inget sparas
+      footer={(
+        <AuthButton
+          label={ok ? t("onboarding.next") : t("onboarding.skip")}
+          onPress={() => {
+            if (!ok) onChange(null, "");
+            onSubmit();
+          }}
+        />
+      )}
     >
       <View style={s.choices}>
         <Choice icon={House} title={t("onboarding.home.here")} sub={t("onboarding.home.hereSub")} selected={lives === true} onPress={() => choose(true)} />

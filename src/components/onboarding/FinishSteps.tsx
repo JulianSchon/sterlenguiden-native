@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { Image as ExpoImage } from "expo-image";
+import { WelcomePhotos } from "@/components/auth/WelcomePhotos";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, {
@@ -168,9 +168,9 @@ export function WelcomeStep({
   return (
     <Reanimated.View style={[s.welcome, pageStyle]} pointerEvents={visible ? "auto" : "none"}>
       {visible ? <StatusBar style="light" /> : null}
-      {/* Rapsfälten, som tonar ut i sidans bakgrund */}
+      {/* Samma bildspel som startsidan, som tonar ut i sidans bakgrund */}
       <View style={[s.photo, { height: photoH }]} pointerEvents="none">
-        <ExpoImage source={require("../../../assets/onboarding-1.jpg")} style={StyleSheet.absoluteFill} contentFit="cover" />
+        <WelcomePhotos height={photoH} active={visible} />
         <LinearGradient colors={["rgba(0,0,0,0.30)", "rgba(0,0,0,0)"]} style={[s.topShade, { height: insets.top + 70 }]} />
         <LinearGradient colors={[withAlpha(colors.bg, 0), colors.bg]} style={s.fade} />
       </View>

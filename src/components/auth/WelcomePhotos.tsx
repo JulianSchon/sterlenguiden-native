@@ -28,7 +28,12 @@ const FADE_MS = 1400;
 /** Hur mycket en stående bild zoomar in medan den syns */
 const ZOOM = 0.08;
 
-export function WelcomePhotos() {
+export function WelcomePhotos({ height, active = true }: {
+  /** Ytans höjd (standard: hela skärmen) */
+  height?: number;
+  /** Står still och byter inte bild när det är false (t.ex. medan välkomsten förbereds osynlig) */
+  active?: boolean;
+} = {}) {
   const reduced = useReducedMotion();
   const [current, setCurrent] = useState(0);
   // Bilden under (den som just tonas bort), så övertoningen inte blinkar
@@ -40,14 +45,15 @@ export function WelcomePhotos() {
     return () => setFocused(false);
   }, []));
 
+  const running = focused && active;
   useEffect(() => {
-    if (!focused) return;
+    if (!running) return;
     const timer = setTimeout(() => {
       setPrevious(current);
       setCurrent((i) => (i + 1) % PHOTOS.length);
     }, SHOW_MS);
     return () => clearTimeout(timer);
-  }, [current, focused]);
+  }, [current, running]);
 
   // Samma nyckel per bild, så bilden som tonas bort fortsätter röra sig där den var
   const layers = previous !== null ? [previous, current] : [current];
@@ -57,7 +63,8 @@ export function WelcomePhotos() {
         <Photo
           key={i}
           index={i}
-          moving={focused}
+          areaH={height}
+          moving={running}
           fadeIn={i === current && previous !== null}
           reduced={reduced}
           onShown={i === current ? () => setPrevious(null) : undefined}
@@ -67,10 +74,11 @@ export function WelcomePhotos() {
   );
 }
 
-function Photo({ index, moving, fadeIn, reduced, onShown }: {
-  index: number; moving: boolean; fadeIn: boolean; reduced: boolean; onShown?: () => void;
+function Photo({ index, areaH, moving, fadeIn, reduced, onShown }: {
+  index: number; areaH?: number; moving: boolean; fadeIn: boolean; reduced: boolean; onShown?: () => void;
 }) {
-  const { width, height } = useWindowDimensions();
+  const { width, height: screenH } = useWindowDimensions();
+  const height = areaH ?? screenH;
   const photo = PHOTOS[index];
   const landscape = photo.ratio > width / height;
   // Liggande: lika hög som skärmen och bredare, så den kan glida. Stående: fyller skärmen.
