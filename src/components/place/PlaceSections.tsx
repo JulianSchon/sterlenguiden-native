@@ -15,7 +15,7 @@ import i18n from "i18next";
 export const GUTTER = 16;
 
 /** En ikon: lucide eller en av varumärkesikonerna (BrandIcons) */
-export type IconType = ComponentType<IconProps>;
+type IconType = ComponentType<IconProps>;
 
 /** En rubrik och det som hör till den */
 export function Section({ title, action, onAction, children }: {

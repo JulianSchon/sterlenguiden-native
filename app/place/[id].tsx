@@ -220,6 +220,8 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
       <Reanimated.ScrollView
         onScroll={onScroll}
         scrollEventThrottle={16}
+        // Låst medan ett erbjudande är öppet (samma som Förmåner), så sidan inte glider iväg bakom det
+        scrollEnabled={openOffer == null}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: BOTTOM_BAR_H + 36 + insets.bottom }}
       >

@@ -45,7 +45,7 @@ export const PlaceSheets = forwardRef<PlaceSheetsHandle, { placeId: number }>(fu
   const close = useCallback(() => setOpen(null), []);
   const openFriend = useCallback((userId: string) => {
     setOpen(null);
-    router.push({ pathname: "/friend/[id]", params: { id: userId } });
+    pushOnce(router, { pathname: "/friend/[id]", params: { id: userId } });
   }, [router]);
   const openList = useCallback((listId: string) => {
     setOpen(null);
