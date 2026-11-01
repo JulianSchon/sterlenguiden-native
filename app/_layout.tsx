@@ -32,8 +32,16 @@ import i18n from "i18next";
 import { LogBox } from "react-native";
 
 // iOS-delen av React Native skickar ibland ett sista animationsvärde efter att lyssnaren tagits bort.
-// Ofarligt och bara i utvecklingsläget; döljs så att riktiga varningar syns.
-if (__DEV__) LogBox.ignoreLogs(["Sending `onAnimatedValueUpdate` with no listeners registered"]);
+// Ofarligt och bara i utvecklingsläget; döljs (både i appen och i terminalen) så att riktiga varningar syns.
+if (__DEV__) {
+  const NOISE = "Sending `onAnimatedValueUpdate` with no listeners registered";
+  LogBox.ignoreLogs([NOISE]);
+  const warn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes(NOISE)) return;
+    warn(...args);
+  };
+}
 
 /** Om något kraschar visas det här i stället för Expos tekniska felsida */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {

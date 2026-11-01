@@ -16,7 +16,7 @@
  * ändras (ett hjärta), och toppen sköter sin egen data.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, RefreshControl, StyleSheet, Text, View, type FlatList } from "react-native";
+import { AppState, RefreshControl, StyleSheet, Text, View, type FlatList, useWindowDimensions } from "react-native";
 import Reanimated, { FadeInDown, useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -241,6 +241,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   // Hämta allt på nytt och bygg om flödet med en ny blandning
   const queries = { places, events, offers, redemptions, news, friendVisits, collectibles, collected, favorites, visits, profile };
   const listRef = useRef<FlatList<FeedItem>>(null);
+  const { height: winH } = useWindowDimensions();
   const scrollY = useSharedValue(0);
   const queriesRef = useRef(queries);
   queriesRef.current = queries;
@@ -270,10 +271,17 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
     const started = Date.now();
     await refetchAll();
     await new Promise((r) => setTimeout(r, Math.max(0, MIN_REFRESH_MS - (Date.now() - started))));
+    // Det nya flödet ritas medan snurran ännu syns. Först när det är på plats stängs snurran — då
+    // glider telefonen själv upp ytan mjukt. Gjordes båda samtidigt hann ritandet ta glidningen, och
+    // allt hoppade upp.
     newFeed();
+    await new Promise((r) => setTimeout(r, 150));
     setRefreshing(false);
-    // Bara om man står kvar överst (har man scrollat ner under tiden ska sidan inte rycka upp)
-    requestAnimationFrame(() => { if (scrollY.value < 8) listRef.current?.scrollToOffset({ offset: 0, animated: true }); });
+    // Blev ytan ändå kvar (snurran startad av appen själv) glider sidan upp på plats. Bara om man
+    // står kvar överst — har man scrollat ner under tiden ska sidan inte rycka upp.
+    setTimeout(() => {
+      if (scrollY.value < -1) listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 450);
   }, [refetchAll, newFeed, scrollY]);
   const refreshRef = useRef(onRefresh);
   refreshRef.current = onRefresh;
@@ -372,6 +380,9 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
     registerScrollCallback("home", () => {
       if (refreshingRef.current) return;
       refreshRef.current();
+      // Långt ner: hoppa först en skärm från toppen och glid sista biten. Att glida genom hela
+      // flödet ritade alla kort på vägen (segt, och listan varnade för det)
+      if (scrollY.value > winH * 1.5) listRef.current?.scrollToOffset({ offset: winH, animated: false });
       requestAnimationFrame(() => listRef.current?.scrollToOffset({ offset: -REFRESH_SPACE, animated: true }));
     });
   }, []);
