@@ -34,7 +34,7 @@ import i18n from "i18next";
 import { Trans, useTranslation } from "react-i18next";
 import { Image as ExpoImage } from "expo-image";
 import { DateBox } from "@/components/events/EventCards";
-import { CalendarDays, Check, Clock, MapPin, Moon, Search, UtensilsCrossed, X, type LucideIcon } from "lucide-react-native";
+import { Bath, CalendarDays, Check, Clock, MapPin, Moon, Search, UtensilsCrossed, X, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { savePlaceFavorite, useFavorites } from "@/hooks/useFavorites";
@@ -83,12 +83,20 @@ const openNowText = (n: number) => i18n.t(n === 1 ? "search.count.openOne" : "se
 /** "1 plats", "12 platser" */
 const placesText = (n: number) => i18n.t(n === 1 ? "search.count.placeOne" : "search.count.placeOther", { count: n });
 
+/** Smaker som har en egen symbol och färg (samma som rutan på Sök), i stället för kategorins */
+const TASTE_LOOK: Record<string, { Icon: LucideIcon; tint: Tint }> = { spa: { Icon: Bath, tint: TINT.spa } };
+/** Symbolen för en smak: egen, kategorins, annars kniv och gaffel */
+const tasteIcon = (key: string): LucideIcon => TASTE_LOOK[key]?.Icon ?? (TASTES[key].category ? catIcon(TASTES[key].category!) : UtensilsCrossed);
+
 /** Färgen för något söket förstått (svarskortets ring och chipsens ikoner) */
 function intentTint(x: Intent, scheme: "dark" | "light"): string {
   if (x.kind === "category") return CATEGORY_DOT[scheme][x.value];
   if (x.kind === "practical") return (x.value === "family" ? TINT.kids : x.value === "pets" ? TINT.dog : TINT.gold)[scheme];
   if (x.kind === "open" || x.kind === "at") return TINT.open[scheme];
-  if (x.kind === "taste") { const cat = TASTES[x.value].category; return cat ? CATEGORY_DOT[scheme][cat] : TINT.gold[scheme]; }
+  if (x.kind === "taste") {
+    const cat = TASTES[x.value].category;
+    return TASTE_LOOK[x.value]?.tint[scheme] ?? (cat ? CATEGORY_DOT[scheme][cat] : TINT.gold[scheme]);
+  }
   if (x.kind === "late") return TINT.late[scheme];
   if (x.kind === "events" || x.kind === "when") return TINT.events[scheme];
   return TINT.gold[scheme];
@@ -850,7 +858,7 @@ function buildAnswer(
     if (x.kind === "practical") return { key, label: practicalLabel(x.value), Icon: practicalIcon(x.value), color, onRemove: remove };
     if (x.kind === "open") return { key, label: i18n.t("search.answer.openNow"), Icon: Clock, color, onRemove: remove };
     if (x.kind === "at") return { key, label: atLabel(x), Icon: Clock, color, onRemove: remove };
-    if (x.kind === "taste") return { key, label: TASTES[x.value].label, Icon: TASTES[x.value].category ? catIcon(TASTES[x.value].category!) : UtensilsCrossed, color, onRemove: remove };
+    if (x.kind === "taste") return { key, label: TASTES[x.value].label, Icon: tasteIcon(x.value), color, onRemove: remove };
     if (x.kind === "late") return { key, label: i18n.t("search.answer.openLate"), Icon: Moon, color, onRemove: remove };
     if (x.kind === "town") return { key, label: x.value.name, Icon: MapPin, color, onRemove: remove };
     if (x.kind === "when") return { key, label: cap(whenWord(x.value)), Icon: CalendarDays, color, onRemove: remove };
@@ -862,6 +870,7 @@ function buildAnswer(
     ?? parsed.intents.find((x) => x.kind === "late" || x.kind === "open" || x.kind === "at")
     ?? parsed.intents[0];
   const tint = intentTint(lead, scheme);
+  const leadTaste = parsed.intents.find((x) => x.kind === "taste")?.value as string | undefined;
 
   if (eventsOnly) {
     const n = events.length;
@@ -957,7 +966,8 @@ function buildAnswer(
 
   return {
     kind: "summary",
-    Icon: cats.length > 0 ? catIcon(cats[0]) : practical.length > 0 ? practicalIcon(practical[0]) : late ? Moon : open || at ? Clock : MapPin,
+    Icon: cats.length > 0 ? catIcon(cats[0]) : practical.length > 0 ? practicalIcon(practical[0]) : late ? Moon : open || at ? Clock
+      : leadTaste ? tasteIcon(leadTaste) : MapPin,
     tint,
     title: base,
     subtitle: n === 0 ? i18n.t("search.answer.noPlaces") : parts.join("  ·  "),

@@ -13,7 +13,7 @@
 import i18n from "i18next";
 import type { LanguageCode } from "@/i18n";
 import {
-  UtensilsCrossed, Hotel, Coffee, ShoppingBag, TreePine, Target, Landmark, Palette, type LucideIcon,
+  UtensilsCrossed, Hotel, Coffee, ShoppingBag, Trees, Target, Landmark, Palette, type LucideIcon,
 } from "lucide-react-native";
 
 export type CategoryId =
@@ -38,7 +38,7 @@ export const CATEGORIES: CategoryDef[] = [
   { id: "hotell-bb",         dbValues: ["Hotell & B&B", "Boende"],              get label() { return i18n.t("categories.hotell-bb"); }, screen: "#312E81", stats: "#5A6A8C", icon: Hotel },
   { id: "cafe-bageri",       dbValues: ["Café & Bageri", "Cafe & Bageri"],      get label() { return i18n.t("categories.cafe-bageri"); }, screen: "#C4B280", stats: "#A3855C", icon: Coffee },
   { id: "butiker",           dbValues: ["Butiker", "Gårdsbutik", "Shopping"],   get label() { return i18n.t("categories.butiker"); },screen: "#C2410C", stats: "#8B634B", icon: ShoppingBag },
-  { id: "natur-upplevelser", dbValues: ["Natur", "Natur & Upplevelser", "Upplevelser"], get label() { return i18n.t("categories.natur-upplevelser"); },screen: "#064E3B", stats: "#4C765A", icon: TreePine },
+  { id: "natur-upplevelser", dbValues: ["Natur", "Natur & Upplevelser", "Upplevelser"], get label() { return i18n.t("categories.natur-upplevelser"); },screen: "#064E3B", stats: "#4C765A", icon: Trees },
   { id: "aktiviteter",       dbValues: ["Aktiviteter"],                         get label() { return i18n.t("categories.aktiviteter"); },screen: "#0C4A6E", stats: "#56818F", icon: Target },
   { id: "sevardheter",       dbValues: ["Sevärdheter", "Konst"],                get label() { return i18n.t("categories.sevardheter"); },screen: "#581C87", stats: "#765F95", icon: Landmark },
   { id: "hantverk-service",  dbValues: ["Hantverk & Service", "Hantverk"],      get label() { return i18n.t("categories.hantverk-service"); },screen: "#6B7280", stats: "#8A8F98", icon: Palette },
