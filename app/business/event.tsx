@@ -22,7 +22,7 @@ import { Chip, ChoiceCard, Note, PortalField, PortalToast, type PortalToastHandl
 import { DateCalendar, TimeWheel, dayText, todayIso } from "@/components/business/Pickers";
 import { useScreenEntered, useWizard, WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment, ImageChooser } from "@/components/business/WizardParts";
-import { useBusinessPlace, useEventActions, usePlaceEvents, usePortalPlace, type EventDraft } from "@/hooks/useBusiness";
+import { useBusinessPlace, useCachedEvent, useEventActions, usePlaceEvents, usePortalPlace, type EventDraft } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, cleanUrl } from "@/lib/business";
 import { EVENT_CATEGORIES, eventWhen } from "@/lib/events";
@@ -119,7 +119,7 @@ export default function EventComposer() {
     if (entered && wizard.step === "title" && draft && !editingId) titleRef.current?.focus();
   }, [entered, wizard.step, !!draft, editingId]);
   const images = useMemo(() => placeImages(place?.image_url), [place?.image_url]);
-  const source = events?.find((e) => String(e.id) === (params.id ?? params.copy));
+  const source = useCachedEvent(placeId, params.id ?? params.copy);
 
   useEffect(() => {
     if (draft || !place) return;

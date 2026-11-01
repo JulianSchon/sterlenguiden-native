@@ -22,7 +22,7 @@ import { Chip, ChoiceCard, Note, PortalField, PortalToast, type PortalToastHandl
 import { DateCalendar, addDaysIso, rangeText, todayIso } from "@/components/business/Pickers";
 import { useScreenEntered, useWizard, WizardFrame } from "@/components/business/Wizard";
 import { DoneMoment, ImageChooser } from "@/components/business/WizardParts";
-import { useBusinessOffers, useBusinessPlace, useOfferActions, usePortalPlace, type OfferDraft } from "@/hooks/useBusiness";
+import { useBusinessOffers, useBusinessPlace, useCachedOffer, useOfferActions, usePortalPlace, type OfferDraft } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, offerCategoryFor } from "@/lib/business";
 import type { Offer } from "@/lib/offers";
@@ -86,7 +86,7 @@ export default function OfferComposer() {
   const actions = useOfferActions(placeId);
   const toast = useRef<PortalToastHandle>(null);
   const editingId = params.id ?? null;
-  const source = offers?.find((o) => o.offer.id === (params.id ?? params.copy));
+  const source = useCachedOffer(placeId, params.id ?? params.copy);
   const locked = !!editingId && !!source && source.redemptions > 0;
   const wizard = useWizard(locked ? LOCKED : ALL);
   const [draft, setDraft] = useState<Draft | null>(null);

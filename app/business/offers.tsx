@@ -11,11 +11,11 @@ import { Ticket } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
-import { GoldButton } from "@/components/auth/AuthParts";
+import { AuthButton, GoldButton } from "@/components/auth/AuthParts";
 import { useActionMenu, type MenuItem } from "@/components/ActionMenu";
 import { PortalSegmented, PortalToast, type PortalToastHandle } from "@/components/business/PortalParts";
 import { rangeText } from "@/components/business/Pickers";
-import { useBusinessOffers, useOfferActions, usePortalPlace } from "@/hooks/useBusiness";
+import { useBusinessOffers, useEndedOffers, useOfferActions, usePortalPlace } from "@/hooks/useBusiness";
 import { businessError, type BusinessOffer } from "@/lib/business";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -44,7 +44,14 @@ export default function BusinessOffers() {
   const toast = useRef<PortalToastHandle>(null);
   const actionMenu = useActionMenu();
   const [tab, setTab] = useState<Tab>("active");
-  const list = useMemo(() => (offers ?? []).filter((o) => tabOf(o) === tab), [offers, tab]);
+  // De avslutade hämtas först när man öppnar fliken, 6 och sedan 12 åt gången
+  const ended = useEndedOffers(placeId, tab === "ended");
+  const endedList = useMemo(() => ended.data?.pages.flatMap((p) => p.items) ?? [], [ended.data]);
+  const list = useMemo(
+    () => (tab === "ended" ? endedList : (offers ?? []).filter((o) => tabOf(o) === tab)),
+    [offers, tab, endedList],
+  );
+  const loading = tab === "ended" ? !ended.data : !offers;
   const counts = useMemo(() => {
     const c = { active: 0, paused: 0, ended: 0 };
     for (const o of offers ?? []) c[tabOf(o)]++;
@@ -88,7 +95,7 @@ export default function BusinessOffers() {
           />
         </Rise>
 
-        {!offers ? (
+        {loading ? (
           <View style={{ gap: 12 }}><Skeleton height={112} radius={18} /><Skeleton height={112} radius={18} /></View>
         ) : list.length === 0 ? (
           <Rise index={1}>
@@ -124,6 +131,12 @@ export default function BusinessOffers() {
               </Pressable>
             </Rise>
           ))
+        )}
+        {tab === "ended" && ended.isFetchingNextPage && (
+          <View style={{ gap: 12 }}><Skeleton height={112} radius={18} /><Skeleton height={112} radius={18} /></View>
+        )}
+        {tab === "ended" && ended.hasNextPage && !ended.isFetchingNextPage && (
+          <AuthButton label={tb("Visa fler")} variant="outline" onPress={() => ended.fetchNextPage()} />
         )}
       </SettingsScreen>
       {actionMenu.element}

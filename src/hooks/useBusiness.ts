@@ -201,11 +201,55 @@ export function useTeamActions(placeId: number) {
 
 // ── Erbjudanden ─────────────────────────────────────────────────────────────
 
+/** Erbjudandena som är igång eller pausade (de avslutade hämtas för sig, se useEndedOffers) */
 export function useBusinessOffers(placeId: number) {
   return useQuery({
     queryKey: ["business", "offers", placeId],
     enabled: placeId > 0,
-    queryFn: () => rpc<BusinessOffer[]>("business_offers", { p_place_id: placeId }),
+    queryFn: async () => {
+      const all = await rpc<BusinessOffer[]>("business_offers", { p_place_id: placeId });
+      // Innan migration 068 körts kommer även de avslutade med
+      return all.filter((o) => !o.offer.expires_at || new Date(o.offer.expires_at).getTime() > Date.now());
+    },
+  });
+}
+
+/** Så många gamla (avslutade erbjudanden, tidigare evenemang) som hämtas först, och sedan för varje "Visa fler" */
+const FIRST_HISTORY = 6;
+const MORE_HISTORY = 12;
+const historyLimit = (offset: number) => (offset === 0 ? FIRST_HISTORY : MORE_HISTORY);
+
+/** Ett erbjudande ur det som redan hämtats: de igång/pausade eller de avslutade man bläddrat fram
+ * (Duplicera på ett avslutat erbjudande) */
+export function useCachedOffer(placeId: number, id: string | undefined): BusinessOffer | undefined {
+  const queryClient = useQueryClient();
+  const { data: offers } = useBusinessOffers(placeId);
+  if (!id) return undefined;
+  const ended = queryClient.getQueryData<{ pages: { items: BusinessOffer[] }[] }>(["business", "offers", placeId, "ended"]);
+  return offers?.find((o) => o.offer.id === id) ?? ended?.pages.flatMap((p) => p.items).find((o) => o.offer.id === id);
+}
+
+/** Ett evenemang ur det som redan hämtats: kommande eller de tidigare man bläddrat fram */
+export function useCachedEvent(placeId: number, id: string | undefined): PlaceEvent | undefined {
+  const queryClient = useQueryClient();
+  const { data: events } = usePlaceEvents(placeId);
+  if (!id) return undefined;
+  const past = queryClient.getQueryData<{ pages: { items: PlaceEvent[] }[] }>(["business", "events", placeId, "past"]);
+  return events?.find((e) => String(e.id) === id) ?? past?.pages.flatMap((p) => p.items).find((e) => String(e.id) === id);
+}
+
+/** Avslutade erbjudanden, senast avslutade först, en bit i taget. Nyckeln ligger under
+ * ["business", "offers", placeId], så den uppdateras med de andra när något ändras */
+export function useEndedOffers(placeId: number, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: ["business", "offers", placeId, "ended"],
+    enabled: enabled && placeId > 0,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      rpc<{ items: BusinessOffer[]; more: boolean }>("business_offers_ended", {
+        p_place_id: placeId, p_offset: pageParam, p_limit: historyLimit(pageParam),
+      }),
+    getNextPageParam: (last, pages) => (last.more ? pages.reduce((n, p) => n + p.items.length, 0) : undefined),
   });
 }
 
@@ -243,15 +287,48 @@ export function useOfferActions(placeId: number) {
 
 export type PlaceEvent = Event & { series_id?: string | null };
 
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** Kommande evenemang (och de som pågår), tidigast först. De tidigare hämtas för sig, se usePastEvents */
 export function usePlaceEvents(placeId: number) {
   return useQuery({
     queryKey: ["business", "events", placeId],
     enabled: placeId > 0,
     queryFn: async () => {
-      const { data, error } = await supabase.from("events").select("*").eq("place_id", placeId).order("date", { ascending: true });
+      const today = todayKey();
+      const { data, error } = await supabase.from("events").select("*").eq("place_id", placeId)
+        .or(`date.gte.${today},end_date.gte.${today}`)
+        .order("date", { ascending: true });
       if (error) throw error;
       return (data ?? []) as unknown as PlaceEvent[];
     },
+  });
+}
+
+/** Tidigare evenemang, senaste först, en bit i taget (nyckeln under ["business", "events", placeId]) */
+export function usePastEvents(placeId: number, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: ["business", "events", placeId, "past"],
+    enabled: enabled && placeId > 0,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const today = todayKey();
+      const limit = historyLimit(pageParam);
+      // En extra rad säger om det finns fler
+      const { data, error } = await supabase.from("events").select("*").eq("place_id", placeId)
+        .lt("date", today)
+        .or(`end_date.is.null,end_date.lt.${today}`)
+        .order("date", { ascending: false })
+        .order("id", { ascending: false })
+        .range(pageParam, pageParam + limit);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as PlaceEvent[];
+      return { items: rows.slice(0, limit), more: rows.length > limit };
+    },
+    getNextPageParam: (last, pages) => (last.more ? pages.reduce((n, p) => n + p.items.length, 0) : undefined),
   });
 }
 

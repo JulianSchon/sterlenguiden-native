@@ -11,13 +11,13 @@ import { CalendarDays, Repeat } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
-import { GoldButton } from "@/components/auth/AuthParts";
+import { AuthButton, GoldButton } from "@/components/auth/AuthParts";
 import { useActionMenu, type MenuItem } from "@/components/ActionMenu";
 import { DateBox } from "@/components/events/EventCards";
 import { PortalSegmented, PortalToast, type PortalToastHandle } from "@/components/business/PortalParts";
-import { useEventActions, usePlaceEvents, usePortalPlace, type PlaceEvent } from "@/hooks/useBusiness";
+import { useEventActions, usePastEvents, usePlaceEvents, usePortalPlace, type PlaceEvent } from "@/hooks/useBusiness";
 import { businessError } from "@/lib/business";
-import { dayKey, eventWhen, lastDay } from "@/lib/events";
+import { eventWhen } from "@/lib/events";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -34,15 +34,12 @@ export default function BusinessEvents() {
   const toast = useRef<PortalToastHandle>(null);
   const actionMenu = useActionMenu();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
-  const today = dayKey(new Date());
-  const { upcoming, past } = useMemo(() => {
-    const all = events ?? [];
-    return {
-      upcoming: all.filter((e) => (lastDay(e) ?? "") >= today),
-      past: all.filter((e) => (lastDay(e) ?? "") < today).reverse().slice(0, 30),
-    };
-  }, [events, today]);
+  // De tidigare hämtas först när man öppnar fliken, 6 och sedan 12 åt gången
+  const pastQuery = usePastEvents(placeId, tab === "past");
+  const upcoming = events ?? [];
+  const past = useMemo(() => pastQuery.data?.pages.flatMap((p) => p.items) ?? [], [pastQuery.data]);
   const list = tab === "upcoming" ? upcoming : past;
+  const loading = tab === "upcoming" ? !events : !pastQuery.data;
 
   const remove = (e: PlaceEvent, scope: "one" | "series") => {
     actions.remove(e.id, scope)
@@ -77,7 +74,7 @@ export default function BusinessEvents() {
             onChange={setTab}
           />
         </Rise>
-        {!events ? (
+        {loading ? (
           <View style={{ gap: 12 }}><Skeleton height={96} radius={18} /><Skeleton height={96} radius={18} /></View>
         ) : list.length === 0 ? (
           <Rise index={1}>
@@ -108,6 +105,12 @@ export default function BusinessEvents() {
               </Pressable>
             </Rise>
           ))
+        )}
+        {tab === "past" && pastQuery.isFetchingNextPage && (
+          <View style={{ gap: 12 }}><Skeleton height={96} radius={18} /><Skeleton height={96} radius={18} /></View>
+        )}
+        {tab === "past" && pastQuery.hasNextPage && !pastQuery.isFetchingNextPage && (
+          <AuthButton label={tb("Visa fler")} variant="outline" onPress={() => pastQuery.fetchNextPage()} />
         )}
       </SettingsScreen>
       {actionMenu.element}

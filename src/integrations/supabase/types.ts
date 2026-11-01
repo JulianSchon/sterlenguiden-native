@@ -1779,6 +1779,10 @@ export type Database = {
         Returns: Json
       }
       business_offers: { Args: { p_place_id: number }; Returns: Json }
+      business_offers_ended: {
+        Args: { p_limit?: number; p_offset?: number; p_place_id: number }
+        Returns: Json
+      }
       business_overview: { Args: never; Returns: Json }
       business_post_story: {
         Args: {
