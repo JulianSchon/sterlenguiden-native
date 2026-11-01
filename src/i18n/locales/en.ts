@@ -476,6 +476,7 @@ export const en: typeof sv = {
     skip: "Skip",
     email: {
       title: "What's your email?",
+      didYouMean: "Did you mean",
       subtitle: "We'll send you a code so we know the address is yours.",
       resetTitle: "Forgot your password?",
       resetSubtitle: "Enter your email and we'll send you a code. Then you choose a new password.",
@@ -576,7 +577,7 @@ export const en: typeof sv = {
     },
     done: {
       title: "Welcome, {{name}}!",
-      subtitle: "Your account is ready. Österlen awaits.",
+      subtitle: "Here you'll find places and events, perks with Österlenpasset, treasures to hunt and what your friends are up to.",
       start: "Start exploring",
       stats: { places: "places", offers: "offers", events: "events" },
       usernameTaken: "That username was just taken. Choose another one.",

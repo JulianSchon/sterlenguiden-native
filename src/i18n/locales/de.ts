@@ -476,6 +476,7 @@ export const de: typeof sv = {
     skip: "Überspringen",
     email: {
       title: "Wie lautet deine E-Mail?",
+      didYouMean: "Meintest du",
       subtitle: "Wir schicken dir einen Code, damit wir wissen, dass die Adresse dir gehört.",
       resetTitle: "Passwort vergessen?",
       resetSubtitle: "Gib deine E-Mail ein, dann schicken wir dir einen Code. Danach wählst du ein neues Passwort.",
@@ -576,7 +577,7 @@ export const de: typeof sv = {
     },
     done: {
       title: "Willkommen, {{name}}!",
-      subtitle: "Dein Konto ist bereit. Österlen wartet.",
+      subtitle: "Hier findest du Orte und Veranstaltungen, Vorteile mit dem Österlenpasset, Schätze zum Suchen und was deine Freunde so machen.",
       start: "Los geht's",
       stats: { places: "Orte", offers: "Angebote", events: "Veranstaltungen" },
       usernameTaken: "Der Benutzername wurde gerade vergeben. Wähle einen anderen.",

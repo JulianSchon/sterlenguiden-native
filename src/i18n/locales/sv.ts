@@ -479,6 +479,7 @@ export const sv = {
     skip: "Hoppa över",
     email: {
       title: "Vad är din e-post?",
+      didYouMean: "Menade du",
       subtitle: "Vi skickar en kod dit, så vet vi att adressen är din.",
       resetTitle: "Glömt lösenordet?",
       resetSubtitle: "Skriv din e-post så skickar vi en kod. Sedan väljer du ett nytt lösenord.",
@@ -579,7 +580,7 @@ export const sv = {
     },
     done: {
       title: "Välkommen, {{name}}!",
-      subtitle: "Ditt konto är klart. Nu väntar Österlen.",
+      subtitle: "Här hittar du platser och evenemang, förmåner med Österlenpasset, skatter att jaga och vad dina vänner hittar på.",
       start: "Börja utforska",
       stats: { places: "platser", offers: "erbjudanden", events: "evenemang" },
       usernameTaken: "Användarnamnet hann bli upptaget. Välj ett annat.",

@@ -16,6 +16,40 @@ export const OTP_LENGTH = 6;
 
 export const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
 
+/** De vanligaste adresserna i Sverige — ett stavfel i dem ("gmial.com") gör att koden aldrig kommer fram */
+const COMMON_DOMAINS = [
+  "gmail.com", "hotmail.com", "hotmail.se", "outlook.com", "outlook.se", "live.se", "live.com", "icloud.com",
+  "me.com", "yahoo.com", "yahoo.se", "msn.com", "telia.com", "spray.se", "bredband.net", "gmx.de", "web.de",
+];
+
+/** Hur många bokstäver som skiljer (infoga, ta bort, byta, eller två grannar i fel ordning) */
+function distance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)] as number[]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
+}
+
+/** "anna@gmial.com" → "anna@gmail.com", eller null om adressen ser rätt ut */
+export function emailSuggestion(value: string): string | null {
+  const email = value.trim().toLowerCase();
+  const at = email.lastIndexOf("@");
+  if (at < 1) return null;
+  const domain = email.slice(at + 1);
+  if (!domain.includes(".") || COMMON_DOMAINS.includes(domain)) return null;
+  const best = COMMON_DOMAINS
+    .map((d) => ({ d, n: distance(domain, d) }))
+    .filter((x) => x.n > 0 && x.n <= 2)
+    .sort((x, y) => x.n - y.n)[0];
+  return best ? `${email.slice(0, at)}@${best.d}` : null;
+}
+
 // ── E-post ───────────────────────────────────────────────────────────────────
 
 export function EmailStep({
@@ -28,7 +62,9 @@ export function EmailStep({
   reset: boolean;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const valid = isEmail(email);
+  const suggestion = valid ? emailSuggestion(email) : null;
   const field = useRef<TextInput>(null);
   useEffect(() => {
     if (ready) field.current?.focus();
@@ -55,9 +91,20 @@ export function EmailStep({
         invalid={!!error}
       />
       {error ? <FieldNote tone="danger" text={error} /> : null}
+      {suggestion ? (
+        <TouchableOpacity onPress={() => onChange(suggestion)} activeOpacity={0.7} hitSlop={8}>
+          <Text style={[styles.suggestion, { color: colors.muted }]}>
+            {t("onboarding.email.didYouMean")} <Text style={{ color: colors.goldText, fontFamily: "Inter_600SemiBold" }}>{suggestion}</Text>?
+          </Text>
+        </TouchableOpacity>
+      ) : null}
     </StepLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  suggestion: { fontFamily: "Inter_400Regular", fontSize: 14, marginTop: 10 },
+});
 
 // ── Koden ────────────────────────────────────────────────────────────────────
 
