@@ -16,8 +16,10 @@
  * ändras (ett hjärta), och toppen sköter sin egen data.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, RefreshControl, StyleSheet, Text, View, type FlatList, useWindowDimensions } from "react-native";
-import Reanimated, { FadeInDown, useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated";
+import { ActivityIndicator, AppState, RefreshControl, StyleSheet, Text, View, type FlatList, useWindowDimensions } from "react-native";
+import Reanimated, {
+  Easing, FadeInDown, runOnJS, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -277,16 +279,32 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
     newFeed();
     await new Promise((r) => setTimeout(r, 150));
     setRefreshing(false);
-    // Blev ytan ändå kvar (snurran startad av appen själv) glider sidan upp på plats. Bara om man
-    // står kvar överst — har man scrollat ner under tiden ska sidan inte rycka upp.
-    setTimeout(() => {
-      if (scrollY.value < -1) listRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }, 450);
-  }, [refetchAll, newFeed, scrollY]);
-  const refreshRef = useRef(onRefresh);
-  refreshRef.current = onRefresh;
-  const refreshingRef = useRef(refreshing);
-  refreshingRef.current = refreshing;
+  }, [refetchAll, newFeed]);
+
+  // Fliken Hem: en egen snurra överst i flödet som glider fram och bort. Telefonens snurra går inte
+  // att starta mjukt från appen (sidan hoppade ner till den, och ytan blev ibland kvar), så den här
+  // öppnar sin plats med en animation i stället.
+  const spin = useSharedValue(0);
+  const [tabSpinning, setTabSpinning] = useState(false);
+  const busy = useRef(false);
+  const spinStyle = useAnimatedStyle(() => ({ height: spin.value * REFRESH_SPACE, opacity: spin.value }));
+  const refreshFromTab = useCallback(async () => {
+    if (busy.current || refreshing) return;
+    busy.current = true;
+    setTabSpinning(true);
+    spin.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
+    const started = Date.now();
+    await refetchAll();
+    await new Promise((r) => setTimeout(r, Math.max(0, MIN_REFRESH_MS - (Date.now() - started))));
+    newFeed();
+    await new Promise((r) => setTimeout(r, 150));
+    spin.value = withTiming(0, { duration: 300, easing: Easing.inOut(Easing.cubic) }, (done) => {
+      if (done) runOnJS(setTabSpinning)(false);
+    });
+    busy.current = false;
+  }, [refreshing, refetchAll, newFeed, spin]);
+  const refreshFromTabRef = useRef(refreshFromTab);
+  refreshFromTabRef.current = refreshFromTab;
   // Tillbaka efter en halvtimme eller mer: ett nytt flöde, uppifrån
   useEffect(() => {
     let away = 0;
@@ -374,23 +392,16 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const showCalendar = useCallback(() => router.navigate("/(tabs)/calendar"), [router]);
   const openDiscover = useCallback(() => router.push("/discover"), [router]);
 
-  // Fliken Hem: sidan glider upp och snurran går redan när man kommer fram (den startar direkt, och
-  // sidan stannar så högt att snurran syns ovanför flödet), sen laddas den om som när man drar ner
+  // Fliken Hem: sidan glider upp överst och den egna snurran glider fram, sen laddas flödet om
   useEffect(() => {
     registerScrollCallback("home", () => {
-      if (refreshingRef.current) return;
-      // Står man redan överst glider sidan först ner till snurran, och sen startar den (startades den
-      // direkt hoppade sidan ner till den i stället för att glida)
-      if (scrollY.value < 8) {
-        listRef.current?.scrollToOffset({ offset: -REFRESH_SPACE, animated: true });
-        setTimeout(() => refreshRef.current(), 280);
-        return;
+      if (scrollY.value > 8) {
+        // Långt ner: hoppa först en skärm från toppen och glid sista biten. Att glida genom hela
+        // flödet ritade alla kort på vägen (segt, och listan varnade för det)
+        if (scrollY.value > winH * 1.5) listRef.current?.scrollToOffset({ offset: winH, animated: false });
+        requestAnimationFrame(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }));
       }
-      refreshRef.current();
-      // Långt ner: hoppa först en skärm från toppen och glid sista biten. Att glida genom hela
-      // flödet ritade alla kort på vägen (segt, och listan varnade för det)
-      if (scrollY.value > winH * 1.5) listRef.current?.scrollToOffset({ offset: winH, animated: false });
-      requestAnimationFrame(() => listRef.current?.scrollToOffset({ offset: -REFRESH_SPACE, animated: true }));
+      refreshFromTabRef.current();
     });
   }, []);
   const onScroll = useAnimatedScrollHandler({
@@ -463,7 +474,14 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
     }
   }
 
-  const header = useMemo(() => <HomeTop location={location} />, [location]);
+  const header = useMemo(() => (
+    <>
+      <Reanimated.View style={[s.tabSpinner, spinStyle]} pointerEvents="none">
+        {tabSpinning && <ActivityIndicator color={colors.muted} />}
+      </Reanimated.View>
+      <HomeTop location={location} />
+    </>
+  ), [location, spinStyle, tabSpinning, colors.muted]);
   // Platserna gick inte att hämta och inget finns sparat: inget nät (eller servern svarar inte)
   const offline = places.isError && !places.data?.length;
   const items = feed && !offline ? feed.slice(0, shown) : NO_ITEMS;
@@ -517,6 +535,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
 
 const s = StyleSheet.create({
   screen: { flex: 1 },
+  tabSpinner: { overflow: "hidden", alignItems: "center", justifyContent: "center" },
   forYou: {
     paddingHorizontal: FEED_GUTTER, marginTop: 40, marginBottom: 18,
     fontFamily: "Montserrat_700Bold", fontSize: 24, letterSpacing: -0.5,
