@@ -165,11 +165,11 @@ export type Database = {
           end_date: string | null
           has_food_drink: boolean | null
           has_parking: boolean | null
+          id: number
+          image_url: string | null
           is_accessible: boolean
           is_child_friendly: boolean
           is_dog_friendly: boolean
-          id: number
-          image_url: string | null
           is_featured: boolean | null
           is_indoor: boolean | null
           is_sold_out: boolean | null
@@ -194,11 +194,11 @@ export type Database = {
           end_date?: string | null
           has_food_drink?: boolean | null
           has_parking?: boolean | null
+          id?: number
+          image_url?: string | null
           is_accessible?: boolean
           is_child_friendly?: boolean
           is_dog_friendly?: boolean
-          id?: number
-          image_url?: string | null
           is_featured?: boolean | null
           is_indoor?: boolean | null
           is_sold_out?: boolean | null
@@ -223,11 +223,11 @@ export type Database = {
           end_date?: string | null
           has_food_drink?: boolean | null
           has_parking?: boolean | null
+          id?: number
+          image_url?: string | null
           is_accessible?: boolean
           is_child_friendly?: boolean
           is_dog_friendly?: boolean
-          id?: number
-          image_url?: string | null
           is_featured?: boolean | null
           is_indoor?: boolean | null
           is_sold_out?: boolean | null
@@ -609,6 +609,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          min_age: number | null
           place_id: number
           redemption_interval: string
           redemption_limit: number | null
@@ -626,6 +627,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          min_age?: number | null
           place_id: number
           redemption_interval?: string
           redemption_limit?: number | null
@@ -643,6 +645,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          min_age?: number | null
           place_id?: number
           redemption_interval?: string
           redemption_limit?: number | null
@@ -763,7 +766,7 @@ export type Database = {
           note: string | null
           period: string
           price: number
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           card_brand?: string | null
@@ -775,7 +778,7 @@ export type Database = {
           note?: string | null
           period: string
           price?: number
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           card_brand?: string | null
@@ -787,7 +790,7 @@ export type Database = {
           note?: string | null
           period?: string
           price?: number
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -922,8 +925,8 @@ export type Database = {
           email: string
           expires_at: string
           id: string
-          invited_username: string | null
           invited_by: string | null
+          invited_username: string | null
           permissions: string[] | null
           place_id: number
           role: string
@@ -936,8 +939,8 @@ export type Database = {
           email: string
           expires_at?: string
           id?: string
-          invited_username?: string | null
           invited_by?: string | null
+          invited_username?: string | null
           permissions?: string[] | null
           place_id: number
           role?: string
@@ -950,8 +953,8 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
-          invited_username?: string | null
           invited_by?: string | null
+          invited_username?: string | null
           permissions?: string[] | null
           place_id?: number
           role?: string
@@ -1152,6 +1155,7 @@ export type Database = {
           facebook_url: string | null
           hours_exceptions: Json
           id: number
+          image_history: string[]
           image_url: string | null
           info_updated_at: string | null
           instagram_url: string | null
@@ -1181,6 +1185,7 @@ export type Database = {
           facebook_url?: string | null
           hours_exceptions?: Json
           id?: number
+          image_history?: string[]
           image_url?: string | null
           info_updated_at?: string | null
           instagram_url?: string | null
@@ -1210,6 +1215,7 @@ export type Database = {
           facebook_url?: string | null
           hours_exceptions?: Json
           id?: number
+          image_history?: string[]
           image_url?: string | null
           info_updated_at?: string | null
           instagram_url?: string | null
@@ -1243,7 +1249,6 @@ export type Database = {
           created_at: string
           display_name: string | null
           display_name_changed_at: string | null
-          username_changed_at: string | null
           id: string
           interests: string[] | null
           is_member: boolean | null
@@ -1261,6 +1266,7 @@ export type Database = {
           updated_at: string
           user_id: string
           username: string | null
+          username_changed_at: string | null
         }
         Insert: {
           avatar_ring?: string | null
@@ -1274,7 +1280,6 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           display_name_changed_at?: string | null
-          username_changed_at?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
@@ -1292,6 +1297,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           username?: string | null
+          username_changed_at?: string | null
         }
         Update: {
           avatar_ring?: string | null
@@ -1305,7 +1311,6 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           display_name_changed_at?: string | null
-          username_changed_at?: string | null
           id?: string
           interests?: string[] | null
           is_member?: boolean | null
@@ -1323,6 +1328,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+          username_changed_at?: string | null
         }
         Relationships: []
       }
@@ -1412,11 +1418,11 @@ export type Database = {
           id: string
           image_url: string
           interaction: Json | null
-          overlay_url: string | null
-          video_url: string | null
           link: Json | null
+          overlay_url: string | null
           place_id: number
           user_id: string
+          video_url: string | null
         }
         Insert: {
           caption?: string | null
@@ -1424,12 +1430,12 @@ export type Database = {
           expires_at?: string | null
           id?: string
           image_url: string
-          interaction: Json | null
-          overlay_url: string | null
-          video_url: string | null
+          interaction?: Json | null
           link?: Json | null
+          overlay_url?: string | null
           place_id: number
           user_id: string
+          video_url?: string | null
         }
         Update: {
           caption?: string | null
@@ -1438,11 +1444,11 @@ export type Database = {
           id?: string
           image_url?: string
           interaction?: Json | null
-          overlay_url?: string | null
-          video_url?: string | null
           link?: Json | null
+          overlay_url?: string | null
           place_id?: number
           user_id?: string
+          video_url?: string | null
         }
         Relationships: [
           {
@@ -1450,6 +1456,38 @@ export type Database = {
             columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_answers: {
+        Row: {
+          answer: string
+          created_at: string
+          id: string
+          story_id: string
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          id?: string
+          story_id: string
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          id?: string
+          story_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_answers_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
             referencedColumns: ["id"]
           },
         ]
@@ -1473,7 +1511,44 @@ export type Database = {
           user_id?: string
           viewed_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "story_views_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_votes: {
+        Row: {
+          created_at: string
+          option: number
+          story_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          option: number
+          story_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          option?: number
+          story_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_votes_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trophies: {
         Row: {
@@ -1637,11 +1712,16 @@ export type Database = {
         Row: {
           Avgjord: string | null
           "E-post": string | null
+          Hemsida: string | null
           id: string | null
+          Kategori: string | null
           Meddelande: string | null
+          Ort: string | null
           Plats: string | null
+          Roll: string | null
           Skickad: string | null
           Status: string | null
+          Telefon: string | null
           Vad: string | null
           Vem: string | null
         }
@@ -1734,6 +1814,11 @@ export type Database = {
         Args: { p_perm: string; p_place_id: number }
         Returns: undefined
       }
+      bp_story_json: {
+        Args: { s: Database["public"]["Tables"]["stories"]["Row"] }
+        Returns: Json
+      }
+      bp_story_rect: { Args: { p: Json }; Returns: Json }
       bp_text: {
         Args: { p: Json; p_key: string; p_max: number }
         Returns: string
@@ -1788,8 +1873,11 @@ export type Database = {
         Args: {
           p_caption?: string
           p_image_url: string
+          p_interaction?: Json
           p_link?: Json
+          p_overlay_url?: string
           p_place_id: number
+          p_video_url?: string
         }
         Returns: string
       }
@@ -1832,7 +1920,10 @@ export type Database = {
         Args: { p_days?: number; p_place_id: number }
         Returns: Json
       }
-      business_stories_overview: { Args: { p_place_id: number }; Returns: Json }
+      business_stories_overview: {
+        Args: { p_before?: string; p_limit?: number; p_place_id: number }
+        Returns: Json
+      }
       business_team: { Args: { p_place_id: number }; Returns: Json }
       business_update_place: {
         Args: { p_patch: Json; p_place_id: number }
@@ -2070,6 +2161,15 @@ export type Database = {
           p_to: string
         }
         Returns: boolean
+      }
+      story_answer: {
+        Args: { p_answer: string; p_story_id: string }
+        Returns: undefined
+      }
+      story_poll: { Args: { p_story_id: string }; Returns: Json }
+      story_vote: {
+        Args: { p_option: number; p_story_id: string }
+        Returns: Json
       }
       track_place_event: {
         Args: {

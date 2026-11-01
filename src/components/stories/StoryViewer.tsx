@@ -194,7 +194,7 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
   useEffect(() => {
     const id = current?.id;
     if (!id || current?.interaction?.kind !== "poll" || polls[id]) return;
-    supabase.rpc("story_poll" as never, { p_story_id: id } as never).then(({ data }) => {
+    supabase.rpc("story_poll", { p_story_id: id }).then(({ data }) => {
       const d = data as unknown as { counts: [number, number]; mine: number | null } | null;
       if (d) setPolls((m) => ({ ...m, [id]: { counts: d.counts, mine: d.mine } }));
     });
@@ -210,7 +210,7 @@ export function StoryViewer({ groups, startGroup, startStory, origin, presented,
       const counts: [number, number] = [prev.counts[0] + (option === 0 ? 1 : 0), prev.counts[1] + (option === 1 ? 1 : 0)];
       return { ...m, [id]: { counts, mine: option } };
     });
-    supabase.rpc("story_vote" as never, { p_story_id: id, p_option: option } as never).then(({ data }) => {
+    supabase.rpc("story_vote", { p_story_id: id, p_option: option }).then(({ data }) => {
       const d = data as unknown as { counts: [number, number]; mine: number | null } | null;
       if (d) setPolls((m) => ({ ...m, [id]: { counts: d.counts, mine: d.mine } }));
     });
@@ -384,7 +384,7 @@ function AnswerBox({ prompt, storyId, onDone }: { prompt: string; storyId: strin
   const send = async () => {
     setBusy(true);
     setFailed(false);
-    const { error } = await supabase.rpc("story_answer" as never, { p_story_id: storyId, p_answer: text.trim() } as never);
+    const { error } = await supabase.rpc("story_answer", { p_story_id: storyId, p_answer: text.trim() });
     setBusy(false);
     if (error) { setFailed(true); return; }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
