@@ -27,7 +27,7 @@ import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
 import { useProfile } from "@/hooks/useProfile";
 import { useAvailableOffers } from "@/hooks/useAvailableOffers";
-import { offerEligibility, estimateOfferValue, formatKr, type Offer } from "@/lib/offers";
+import { offerEligibility, estimateOfferValue, formatKr, type Offer, ageAllowed } from "@/lib/offers";
 import { OfferDrawer, type OriginRect, type TearEdge } from "@/components/offers/OfferDrawer";
 import { OfferTicket, TICKET_H } from "@/components/offers/OfferTicket";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
@@ -74,7 +74,9 @@ export default function OffersScreen() {
   const { isMember } = useMembership();
   const { data: profile } = useProfile();
   const { available: usable } = useAvailableOffers();
-  const { data: offers = [], isLoading } = useOffers();
+  const { data: allOffers = [], isLoading } = useOffers();
+  // Erbjudanden med åldersgräns man inte når upp till syns inte här (platssidan visar dem nedtonade)
+  const offers = useMemo(() => allOffers.filter((o) => ageAllowed(o, profile?.birth_date)), [allOffers, profile?.birth_date]);
   const { data: redeemedOffers = [] } = useRedeemedOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
 

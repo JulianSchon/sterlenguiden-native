@@ -200,11 +200,21 @@ export const OfferTicket = memo(function OfferTicket({
           {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
           <VerticalGradient colors={["rgba(6,6,10,0.1)", "rgba(6,6,10,0.35)", "rgba(6,6,10,0.92)"]} />
 
-          {badge && (
-            <View style={[s.badge, badge === "redeemed" && s.badgeGrey]}>
-              {badge === "redeemed" && <Check size={10} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />}
-              {badge === "endingSoon" && <Clock size={10} color="#E8C674" strokeWidth={2.5} />}
-              <Text style={[s.badgeText, badge === "redeemed" && s.badgeTextGrey]}>{t(`offers.badge.${badge}`)}</Text>
+          {(badge || offer.min_age) && (
+            <View style={s.badges}>
+              {badge && (
+                <View style={[s.badge, badge === "redeemed" && s.badgeGrey]}>
+                  {badge === "redeemed" && <Check size={10} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />}
+                  {badge === "endingSoon" && <Clock size={10} color="#E8C674" strokeWidth={2.5} />}
+                  <Text style={[s.badgeText, badge === "redeemed" && s.badgeTextGrey]}>{t(`offers.badge.${badge}`)}</Text>
+                </View>
+              )}
+              {/* Åldersgränsen */}
+              {offer.min_age ? (
+                <View style={s.badge}>
+                  <Text style={s.badgeText}>{`${offer.min_age}+`}</Text>
+                </View>
+              ) : null}
             </View>
           )}
 
@@ -296,8 +306,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   notch: { position: "absolute", top: (TICKET_H - NOTCH) / 2, width: NOTCH, height: NOTCH, borderRadius: NOTCH / 2 },
   notchLeft: { left: -NOTCH / 2 },
   notchRight: { right: -NOTCH / 2 },
+  badges: { position: "absolute", top: 10, left: 12, flexDirection: "row", gap: 6 },
   badge: {
-    position: "absolute", top: 10, left: 12,
     flexDirection: "row", alignItems: "center", gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
     backgroundColor: "rgba(0,0,0,0.55)", borderWidth: 1, borderColor: "rgba(230,199,122,0.45)",

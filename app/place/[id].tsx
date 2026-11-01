@@ -45,6 +45,7 @@ import { FacebookIcon, InstagramIcon } from "@/components/BrandIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizePlace, placeImages, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useOffers } from "@/hooks/useOffers";
+import { useProfile } from "@/hooks/useProfile";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
 import { useEvents, type Event } from "@/hooks/useEvents";
 import { useCollected, useCollectibles, type Collectible } from "@/hooks/useCollectibles";
@@ -340,9 +341,11 @@ const PlaceContent = memo(function PlaceContent({
     return PRACTICAL.filter((p) => p.id !== "openNow" && a[p.id] === true);
   }, [place]);
 
+  const { data: profile } = useProfile();
+  const birthDate = profile?.birth_date ?? null;
   const ticketList = useMemo(() => offers
-    .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions).canUse }))
-    .sort((a, b) => Number(a.used) - Number(b.used)), [offers, redemptions]);
+    .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions, birthDate).canUse }))
+    .sort((a, b) => Number(a.used) - Number(b.used)), [offers, redemptions, birthDate]);
 
   const upcoming = useMemo(() => {
     const today = dayKey(new Date());

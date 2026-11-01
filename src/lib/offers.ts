@@ -6,6 +6,7 @@
  * annars kan samma erbjudande lösas in olika många gånger på webb vs app.
  */
 import i18n from "i18next";
+import { ageOn } from "@/lib/birthDate";
 import { formatDate } from "@/i18n/dates";
 import { serverNow } from "@/lib/serverClock";
 
@@ -25,6 +26,8 @@ export interface Offer {
   redemption_interval: string | null;
   expires_at: string | null;
   is_active: boolean;
+  /** Åldersgräns för att lösa in (18 eller 20), null = ingen */
+  min_age?: number | null;
   created_at: string;
   /** Inbakad plats-data från JOIN */
   place?: {
@@ -65,7 +68,15 @@ export const ACTIVE_SECS = 60;
 
 // ─── Regelmotor ───────────────────────────────────────────────────────────────
 
-export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibility {
+/** Är man gammal nog för erbjudandet? Utan födelsedag: nej om det har en åldersgräns (servern
+ * säger likadant vid inlösen, se migration 065). */
+export function ageAllowed(offer: Pick<Offer, "min_age">, birthDate: string | null | undefined): boolean {
+  if (!offer.min_age) return true;
+  return !!birthDate && ageOn(birthDate) >= offer.min_age;
+}
+
+/** birthDate: den inloggades födelsedag. Utelämnad = åldersgränsen kollas inte här. */
+export function offerEligibility(offer: Offer, rows: RedemptionRow[], birthDate?: string | null): Eligibility {
   const mine = rows
     .filter((r) => r.offer_id === offer.id)
     .sort((a, b) => +new Date(b.activated_at) - +new Date(a.activated_at));
@@ -81,6 +92,10 @@ export function offerEligibility(offer: Offer, rows: RedemptionRow[]): Eligibili
     interval === "monthly" ? i18n.t("offers.rule.monthly") :
     limit                  ? i18n.t("offers.rule.times", { n: limit }) :
                              i18n.t("offers.rule.many");
+
+  if (birthDate !== undefined && !ageAllowed(offer, birthDate)) {
+    return { used: false, canUse: false, usedCount, reason: i18n.t("offers.reason.age", { age: offer.min_age }), ruleLabel };
+  }
 
   if (limit != null && usedCount >= limit) {
     return { used: true, canUse: false, usedCount, reason: i18n.t("offers.reason.used", { date: formatDate(mine[0].activated_at, "d MMM"), time: formatDate(mine[0].activated_at, "HH:mm") }), ruleLabel };

@@ -815,4 +815,8 @@ export const BUSINESS_DE: Record<string, string> = {
   "Öppnar senare": "Öffnet später",
   "Österlen": "Österlen",
   "Övrigt": "Sonstiges",
+  "Åldersgräns": "Altersgrenze",
+  "Ingen": "Keine",
+  "{{0}} år": "{{0}} Jahre",
+  "Till exempel 18 år för alkohol på plats och 20 år för alkohol att ta med.": "Zum Beispiel 18 für Alkohol vor Ort und 20 für Alkohol zum Mitnehmen.",
 };

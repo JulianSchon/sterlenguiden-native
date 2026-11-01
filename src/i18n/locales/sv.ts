@@ -376,11 +376,13 @@ export const sv = {
       many: "Kan användas flera gånger",
     },
     reason: {
+      age: "Från {{age}} år",
       used: "Inlöst {{date}} kl {{time}}",
       againHours: "Kan användas igen om {{n}} h",
       againDays: "Kan användas igen om {{n}} d",
     },
     drawer: {
+      age: "Åldersgräns {{age}} år",
       place: "Plats",
       count: "{{count}} aktiva erbjudanden",
       countOne: "1 aktivt erbjudande",

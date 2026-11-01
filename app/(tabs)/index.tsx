@@ -234,6 +234,7 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
       savedEventIds: new Set(favs.flatMap((f) => (f.event_id != null ? [f.event_id] : []))),
       visitedPlaceIds: new Set((visits.data ?? []).map((v) => v.place_id)),
       interests: profile.data?.interests ?? [],
+      birthDate: profile.data?.birth_date ?? null,
       ownPlaceIds,
       location,
       seed,

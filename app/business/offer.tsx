@@ -68,6 +68,8 @@ interface Draft {
   labelTouched: boolean;
   interval: Interval;
   limit: number | null;
+  /** Åldersgräns: null, 18 eller 20 */
+  minAge: number | null;
   expiry: Expiry;
   picked: string | null;
   image: string | null;
@@ -113,6 +115,7 @@ export default function OfferComposer() {
       labelTouched: !!o?.savings_label,
       interval: ((o?.redemption_interval as Interval) ?? "once"),
       limit: o?.redemption_limit ?? null,
+      minAge: o?.min_age ?? null,
       expiry: exp ? "date" : o && !params.copy ? "none" : "month1",
       picked: exp,
       image: o?.image_url ?? images[0] ?? null,
@@ -150,12 +153,13 @@ export default function OfferComposer() {
     redemption_limit: draft.interval === "once" ? null : draft.limit,
     expires_at: expiresIso ? endOfDay(expiresIso) : null,
     image_url: draft.image,
+    min_age: draft.minAge,
   };
   const preview: Offer = {
     id: "preview", place_id: placeId, user_id: "", title: payload.title || tb("Ert erbjudande"),
     description: payload.description, image_url: payload.image_url, savings_label: payload.savings_label,
     savings_value: payload.savings_value, category: payload.category, redemption_limit: payload.redemption_limit,
-    redemption_interval: payload.redemption_interval, expires_at: payload.expires_at, is_active: true,
+    redemption_interval: payload.redemption_interval, expires_at: payload.expires_at, is_active: true, min_age: payload.min_age,
     created_at: new Date().toISOString(),
     place: { name: place.name, logo_url: place.logo_url, categories: place.categories, nearest_town: place.nearest_town },
   };
@@ -231,6 +235,16 @@ export default function OfferComposer() {
               </View>
             </View>
           )}
+          {/* Åldersgräns: t.ex. alkohol. Kollas mot födelsedagen när man löser in */}
+          <View style={{ gap: 10, marginTop: 12 }}>
+            <Text style={s.small}>{tb("Åldersgräns")}</Text>
+            <View style={s.chips}>
+              {[null, 18, 20].map((n) => (
+                <Chip key={String(n)} label={n == null ? tb("Ingen") : tb("{{0}} år", { 0: n })} selected={draft.minAge === n} onPress={() => set({ minAge: n })} />
+              ))}
+            </View>
+            <Text style={s.small}>{tb("Till exempel 18 år för alkohol på plats och 20 år för alkohol att ta med.")}</Text>
+          </View>
         </StepLayout>
       );
       break;
@@ -281,6 +295,7 @@ export default function OfferComposer() {
             <SummaryRow label={tb("Gäller")} value={expiresIso ? `till ${rangeText(expiresIso)}` : tb("tills vidare")} />
             <SummaryRow label={tb("Används")} value={INTERVALS.find((i) => i.id === draft.interval)?.title.toLowerCase() ?? ""} />
             {value ? <SummaryRow label={tb("Värde")} value={`${whole(value)} kr`} /> : null}
+            {draft.minAge ? <SummaryRow label={tb("Åldersgräns")} value={tb("{{0}} år", { 0: draft.minAge })} /> : null}
           </View>
           <Note text={tb("Ni kan pausa eller avsluta det när som helst under Erbjudanden.")} />
         </StepLayout>

@@ -60,6 +60,8 @@ interface FeedInput {
   visitedPlaceIds: Set<number>;
   /** Kategorierna man själv sagt att man gillar (profiles.interests) */
   interests: string[];
+  /** Den inloggades födelsedag (erbjudanden med åldersgräns) */
+  birthDate: string | null;
   /** Platser man själv sköter (Mitt företag): deras evenemang är "Ert evenemang" */
   ownPlaceIds?: Set<number>;
   location: { lat: number; lng: number } | null;
@@ -135,7 +137,7 @@ export function buildFeed(input: FeedInput): FeedItem[] {
   // ── Erbjudanden man kan använda, nyast först ──
   const newSince = now.getTime() - NEW_OFFER_DAYS * 86_400_000;
   const offers: FeedItem[] = input.offers
-    .filter((o) => offerEligibility(o, input.redemptions).canUse)
+    .filter((o) => offerEligibility(o, input.redemptions, input.birthDate).canUse)
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .map((offer) => ({ kind: "offer", key: `o${offer.id}`, offer, isNew: new Date(offer.created_at).getTime() >= newSince }));
 

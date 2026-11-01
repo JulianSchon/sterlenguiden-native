@@ -373,11 +373,13 @@ export const en: typeof sv = {
       many: "Can be used several times",
     },
     reason: {
+      age: "From age {{age}}",
       used: "Redeemed {{date}} at {{time}}",
       againHours: "Can be used again in {{n}} h",
       againDays: "Can be used again in {{n}} d",
     },
     drawer: {
+      age: "Age limit {{age}}",
       place: "Place",
       count: "{{count}} active offers",
       countOne: "1 active offer",

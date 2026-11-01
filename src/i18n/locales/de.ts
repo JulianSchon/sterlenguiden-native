@@ -373,11 +373,13 @@ export const de: typeof sv = {
       many: "Mehrfach nutzbar",
     },
     reason: {
+      age: "Ab {{age}} Jahren",
       used: "Eingelöst am {{date}} um {{time}}",
       againHours: "Wieder nutzbar in {{n}} Std.",
       againDays: "Wieder nutzbar in {{n}} Tg.",
     },
     drawer: {
+      age: "Altersgrenze {{age}} Jahre",
       place: "Ort",
       count: "{{count}} aktive Angebote",
       countOne: "1 aktives Angebot",

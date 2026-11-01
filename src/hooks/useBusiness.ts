@@ -219,6 +219,8 @@ export interface OfferDraft {
   redemption_limit: number | null;
   expires_at: string | null;
   image_url: string | null;
+  /** Åldersgräns: null, 18 eller 20 */
+  min_age: number | null;
 }
 
 export function useOfferActions(placeId: number) {

@@ -38,7 +38,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
-import { Camera, Crown, X, Clock, Timer, FileText, Check, ChevronRight } from "lucide-react-native";
+import { Camera, Crown, X, Clock, Timer, FileText, Check, ChevronRight, ShieldCheck } from "lucide-react-native";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions, useActivateOffer } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
@@ -389,6 +389,7 @@ export const OfferDrawer = memo(function OfferDrawer({
             <OfferCard
               key={offer.id}
               offer={offer}
+              birthDate={profile?.birth_date ?? null}
               index={i}
               showIndex={offers.length > 1}
               redemptions={redemptions}
@@ -542,6 +543,7 @@ function Scrap({ sc, p, vert, closing, ox, oy, ow, oh, image, bodyW }: ScrapProp
 
 function OfferCard({
   offer,
+  birthDate,
   index,
   showIndex,
   redemptions,
@@ -553,6 +555,8 @@ function OfferCard({
   onAddPhoto,
 }: {
   offer: Offer;
+  /** Den inloggades födelsedag (åldersgränsen) */
+  birthDate: string | null;
   index: number;
   showIndex: boolean;
   redemptions: { offer_id: string; activated_at: string }[];
@@ -568,7 +572,7 @@ function OfferCard({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const c = useThemedStyles(createCardStyles);
-  const eligibility = offerEligibility(offer, redemptions);
+  const eligibility = offerEligibility(offer, redemptions, birthDate);
   const savings = offerSavingsLabel(offer);
   const parts = savings ? splitSavings(savings) : null;
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -635,6 +639,9 @@ function OfferCard({
           text={t("offers.drawer.activeSecs", { secs: ACTIVE_SECS })}
         />
         <MetaRow icon={<FileText size={12} color={colors.goldText} strokeWidth={2} />} text={eligibility.ruleLabel} />
+        {offer.min_age ? (
+          <MetaRow icon={<ShieldCheck size={12} color={colors.goldText} strokeWidth={2} />} text={t("offers.drawer.age", { age: offer.min_age })} />
+        ) : null}
       </View>
 
       <View style={{ marginTop: 20 }}>

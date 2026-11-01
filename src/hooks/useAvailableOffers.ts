@@ -1,5 +1,6 @@
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions } from "@/hooks/useOfferRedemptions";
+import { useProfile } from "@/hooks/useProfile";
 import { offerEligibility } from "@/lib/offers";
 
 /**
@@ -9,6 +10,7 @@ import { offerEligibility } from "@/lib/offers";
 export function useAvailableOffers() {
   const { data: offers = [] } = useOffers();
   const { data: redemptions = [] } = useOfferRedemptions();
-  const available = offers.filter((o) => offerEligibility(o, redemptions).canUse);
+  const { data: profile } = useProfile();
+  const available = offers.filter((o) => offerEligibility(o, redemptions, profile?.birth_date ?? null).canUse);
   return { available };
 }
