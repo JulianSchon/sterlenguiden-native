@@ -246,6 +246,8 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
       queryClient.invalidateQueries({ queryKey: ["business-stories"] }),
     ].map((p) => p.catch(() => {})));
     setSeed(newSeed());
+    if (moreTimer.current) clearTimeout(moreTimer.current);
+    setLoadingMore(false);
     setShown(FIRST_PAGE);
     setVersion((v) => v + 1);
   }, [queryClient]);
@@ -444,6 +446,8 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
         ListFooterComponent={footer}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        // Låst medan ett erbjudande är öppet (samma som Förmåner och platssidan)
+        scrollEnabled={openOffer == null}
         showsVerticalScrollIndicator={false}
         // Luft nog för att "Visa mer" hamnar ovanför navigeringens toning
         contentContainerStyle={{ paddingBottom: FLOATING_NAV_HEIGHT + insets.bottom + 120 }}
