@@ -31,6 +31,7 @@ import * as Haptics from "expo-haptics";
 import i18n from "i18next";
 import { Trans, useTranslation } from "react-i18next";
 import { Image as ExpoImage } from "expo-image";
+import { DateBox } from "@/components/events/EventCards";
 import { CalendarDays, Check, Clock, MapPin, Moon, Search, UtensilsCrossed, X, type LucideIcon } from "lucide-react-native";
 import { firstImageUrl, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useEvents, type Event } from "@/hooks/useEvents";
@@ -55,7 +56,7 @@ import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { Skeleton } from "@/components/Skeleton";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
 import {
-  CATEGORY_DOT, CategoryDots, CategoryLine, ChipView, EventResultRow, HistoryRow, PlaceAnswer, PlaceResultRow, SectionHeader,
+  CATEGORY_DOT, CategoryIcons, CategoryLine, ChipView, EventResultRow, HistoryRow, PlaceAnswer, PlaceResultRow, SectionHeader,
   SummaryAnswer, TownRow, useOpenColors, type Chip,
 } from "@/components/search/SearchParts";
 
@@ -273,9 +274,15 @@ export default function ExploreScreen() {
   }, [addHistory, ask]);
   const onResultPlace = useCallback((p: Place) => openPlace(p, true), [openPlace]);
   const onResultEvent = useCallback((e: Event) => openEventItem(e, true), [openEventItem]);
+  const onBrowseEvent = useCallback((e: Event) => openEventItem(e, false), [openEventItem]);
   const onBrowsePlace = useCallback((p: Place) => openPlace(p, false), [openPlace]);
 
   // ── Bläddra: rutornas siffror och det som har öppet nära mig ─────────────
+  // "Händer snart" på startvyn: de närmaste kommande evenemangen (pågående först), högst 10
+  const soonEvents = useMemo(
+    () => (placesFetched ? searchEvents(events, parseQuery("evenemang", towns), new Date()).slice(0, 10) : null),
+    [placesFetched, events, towns],
+  );
   const tiles = useMemo(() => {
     if (!placesFetched) return null;
     const now = new Date();
@@ -444,8 +451,10 @@ export default function ExploreScreen() {
             nearby={openNearby}
             hasLoc={!!loc}
             towns={placesFetched ? townCards : null}
+            soonEvents={soonEvents}
             onAsk={ask}
             onOpenPlace={onBrowsePlace}
+            onOpenEvent={onBrowseEvent}
           />
         </Reanimated.View>
 
@@ -526,7 +535,7 @@ export default function ExploreScreen() {
 // ── Bläddra ─────────────────────────────────────────────────────────────────
 
 const BrowsePanel = memo(function BrowsePanel({
-  scrollRef, bottomPad, tiles, nearby, hasLoc, towns, onAsk, onOpenPlace,
+  scrollRef, bottomPad, tiles, nearby, hasLoc, towns, soonEvents, onAsk, onOpenPlace, onOpenEvent,
 }: {
   scrollRef: React.RefObject<ScrollView | null>;
   bottomPad: number;
@@ -534,8 +543,11 @@ const BrowsePanel = memo(function BrowsePanel({
   nearby: PlaceHit[] | null;
   hasLoc: boolean;
   towns: TownCard[] | null;
+  /** Kommande evenemang, null medan de laddas */
+  soonEvents: Event[] | null;
   onAsk: (q: string) => void;
   onOpenPlace: (p: Place) => void;
+  onOpenEvent: (e: Event) => void;
 }) {
   const { t } = useTranslation();
   const [allTowns, setAllTowns] = useState(false);
@@ -567,7 +579,18 @@ const BrowsePanel = memo(function BrowsePanel({
         </Reanimated.View>
       )}
 
-      <Reanimated.View entering={enterAt(2)}>
+      {(soonEvents === null || soonEvents.length > 0) && (
+        <Reanimated.View entering={enterAt(2)}>
+          <SectionHeader title={t("search.soon")} action={t("search.showAll")} onAction={() => onAsk(t("search.queries.events"))} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.bleed} contentContainerStyle={s.nearRow}>
+            {soonEvents === null
+              ? [0, 1, 2].map((i) => <NearCardSkeleton key={i} />)
+              : soonEvents.map((e) => <SoonCard key={e.id} event={e} onPress={onOpenEvent} />)}
+          </ScrollView>
+        </Reanimated.View>
+      )}
+
+      <Reanimated.View entering={enterAt(3)}>
         <SectionHeader
           title={t("search.exploreTowns")}
           action={towns && towns.length > FIRST_TOWNS ? t(allTowns ? "search.showFewer" : "search.showAll") : undefined}
@@ -601,6 +624,22 @@ function IntentTile({ label, sub, Icon, tint, onPress }: {
   );
 }
 
+/** Ett kommande evenemang: bilden med datumet i hörnet, och namn och plats under — samma mått som
+ * korten för Öppet nu, så raderna hör ihop */
+const SoonCard = memo(function SoonCard({ event, onPress }: { event: Event; onPress: (e: Event) => void }) {
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity style={s.near} activeOpacity={0.85} onPress={() => onPress(event)}>
+      <View style={[s.nearImage, { backgroundColor: colors.fill }]}>
+        {event.image_url && <ExpoImage source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
+        <DateBox event={event} small style={s.soonDate} />
+      </View>
+      <Text style={[s.nearName, { color: colors.text }]} numberOfLines={1}>{event.title}</Text>
+      <Text style={[s.soonMeta, { color: colors.muted }]} numberOfLines={1}>{event.location ?? event.place?.name ?? eventWhen(event)}</Text>
+    </TouchableOpacity>
+  );
+});
+
 /** Ett ställe som har öppet nu: bilden, och all text under (öppettiden grön, avståndet grått) */
 const NearCard = memo(function NearCard({ hit, onPress }: { hit: PlaceHit; onPress: (p: Place) => void }) {
   const { colors } = useTheme();
@@ -631,7 +670,7 @@ function NearCardSkeleton() {
   );
 }
 
-/** En ort i rutnätet: namnet, hur många platser och hur långt bort, och prickar för vad som finns där */
+/** En ort i rutnätet: namnet, hur många platser och hur långt bort, och ikoner för vad som finns där */
 function TownTile({ town, onPress }: { town: TownCard; onPress: () => void }) {
   const { colors } = useTheme();
   const detail = `${placesText(town.count)}${town.km != null ? `  ·  ${distanceLabel(town.km)}` : ""}`;
@@ -639,7 +678,7 @@ function TownTile({ town, onPress }: { town: TownCard; onPress: () => void }) {
     <TouchableOpacity style={[s.townTile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.75} onPress={onPress}>
       <Text style={[s.townName, { color: colors.text }]} numberOfLines={1}>{town.name}</Text>
       <Text style={[s.townDetail, { color: colors.muted }]} numberOfLines={1}>{detail}</Text>
-      <CategoryDots cats={town.cats.slice(0, 7)} />
+      <CategoryIcons cats={town.cats.slice(0, 7)} />
     </TouchableOpacity>
   );
 }
@@ -1002,6 +1041,8 @@ const s = StyleSheet.create({
   nearImage: { width: 156, height: 112, borderRadius: 14, overflow: "hidden", marginBottom: 5 },
   nearName: { fontFamily: "Montserrat_700Bold", fontSize: 14.5, letterSpacing: -0.2 },
   nearOpen: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  soonDate: { position: "absolute", top: 6, left: 6 },
+  soonMeta: { fontFamily: "Inter_500Medium", fontSize: 12 },
 
   townGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 6 },
   townTile: { width: "48.4%", gap: 6, padding: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },

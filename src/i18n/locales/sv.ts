@@ -727,6 +727,7 @@ export const sv = {
     clear: "Rensa",
     cancel: "Avbryt",
     whatToDo: "Vad vill du göra?",
+    soon: "Händer snart",
     openNowNear: "Öppet nu nära dig",
     openNow: "Öppet nu",
     open: "Öppet",

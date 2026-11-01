@@ -724,6 +724,7 @@ export const de: typeof sv = {
     clear: "Löschen",
     cancel: "Abbrechen",
     whatToDo: "Was möchtest du machen?",
+    soon: "Demnächst",
     openNowNear: "Jetzt geöffnet in deiner Nähe",
     openNow: "Jetzt geöffnet",
     open: "Geöffnet",

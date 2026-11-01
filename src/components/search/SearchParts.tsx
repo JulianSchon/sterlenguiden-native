@@ -16,7 +16,7 @@ import {
 } from "lucide-react-native";
 import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import type { Event } from "@/hooks/useEvents";
-import { findCategory, withAlpha, type CategoryId } from "@/theme/categories";
+import { findCategory, withAlpha, type CategoryId, CATEGORIES } from "@/theme/categories";
 import { useTheme } from "@/theme/ThemeProvider";
 import { distanceLabel } from "@/lib/mapFilters";
 import { eventWhen } from "@/lib/events";
@@ -147,23 +147,19 @@ export const EventResultRow = memo(function EventResultRow({ event, tokens, onPr
   );
 });
 
-/** Prickarnas ordning: runt färgcirkeln (rött → orange → gult → grönt → blått → lila → silver), lugnt för ögat */
-const HUE_ORDER: CategoryId[] = [
-  "mat-dryck", "butiker", "cafe-bageri", "natur-upplevelser", "aktiviteter", "hotell-bb", "sevardheter", "hantverk-service",
-];
-
-/** Vad som finns i en ort: en prick per slags ställe, i kartans färger och i färgordning */
-export function CategoryDots({ cats }: { cats: CategoryId[] }) {
-  const { scheme } = useTheme();
-  const sorted = [...cats].sort((a, b) => HUE_ORDER.indexOf(a) - HUE_ORDER.indexOf(b));
+/** Vad som finns i en ort: en liten grå ikon per slags ställe (gaffel, kopp, säng …), i appens
+ * kategoriordning. Grått och lugnt — färgade prickar blev en regnbåge man inte kunde läsa. */
+export function CategoryIcons({ cats }: { cats: CategoryId[] }) {
+  const { colors } = useTheme();
+  const shown = CATEGORIES.filter((c) => cats.includes(c.id));
   return (
-    <View style={s.dots}>
-      {sorted.map((c) => <View key={c} style={[s.dotLg, { backgroundColor: CATEGORY_DOT[scheme][c] }]} />)}
+    <View style={s.catIcons}>
+      {shown.map(({ id, icon: Icon }) => <Icon key={id} size={14} color={colors.faint} strokeWidth={2} />)}
     </View>
   );
 }
 
-/** En ort: namnet, hur många platser, och prickar för vad som finns där */
+/** En ort: namnet, hur många platser, och ikoner för vad som finns där */
 export function TownRow({ name, detail, cats, onPress }: {
   name: string; detail: string; cats: CategoryId[]; onPress: () => void;
 }) {
@@ -176,7 +172,7 @@ export function TownRow({ name, detail, cats, onPress }: {
       <View style={s.rowBody}>
         <Text style={[s.title, { color: colors.text }]} numberOfLines={1}>{name}</Text>
         <Text style={[s.meta, { color: colors.muted }]}>{detail}</Text>
-        {cats.length > 0 && <CategoryDots cats={cats} />}
+        {cats.length > 0 && <CategoryIcons cats={cats} />}
       </View>
     </TouchableOpacity>
   );
@@ -353,8 +349,7 @@ export function SectionHeader({ title, count, action, onAction }: {
 
 const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
-  dots: { flexDirection: "row", gap: 5, marginTop: 2 },
-  dotLg: { width: 9, height: 9, borderRadius: 4.5 },
+  catIcons: { flexDirection: "row", gap: 8, marginTop: 3 },
   pinTile: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   catLine: { flexDirection: "row", alignItems: "center", gap: 7 },
   meta: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 13 },
