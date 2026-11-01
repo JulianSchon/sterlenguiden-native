@@ -138,8 +138,10 @@ export const FeedPlaceCard = memo(function FeedPlaceCard({ place, reason, km, sa
   const cat = findCategory(place.category)?.id;
   return (
     <View style={s.card}>
-      {/* Sparar man platsen byts skälet direkt, som på evenemangen */}
-      <Eyebrow dot={cat ? CATEGORY_DOT[scheme][cat] : colors.faint} text={saved ? t("home.reasons.saved") : reason} color={colors.goldText} />
+      {/* Sparar man platsen byts skälet direkt till ett rött hjärta, som "Du har sparat det" på evenemangen */}
+      {saved
+        ? <Eyebrow Icon={Heart} filled text={t("home.reasons.saved")} color={colors.danger} />
+        : <Eyebrow dot={cat ? CATEGORY_DOT[scheme][cat] : colors.faint} text={reason} color={colors.goldText} />}
       <FeedImages imageUrl={place.image_url} aspectRatio={1.25} onPress={() => onOpen(place)} />
       <View style={s.info}>
         <Pressable style={{ flex: 1, gap: 5 }} onPress={() => onOpen(place)}>

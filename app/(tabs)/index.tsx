@@ -260,6 +260,10 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
     await new Promise((r) => setTimeout(r, Math.max(0, MIN_REFRESH_MS - (Date.now() - started))));
     setRefreshing(false);
   }, [rebuild]);
+  const refreshRef = useRef(onRefresh);
+  refreshRef.current = onRefresh;
+  const refreshingRef = useRef(refreshing);
+  refreshingRef.current = refreshing;
   // Tillbaka efter en halvtimme eller mer: ett nytt flöde, uppifrån
   useEffect(() => {
     let away = 0;
@@ -350,7 +354,11 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   // Fliktrycket i navigeringen scrollar upp till toppen
   const listRef = useRef<FlatList<FeedItem>>(null);
   useEffect(() => {
-    registerScrollCallback("home", () => listRef.current?.scrollToOffset({ offset: 0, animated: true }));
+    // Fliken Hem: upp överst och ladda om (som att dra ner), när scrollen hunnit upp
+    registerScrollCallback("home", () => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      setTimeout(() => { if (!refreshingRef.current) refreshRef.current(); }, 350);
+    });
   }, []);
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler({

@@ -213,7 +213,8 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
     if (!offer) return;
     autoOffer.current = null;
     scrollRef.current?.scrollTo({ y: Math.max(0, ticketsY - insets.top - TOP_BAR_H - 24), animated: true });
-    const t = setTimeout(() => setAutoOpenId(offer.id), 550);
+    // Rivningen börjar först när scrollen hunnit fram och hela biljetten syns
+    const t = setTimeout(() => setAutoOpenId(offer.id), 700);
     return () => clearTimeout(t);
   }, [later, offers, ticketsY, insets.top, scrollRef]);
 
@@ -251,6 +252,7 @@ function PlacePage({ place, places }: { place: Place; places: Place[] }) {
           edge={edge}
           openOfferId={openOffer?.origin ? openOffer.offer.id : null}
           autoOpenId={autoOpenId}
+          autoTargetId={params.offer ?? null}
           onTicketsY={onTicketsY}
           onOpenOffer={onOpenOffer}
           openSheet={openSheet}
@@ -289,7 +291,7 @@ const RISE_IN = (i: number) =>
  * paneler eller hjärtat. Allt har hel bakgrund och ligger ovanpå bilden (som glider in under).
  */
 const PlaceContent = memo(function PlaceContent({
-  place, places, later, heroH, scrollY, scrollAt, edge, openOfferId, autoOpenId, onTicketsY, onOpenOffer, openSheet, showToast,
+  place, places, later, heroH, scrollY, scrollAt, edge, openOfferId, autoOpenId, autoTargetId, onTicketsY, onOpenOffer, openSheet, showToast,
 }: {
   place: Place;
   places: Place[];
@@ -302,7 +304,9 @@ const PlaceContent = memo(function PlaceContent({
   openOfferId: string | null;
   /** Biljetten som ska öppnas av sig själv (från en storys klistermärke) */
   autoOpenId: string | null;
-  /** Var biljetterna ligger på sidan (för att kunna scrolla dit) */
+  /** Erbjudandet sidan öppnades för (storyns klistermärke), om något */
+  autoTargetId: string | null;
+  /** Var den biljetten ligger på sidan (för att kunna scrolla dit) */
   onTicketsY: (y: number) => void;
   onOpenOffer: (offer: Offer, origin: OriginRect | null) => void;
   openSheet: (sheet: PlaceSheet) => void;
@@ -450,8 +454,15 @@ const PlaceContent = memo(function PlaceContent({
       )}
 
       {ticketList.length > 0 && (
+        // Mäts här (direkt under sidans innehåll), inte inne i Section — där var y räknat från
+        // rubriken och sidan scrollade bara en bit
+        <View onLayout={(e) => {
+          // Biljetten som ska öppnas kan ligga längre ner i listan
+          const i = Math.max(0, ticketList.findIndex((x) => x.offer.id === autoTargetId));
+          onTicketsY(heroH + e.nativeEvent.layout.y + i * (TICKET_H + 14));
+        }}>
         <Section title={t("pass.title")}>
-          <View style={{ gap: 14 }} onLayout={(e) => onTicketsY(heroH + e.nativeEvent.layout.y)}>
+          <View style={{ gap: 14 }}>
             {ticketList.map(({ offer, used }, i) => (later ? (
               <Reanimated.View key={offer.id} entering={RISE_IN(i)}>
                 <OfferTicket
@@ -468,6 +479,7 @@ const PlaceContent = memo(function PlaceContent({
             ) : <Skeleton key={offer.id} height={TICKET_H} radius={18} />))}
           </View>
         </Section>
+        </View>
       )}
 
       {friends.length > 0 && (
