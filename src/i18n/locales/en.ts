@@ -760,9 +760,7 @@ export const en: typeof sv = {
       sleepMany: "{{count}} places to stay", sleepFew: "Hotels & B&Bs",
       lateMany: "{{count}} open after 9 pm", lateFew: "After 9 pm", lateNone: "Nothing tonight",
       kidsMany: "{{count}} family-friendly", kidsFew: "For families",
-      dogMany: "{{count}} dog-friendly", dogFew: "For dog owners",
       natureMany: "{{count}} places", natureFew: "Beach & forest",
-      eventsMany: "{{count}} coming up", eventsFew: "Coming up", eventsNone: "None right now",
     },
     answer: {
       best: "BEST MATCH",

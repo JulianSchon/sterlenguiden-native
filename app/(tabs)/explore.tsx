@@ -1,9 +1,11 @@
 /**
  * Sök.
  *
- * Innan man skriver: "Vad vill du göra?" (Äta nu, Fika, Sova i natt …, med hur många som finns
- * just nu), det som har öppet nära mig, och orterna med ett foto därifrån. Trycker man i
- * sökfältet: senaste sökningarna (det man öppnat via söket och det man sökt på, som i Spotify).
+ * Innan man skriver: "Vad vill du göra?" (sex rutor: Äta nu, Fika, Sova i natt …, med hur många
+ * som finns just nu), det som har öppet nära mig, evenemang som händer snart, och orterna med små
+ * ikoner för vad som finns där. Trycker man i sökfältet: senaste sökningarna (det man öppnat via
+ * söket och det man sökt på, som i Spotify). Ett tryck på Sök-fliken när man redan står överst
+ * sätter markören i sökfältet.
  *
  * När man skriver söks allt i telefonen (lib/search), så svaret kommer på första bokstaven. Överst
  * ett svarskort med det viktigaste direkt: "Bästa träff" (platsen själv: öppet, avstånd, karta,
@@ -52,6 +54,10 @@ import { pushOnce } from "@/lib/navigateOnce";
 import { openDirections } from "@/lib/placeLinks";
 import { registerScrollCallback } from "@/lib/scrollRefs";
 import { TILES, TINT, type Tint } from "@/lib/searchShortcuts";
+
+/** Sökets rutor: Hems genvägar utom Med hund (finns som ord i söket) och Evenemang (har en egen
+ * rad, Händer snart) — sex rutor, tre rader */
+const SEARCH_TILES = TILES.filter((x) => x.key !== "dog" && x.key !== "events");
 import { FLOATING_NAV_HEIGHT } from "@/components/navigation/FloatingNav";
 import { Skeleton } from "@/components/Skeleton";
 import { LikeBurst, useLikeBurst } from "@/components/LikeHeart";
@@ -251,8 +257,12 @@ export default function ExploreScreen() {
   const resultsRef = useRef<ScrollView>(null);
   const searchingRef = useRef(searching);
   searchingRef.current = searching;
+  // — och står man redan överst sätts markören i sökfältet (som i Spotify)
+  const browseY = useRef(0);
+  const onBrowseScroll = useCallback((y: number) => { browseY.current = y; }, []);
   useEffect(() => {
     registerScrollCallback("search", () => {
+      if (!searchingRef.current && browseY.current < 4) { inputRef.current?.focus(); return; }
       (searchingRef.current ? resultsRef : browseRef).current?.scrollTo({ y: 0, animated: true });
     });
   }, []);
@@ -290,10 +300,9 @@ export default function ExploreScreen() {
       const r = searchPlaces(index, parseQuery(q, towns), loc, now);
       return r.relaxed.length > 0 ? 0 : r.hits.length;
     };
-    const upcoming = searchEvents(events, parseQuery("evenemang", towns), now).length;
     const n = {
       eat: count("äta nu"), fika: count("fika"), sleep: count("sova"), late: count("öppet sent"),
-      kids: count("familj"), dog: count("med hund"), nature: count("natur"),
+      kids: count("familj"), nature: count("natur"),
     };
     // Är det färre än 5 står en beskrivning i stället — en ensam etta ser tom ut
     const many = (k: number, text: string, few: string) => (k >= FEW ? text : few);
@@ -303,13 +312,11 @@ export default function ExploreScreen() {
       sleep: many(n.sleep, t("search.tiles.sleepMany", { count: n.sleep }), t("search.tiles.sleepFew")),
       late: many(n.late, t("search.tiles.lateMany", { count: n.late }), t(n.late ? "search.tiles.lateFew" : "search.tiles.lateNone")),
       kids: many(n.kids, t("search.tiles.kidsMany", { count: n.kids }), t("search.tiles.kidsFew")),
-      dog: many(n.dog, t("search.tiles.dogMany", { count: n.dog }), t("search.tiles.dogFew")),
       nature: many(n.nature, t("search.tiles.natureMany", { count: n.nature }), t("search.tiles.natureFew")),
-      events: many(upcoming, t("search.tiles.eventsMany", { count: upcoming }), t(upcoming ? "search.tiles.eventsFew" : "search.tiles.eventsNone")),
     };
     return subs;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placesFetched, index, towns, events, loc, tick, lang.language]);
+  }, [placesFetched, index, towns, loc, tick, lang.language]);
 
   const openNearby = useMemo(() => {
     if (!placesFetched) return null;
@@ -452,6 +459,7 @@ export default function ExploreScreen() {
             hasLoc={!!loc}
             towns={placesFetched ? townCards : null}
             soonEvents={soonEvents}
+            onScrollY={onBrowseScroll}
             onAsk={ask}
             onOpenPlace={onBrowsePlace}
             onOpenEvent={onBrowseEvent}
@@ -535,7 +543,7 @@ export default function ExploreScreen() {
 // ── Bläddra ─────────────────────────────────────────────────────────────────
 
 const BrowsePanel = memo(function BrowsePanel({
-  scrollRef, bottomPad, tiles, nearby, hasLoc, towns, soonEvents, onAsk, onOpenPlace, onOpenEvent,
+  scrollRef, bottomPad, tiles, nearby, hasLoc, towns, soonEvents, onScrollY, onAsk, onOpenPlace, onOpenEvent,
 }: {
   scrollRef: React.RefObject<ScrollView | null>;
   bottomPad: number;
@@ -545,6 +553,7 @@ const BrowsePanel = memo(function BrowsePanel({
   towns: TownCard[] | null;
   /** Kommande evenemang, null medan de laddas */
   soonEvents: Event[] | null;
+  onScrollY: (y: number) => void;
   onAsk: (q: string) => void;
   onOpenPlace: (p: Place) => void;
   onOpenEvent: (e: Event) => void;
@@ -555,6 +564,8 @@ const BrowsePanel = memo(function BrowsePanel({
   return (
     <ScrollView
       ref={scrollRef}
+      onScroll={(e) => onScrollY(e.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={64}
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomPad }}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
@@ -562,7 +573,7 @@ const BrowsePanel = memo(function BrowsePanel({
       <Reanimated.View entering={enterAt(0)}>
         <SectionHeader title={t("search.whatToDo")} />
         <View style={s.tiles}>
-          {TILES.map((t) => (
+          {SEARCH_TILES.map((t) => (
             <IntentTile key={t.key} label={t.label} Icon={t.Icon} tint={t.tint} sub={tiles?.[t.key] ?? null} onPress={() => onAsk(t.query)} />
           ))}
         </View>

@@ -763,9 +763,7 @@ export const sv = {
       sleepMany: "{{count}} boenden", sleepFew: "Hotell & B&B",
       lateMany: "{{count}} öppna efter 21", lateFew: "Efter 21", lateNone: "Inget i kväll",
       kidsMany: "{{count}} barnvänliga", kidsFew: "För familjer",
-      dogMany: "{{count}} hundvänliga", dogFew: "För hundägare",
       natureMany: "{{count}} platser", natureFew: "Strand & skog",
-      eventsMany: "{{count}} kommande", eventsFew: "Kommande", eventsNone: "Inga just nu",
     },
     answer: {
       best: "BÄSTA TRÄFF",

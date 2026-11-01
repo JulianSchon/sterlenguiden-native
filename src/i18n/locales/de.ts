@@ -760,9 +760,7 @@ export const de: typeof sv = {
       sleepMany: "{{count}} Unterkünfte", sleepFew: "Hotels & B&Bs",
       lateMany: "{{count}} nach 21 Uhr geöffnet", lateFew: "Nach 21 Uhr", lateNone: "Heute Abend nichts",
       kidsMany: "{{count}} familienfreundlich", kidsFew: "Für Familien",
-      dogMany: "{{count}} hundefreundlich", dogFew: "Für Hundebesitzer",
       natureMany: "{{count}} Orte", natureFew: "Strand & Wald",
-      eventsMany: "{{count}} demnächst", eventsFew: "Demnächst", eventsNone: "Gerade keine",
     },
     answer: {
       best: "BESTER TREFFER",
