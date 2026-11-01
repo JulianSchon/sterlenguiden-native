@@ -1200,7 +1200,7 @@ export const en: typeof sv = {
     challengeDone: "CHALLENGE COMPLETE!", nextGoal: "NEXT GOAL", allLevels: "All three levels done — the whole challenge is yours!",
     seeChallenges: "See in Challenges",
     daysInRow: " days in a row", week: "A whole week in a row!", month: "A whole month in a row!", hundred: "A hundred days in a row!",
-    year: "A whole year in a row!", nDays: "{{count}} days in a row!", keepAlive: "Open the app tomorrow to keep the fire alive.",
+    year: "A whole year in a row!", nDays: "{{count}} days in a row!", keepAlive: "Open the app tomorrow to keep your streak alive.",
     since: "Since {{date}}", pass: "ÖSTERLEN PASS", activate: "Tap to activate →",
     lockedTitle: "Unlock with the Österlen Pass", lockedSub: "This is where you show the card at the till and get the discount",
     live: "LIVE VERIFICATION", noPhoto: "No photo", instruction: "Show at the till • Tap to flip",

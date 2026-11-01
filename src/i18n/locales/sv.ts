@@ -1203,7 +1203,7 @@ export const sv = {
     challengeDone: "UTMANING KLARAD!", nextGoal: "NÄSTA MÅL", allLevels: "Alla tre nivåer klara — hela utmaningen är din!",
     seeChallenges: "Se i Utmaningar",
     daysInRow: " dagar i rad", week: "En hel vecka i rad!", month: "En hel månad i rad!", hundred: "Hundra dagar i rad!",
-    year: "Ett helt år i rad!", nDays: "{{count}} dagar i rad!", keepAlive: "Öppna appen i morgon för att hålla elden vid liv.",
+    year: "Ett helt år i rad!", nDays: "{{count}} dagar i rad!", keepAlive: "Öppna appen i morgon för att hålla streaken vid liv.",
     since: "Sedan {{date}}", pass: "ÖSTERLENPASSET", activate: "Tryck för att aktivera →",
     lockedTitle: "Lås upp med Österlenpasset", lockedSub: "Här visar du kortet vid kassan och får rabatten",
     live: "LIVE-VERIFIERING", noPhoto: "Foto saknas", instruction: "Visa vid kassan • Tryck för att vända",

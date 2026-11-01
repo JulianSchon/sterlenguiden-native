@@ -13,7 +13,7 @@
  */
 import { useDerivedValue, type SharedValue } from "react-native-reanimated";
 import {
-  Canvas, Path, Circle, Group, Skia, LinearGradient, BlurMask, useClock, vec,
+  Canvas, Path, Circle, ColorMatrix, Group, Paint, Skia, LinearGradient, BlurMask, useClock, vec,
   type SkPath,
 } from "@shopify/react-native-skia";
 
@@ -252,18 +252,32 @@ type StreakFlameProps = {
   timeOffset?: number;
   /** Tändningen, 0 = släckt → 1 = brinner (linjärt i tid, se stage). Utelämnad = brinner redan */
   ignite?: SharedValue<number>;
+  /** Släckt: samma form som en stilla, grå siluett (före tändningen i firandet och streak-pillret) */
+  silhouette?: boolean;
 };
 
-export function StreakFlame({ size = 215, compact = false, timeOffset = 0, ignite }: StreakFlameProps) {
+// Allt i lågan blir samma grå ton (alfa behålls) — en siluett av just vår eld
+const SILHOUETTE_MATRIX = [
+  0, 0, 0, 0, 0.36,
+  0, 0, 0, 0, 0.353,
+  0, 0, 0, 0, 0.337,
+  0, 0, 0, 1, 0,
+];
+
+export function StreakFlame({ size = 215, compact = false, timeOffset = 0, ignite, silhouette = false }: StreakFlameProps) {
   const clock = useClock();
-  const t = useDerivedValue(() => clock.value + timeOffset);
+  // Siluetten står still (en släckt eld rör sig inte)
+  const t = useDerivedValue(() => (silhouette ? timeOffset : clock.value + timeOffset));
   const view = compact ? VIEW_COMPACT : VIEW_FULL;
   const scale = size / view.w;
   const head = ignite && !compact ? IGNITE_HEADROOM : 0;
 
   return (
     <Canvas style={{ width: size, height: (view.h + head) * scale, marginTop: -head * scale }} pointerEvents="none">
-      <Group transform={[{ scale }, { translateX: -view.x }, { translateY: -view.y + head }]}>
+      <Group
+        transform={[{ scale }, { translateX: -view.x }, { translateY: -view.y + head }]}
+        layer={silhouette ? <Paint><ColorMatrix matrix={SILHOUETTE_MATRIX} /></Paint> : undefined}
+      >
         {ignite && <GasFlame ignite={ignite} />}
         {BODIES.map((b, i) => (
           <BodyLayer key={i} t={t} body={b} ignite={ignite} />

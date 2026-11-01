@@ -1200,7 +1200,7 @@ export const de: typeof sv = {
     challengeDone: "HERAUSFORDERUNG GESCHAFFT!", nextGoal: "NÄCHSTES ZIEL", allLevels: "Alle drei Stufen geschafft — die ganze Herausforderung gehört dir!",
     seeChallenges: "In Herausforderungen ansehen",
     daysInRow: " Tage in Folge", week: "Eine ganze Woche in Folge!", month: "Ein ganzer Monat in Folge!", hundred: "Hundert Tage in Folge!",
-    year: "Ein ganzes Jahr in Folge!", nDays: "{{count}} Tage in Folge!", keepAlive: "Öffne die App morgen, damit das Feuer weiterbrennt.",
+    year: "Ein ganzes Jahr in Folge!", nDays: "{{count}} Tage in Folge!", keepAlive: "Öffne die App morgen, damit deine Serie weiterläuft.",
     since: "Seit {{date}}", pass: "ÖSTERLEN-PASS", activate: "Zum Aktivieren tippen →",
     lockedTitle: "Mit dem Österlen-Pass freischalten", lockedSub: "Hier zeigst du die Karte an der Kasse und bekommst den Rabatt",
     live: "LIVE-PRÜFUNG", noPhoto: "Kein Foto", instruction: "An der Kasse zeigen • Zum Umdrehen tippen",
