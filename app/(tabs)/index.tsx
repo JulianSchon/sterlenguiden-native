@@ -379,6 +379,13 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   useEffect(() => {
     registerScrollCallback("home", () => {
       if (refreshingRef.current) return;
+      // Står man redan överst glider sidan först ner till snurran, och sen startar den (startades den
+      // direkt hoppade sidan ner till den i stället för att glida)
+      if (scrollY.value < 8) {
+        listRef.current?.scrollToOffset({ offset: -REFRESH_SPACE, animated: true });
+        setTimeout(() => refreshRef.current(), 280);
+        return;
+      }
       refreshRef.current();
       // Långt ner: hoppa först en skärm från toppen och glid sista biten. Att glida genom hela
       // flödet ritade alla kort på vägen (segt, och listan varnade för det)
