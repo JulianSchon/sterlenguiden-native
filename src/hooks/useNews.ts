@@ -26,6 +26,10 @@ export function useNews(limit = 5) {
       const { data, error } = await supabase
         .from("news")
         .select("*, place:places(id, name, nearest_town)")
+        // Bara publicerade, och inte de som är schemalagda framåt. Admin får läsa utkast (för att
+        // kunna förhandsgranska), så utan det här syntes utkasten i admins eget flöde på Hem.
+        .eq("is_published", true)
+        .lte("published_at", new Date().toISOString())
         .order("is_pinned", { ascending: false })
         .order("priority", { ascending: false })
         .order("published_at", { ascending: false })
