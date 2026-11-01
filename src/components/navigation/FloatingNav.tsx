@@ -40,7 +40,19 @@ import {
 
 // ─── Konstanter ───────────────────────────────────────────────────────────────
 export const FLOATING_NAV_HEIGHT = 56; // höjd på knappraden
-const FADE_AREA   = 84;   // utrymme ovan knappraden för gradienten
+const FADE_AREA   = 100;  // utrymme ovan knappraden för gradienten
+
+/**
+ * Fadens täckning uppifrån och ner, som en mjuk S-kurva (smoothstep) i stället för raka steg: den
+ * börjar helt platt i överkanten, så man aldrig ser var faden börjar (en rak start gav en synlig
+ * kant mot ljusa bilder i mörkt läge och mörka i ljust), och är nästan helt täckt vid ikonerna.
+ * Många stopp, så kurvan inte blir hackig.
+ */
+const FADE_STOPS = Array.from({ length: 13 }, (_, i) => {
+  const t = i / 12;
+  const x = Math.min(1, t / 0.8);
+  return { offset: `${Math.round(t * 100)}%`, opacity: x * x * (3 - 2 * x) };
+});
 const EXTRA_BOTTOM = 8;   // extra utrymme ovanpå safe area, så ikonerna hamnar klart ovanför hemknapp-zonen
 
 /**
@@ -264,10 +276,9 @@ export default function FloatingNav() {
         >
           <Defs>
             <SvgGrad id="navfade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={colors.bg} stopOpacity={0}    />
-              <Stop offset="30%"  stopColor={colors.bg} stopOpacity={0.55} />
-              <Stop offset="65%"  stopColor={colors.bg} stopOpacity={0.88} />
-              <Stop offset="100%" stopColor={colors.bg} stopOpacity={1}    />
+              {FADE_STOPS.map((stop) => (
+                <Stop key={stop.offset} offset={stop.offset} stopColor={colors.bg} stopOpacity={stop.opacity} />
+              ))}
             </SvgGrad>
           </Defs>
           <SvgRect width="100%" height="100%" fill="url(#navfade)" />
