@@ -147,14 +147,21 @@ export const EventResultRow = memo(function EventResultRow({ event, tokens, onPr
   );
 });
 
-/** Vad som finns i en ort: en liten grå ikon per slags ställe (gaffel, kopp, säng …), i appens
- * kategoriordning. Grått och lugnt — färgade prickar blev en regnbåge man inte kunde läsa. */
+/** Ikonernas ordning: runt färgcirkeln (rött → orange → gult → grönt → blått → lila → silver), lugnt för ögat */
+const HUE_ORDER: CategoryId[] = [
+  "mat-dryck", "butiker", "cafe-bageri", "natur-upplevelser", "aktiviteter", "hotell-bb", "sevardheter", "hantverk-service",
+];
+
+/** Vad som finns i en ort: en liten ikon per slags ställe (gaffel, kopp, säng …) i kategorins
+ * färg (samma som kartans prickar), ordnade efter färg så raden flyter i stället för att hoppa */
 export function CategoryIcons({ cats }: { cats: CategoryId[] }) {
-  const { colors } = useTheme();
-  const shown = CATEGORIES.filter((c) => cats.includes(c.id));
+  const { scheme } = useTheme();
+  const shown = CATEGORIES
+    .filter((c) => cats.includes(c.id))
+    .sort((a, b) => HUE_ORDER.indexOf(a.id) - HUE_ORDER.indexOf(b.id));
   return (
     <View style={s.catIcons}>
-      {shown.map(({ id, icon: Icon }) => <Icon key={id} size={14} color={colors.faint} strokeWidth={2} />)}
+      {shown.map(({ id, icon: Icon }) => <Icon key={id} size={14} color={CATEGORY_DOT[scheme][id]} strokeWidth={2.2} />)}
     </View>
   );
 }
