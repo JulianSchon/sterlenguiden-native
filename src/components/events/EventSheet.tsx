@@ -176,7 +176,9 @@ export function EventSheetHost() {
       // Före bytet: en bild som redan finns i minnet kan bli klar innan effekterna efter bytet ens
       // körts — då måste panelen redan veta hur många bilder den väntar på (annars trodde den att
       // allt var klart, gled upp direkt och nästa bild blev klar mitt i rörelsen)
-      partsLeft.current = (event.image_url ? 1 : 0) + (event.place?.logo_url ? 1 : 0) + 1;
+      // Loggan: platsens, eller eventets egen när arrangören inte är en plats i appen
+      const logo = event.place ? !!event.place.logo_url : !!(event.logo_url && event.website_url);
+      partsLeft.current = (event.image_url ? 1 : 0) + (logo ? 1 : 0) + 1;
       minWaitDone.current = false;
       openKey.value = request.key;
       xAnim.value = 0;
@@ -548,8 +550,19 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
             onPress={onGoToPlace}
           />
         ) : websiteHost ? (
+          // Arrangören finns inte i appen: dess egen logga (events.logo_url), annars en jordglob
           <InfoRow
-            icon={<Globe size={20} color={colors.text} strokeWidth={2} />}
+            icon={event.logo_url
+              ? (
+                <Image
+                  source={{ uri: event.logo_url }}
+                  style={s.logo}
+                  resizeMode="cover"
+                  onLoad={() => onPartReady(openKey)}
+                  onError={() => onPartReady(openKey)}
+                />
+              )
+              : <Globe size={20} color={colors.text} strokeWidth={2} />}
             title={websiteHost}
             sub={t("calendar.sheet.organizerSite")}
             onPress={() => Linking.openURL(event.website_url!).catch(() => {})}

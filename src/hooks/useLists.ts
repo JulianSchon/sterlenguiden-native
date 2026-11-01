@@ -108,7 +108,7 @@ export function useLists() {
           .eq("user_id", userId),
       ]);
       if (error) throw error;
-      if (opensError) console.error("list_opens misslyckades:", opensError);
+      // Gick öppningarna inte att hämta visas listorna ändå, bara i skapad-ordning
       const openedAt = new Map((opens ?? []).map((o) => [o.list_id, o.opened_at as string]));
 
       return (data ?? [])
