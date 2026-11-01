@@ -24,8 +24,8 @@ export const TINT = {
   dog: { dark: "#C08A5B", light: "#7C4A21" },
   nature: { dark: "#2BA36A", light: "#064E3B" },
   events: { dark: "#A55BE0", light: "#581C87" },
-  // Spa: en mjuk rosa som inte finns bland kategorierna
-  spa: { dark: "#E08AB4", light: "#9D174D" },
+  // Spa: djupt vattenblått
+  spa: { dark: "#4A6FE0", light: "#1E3A8A" },
   // Sevärt: sevärdheternas kategorifärg
   sights: { dark: "#A55BE0", light: "#581C87" },
   open: { dark: "#4ADE80", light: "#15803D" },
@@ -61,8 +61,8 @@ const byKey = (key: string) => TILES.find((x) => x.key === key)!;
 export const SEARCH_TILES: Shortcut[] = [
   byKey("eat"), byKey("fika"),
   byKey("sleep"), byKey("kids"),
-  tile("spa", Bath, TINT.spa), byKey("late"),
-  tile("sights", Landmark, TINT.sights), byKey("nature"),
+  byKey("late"), tile("sights", Landmark, TINT.sights),
+  byKey("nature"), tile("spa", Bath, TINT.spa),
 ];
 
 /**
