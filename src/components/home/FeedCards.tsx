@@ -106,7 +106,7 @@ export const FeedEventCard = memo(function FeedEventCard({ pick, hero, saved, on
         ? <Eyebrow live text={hero ? liveText : reason.text} color={liveColor} />
         : <Eyebrow Icon={personal ? Heart : CalendarDays} filled={personal} text={reason.text} color={personal ? colors.danger : colors.goldText} />}
       <Pressable onPress={() => onOpen(e)} style={[s.image, { aspectRatio: hero ? 1.05 : 1.35, backgroundColor: colors.fill }]}>
-        {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
+        {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />}
         <DateBox event={e} style={s.dateBox} />
       </Pressable>
       <View style={s.info}>
@@ -171,7 +171,7 @@ function FeedImages({ imageUrl, aspectRatio, onPress }: { imageUrl: string | nul
   if (images.length <= 1) {
     return (
       <Pressable onPress={onPress} style={[s.image, { aspectRatio, backgroundColor: colors.fill }]}>
-        {images[0] && <ExpoImage source={{ uri: images[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
+        {images[0] && <ExpoImage source={{ uri: images[0] }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />}
       </Pressable>
     );
   }
@@ -188,7 +188,7 @@ function FeedImages({ imageUrl, aspectRatio, onPress }: { imageUrl: string | nul
           {images.map((uri, i) => (
             <Pressable key={uri} onPress={onPress} style={{ width, height: "100%" }}>
               {(i === 0 || swiped) && (
-                <ExpoImage source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />
+                <ExpoImage source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
               )}
             </Pressable>
           ))}
@@ -213,7 +213,7 @@ export const FeedNewsCard = memo(function FeedNewsCard({ news, onOpen }: { news:
       <Pressable onPress={() => onOpen(news)} style={{ gap: 12 }}>
         {news.cover_image_url && (
           <View style={[s.image, { aspectRatio: 16 / 9, backgroundColor: colors.fill }]}>
-            <ExpoImage source={{ uri: news.cover_image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />
+            <ExpoImage source={{ uri: news.cover_image_url }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
           </View>
         )}
         <View style={{ gap: 6, paddingHorizontal: 2 }}>
@@ -370,7 +370,7 @@ export const WeekendRail = memo(function WeekendRail({ events, onOpen, onShowAll
         {events.map((e) => (
           <TouchableOpacity key={e.id} style={s.mini} activeOpacity={0.85} onPress={() => onOpen(e)}>
             <View style={[s.miniImage, { backgroundColor: colors.fill }]}>
-              {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} cachePolicy="memory-disk" />}
+              {e.image_url && <ExpoImage source={{ uri: e.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />}
               <DateBox event={e} small style={s.miniDate} />
             </View>
             <Text style={[s.miniTitle, { color: colors.text }]} numberOfLines={2}>{e.title}</Text>

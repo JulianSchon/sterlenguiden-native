@@ -69,6 +69,8 @@ const STALE_MS = 30 * 60 * 1000;
 /** En ny blandning av platserna */
 const newSeed = () => Math.floor(Math.random() * 1_000_000_000);
 const MIN_REFRESH_MS = 800;
+/** Så mycket plats snurran tar ovanför flödet */
+const REFRESH_SPACE = 64;
 const NO_PLACES: Place[] = [];
 const NO_ITEMS: FeedItem[] = [];
 
@@ -238,28 +240,41 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
 
   // Hämta allt på nytt och bygg om flödet med en ny blandning
   const queries = { places, events, offers, redemptions, news, friendVisits, collectibles, collected, favorites, visits, profile };
+  const listRef = useRef<FlatList<FeedItem>>(null);
+  const scrollY = useSharedValue(0);
   const queriesRef = useRef(queries);
   queriesRef.current = queries;
-  const rebuild = useCallback(async () => {
-    await Promise.all([
-      ...Object.values(queriesRef.current).map((q) => q.refetch()),
-      queryClient.invalidateQueries({ queryKey: ["business-stories"] }),
-    ].map((p) => p.catch(() => {})));
+  // Hämta allt på nytt, och bygg sen ett nytt flöde (två steg: när man laddar om byts flödet först
+  // när snurran är klar, inte medan den snurrar)
+  const refetchAll = useCallback(() => Promise.all([
+    ...Object.values(queriesRef.current).map((q) => q.refetch()),
+    queryClient.invalidateQueries({ queryKey: ["business-stories"] }),
+  ].map((p) => p.catch(() => {}))), [queryClient]);
+  const newFeed = useCallback(() => {
     setSeed(newSeed());
     if (moreTimer.current) clearTimeout(moreTimer.current);
     setLoadingMore(false);
     setShown(FIRST_PAGE);
     setVersion((v) => v + 1);
-  }, [queryClient]);
+  }, []);
+  const rebuild = useCallback(async () => {
+    await refetchAll();
+    newFeed();
+  }, [refetchAll, newFeed]);
   // Snurran syns minst en kort stund, så man ser att det laddades om även när det går fort
   const [refreshing, setRefreshing] = useState(false);
+  // Som Instagram: snurran går, det nya flödet kommer i samma stund som snurran försvinner, och
+  // sidan glider upp på plats (ytan där snurran låg ska inte bli kvar som ett tomt fält överst)
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     const started = Date.now();
-    await rebuild();
+    await refetchAll();
     await new Promise((r) => setTimeout(r, Math.max(0, MIN_REFRESH_MS - (Date.now() - started))));
+    newFeed();
     setRefreshing(false);
-  }, [rebuild]);
+    // Bara om man står kvar överst (har man scrollat ner under tiden ska sidan inte rycka upp)
+    requestAnimationFrame(() => { if (scrollY.value < 8) listRef.current?.scrollToOffset({ offset: 0, animated: true }); });
+  }, [refetchAll, newFeed, scrollY]);
   const refreshRef = useRef(onRefresh);
   refreshRef.current = onRefresh;
   const refreshingRef = useRef(refreshing);
@@ -351,16 +366,15 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
   const showCalendar = useCallback(() => router.navigate("/(tabs)/calendar"), [router]);
   const openDiscover = useCallback(() => router.push("/discover"), [router]);
 
-  // Fliktrycket i navigeringen scrollar upp till toppen
-  const listRef = useRef<FlatList<FeedItem>>(null);
+  // Fliken Hem: sidan glider upp och snurran går redan när man kommer fram (den startar direkt, och
+  // sidan stannar så högt att snurran syns ovanför flödet), sen laddas den om som när man drar ner
   useEffect(() => {
-    // Fliken Hem: upp överst och ladda om (som att dra ner), när scrollen hunnit upp
     registerScrollCallback("home", () => {
-      listRef.current?.scrollToOffset({ offset: 0, animated: true });
-      setTimeout(() => { if (!refreshingRef.current) refreshRef.current(); }, 350);
+      if (refreshingRef.current) return;
+      refreshRef.current();
+      requestAnimationFrame(() => listRef.current?.scrollToOffset({ offset: -REFRESH_SPACE, animated: true }));
     });
   }, []);
-  const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler({
     onScroll: (e) => {
       scrollY.value = e.contentOffset.y;
