@@ -193,6 +193,10 @@ export default function FavoritesScreen() {
     if (filter.isEvent) return items.filter((i) => i.kind === "event");
     return items.filter((i) => i.kind === "place" && matchesDbValues(i.categories, filter.dbValues ?? []));
   }, [items, filter]);
+  // Byts vy eller kategori ritas korten i omgångar: de första direkt (de glider in), resten en
+  // omgång per bildruta. Alla på en gång (23 kort med bild och hjärta) hann inte med en bildruta
+  // och hackade.
+  const shownCount = useProgressiveCount(visible.length, `${mode}:${filterIndex}`);
 
   const step = (dir: 1 | -1) => {
     const next = filterIndex + dir;
@@ -345,7 +349,7 @@ export default function FavoritesScreen() {
           )}
 
           <View style={mode === "cards" ? s.cards : s.rows}>
-            {visible.map((item, index) =>
+            {visible.slice(0, shownCount).map((item, index) =>
               mode === "cards" ? (
                 <FavoriteCard key={item.key} index={index} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               ) : (
@@ -358,6 +362,25 @@ export default function FavoritesScreen() {
       <LikeBurst burst={burst} />
     </View>
   );
+}
+
+/** Hur många av listan som ritas: FIRST_BATCH direkt, sedan BATCH till per bildruta tills alla
+ * syns. Börjar om när resetKey ändras (annan vy eller kategori). */
+const FIRST_BATCH = 6;
+const BATCH = 4;
+function useProgressiveCount(total: number, resetKey: string): number {
+  const [count, setCount] = useState(FIRST_BATCH);
+  const lastKey = useRef(resetKey);
+  if (lastKey.current !== resetKey) {
+    lastKey.current = resetKey;
+    if (count !== FIRST_BATCH) setCount(FIRST_BATCH);
+  }
+  useEffect(() => {
+    if (count >= total) return;
+    const frame = requestAnimationFrame(() => setCount((n) => Math.min(total, n + BATCH)));
+    return () => cancelAnimationFrame(frame);
+  }, [count, total]);
+  return count;
 }
 
 /** Snabb inglidning för de första korten/raderna, kort efter varandra (resten ligger utanför skärmen) */
