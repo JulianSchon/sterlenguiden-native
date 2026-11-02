@@ -21,6 +21,15 @@
  * scrollar dit. Byts vy eller kategori byggs korten om och de första glider in efter varandra,
  * likadant varje gång. Bilderna ligger kvar i minnet (memory-disk) — utan det packades alla bilder
  * upp igen vid varje byte, mitt i animationen, och det kändes som lägre bildfrekvens.
+ *
+ * Listan står still under besöket (som flödet på Hem): den tas en gång när sidan öppnas och byts
+ * aldrig ut medan man tittar. Förut visades först den sparade listan och sen den nyhämtade — kom
+ * den nya mitt i inglidningen (en favorit som markerats om hamnar överst) hoppade ett kort till
+ * toppen, gled in ensamt och allt hackade. Nu:
+ *  - När man lämnar sidan får den sparade listan exakt serverns ordning (avmarkerade bort,
+ *    återmarkerade överst), så nästa besök börjar rätt direkt med det som redan finns.
+ *  - Har favoriterna ändrats någon annanstans (ett hjärta på Hem, en plats …) visas de grå rutorna
+ *    tills den nya listan hämtats, och tåget går med den — aldrig ett byte mitt i.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -103,11 +112,13 @@ const FAV_FILTERS: FavFilter[] = [
 const shownCategory = (item: FavItem) =>
   item.kind === "event" ? i18n.t("favoritesPage.event") : findCategory(item.category)?.label ?? item.category;
 
+const FAV_DETAIL_KEY = ["favorites", "detail"] as const;
+
 function useFavoritesDetailed() {
   return useQuery<FavItem[]>({
     // Under "favorites": när ett hjärta trycks någon annanstans (platssidan, Hem, Kalender …) och
     // de säger till om ["favorites"] hämtas den här listan också på nytt
-    queryKey: ["favorites", "detail"],
+    queryKey: FAV_DETAIL_KEY,
     queryFn: async () => {
       const user = await signedInUser();
       if (!user) return [];
@@ -167,7 +178,18 @@ export default function FavoritesScreen() {
   useTranslation(); // ritas om när språket byts
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: items = [], isLoading } = useFavoritesDetailed();
+  const query = useFavoritesDetailed();
+  // Listan för det här besöket: den sparade om den är aktuell, annars den som hämtas nu (se överst)
+  const [items, setItems] = useState<FavItem[] | null>(() => {
+    const state = queryClient.getQueryState<FavItem[]>(FAV_DETAIL_KEY);
+    return state?.data && !state.isInvalidated ? state.data : null;
+  });
+  useEffect(() => {
+    if (items === null && query.data && !query.isFetching) setItems(query.data);
+  }, [items, query.data, query.isFetching]);
+  const loading = items === null && !query.isError;
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   const [filterIndex, setFilterIndex] = useState(0);
   const [mode, setMode] = useState<ViewMode>("cards");
   // Avmarkerade hjärtan den här gången — raden ligger kvar (man kan ångra sig), borta först nästa gång
@@ -187,6 +209,7 @@ export default function FavoritesScreen() {
 
   const filter = FAV_FILTERS[filterIndex];
   const visible = useMemo(() => {
+    if (!items) return [];
     if (filter.id === "alla") return items;
     if (filter.isEvent) return items.filter((i) => i.kind === "event");
     return items.filter((i) => i.kind === "place" && matchesDbValues(i.categories, filter.dbValues ?? []));
@@ -214,18 +237,29 @@ export default function FavoritesScreen() {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   };
 
-  // När man lämnar sidan försvinner de avmarkerade ur den sparade listan, så de inte syns (med
-  // ifyllt hjärta) nästa gång sidan öppnas medan den hämtas på nytt. Resten av appen (Hem, Profil,
-  // troféerna …) får veta om ändringarna först nu, när tillbaka-glidningen är klar — att uppdatera
-  // allt det vid varje hjärttryck gav ett hack mitt i hjärtanimationen.
+  // När man lämnar sidan får den sparade listan serverns ordning: de avmarkerade försvinner, och de
+  // som markerats om (de sparas som nya) ligger överst, senast först. Då börjar nästa besök med rätt
+  // lista direkt och inget byts mitt i inglidningen. Resten av appen (Hem, Profil, troféerna …) får
+  // veta om ändringarna först nu, när tillbaka-glidningen är klar — att uppdatera allt det vid varje
+  // hjärttryck gav ett hack mitt i hjärtanimationen. (Den här listan räknas inte med där: den är
+  // redan rätt.)
   const favoritesChanged = useRef(false);
+  const refavorited = useRef<string[]>([]);
   useEffect(() => () => {
-    if (favoritesChanged.current) {
-      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["favorites"] }), 450);
+    if (!favoritesChanged.current) return;
+    const list = itemsRef.current;
+    if (list) {
+      const kept = list.filter((i) => !toggledRef.current.has(i.key));
+      const back = new Set(refavorited.current);
+      const top = [...refavorited.current].reverse()
+        .map((key) => kept.find((i) => i.key === key))
+        .filter((i): i is FavItem => !!i);
+      queryClient.setQueryData<FavItem[]>(FAV_DETAIL_KEY, [...top, ...kept.filter((i) => !back.has(i.key))]);
     }
-    if (toggledRef.current.size === 0) return;
-    queryClient.setQueryData<FavItem[]>(["favorites", "detail"], (old) => old?.filter((i) => !toggledRef.current.has(i.key)));
-    queryClient.invalidateQueries({ queryKey: ["favorites", "detail"], refetchType: "none" });
+    setTimeout(() => queryClient.invalidateQueries({
+      queryKey: ["favorites"],
+      predicate: (q) => q.queryKey[1] !== "detail",
+    }), 450);
   }, [queryClient]);
 
   // Platser är sidor, evenemang öppnas i panelen (med samma hjärta som kortet här)
@@ -248,6 +282,9 @@ export default function FavoritesScreen() {
       if (wasFav) next.add(item.key); else next.delete(item.key);
       return next;
     });
+    // Markeras den om sparas den som ny, och hamnar överst nästa gång (se när man lämnar sidan)
+    refavorited.current = refavorited.current.filter((k) => k !== item.key);
+    if (!wasFav) refavorited.current.push(item.key);
 
     // Utan nät sparas det när nätet är tillbaka (lib/outbox)
     const save = item.kind === "place" ? savePlaceFavorite : saveEventFavorite;
@@ -258,7 +295,7 @@ export default function FavoritesScreen() {
   handleToggleRef.current = handleToggleFavorite;
 
   const handleShare = () => {
-    if (items.length === 0) return;
+    if (!items || items.length === 0) return;
     const names = items.map((i) => i.title).join(", ");
     Share.share({ message: i18n.t("favoritesPage.shareMessage", { names }) }).catch(() => {});
   };
@@ -274,7 +311,7 @@ export default function FavoritesScreen() {
             <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={s.headerTitle} numberOfLines={1}>{i18n.t("favoritesPage.title")}</Text>
-          {items.length > 0 && (
+          {!!items && items.length > 0 && (
             <TouchableOpacity style={s.headerBtn} onPress={handleShare} accessibilityLabel={i18n.t("favoritesPage.share")}>
               <ShareIcon size={20} color={colors.text} strokeWidth={2} />
             </TouchableOpacity>
@@ -283,7 +320,7 @@ export default function FavoritesScreen() {
       </View>
 
       {/* Sidan i grått medan favoriterna laddas, i den vy (kort/lista) man valt */}
-      {isLoading && (
+      {loading && (
         <View style={s.body} pointerEvents="none">
           <Skeleton width={170} height={16} radius={6} style={{ alignSelf: "center", marginVertical: 10 }} />
           <View style={s.toolbar}>
@@ -320,7 +357,7 @@ export default function FavoritesScreen() {
         </View>
       )}
 
-      {!isLoading && items.length === 0 && (
+      {!loading && (items?.length ?? 0) === 0 && (
         <View style={[s.center, { paddingHorizontal: 40 }]}>
           <View style={s.emptyIcon}>
             <Heart size={28} color={colors.goldText} strokeWidth={1.5} />
@@ -335,7 +372,7 @@ export default function FavoritesScreen() {
         </View>
       )}
 
-      {!isLoading && items.length > 0 && (
+      {!!items && items.length > 0 && (
         <FlatList
           ref={listRef}
           data={listData}
