@@ -255,10 +255,10 @@ export default function MemoriesBookScreen() {
           trycker ner innehållet — bara de två runda knapparna, som på kartans flytande
           knappar. Låter glöden och cirklarna börja högre upp, närmare skärmens egen topp. */}
       <View style={[s.floatingRow, { top: insets.top + 8 }]} pointerEvents="box-none">
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("common.back")} style={s.iconBtn} onPress={() => router.back()}>
           <ArrowLeft size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.iconBtn} onPress={() => pushOnce(router, "/memories/edit")}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("memories.createLabel")} style={s.iconBtn} onPress={() => pushOnce(router, "/memories/edit")}>
           <Plus size={22} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
       </View>

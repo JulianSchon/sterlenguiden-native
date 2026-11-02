@@ -118,7 +118,7 @@ export default function MemoryDetailScreen() {
             där används dismissTo mot Mitt Österlen i stället (map.tsx återställer samtidigt
             profilfliken, så kedjan landar rätt om man fortsätter bakåt därifrån). */}
         <View style={s.header}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("common.back")}
             style={s.backBtn}
             onPress={() => (viaMap ? router.dismissTo("/mitt-osterlen") : router.back())}
           >

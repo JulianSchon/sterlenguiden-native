@@ -60,7 +60,7 @@ export const HomeHeader = memo(function HomeHeader({ location }: { location: { l
           </Text>
         </View>
         {/* Streaken och profilbilden — ett enda tryck som leder till Mitt Österlen */}
-        <TouchableOpacity style={s.avatarGroup} onPress={() => pushOnce(router, "/mitt-osterlen")} activeOpacity={0.85}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("profile.myOsterlen.title")} style={s.avatarGroup} onPress={() => pushOnce(router, "/mitt-osterlen")} activeOpacity={0.85}>
           <View style={s.streakOverlap}>
             <StreakPill />
           </View>

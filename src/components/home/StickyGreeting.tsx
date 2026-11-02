@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
 import { useTheme } from "@/theme/ThemeProvider";
 import { greeting, HomeAvatar } from "./HomeHeader";
+import i18n from "i18next";
 
 const BAR_H = 54;
 const AVATAR = 34;
@@ -63,7 +64,7 @@ export function StickyGreeting({ scrollY, showAfter }: {
       <Text style={[s.text, { color: colors.text }]} numberOfLines={1}>
         {greeting(firstName)}
       </Text>
-      <TouchableOpacity onPress={() => pushOnce(router, "/mitt-osterlen")} activeOpacity={0.85} hitSlop={8}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("profile.myOsterlen.title")} onPress={() => pushOnce(router, "/mitt-osterlen")} activeOpacity={0.85} hitSlop={8}>
         <HomeAvatar size={AVATAR} />
       </TouchableOpacity>
     </Reanimated.View>

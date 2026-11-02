@@ -26,6 +26,7 @@ import { distanceMeters } from "@/lib/checkin";
 import { pushOnce } from "@/lib/navigateOnce";
 import { Skeleton } from "@/components/Skeleton";
 import { NO, SwipeCard, YES, imagesOf, type DeckState } from "@/components/discover/SwipeCard";
+import i18n from "i18next";
 
 /** Så många kort ligger byggda åt gången (det överst och två under) */
 const WINDOW = 3;
@@ -116,7 +117,7 @@ export default function DiscoverScreen() {
     <View style={[s.screen, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
       {/* Samma rubrik som de andra undersidorna */}
       <View style={s.header}>
-        <TouchableOpacity style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={() => router.back()}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("common.back")} style={[s.headerBtn, { backgroundColor: colors.fill, borderColor: colors.borderStrong }]} onPress={() => router.back()}>
           <ArrowLeft size={24} color={colors.text} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={[s.headerTitle, { color: colors.text }]} numberOfLines={1}>{t("discover.title")}</Text>

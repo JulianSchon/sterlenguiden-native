@@ -59,6 +59,7 @@ import { tornBandPath, TEAR_DEPTH, TEAR_FRINGE, EDGE_STROKE } from "./tear";
 import { useArmedTicketImage } from "./OfferTicket";
 import { isNetworkError } from "@/lib/network";
 import { Image as ExpoImage } from "expo-image";
+import i18n from "i18next";
 
 /** Sidobandets plats på skärmen (fönsterkoordinater) när biljetten trycktes */
 export interface OriginRect { x: number; y: number; w: number; h: number }
@@ -463,7 +464,7 @@ export const OfferDrawer = memo(function OfferDrawer({
         </Animated.View>
         <Animated.Text style={[s.bandLabel, labelStyle]} numberOfLines={1}>{label}</Animated.Text>
         <Animated.View style={[s.closeBtn, closeStyle]}>
-          <Pressable onPress={requestClose} hitSlop={12} disabled={locked}>
+          <Pressable accessibilityRole="button" accessibilityLabel={i18n.t("common.close")} onPress={requestClose} hitSlop={12} disabled={locked}>
             <X size={20} color="#FFFFFF" strokeWidth={2} />
           </Pressable>
         </Animated.View>

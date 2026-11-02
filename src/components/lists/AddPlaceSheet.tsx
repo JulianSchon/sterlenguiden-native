@@ -61,6 +61,7 @@ import { PressableScale } from "@/components/PressableScale";
 import { Skeleton } from "@/components/Skeleton";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 900;
@@ -425,7 +426,7 @@ export function AddPlaceSheet({
                   autoCorrect={false}
                 />
                 {query.length > 0 && (
-                  <Pressable style={s.clearBtn} hitSlop={10} onPress={() => setQuery("")}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={i18n.t("common.clearSearch")} style={s.clearBtn} hitSlop={10} onPress={() => setQuery("")}>
                     <X size={14} color={colors.muted} strokeWidth={2.4} />
                   </Pressable>
                 )}
@@ -561,7 +562,7 @@ function CategoryHeader({ index, labels, onStep }: { index: number; labels: stri
     const hidden = index + dir < 0 || index + dir >= labels.length;
     const Icon = dir === 1 ? ChevronRight : ChevronLeft;
     return (
-      <Pressable onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={i18n.t(dir === 1 ? "common.next" : "common.previous")} onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
         <Icon size={20} color={colors.muted} strokeWidth={2} />
       </Pressable>
     );

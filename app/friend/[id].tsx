@@ -399,7 +399,7 @@ function TrophySection({ trophies }: { trophies: FriendStats["trophies"] }) {
           <Pressable style={s.modalCard} onPress={(e) => e.stopPropagation()}>
             {selected && meta && (
               <>
-                <TouchableOpacity style={s.modalClose} onPress={() => setSelected(null)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("common.close")} style={s.modalClose} onPress={() => setSelected(null)}>
                   <X size={22} color={colors.muted} strokeWidth={2} />
                 </TouchableOpacity>
                 <TrophyMedal size={140} tier={selected.level} Icon={meta.Icon} unlocked groupId={selected.achievementType} />

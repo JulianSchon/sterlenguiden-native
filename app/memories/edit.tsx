@@ -243,7 +243,7 @@ export default function EditMemoryScreen() {
               {placeIds.map((pid) => (
                 <View key={pid} style={s.chip}>
                   <Text style={s.chipText} numberOfLines={1}>{placesById.get(pid)?.name ?? i18n.t("memories.place")}</Text>
-                  <TouchableOpacity hitSlop={8} onPress={() => setPlaceIds((prev) => prev.filter((p) => p !== pid))}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("memories.removePlace", { name: placesById.get(pid)?.name ?? i18n.t("memories.place") })} hitSlop={8} onPress={() => setPlaceIds((prev) => prev.filter((p) => p !== pid))}>
                     <X size={14} color={colors.muted} strokeWidth={2.5} />
                   </TouchableOpacity>
                 </View>

@@ -14,6 +14,7 @@ import { View, TouchableOpacity } from "react-native";
 import { Plus } from "lucide-react-native";
 import { Avatar } from "@/components/profile/Avatar";
 import { useTheme } from "@/theme/ThemeProvider";
+import i18n from "i18next";
 
 
 interface StackMember {
@@ -37,7 +38,7 @@ export function MemberAvatarStack({
 
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <TouchableOpacity style={{ flexDirection: "row", alignItems: "center" }} onPress={onPress} disabled={!onPress} activeOpacity={0.75}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("lists.membersSheet.title")} style={{ flexDirection: "row", alignItems: "center" }} onPress={onPress} disabled={!onPress} activeOpacity={0.75}>
       {members.map((m, i) => (
         <View
           key={m.userId}
@@ -55,7 +56,7 @@ export function MemberAvatarStack({
       ))}
       </TouchableOpacity>
       {onAddPress && (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("lists.membersSheet.invite")}
           style={{
             width: ringSize, height: ringSize, borderRadius: ringSize / 2,
             backgroundColor: colors.goldSoft, alignItems: "center", justifyContent: "center",

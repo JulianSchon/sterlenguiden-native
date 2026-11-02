@@ -42,6 +42,7 @@ import { BADGE_IMAGES, prefetchBadgeImages } from "@/components/trophies/TrophyM
 import { formatDate } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 const MAX_THUMBS = 4;
 /** Så mycket större än sin höjd blir kortets kant när det vänds (perspektivet), så mycket rum behöver det över sig */
@@ -308,7 +309,7 @@ export default function ProfileScreen() {
       <Reanimated.View entering={enterAt(0)} style={s.titleWrap}>
         <View style={s.titleRow}>
           <Text style={s.pageTitle}>{t("profile.title")}</Text>
-          <TouchableOpacity style={s.gearBtn} onPress={() => pushOnce(router, "/settings")}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("settings.title")} style={s.gearBtn} onPress={() => pushOnce(router, "/settings")}>
             <Settings size={20} color={colors.muted} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>

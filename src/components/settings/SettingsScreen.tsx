@@ -13,6 +13,7 @@ import { ArrowLeft, ChevronLeft } from "lucide-react-native";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { darkColors, lightColors, type ThemeColors } from "@/theme/colors";
 import { useMorphStyle } from "@/theme/morph";
+import i18n from "i18next";
 
 export function SettingsScreen({
   title, right, compact = false, morph, scrollRef, onScroll, overlay, footer, scrollEnabled = true, page = false, fixed = false, children,
@@ -49,7 +50,7 @@ export function SettingsScreen({
   return (
     <Animated.View style={[s.root, morph ? rootMorph : null]}>
       <Animated.View style={[s.header, page ? [s.headerPage, { paddingTop: insets.top, minHeight: insets.top + 64 }] : { paddingTop: Math.max(insets.top, 44) }, morph ? [rootMorph, borderMorph] : null]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("common.back")} onPress={() => router.back()} hitSlop={8}>
           <Animated.View style={[s.backBtn, page && s.backBtnPage, morph ? backMorph : null]}>
             {morph ? (
               <>

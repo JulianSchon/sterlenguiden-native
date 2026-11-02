@@ -10,6 +10,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 export function CategoryHeader({
   index, labels, onStep, palette,
@@ -21,7 +22,7 @@ export function CategoryHeader({
     const hidden = index + dir < 0 || index + dir >= labels.length;
     const Icon = dir === 1 ? ChevronRight : ChevronLeft;
     return (
-      <Pressable onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={i18n.t(dir === 1 ? "common.next" : "common.previous")} onPress={() => onStep(dir)} disabled={hidden} hitSlop={12} style={[s.arrow, hidden && { opacity: 0 }]}>
         <Icon size={22} color={colors.muted} strokeWidth={2} />
       </Pressable>
     );

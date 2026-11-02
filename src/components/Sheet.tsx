@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
+import i18n from "i18next";
 
 export function Sheet({
   visible, onClose, title, tall = false, centered = false, onShow, onClosed, children,
@@ -149,7 +150,7 @@ export function Sheet({
         >
           <View style={s.head}>
             <Text style={s.title}>{title}</Text>
-            <TouchableOpacity onPress={handleClose} hitSlop={12}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("common.close")} onPress={handleClose} hitSlop={12}>
               <X size={22} color={colors.muted} strokeWidth={2} />
             </TouchableOpacity>
           </View>

@@ -96,7 +96,7 @@ function StickerCard({
 
   return (
     <View style={s.card}>
-      <TouchableOpacity style={s.close} onPress={onClose} hitSlop={12}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("common.close")} style={s.close} onPress={onClose} hitSlop={12}>
         <X size={18} color="rgba(255,255,255,0.6)" strokeWidth={2} />
       </TouchableOpacity>
 
