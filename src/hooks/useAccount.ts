@@ -6,6 +6,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { removeListCover } from "@/lib/listCovers";
 import { preparePhoto, type PickedPhoto } from "@/lib/photos";
 import type { Profile } from "@/hooks/useProfile";
 import { AVATAR_BUCKET, storagePath } from "@/hooks/useAvatarUrl";
@@ -32,9 +33,18 @@ export async function pickSquarePhoto(source: PhotoSource): Promise<PickedPhoto 
   return { uri: asset.uri, width: asset.width, height: asset.height };
 }
 
+/**
+ * Tar bort en gammal bild ur mappen. Kastar aldrig: den tas bort efter att den nya sparats, och ett
+ * nätfel här fick annars ett lyckat byte att se misslyckat ut. Blir bilden kvar tar den bara plats.
+ */
 export async function removeStoredImage(value: string | null | undefined) {
   const path = storagePath(value);
-  if (path) await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+  if (!path) return;
+  try {
+    await supabase.storage.from(AVATAR_BUCKET).remove([path]);
+  } catch {
+    // Se ovan
+  }
 }
 
 /** Väljer en bild, laddar upp den och sätter den som profilbild. Returnerar false om man avbröt. */
@@ -139,6 +149,10 @@ export function useDeleteAccount() {
         const paths = (files ?? []).map((f) => `${userId}/${f.name}`);
         if (paths.length > 0) await supabase.storage.from(bucket).remove(paths);
       }
+      // Omslagsbilderna på ens egna listor: listorna tas bort med kontot, men bilderna ligger i
+      // listornas egna mappar
+      const { data: owned } = await supabase.from("lists").select("cover_image_url").eq("owner_id", userId);
+      await Promise.all((owned ?? []).map((l) => removeListCover(l.cover_image_url)));
       const { error } = await supabase.rpc("delete_my_account");
       if (error) throw error;
       // Kontot finns inte längre på servern; rensa bara den lokala sessionen

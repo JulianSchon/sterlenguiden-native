@@ -107,8 +107,18 @@ async function uploadPhoto(userId: string, photo: PickedPhoto): Promise<string> 
   return path;
 }
 
+/**
+ * Tar bort foton ur mappen. Kastar aldrig: städningen sker efter att minnet sparats eller tagits
+ * bort, och ett nätfel här fick annars något som faktiskt lyckades att se misslyckat ut. Blir ett
+ * foto kvar tar det bara lite plats.
+ */
 async function removePhotos(paths: string[]) {
-  if (paths.length > 0) await supabase.storage.from(BUCKET).remove(paths);
+  if (paths.length === 0) return;
+  try {
+    await supabase.storage.from(BUCKET).remove(paths);
+  } catch {
+    // Se ovan
+  }
 }
 
 /** Ett foto i taget, så hela minnet aldrig ligger i arbetsminnet samtidigt. */

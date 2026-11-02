@@ -168,7 +168,7 @@ export default function ListDetailScreen() {
     if (!list) return;
     Share.share({
       message: i18n.t("lists.shareMessage", { name: list.name, code: list.inviteCode }),
-    });
+    }).catch(() => {});
   }
 
   async function handleCopyFriendList() {

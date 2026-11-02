@@ -273,7 +273,7 @@ export default function PassHub() {
                     style={s.codePill}
                     onPress={() => {
                       Haptics.selectionAsync().catch(() => {});
-                      Share.share({ message: g.claimCode });
+                      Share.share({ message: g.claimCode }).catch(() => {});
                     }}
                   >
                     <Copy size={14} color={colors.goldText} strokeWidth={2} />

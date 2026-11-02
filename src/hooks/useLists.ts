@@ -9,13 +9,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import i18n from "i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { COVER_BUCKET, removeListCover } from "@/lib/listCovers";
 import { firstImageUrl } from "@/hooks/usePlaces";
 import { effectiveHours, type HoursException } from "@/lib/openingHours";
 import { preparePhoto } from "@/lib/photos";
 import { pickSquarePhoto, type PhotoSource } from "@/hooks/useAccount";
 import { requireUserId } from "@/lib/session";
 
-const COVER_BUCKET = "list-covers";
 
 export interface ListSummary {
   id: string;
@@ -365,14 +365,6 @@ export function useFriendListDetail(listId: string | undefined, ownerId: string 
   });
 }
 
-/** Rensar den gamla omslagsbilden ur bucketen om det fanns en (samma bucket-egna sökväg, inte en
- * adress utanför den, annars skulle vi kunna radera någon annans fil av misstag). Delad av både
- * byte och återställning — båda ersätter en ev. tidigare uppladdad bild. */
-async function deletePreviousCoverIfOwned(previousUrl: string | null | undefined) {
-  const path = previousUrl?.includes(`/${COVER_BUCKET}/`) ? previousUrl.split(`/${COVER_BUCKET}/`)[1] : null;
-  if (path) await supabase.storage.from(COVER_BUCKET).remove([path]);
-}
-
 /** Väljer en bild, laddar upp den och sätter den som listans omslag. Returnerar false om man avbröt. */
 export function useChangeListCover() {
   const queryClient = useQueryClient();
@@ -393,7 +385,7 @@ export function useChangeListCover() {
       const { error } = await supabase.from("lists").update({ cover_image_url: pub.publicUrl }).eq("id", listId);
       if (error) throw error;
 
-      await deletePreviousCoverIfOwned(previous?.cover_image_url);
+      await removeListCover(previous?.cover_image_url);
       return true;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
@@ -409,7 +401,7 @@ export function useResetListCover() {
       const { data: previous } = await supabase.from("lists").select("cover_image_url").eq("id", listId).maybeSingle();
       const { error } = await supabase.from("lists").update({ cover_image_url: null }).eq("id", listId);
       if (error) throw error;
-      await deletePreviousCoverIfOwned(previous?.cover_image_url);
+      await removeListCover(previous?.cover_image_url);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });
@@ -439,7 +431,7 @@ async function insertListCopy(list: ListDetail, name: string, coverImageUrl: str
 export function useDuplicateList() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (list: ListDetail) => insertListCopy(list, `${list.name} (kopia)`, list.coverImageUrl),
+    mutationFn: (list: ListDetail) => insertListCopy(list, i18n.t("lists.copyName", { name: list.name }), list.coverImageUrl),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });
 }

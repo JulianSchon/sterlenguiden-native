@@ -1078,6 +1078,7 @@ export const en: typeof sv = {
   },
   lists: {
     memberFallback: "Member",
+    copyName: "{{name}} (copy)",
     back: "Back", options: "Options", leave: "Leave the list",
     cameraOffTitle: "The camera is off", cameraOffText: "Allow the camera for the app in your phone's settings to take a photo.",
     cancel: "Cancel", openSettings: "Open settings", errorTitle: "Something went wrong",

@@ -1078,6 +1078,7 @@ export const de: typeof sv = {
   },
   lists: {
     memberFallback: "Mitglied",
+    copyName: "{{name}} (Kopie)",
     back: "Zurück", options: "Optionen", leave: "Liste verlassen",
     cameraOffTitle: "Die Kamera ist aus", cameraOffText: "Erlaube der App in den Einstellungen deines Telefons die Kamera, um ein Foto zu machen.",
     cancel: "Abbrechen", openSettings: "Einstellungen öffnen", errorTitle: "Etwas ist schiefgelaufen",

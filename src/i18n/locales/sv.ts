@@ -1081,6 +1081,7 @@ export const sv = {
   },
   lists: {
     memberFallback: "Medlem",
+    copyName: "{{name}} (kopia)",
     back: "Tillbaka", options: "Alternativ", leave: "Lämna listan",
     cameraOffTitle: "Kameran är avstängd", cameraOffText: "Tillåt kameran för appen i telefonens inställningar för att kunna ta ett foto.",
     cancel: "Avbryt", openSettings: "Öppna inställningar", errorTitle: "Något gick fel",

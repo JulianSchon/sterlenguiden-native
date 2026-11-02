@@ -1,5 +1,5 @@
 /** Datumformat på användarens språk. Använd i stället för date-fns format() direkt. */
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { sv, enGB, de } from "date-fns/locale";
 import { currentLanguage, type LanguageCode } from "./index";
 
@@ -17,5 +17,8 @@ export function weekdayShort(mondayIndex: number): string {
 export function formatDate(date: Date | string | number, pattern: string, lang: LanguageCode = currentLanguage()): string {
   // På tyska har dagen en punkt före månaden
   const p = lang === "de" ? pattern.replace(/\bd (?=M)/g, "d. ") : pattern;
-  return format(new Date(date), p, { locale: LOCALES[lang] });
+  // Ett datum utan klockslag ("2026-07-10", t.ex. en födelsedag) är den dagen där man är. new Date()
+  // läser det som midnatt i London, och väster om det blev det dagen före
+  const d = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? parseISO(date) : new Date(date);
+  return format(d, p, { locale: LOCALES[lang] });
 }

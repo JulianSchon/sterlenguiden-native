@@ -40,7 +40,10 @@ export function useStoryViews() {
       const { data, error } = await supabase
         .from("story_views")
         .select("story_id, viewed_at")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        // Bara de senaste: allt äldre gäller berättelser som redan gått ut (annars växte svaret för
+        // varje berättelse man någonsin sett)
+        .gte("viewed_at", new Date(cutoff).toISOString());
       if (!error) {
         for (const v of (data ?? []) as StoryView[]) {
           // Gammal rad utan tidsstämpel räknas som sedd
