@@ -5,7 +5,6 @@ export const en: typeof sv = {
     back: "Back",
     cancel: "Cancel",
     save: "Save",
-    saved: "Saved",
     done: "Done",
     close: "Close",
     previous: "Previous",
