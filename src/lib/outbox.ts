@@ -73,6 +73,36 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function retryLater() {
   if (!timer) timer = setInterval(() => { flushOutbox(); }, 20_000);
 }
+function stopRetrying() {
+  if (timer) { clearInterval(timer); timer = null; }
+}
+
+/**
+ * Kön läses och skrivs en gång i taget. Det tar en stund (telefonens lagring), och två ändringar
+ * samtidigt — ett hjärta medan kön skickas — skrev annars över varandra, så det senaste man gjort
+ * kunde försvinna.
+ */
+let lock: Promise<unknown> = Promise.resolve();
+function locked<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lock.then(fn);
+  lock = run.catch(() => {});
+  return run;
+}
+function changeQueue(change: (items: Stored[]) => Stored[]): Promise<Stored[]> {
+  return locked(async () => {
+    const before = await read();
+    const after = change(before);
+    if (after !== before) await write(after);
+    return after;
+  });
+}
+
+const sameOp = (a: OutboxOp, b: OutboxOp) =>
+  a.kind === b.kind && a.id === b.id && ("save" in a ? "save" in b && a.save === b.save : true);
+
+/** Det senaste man gjort med varje sak, så ett äldre försök som misslyckas aldrig ersätter ett nyare */
+const latest = new Map<string, number>();
+let turns = 0;
 
 /**
  * Spara nu, eller lägg i kön om nätet saknas. Kastar bara om servern säger nej (då ska knappen
@@ -81,11 +111,19 @@ function retryLater() {
 export async function sendOrQueue(op: OutboxOp): Promise<void> {
   const user = await signedInUser();
   if (!user) throw new Error("not_authenticated");
-  const items = await read();
   const key = keyOf(op);
+  const entry: Stored = { userId: user.id, key, op };
+  const isSame = (i: Stored) => i.userId === user.id && i.key === key;
+  const turn = ++turns;
+  latest.set(`${user.id}:${key}`, turn);
   // Något äldre om samma sak väntar redan: det här ersätter det, och skickas i ordning med kön
-  if (items.some((i) => i.key === key && i.userId === user.id)) {
-    await write([...items.filter((i) => i.key !== key), { userId: user.id, key, op }]);
+  let queued = false;
+  const items = await changeQueue((list) => {
+    if (!list.some(isSame)) return list;
+    queued = true;
+    return [...list.filter((i) => !isSame(i)), entry];
+  });
+  if (queued) {
     flushOutbox();
     retryLater();
     return;
@@ -95,40 +133,51 @@ export async function sendOrQueue(op: OutboxOp): Promise<void> {
     if (items.length > 0) flushOutbox();
   } catch (e) {
     if (!isNetworkError(e)) throw e;
-    await write([...items, { userId: user.id, key, op }]);
+    // Har man hunnit göra något nyare med samma sak gäller det i stället
+    if (latest.get(`${user.id}:${key}`) !== turn) return;
+    await changeQueue((list) => [...list.filter((i) => !isSame(i)), entry]);
     retryLater();
   }
 }
 
 let flushing = false;
 /** Skicka det som väntar (för kontot som är inloggat). Stannar vid första nätfelet */
-export async function flushOutbox(): Promise<void> {
+async function flushOutbox(): Promise<void> {
   if (flushing) return;
   flushing = true;
+  let again = false;
   try {
     const user = await signedInUser();
-    let items = await read();
+    const items = await read();
     if (!user || items.length === 0) {
-      if (items.length === 0 && timer) { clearInterval(timer); timer = null; }
+      if (items.length === 0) stopRetrying();
       return;
     }
-    const touched = new Set<string>();
+    const sent: Stored[] = [];
+    let offline = false;
     for (const item of items.filter((i) => i.userId === user.id)) {
       try {
         await send(user.id, item.op);
       } catch (e) {
-        if (isNetworkError(e)) break;
+        if (isNetworkError(e)) { offline = true; break; }
         // Servern sa nej (t.ex. platsen finns inte längre): släpps, försöks inte igen
       }
-      items = items.filter((i) => i.key !== item.key || i.userId !== user.id);
-      touched.add(AFFECTS[item.op.kind]);
+      sent.push(item);
     }
-    await write(items);
-    touched.forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
-    if (items.length === 0 && timer) { clearInterval(timer); timer = null; }
+    // Bara det som skickades tas bort. Det man gjort under tiden (ett nytt hjärta, eller samma sak
+    // ändrad igen) ligger kvar och skickas nästa gång
+    const left = await changeQueue((list) => {
+      const rest = list.filter((i) => !sent.some((s) => s.userId === i.userId && s.key === i.key && sameOp(s.op, i.op)));
+      return rest.length === list.length ? list : rest;
+    });
+    new Set(sent.map((s) => AFFECTS[s.op.kind])).forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+    if (!left.some((i) => i.userId === user.id)) stopRetrying();
+    // Något lades till medan kön skickades: det skickas direkt (utan nät försöks det igen om en stund)
+    else if (!offline) again = true;
   } finally {
     flushing = false;
   }
+  if (again) flushOutbox();
 }
 
 /** Startas en gång när appen startar */
@@ -140,6 +189,7 @@ export function startOutbox(): () => void {
 
 /** Utloggning: det som väntade hör till kontot som loggade ut */
 export async function clearOutbox(): Promise<void> {
-  await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
-  if (timer) { clearInterval(timer); timer = null; }
+  stopRetrying();
+  latest.clear();
+  await locked(() => AsyncStorage.removeItem(STORAGE_KEY)).catch(() => {});
 }

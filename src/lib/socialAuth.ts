@@ -63,15 +63,17 @@ async function signInWithApple(): Promise<SocialResult> {
 }
 
 let googleConfigured = false;
+function configureGoogle(G: NonNullable<ReturnType<typeof googleModule>>): void {
+  if (googleConfigured) return;
+  G.GoogleSignin.configure({ webClientId: googleConfig.webClientId, iosClientId: googleConfig.iosClientId || undefined });
+  googleConfigured = true;
+}
 
 async function signInWithGoogle(): Promise<SocialResult> {
   const G = googleModule();
   if (!G) return { ok: false, reason: "unavailable" };
   try {
-    if (!googleConfigured) {
-      G.GoogleSignin.configure({ webClientId: googleConfig.webClientId, iosClientId: googleConfig.iosClientId || undefined });
-      googleConfigured = true;
-    }
+    configureGoogle(G);
     if (Platform.OS === "android") await G.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     const response = await G.GoogleSignin.signIn();
     if (!G.isSuccessResponse(response)) return { ok: false, reason: "cancelled" };
@@ -93,8 +95,17 @@ export function signInWith(provider: SocialProvider): Promise<SocialResult> {
   return provider === "apple" ? signInWithApple() : signInWithGoogle();
 }
 
-/** Vid utloggning: glöm Google-kontot, så nästa inloggning får välja konto igen */
+/**
+ * Vid utloggning: glöm Google-kontot, så nästa inloggning får välja konto igen. Även när man loggade
+ * in med Google vid en tidigare start (då är Google inte igång än i den här).
+ */
 export function forgetGoogleAccount(): void {
   const G = googleModule();
-  if (G && googleConfigured) G.GoogleSignin.signOut().catch(() => {});
+  if (!G) return;
+  try {
+    configureGoogle(G);
+    G.GoogleSignin.signOut().catch(() => {});
+  } catch {
+    // Google går inte att nå: inget att glömma
+  }
 }

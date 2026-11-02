@@ -1,3 +1,4 @@
+import { AppState } from "react-native";
 import { createClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import type { Database } from "./types";
@@ -53,3 +54,11 @@ export const supabase = createClient<Database>(
     },
   }
 );
+
+// Inloggningen förnyas medan appen är öppen och vilar när den ligger i bakgrunden (Supabases råd för
+// mobilappar). Kommer man tillbaka efter en lång paus förnyas den direkt — och har kontot loggats ut
+// någon annanstans märks det på en gång, i stället för vid nästa kontroll.
+AppState.addEventListener("change", (state) => {
+  if (state === "active") supabase.auth.startAutoRefresh();
+  else supabase.auth.stopAutoRefresh();
+});
