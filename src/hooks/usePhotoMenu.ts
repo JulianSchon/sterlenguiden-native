@@ -18,7 +18,7 @@ export function usePhotoMenu(change: (source: PhotoSource) => Promise<unknown>, 
       if (message === "camera_denied") {
         Alert.alert(t("account.photo.cameraDeniedTitle"), t("account.photo.cameraDeniedBody"), [
           { text: t("common.cancel"), style: "cancel" },
-          { text: t("account.photo.openSettings"), onPress: () => Linking.openSettings() },
+          { text: t("account.photo.openSettings"), onPress: () => Linking.openSettings().catch(() => {}) },
         ]);
       } else if (message === "card_photo_cooldown") {
         Alert.alert(t("common.error"), t("pass.card.cooldown"));

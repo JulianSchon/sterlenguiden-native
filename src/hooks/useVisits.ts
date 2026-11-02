@@ -60,5 +60,10 @@ export function useCheckIn() {
       return data as Visit;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["visits"] }),
+    // Spärrad för att man redan checkat in här (kanske på en annan telefon): besöken hämtas om, så
+    // kortet visar när man kan checka in igen
+    onError: (e) => {
+      if (e instanceof CheckInCooldownError) queryClient.invalidateQueries({ queryKey: ["visits"] });
+    },
   });
 }

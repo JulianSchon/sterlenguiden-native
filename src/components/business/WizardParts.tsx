@@ -47,7 +47,7 @@ export function ImageChooser({ placeId, images, value, onChange, onError }: {
         if (!permission.granted) {
           Alert.alert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
             { text: tb("Avbryt"), style: "cancel" },
-            { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings() },
+            { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings().catch(() => {}) },
           ]);
           return;
         }

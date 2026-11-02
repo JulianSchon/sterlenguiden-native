@@ -158,7 +158,7 @@ export function CheckInSection({ place }: { place: Place }) {
             <Text style={s.sub}>{i18n.t("checkin.turnOnText")}</Text>
           </View>
         </View>
-        <TouchableOpacity style={s.buttonGrey} activeOpacity={0.8} onPress={() => Linking.openSettings()}>
+        <TouchableOpacity style={s.buttonGrey} activeOpacity={0.8} onPress={() => Linking.openSettings().catch(() => {})}>
           <Text style={s.buttonGreyText}>{i18n.t("checkin.openSettings")}</Text>
         </TouchableOpacity>
       </View>

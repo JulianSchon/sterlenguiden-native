@@ -169,26 +169,42 @@ export default function MapScreen() {
   const userLocRef = useRef<{ latitude: number; longitude: number } | null>(null);
   // Kommer man hit med ett mål (plats eller skatt) ska första positionen inte flytta kartan till mig
   const locDone = useRef(Boolean(stickerParam || placeParam));
-  useEffect(() => {
-    let sub: Location.LocationSubscription | null = null;
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, distanceInterval: 5 },
-        (loc) => {
-          const { latitude, longitude } = loc.coords;
-          setUserLoc({ latitude, longitude });
-          userLocRef.current = { latitude, longitude };
-          if (!locDone.current) {
-            locDone.current = true;
-            fly(latitude, longitude, 13, 1500);
-          }
-        },
-      );
-    })();
-    return () => { sub?.remove(); };
-  }, [fly]);
+  // Positionen följs bara medan kartan syns. Fliken ligger kvar i bakgrunden när man går till en
+  // annan, och GPS:en drog då batteri (och ritade om kartan vid varje steg) utan att någon tittade.
+  // Frågan om platsbehörighet ställs bara första gången, inte varje gång man går in på kartan.
+  const askedLocation = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      let sub: Location.LocationSubscription | null = null;
+      let stopped = false;
+      (async () => {
+        const { status } = askedLocation.current
+          ? await Location.getForegroundPermissionsAsync()
+          : await Location.requestForegroundPermissionsAsync();
+        askedLocation.current = true;
+        if (status !== "granted" || stopped) return;
+        const watch = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, distanceInterval: 5 },
+          (loc) => {
+            const { latitude, longitude } = loc.coords;
+            setUserLoc({ latitude, longitude });
+            userLocRef.current = { latitude, longitude };
+            if (!locDone.current) {
+              locDone.current = true;
+              fly(latitude, longitude, 13, 1500);
+            }
+          },
+        );
+        // Kartan hann lämnas medan bevakningen startade
+        if (stopped) watch.remove();
+        else sub = watch;
+      })().catch(() => {});
+      return () => {
+        stopped = true;
+        sub?.remove();
+      };
+    }, [fly]),
+  );
 
   // ── Sparade platser: hjärtat ändras här direkt, resten av appen får veta när man lämnar kartan
   // (att uppdatera favoriterna överallt mitt i hjärtanimationen gav ett hack)

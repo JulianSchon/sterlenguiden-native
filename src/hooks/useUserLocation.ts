@@ -36,6 +36,9 @@ export function useKnownLocation() {
   return pos;
 }
 
+const FRESH_TIMEOUT_MS = 10_000;
+const LAST_KNOWN_MAX_AGE_MS = 2 * 60_000;
+
 export function useUserLocation(enabled: boolean) {
   const [state, setState] = useState<UserLocationState>({ status: "loading" });
 
@@ -50,7 +53,17 @@ export function useUserLocation(enabled: boolean) {
         setState(next);
         return next;
       }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      // Inomhus eller med svag signal kan en ny position dröja länge: efter en stund räcker den senast
+      // kända, om den är färsk (servern räknar ändå avståndet själv vid incheckningen)
+      const pos = (await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), FRESH_TIMEOUT_MS)),
+      ])) ?? (await Location.getLastKnownPositionAsync({ maxAge: LAST_KNOWN_MAX_AGE_MS }));
+      if (!pos) {
+        const next: UserLocationState = { status: "unavailable" };
+        setState(next);
+        return next;
+      }
       const next: UserLocationState = {
         status: "ready",
         lat: pos.coords.latitude,

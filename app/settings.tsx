@@ -61,7 +61,7 @@ export default function SettingsHub() {
     if (answer === "denied") {
       return Alert.alert(t("settings.notifications.deniedTitle"), t("settings.notifications.deniedBody"), [
         { text: t("common.cancel"), style: "cancel" },
-        { text: t("settings.notifications.openSettings"), onPress: () => Linking.openSettings() },
+        { text: t("settings.notifications.openSettings"), onPress: () => Linking.openSettings().catch(() => {}) },
       ]);
     }
     setNotifications.mutate(true);

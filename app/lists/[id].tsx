@@ -109,7 +109,7 @@ export default function ListDetailScreen() {
       if (message === "camera_denied") {
         Alert.alert(i18n.t("lists.cameraOffTitle"), i18n.t("lists.cameraOffText"), [
           { text: i18n.t("lists.cancel"), style: "cancel" },
-          { text: i18n.t("lists.openSettings"), onPress: () => Linking.openSettings() },
+          { text: i18n.t("lists.openSettings"), onPress: () => Linking.openSettings().catch(() => {}) },
         ]);
       } else {
         const text = i18n.t("lists.coverFailed");

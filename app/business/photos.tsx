@@ -100,7 +100,7 @@ export default function BusinessPhotos() {
     if (e instanceof Error && e.message === "camera_denied") {
       Alert.alert(tb("Kameran är avstängd"), tb("Slå på kameran för Österlenappen i telefonens inställningar."), [
         { text: tb("Avbryt"), style: "cancel" },
-        { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings() },
+        { text: tb("Öppna inställningar"), onPress: () => Linking.openSettings().catch(() => {}) },
       ]);
     } else {
       toast.current?.show(businessError(e));

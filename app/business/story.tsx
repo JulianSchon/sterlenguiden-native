@@ -257,7 +257,7 @@ function StoryEditor() {
       if (!permission.granted) {
         menu.ask({
           title: tb("Kameran är avstängd"), message: tb("Slå på kameran för Österlenappen i telefonens inställningar."),
-          actions: [{ label: tb("Öppna inställningar"), onPress: () => Linking.openSettings() }],
+          actions: [{ label: tb("Öppna inställningar"), onPress: () => Linking.openSettings().catch(() => {}) }],
         });
         return null;
       }

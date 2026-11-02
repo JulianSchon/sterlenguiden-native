@@ -225,15 +225,6 @@ export default function ExploreScreen() {
     Keyboard.dismiss();
   }, [changeQuery]);
 
-  useEffect(() => {
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (!searching) return false;
-      cancel();
-      return true;
-    });
-    return () => sub.remove();
-  }, [searching, cancel]);
-
   // Bläddrandet och söket ligger båda kvar; att byta tonar bara över. Övergången börjar två
   // bildrutor efter trycket, när det nya innehållet hunnit ritas (annars hackade den)
   const mode = useSharedValue(0);
@@ -269,6 +260,16 @@ export default function ExploreScreen() {
   queryRef.current = query;
   const cancelRef = useRef(cancel);
   cancelRef.current = cancel;
+  // Androids bakåtknapp stänger söket — bara medan Sök syns (fliken ligger kvar i bakgrunden, och
+  // ett tryck på en annan flik stängde annars ett söket där utan att något hände på skärmen)
+  useFocusEffect(useCallback(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!searchingRef.current) return false;
+      cancelRef.current();
+      return true;
+    });
+    return () => sub.remove();
+  }, []));
   useEffect(() => {
     registerScrollCallback("search", () => {
       if (searchingRef.current && !queryRef.current.trim()) { cancelRef.current(); return; }
