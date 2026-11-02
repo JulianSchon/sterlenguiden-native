@@ -23,11 +23,11 @@ import Reanimated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { CalendarHeart, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { addMonths, format, max as maxDate, min as minDate, parseISO, startOfMonth } from "date-fns";
+import { addMonths, format, max as maxDate, parseISO, startOfMonth } from "date-fns";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDate } from "@/i18n/dates";
-import { useEvents, type Event } from "@/hooks/useEvents";
+import { EVENT_MONTHS_BACK, useEvents, type Event } from "@/hooks/useEvents";
 import { saveEventFavorite, useFavorites } from "@/hooks/useFavorites";
 import { useVisits } from "@/hooks/useVisits";
 import { usePlaces } from "@/hooks/usePlaces";
@@ -427,11 +427,13 @@ function AllEventsView({
     return map;
   }, [events]);
 
-  // Månaderna man kan bläddra mellan: från första eventet till ett halvår fram (minst)
+  // Månaderna man kan bläddra mellan: ett år bakåt och ett år fram, så man alltid kan se vad som
+  // hände samma tid förra året ("vilken tid var julmarknaden?") och samma tid nästa år. Finns det
+  // event ännu längre fram går det att bläddra dit också. (useEvents hämtar just det året bakåt.)
   const thisMonth = startOfMonth(new Date());
   const dated = events.filter((e) => e.date).map((e) => parseISO(e.date!));
-  const firstMonth = startOfMonth(minDate([thisMonth, ...dated]));
-  const lastMonth = startOfMonth(maxDate([addMonths(thisMonth, 6), ...dated]));
+  const firstMonth = addMonths(thisMonth, -EVENT_MONTHS_BACK);
+  const lastMonth = startOfMonth(maxDate([addMonths(thisMonth, 12), ...dated]));
   const canStep = (dir: 1 | -1) => {
     const next = addMonths(month, dir);
     return next >= firstMonth && next <= lastMonth;

@@ -7,13 +7,17 @@ export type Event = Tables<"events"> & {
   place?: { id: number; name: string; logo_url: string | null; lat: number | null; lng: number | null } | null;
 };
 
-/** Hur långt bakåt evenemang hämtas (kalendern kan bläddra några månader bakåt) */
-const HISTORY_DAYS = 90;
+/** Hur många månader bakåt evenemang hämtas — kalendern bläddrar lika långt bakåt. Ett helt år, så
+ * man alltid kan se vad som hände samma tid förra året ("när var julmarknaden?") */
+export const EVENT_MONTHS_BACK = 12;
 
-/** Event från de senaste månaderna och framåt, tidigast först. Hem hämtar dem när appen startar, så
+/** Event från ett år bakåt och framåt, tidigast först. Hem hämtar dem när appen startar, så
  * de finns redan överallt. Äldre hämtas inte — annars växte det här för varje år. */
 export async function fetchEvents(): Promise<Event[]> {
-  const since = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const from = new Date();
+  from.setDate(1);
+  from.setMonth(from.getMonth() - EVENT_MONTHS_BACK);
+  const since = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-01`;
   const { data, error } = await supabase
     .from("events")
     .select("*, place:places!events_place_id_fkey(id, name, logo_url, lat, lng)")
