@@ -97,7 +97,7 @@ export function useLists() {
     queryFn: async (): Promise<ListSummary[]> => {
       const userId = await requireUserId();
       // Listorna och när man senast öppnade dem hämtas samtidigt
-      const [{ data, error }, { data: opens, error: opensError }] = await Promise.all([
+      const [{ data, error }, { data: opens }] = await Promise.all([
         supabase
           .from("lists")
           .select("*, list_places(place_id, created_at, places(image_url)), list_members(user_id, status)")
