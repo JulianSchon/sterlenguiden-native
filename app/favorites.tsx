@@ -331,7 +331,7 @@ export default function FavoritesScreen() {
           keyExtractor={(item) => `${listKey}:${item.key}`}
           extraData={toggledOff}
           renderItem={({ item, index }) => (
-            <Reanimated.View entering={enterAt(index)} style={mode === "cards" ? s.cardCell : s.rowCell}>
+            <Reanimated.View entering={enterAt(index, mode)} style={mode === "cards" ? s.cardCell : s.rowCell}>
               {mode === "cards" ? (
                 <FavoriteCard item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               ) : (
@@ -362,7 +362,7 @@ export default function FavoritesScreen() {
 
             </>
           )}
-          initialNumToRender={mode === "cards" ? 3 : 10}
+          initialNumToRender={FIRST[mode]}
           maxToRenderPerBatch={4}
           windowSize={7}
           showsVerticalScrollIndicator={false}
@@ -374,8 +374,12 @@ export default function FavoritesScreen() {
   );
 }
 
-/** De första korten/raderna glider in efter varandra (resten ligger utanför skärmen) */
-const enterAt = (index: number) => (index < 6 ? FadeInDown.delay(index * 45).duration(300) : undefined);
+/** Så många som ritas och glider in direkt: allt som får plats på skärmen (rader är låga, så fler).
+ * Resten ligger utanför skärmen och ritas när man scrollar dit, utan animation. */
+const FIRST: Record<ViewMode, number> = { cards: 4, list: 12 };
+/** De som syns från början glider in efter varandra — alla, så ingen står still längst ner */
+const enterAt = (index: number, mode: ViewMode) =>
+  (index < FIRST[mode] ? FadeInDown.delay(index * (mode === "list" ? 30 : 45)).duration(300) : undefined);
 
 interface ItemProps {
   item: FavItem;
