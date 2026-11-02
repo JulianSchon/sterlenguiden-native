@@ -18,7 +18,10 @@
           "NSAllowsLocalNetworking": true
         }
       },
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "associatedDomains": [
+        "applinks:osterlenappen.se"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -30,6 +33,43 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "osterlenappen.se",
+              "pathPrefix": "/plats"
+            },
+            {
+              "scheme": "https",
+              "host": "osterlenappen.se",
+              "pathPrefix": "/event"
+            },
+            {
+              "scheme": "https",
+              "host": "osterlenappen.se",
+              "pathPrefix": "/lista"
+            },
+            {
+              "scheme": "https",
+              "host": "osterlenappen.se",
+              "pathPrefix": "/favoriter"
+            },
+            {
+              "scheme": "https",
+              "host": "osterlenappen.se",
+              "pathPrefix": "/q"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
@@ -88,8 +128,8 @@
         "projectId": "ad923df8-4cd9-47dd-8a86-e2ca3e6ede24"
       },
       "googleSignIn": {
-        "iosClientId": "",
-        "webClientId": ""
+        "iosClientId": "569808328063-nk9ljbvfe9238ni8lou343qom2jj4uu1.apps.googleusercontent.com",
+        "webClientId": "569808328063-ed524rt1m4gu9a6ncokk5hi80eb57dpm.apps.googleusercontent.com"
       }
     }
   }
