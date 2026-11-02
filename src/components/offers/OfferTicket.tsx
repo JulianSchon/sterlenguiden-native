@@ -195,7 +195,7 @@ export const OfferTicket = memo(function OfferTicket({
         </Reanimated.View>
 
         <View style={s.body}>
-          {imageUrl && <ExpoImage source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+          {imageUrl && <ExpoImage cachePolicy="memory-disk" source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
 
           {/* Mörkare mot botten där texten ligger; texten på bilden är alltid ljus, oavsett tema */}
           <VerticalGradient colors={["rgba(6,6,10,0.1)", "rgba(6,6,10,0.35)", "rgba(6,6,10,0.92)"]} />
@@ -221,7 +221,7 @@ export const OfferTicket = memo(function OfferTicket({
           {offer.place?.logo_url && (
             // Loggan öppnar platssidan; resten av biljetten öppnar erbjudandet (se trycket ovan)
             <View style={s.logoWrap}>
-              <ExpoImage source={{ uri: offer.place.logo_url }} style={s.logo} contentFit="cover" />
+              <ExpoImage cachePolicy="memory-disk" source={{ uri: offer.place.logo_url }} style={s.logo} contentFit="cover" />
             </View>
           )}
 

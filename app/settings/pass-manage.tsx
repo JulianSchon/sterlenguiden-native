@@ -5,6 +5,7 @@
  */
 import { Alert, View, Text, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
 import { useMembership } from "@/hooks/useMembership";
@@ -55,7 +56,7 @@ export default function ManagePass() {
       ) : (
         <View style={{ gap: 12 }}>
           <Text style={s.hint}>{t("pass.manage.noRenew")}</Text>
-          <PrimaryButton label={t("pass.status.extend")} onPress={() => router.push("/settings/pass-buy")} />
+          <PrimaryButton label={t("pass.status.extend")} onPress={() => pushOnce(router, "/settings/pass-buy")} />
         </View>
       )}
     </SettingsScreen>

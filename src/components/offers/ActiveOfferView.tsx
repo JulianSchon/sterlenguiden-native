@@ -178,7 +178,7 @@ export function ActiveOfferView({
       <View style={a.identity}>
         <View style={a.logoWrap}>
           {placeLogoUrl ? (
-            <ExpoImage source={{ uri: placeLogoUrl }} style={a.logo} contentFit="cover" />
+            <ExpoImage cachePolicy="memory-disk" source={{ uri: placeLogoUrl }} style={a.logo} contentFit="cover" />
           ) : (
             <Text style={a.logoFallback}>{placeName.charAt(0).toUpperCase()}</Text>
           )}

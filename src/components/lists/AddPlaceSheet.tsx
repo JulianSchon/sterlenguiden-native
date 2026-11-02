@@ -664,7 +664,7 @@ const PlaceCard = memo(function PlaceCard({
     <PressableScale scale={0.97} onPress={add}>
       <View style={s.card}>
         {uri && !failed ? (
-          <ExpoImage source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" onError={() => setFailed(true)} />
+          <ExpoImage cachePolicy="memory-disk" source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" onError={() => setFailed(true)} />
         ) : (
           <>
             <LinearGradient colors={[colors.goldSoft, colors.bg]} locations={[0, 0.7]} style={StyleSheet.absoluteFill} />
@@ -700,7 +700,7 @@ const PlaceRow = memo(function PlaceRow({ place, added, onAdd }: { place: Place;
     <Pressable onPress={add}>
       <View style={s.row}>
         {uri && !failed ? (
-          <ExpoImage source={{ uri }} style={s.rowImg} contentFit="cover" onError={() => setFailed(true)} />
+          <ExpoImage cachePolicy="memory-disk" source={{ uri }} style={s.rowImg} contentFit="cover" onError={() => setFailed(true)} />
         ) : (
           <View style={[s.rowImg, s.rowImgFallback]}><MapPin size={20} color={colors.faint} strokeWidth={2} /></View>
         )}

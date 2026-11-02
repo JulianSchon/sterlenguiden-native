@@ -435,7 +435,7 @@ export function MemberCard({
             <Ring ring={avatarRing} size={64 * k}>
               <View style={mc.avatarRing}>
                 {avatarUrl ? (
-                  <ExpoImage source={imageSource(avatarUrl)} style={mc.avatarImg} contentFit="cover" />
+                  <ExpoImage cachePolicy="memory-disk" source={imageSource(avatarUrl)} style={mc.avatarImg} contentFit="cover" />
                 ) : (
                   <View style={[mc.avatarInner, { backgroundColor: circleColor ?? colors.avatarBg }]}>
                     <Text style={[mc.avatarInitials, { color: circleColor ? toneOnTone(circleColor) : colors.avatarInitials }]}>
@@ -550,7 +550,7 @@ export function MemberCard({
         {/* Kortfotot ändras under Österlenpasset (en gång i månaden), inte här */}
         <View style={mc.backCircle}>
           {profileImageUrl ? (
-            <ExpoImage source={imageSource(profileImageUrl)} style={StyleSheet.absoluteFill} contentFit="cover" />
+            <ExpoImage cachePolicy="memory-disk" source={imageSource(profileImageUrl)} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : (
             <View style={mc.backCirclePlaceholder}>
               <Camera size={24 * k} color="rgba(0,0,0,0.60)" strokeWidth={1.5} />

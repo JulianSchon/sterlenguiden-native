@@ -69,7 +69,7 @@ export default function BusinessStories() {
 
   const tile = (st: BusinessStory) => (
     <Pressable key={st.id} onPress={() => setOpen(st)} style={[s.tile, { width: w, height: w * 16 / 9 }]} accessibilityLabel={tb("Visa storyn")}>
-      <ExpoImage source={{ uri: st.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
+      <ExpoImage cachePolicy="memory-disk" source={{ uri: st.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
       <View style={s.tileShade} />
       {isLive(st) && <Text style={s.tileLive}>{when(st)}</Text>}
       {/* Film, enkät eller fråga: en liten symbol uppe till höger */}
@@ -193,11 +193,11 @@ function StoryPreview({ story, onClose, onRemove }: {
           <Reanimated.View style={[StyleSheet.absoluteFill, { backgroundColor: "#000000" }, backdropStyle]} />
           <GestureDetector gesture={pan}>
             <Reanimated.View style={[StyleSheet.absoluteFill, s.preview, cardStyle]}>
-              <ExpoImage source={{ uri: story.image_url }} style={StyleSheet.absoluteFill} contentFit="contain" />
+              <ExpoImage cachePolicy="memory-disk" source={{ uri: story.image_url }} style={StyleSheet.absoluteFill} contentFit="contain" />
               {!!story.video_url && videoAvailable() && (
                 <View style={[s.media, { left: frame.left, top: frame.top, width: frame.w, height: frame.h }]} pointerEvents="none">
                   <StoryVideo uri={story.video_url} playing loop />
-                  {!!story.overlay_url && <ExpoImage source={{ uri: story.overlay_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+                  {!!story.overlay_url && <ExpoImage cachePolicy="memory-disk" source={{ uri: story.overlay_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
                 </View>
               )}
               {/* Enkäten eller frågan på samma plats som hos gästerna, med resultatet */}

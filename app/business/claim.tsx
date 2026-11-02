@@ -384,7 +384,7 @@ function PlaceCard({ info }: { info: ClaimInfo }) {
   const image = placeImages(info.place.image_url)[0];
   return (
     <View style={s.place}>
-      {image ? <ExpoImage source={{ uri: image }} style={s.placeImage} contentFit="cover" transition={150} /> : <View style={s.placeImage} />}
+      {image ? <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={s.placeImage} contentFit="cover" transition={150} /> : <View style={s.placeImage} />}
       <View style={s.placeBody}>
         <Text style={s.placeName}>{info.place.name}</Text>
         {!!info.place.town && <Text style={s.placeTown}>{info.place.town}</Text>}

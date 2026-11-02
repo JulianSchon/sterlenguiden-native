@@ -115,7 +115,7 @@ const DayCell = memo(function DayCell({
             entering={ZoomIn.delay(order * 18).duration(280)}
             style={[s.photo, { width: circle, height: circle, borderRadius: circle / 2 }]}
           >
-            {first.image_url ? <ExpoImage source={{ uri: first.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+            {first.image_url ? <ExpoImage cachePolicy="memory-disk" source={{ uri: first.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
             {/* Mörkare så siffran alltid går att läsa, oavsett bild */}
             <View style={[StyleSheet.absoluteFill, s.shade]} />
           </Reanimated.View>

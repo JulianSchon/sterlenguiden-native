@@ -139,9 +139,9 @@ function Welcome() {
                 {legal ? (
                   <Text style={s.legal}>
                     {t("auth.welcome.legalPrefix")}
-                    <Text style={s.legalLink} onPress={() => Linking.openURL(legal.terms)}>{t("auth.welcome.terms")}</Text>
+                    <Text style={s.legalLink} onPress={() => Linking.openURL(legal.terms).catch(() => {})}>{t("auth.welcome.terms")}</Text>
                     {t("auth.welcome.legalMiddle")}
-                    <Text style={s.legalLink} onPress={() => Linking.openURL(legal.privacy)}>{t("auth.welcome.privacy")}</Text>
+                    <Text style={s.legalLink} onPress={() => Linking.openURL(legal.privacy).catch(() => {})}>{t("auth.welcome.privacy")}</Text>
                     {t("auth.welcome.legalSuffix")}
                   </Text>
                 ) : null}

@@ -95,7 +95,7 @@ export default function BusinessStart() {
                     onPress={() => pushOnce(router, `/business/claim?place=${p.id}`)}
                   >
                     <View style={s.hitImage}>
-                      {image ? <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Store size={18} color={colors.faint} strokeWidth={1.8} />}
+                      {image ? <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Store size={18} color={colors.faint} strokeWidth={1.8} />}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.hitName} numberOfLines={1}>{p.name}</Text>

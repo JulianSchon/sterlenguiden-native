@@ -36,6 +36,7 @@ import {
 } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
 import { Camera, Crown, X, Clock, Timer, FileText, Check, ChevronRight, ShieldCheck } from "lucide-react-native";
@@ -338,7 +339,7 @@ export const OfferDrawer = memo(function OfferDrawer({
 
   const handleGetPass = () => {
     onCloseRef.current();
-    router.push("/settings/pass-buy");
+    pushOnce(router, "/settings/pass-buy");
   };
 
   return (
@@ -367,7 +368,7 @@ export const OfferDrawer = memo(function OfferDrawer({
         <Pressable style={s.header} onPress={onOpenPlace} disabled={!onOpenPlace}>
           <View style={s.logoCircle}>
             {place?.logo_url ? (
-              <ExpoImage source={{ uri: place.logo_url }} style={s.logo} contentFit="cover" />
+              <ExpoImage cachePolicy="memory-disk" source={{ uri: place.logo_url }} style={s.logo} contentFit="cover" />
             ) : (
               <Text style={s.logoFallback}>{(place?.name ?? "?").charAt(0).toUpperCase()}</Text>
             )}

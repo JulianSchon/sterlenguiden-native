@@ -61,7 +61,7 @@ export default function LoginScreen() {
   };
 
   const forgot = () => {
-    router.push({ pathname: "/(auth)/signup", params: { mode: "reset", email: email.trim() } });
+    pushOnce(router, { pathname: "/(auth)/signup", params: { mode: "reset", email: email.trim() } });
   };
 
   // Utan konto: tillbaka till startsidan, där man skapar ett

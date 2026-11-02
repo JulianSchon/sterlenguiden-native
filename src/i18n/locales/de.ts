@@ -1074,6 +1074,7 @@ export const de: typeof sv = {
     requestSent: "Freundschaftsanfrage gesendet", cancelRequest: "Anfrage zurückziehen", wantsToBeFriend: "Möchte mit dir befreundet sein",
   },
   lists: {
+    memberFallback: "Mitglied",
     back: "Zurück", options: "Optionen", leave: "Liste verlassen",
     cameraOffTitle: "Die Kamera ist aus", cameraOffText: "Erlaube der App in den Einstellungen deines Telefons die Kamera, um ein Foto zu machen.",
     cancel: "Abbrechen", openSettings: "Einstellungen öffnen", errorTitle: "Etwas ist schiefgelaufen",

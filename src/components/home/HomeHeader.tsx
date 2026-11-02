@@ -9,6 +9,7 @@
 import { memo, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
@@ -59,7 +60,7 @@ export const HomeHeader = memo(function HomeHeader({ location }: { location: { l
           </Text>
         </View>
         {/* Streaken och profilbilden — ett enda tryck som leder till Mitt Österlen */}
-        <TouchableOpacity style={s.avatarGroup} onPress={() => router.push("/mitt-osterlen")} activeOpacity={0.85}>
+        <TouchableOpacity style={s.avatarGroup} onPress={() => pushOnce(router, "/mitt-osterlen")} activeOpacity={0.85}>
           <View style={s.streakOverlap}>
             <StreakPill />
           </View>
@@ -80,7 +81,7 @@ export function HomeAvatar({ size }: { size: number }) {
     <AvatarRing ring={profile?.avatar_ring} size={size}>
       <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: color }]}>
         {avatarUrl ? (
-          <ExpoImage source={imageSource(avatarUrl)} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <ExpoImage cachePolicy="memory-disk" source={imageSource(avatarUrl)} style={StyleSheet.absoluteFill} contentFit="cover" />
         ) : (
           <Text style={[s.initials, { fontSize: size * 0.36, color: toneOnTone(color) }]}>{initialsOf(profile?.display_name ?? "") || "?"}</Text>
         )}

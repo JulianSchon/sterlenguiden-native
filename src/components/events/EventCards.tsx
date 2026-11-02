@@ -64,7 +64,7 @@ export const EventHeroCard = memo(function EventHeroCard({ event, reason, saved,
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(event.id)}>
       <View style={s.heroImage}>
-        {event.image_url ? <ExpoImage source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+        {event.image_url ? <ExpoImage cachePolicy="memory-disk" source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         <DateBox event={event} style={s.heroDate} />
       </View>
       <View style={s.heroInfo}>
@@ -89,7 +89,7 @@ export const EventRow = memo(function EventRow({ event, reason, saved, past, onO
   return (
     <TouchableOpacity style={[s.row, past && { opacity: 0.55 }]} activeOpacity={0.9} onPress={() => onOpen(event.id)}>
       <View style={s.thumb}>
-        {event.image_url ? <ExpoImage source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+        {event.image_url ? <ExpoImage cachePolicy="memory-disk" source={{ uri: event.image_url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         <DateBox event={event} small style={s.thumbDate} />
       </View>
       <View style={{ flex: 1, gap: 4 }}>

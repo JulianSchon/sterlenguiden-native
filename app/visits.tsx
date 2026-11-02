@@ -234,7 +234,7 @@ function VisitRow({ visit, index, last, scrollY, focusY, onPress }: {
       {/* Bilden och texten krymper mot linjen (vänsterkanten står still) */}
       <Reanimated.View style={[s.content, focusStyle]}>
         <View style={s.thumb}>
-          {image ? <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+          {image ? <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.name} numberOfLines={2}>{visit.place.name}</Text>

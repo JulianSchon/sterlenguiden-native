@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Alert, Text, TouchableOpacity, Pressable, Image, Linking, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import { User, Crown, Palette, Bell, Info, LogOut, MessageSquarePlus, Store, MailOpen, ShieldCheck } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
@@ -81,7 +82,7 @@ export default function SettingsHub() {
             try {
               await answerInvite(invite.id, true);
               await queryClient.invalidateQueries({ queryKey: ["business", "overview"] });
-              router.push(`/business/welcome?place=${invite.place_id}`);
+              pushOnce(router, `/business/welcome?place=${invite.place_id}`);
             } catch {
               Alert.alert(t("common.error"), t("settingsBusiness.joinFailed"));
             }
@@ -130,7 +131,7 @@ export default function SettingsHub() {
         {/* Blocken tonas in ett i taget: sidan veckas ut uppifrån och ner */}
         <Rise index={0}>
           {/* En profilring sticker ut utanför bilden: lika mycket luft runt den, så den inte hamnar under rubriken */}
-          <TouchableOpacity style={[s.profile, { paddingVertical: 2 + ringOverflow(profile?.avatar_ring, 76) }]} activeOpacity={0.8} onPress={() => router.push("/settings/account")}>
+          <TouchableOpacity style={[s.profile, { paddingVertical: 2 + ringOverflow(profile?.avatar_ring, 76) }]} activeOpacity={0.8} onPress={() => pushOnce(router, "/settings/account")}>
             <Avatar size={76} uri={photo} name={displayName} color={profile?.circle_color ?? "#2A2A2A"} ring={profile?.avatar_ring} />
             <Text style={s.name} numberOfLines={1}>{displayName}</Text>
           </TouchableOpacity>
@@ -138,15 +139,15 @@ export default function SettingsHub() {
 
         <Rise index={1}>
         <SettingsGroup>
-          <SettingsRow icon={User} label={t("settings.sections.account")} onPress={() => router.push("/settings/account")} />
-          <SettingsRow icon={Crown} label={t("settings.sections.pass")} onPress={() => router.push("/settings/pass")} />
-          <SettingsRow icon={Palette} label={t("settings.sections.appearance")} onPress={() => router.push("/settings/appearance")} />
+          <SettingsRow icon={User} label={t("settings.sections.account")} onPress={() => pushOnce(router, "/settings/account")} />
+          <SettingsRow icon={Crown} label={t("settings.sections.pass")} onPress={() => pushOnce(router, "/settings/pass")} />
+          <SettingsRow icon={Palette} label={t("settings.sections.appearance")} onPress={() => pushOnce(router, "/settings/appearance")} />
           <SettingsRow
             icon={Bell}
             label={t("settings.sections.notifications")}
             right={<IconSwitch value={notificationsOn ?? true} onChange={toggleNotifications} />}
           />
-          <SettingsRow icon={Info} label={t("settings.sections.about")} onPress={() => router.push("/settings/about")} />
+          <SettingsRow icon={Info} label={t("settings.sections.about")} onPress={() => pushOnce(router, "/settings/about")} />
         </SettingsGroup>
         </Rise>
 
@@ -161,7 +162,7 @@ export default function SettingsHub() {
                   subtitle={myPlaces.map((p) => p.name).join(", ")}
                   value={joinRequests > 0 ? t("settingsBusiness.wantsToJoin", { count: joinRequests }) : undefined}
                   tint={colors.goldText}
-                  onPress={() => router.push(`/business?place=${myPlaces[0].id}`)}
+                  onPress={() => pushOnce(router, `/business?place=${myPlaces[0].id}`)}
                 />
               )}
               {invites.map((invite) => (
@@ -179,7 +180,7 @@ export default function SettingsHub() {
                   icon={ShieldCheck}
                   label={t("settingsBusiness.admin")}
                   value={business.admin > 0 ? t("settingsBusiness.waiting", { count: business.admin }) : undefined}
-                  onPress={() => router.push("/admin")}
+                  onPress={() => pushOnce(router, "/admin")}
                 />
               )}
             </SettingsGroup>
@@ -195,7 +196,7 @@ export default function SettingsHub() {
               subtitle={t("settings.suggest.subtitle")}
               strong
               tint={colors.warm}
-              onPress={() => router.push("/settings/suggest")}
+              onPress={() => pushOnce(router, "/settings/suggest")}
             />
             {myPlaces.length === 0 && (
               <SettingsRow
@@ -205,7 +206,7 @@ export default function SettingsHub() {
                 subtitle={t("settingsBusiness.promoSub")}
                 strong
                 tint={colors.warm}
-                onPress={() => router.push("/business/start")}
+                onPress={() => pushOnce(router, "/business/start")}
               />
             )}
           </SettingsGroup>

@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -102,7 +103,7 @@ export default function PassPaywall() {
   const proceed = () => {
     if (!selected) return;
     if (mode === "gift") {
-      router.push({ pathname: "/settings/pass-gift", params: { period: selected.id } });
+      pushOnce(router, { pathname: "/settings/pass-gift", params: { period: selected.id } });
       return;
     }
     Alert.alert(t("pass.title"), t("pass.buy.soon"), [{ text: t("common.ok") }]);
@@ -182,9 +183,9 @@ export default function PassPaywall() {
         <GoldButton label={mode === "gift" ? t("pass.paywall.ctaGift") : t("pass.paywall.cta")} onPress={proceed} compact />
         {fine ? <Text style={s.fine}>{fine}</Text> : null}
         <View style={s.links}>
-          {legal.terms ? <FooterLink label={t("pass.paywall.terms")} onPress={() => Linking.openURL(legal.terms!)} /> : null}
-          {legal.privacy ? <FooterLink label={t("pass.paywall.privacy")} onPress={() => Linking.openURL(legal.privacy!)} /> : null}
-          <FooterLink label={t("pass.paywall.haveCode")} onPress={() => router.push("/settings/redeem")} />
+          {legal.terms ? <FooterLink label={t("pass.paywall.terms")} onPress={() => Linking.openURL(legal.terms!).catch(() => {})} /> : null}
+          {legal.privacy ? <FooterLink label={t("pass.paywall.privacy")} onPress={() => Linking.openURL(legal.privacy!).catch(() => {})} /> : null}
+          <FooterLink label={t("pass.paywall.haveCode")} onPress={() => pushOnce(router, "/settings/redeem")} />
           <FooterLink label={t("pass.paywall.notNow")} onPress={() => router.back()} />
         </View>
       </View>

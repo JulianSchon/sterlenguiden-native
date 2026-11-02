@@ -11,6 +11,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/useProfile";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -62,7 +63,7 @@ export function StickyGreeting({ scrollY, showAfter }: {
       <Text style={[s.text, { color: colors.text }]} numberOfLines={1}>
         {greeting(firstName)}
       </Text>
-      <TouchableOpacity onPress={() => router.push("/mitt-osterlen")} activeOpacity={0.85} hitSlop={8}>
+      <TouchableOpacity onPress={() => pushOnce(router, "/mitt-osterlen")} activeOpacity={0.85} hitSlop={8}>
         <HomeAvatar size={AVATAR} />
       </TouchableOpacity>
     </Reanimated.View>

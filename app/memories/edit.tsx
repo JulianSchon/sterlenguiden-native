@@ -291,7 +291,7 @@ function PhotoTile({ uri, size, onRemove }: { uri: string | undefined; size: num
   return (
     <View style={{ width: size, height: size }}>
       {uri ? (
-        <ExpoImage source={imageSource(uri)} style={s.photo} contentFit="cover" />
+        <ExpoImage cachePolicy="memory-disk" source={imageSource(uri)} style={s.photo} contentFit="cover" />
       ) : (
         <View style={[s.photo, { backgroundColor: colors.fill }]} />
       )}

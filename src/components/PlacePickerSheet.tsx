@@ -86,7 +86,7 @@ export function PlacePickerSheet({
                 onPick(p);
               }}
             >
-              {image ? <ExpoImage source={{ uri: image }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
+              {image ? <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
               <View style={{ flex: 1 }}>
                 <Text style={s.name} numberOfLines={1}>{p.name}</Text>
                 {p.nearest_town ? <Text style={s.sub} numberOfLines={1}>{p.nearest_town}</Text> : null}

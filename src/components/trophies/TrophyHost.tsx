@@ -28,6 +28,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSegments } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useAuth } from "@/hooks/useAuth";
 import { useGrantNewTrophies, useTrophies } from "@/hooks/useTrophies";
 import type { Trophy } from "@/lib/achievements";
@@ -224,7 +225,7 @@ export function TrophyHost() {
       <ListInviteMoment
         key={inviting.listId}
         invite={inviting}
-        onOpenList={(listId) => router.push(`/lists/${listId}`)}
+        onOpenList={(listId) => pushOnce(router, `/lists/${listId}`)}
         onClose={() => {
           setAnswered((a) => [...a, inviting.listId]);
           setInviting(null);
@@ -237,7 +238,7 @@ export function TrophyHost() {
     return (
       <MonthResetMoment
         reset={monthReset.moment}
-        onOpenLeaderboard={() => router.push("/leaderboards")}
+        onOpenLeaderboard={() => pushOnce(router, "/leaderboards")}
         onClose={() => {
           monthReset.done();
           setShowReset(false);
@@ -286,7 +287,7 @@ export function TrophyHost() {
       position={total > 1 ? { index: shown + 1, total } : null}
       onNavigate={() => {
         dropRest.current = true;
-        if (pathname !== "/challenges") router.push("/challenges");
+        if (pathname !== "/challenges") pushOnce(router, "/challenges");
       }}
       onClose={finish}
     />

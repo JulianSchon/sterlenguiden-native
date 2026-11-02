@@ -273,7 +273,7 @@ export default function MemoryDetailScreen() {
               getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
               keyExtractor={(uri) => uri}
               renderItem={({ item }) => (
-                <ExpoImage source={imageSource(item)} style={{ width, height }} contentFit="contain" />
+                <ExpoImage cachePolicy="memory-disk" source={imageSource(item)} style={{ width, height }} contentFit="contain" />
               )}
             />
           )}
@@ -295,7 +295,7 @@ function MemoryPlaceCard({ place, onPress }: { place: { id: number; name: string
   return (
     <TouchableOpacity style={s.placeCard} activeOpacity={0.85} onPress={onPress}>
       {img ? (
-        <ExpoImage source={imageSource(img)} style={StyleSheet.absoluteFill} contentFit="cover" />
+        <ExpoImage cachePolicy="memory-disk" source={imageSource(img)} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, s.placeImageEmpty]}>
           <MapPin size={26} color={colors.goldText} strokeWidth={2} />

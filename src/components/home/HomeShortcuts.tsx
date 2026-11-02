@@ -9,6 +9,7 @@ import { memo, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import * as Haptics from "expo-haptics";
 import i18n from "i18next";
 import { useTranslation } from "react-i18next";
@@ -101,7 +102,7 @@ export const DiscoverCard = memo(function DiscoverCard() {
 
   return (
     <Pressable
-      onPress={() => router.push("/discover")}
+      onPress={() => pushOnce(router, "/discover")}
       onPressIn={() => { press.value = withSpring(0.97, { damping: 36, stiffness: 320 }); }}
       onPressOut={() => { press.value = withSpring(1, { damping: 32, stiffness: 260 }); }}
       accessibilityRole="button"
@@ -128,7 +129,7 @@ export const DiscoverCard = memo(function DiscoverCard() {
                 transform: [{ translateX: f.x }, { translateY: f.y }, { rotate: `${f.rot}deg` }],
               }]}
             >
-              {preview[i] && <ExpoImage source={{ uri: preview[i] }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+              {preview[i] && <ExpoImage cachePolicy="memory-disk" source={{ uri: preview[i] }} style={StyleSheet.absoluteFill} contentFit="cover" />}
             </View>
           ))}
         </View>

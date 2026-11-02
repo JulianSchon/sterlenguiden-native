@@ -7,6 +7,7 @@
  * uppdaterar både översikten och detaljsidorna.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import i18n from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { firstImageUrl } from "@/hooks/usePlaces";
 import { effectiveHours, type HoursException } from "@/lib/openingHours";
@@ -177,9 +178,9 @@ export function useList(id: string | undefined) {
       // raden (RLS), precis som i Vänner-grunden — rpc_list_profiles_public löser samma sak här.
       const ids = [...new Set([...data.list_members.map((m) => m.user_id), ...data.list_places.map((p) => p.added_by)])];
       const { data: profiles, error: profilesError } = await supabase.rpc("rpc_list_profiles_public", { target_user_ids: ids });
-      if (profilesError) console.error("rpc_list_profiles_public misslyckades:", profilesError);
+      if (profilesError) throw profilesError;
       const byId = new Map((profiles ?? []).map((p) => [p.user_id, p]));
-      const nameOf = (uid: string) => byId.get(uid)?.display_name || byId.get(uid)?.username || "Medlem";
+      const nameOf = (uid: string) => byId.get(uid)?.display_name || byId.get(uid)?.username || i18n.t("lists.memberFallback");
 
       const places = data.list_places
         .filter((lp) => lp.places)

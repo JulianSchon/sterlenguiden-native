@@ -34,14 +34,14 @@ export default function AboutSettings() {
       {legalRows.length > 0 && (
         <SettingsGroup label={t("about.legal.title")}>
           {legalRows.map(({ key, icon, label, url }) => (
-            <SettingsRow key={key} icon={icon} label={label} onPress={() => Linking.openURL(url)} />
+            <SettingsRow key={key} icon={icon} label={label} onPress={() => Linking.openURL(url).catch(() => {})} />
           ))}
         </SettingsGroup>
       )}
 
       {SUPPORT_EMAIL && (
         <SettingsGroup>
-          <SettingsRow icon={Mail} label={t("about.contact")} subtitle={SUPPORT_EMAIL} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} />
+          <SettingsRow icon={Mail} label={t("about.contact")} subtitle={SUPPORT_EMAIL} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {})} />
         </SettingsGroup>
       )}
 

@@ -118,7 +118,7 @@ function Photo({ index, areaH, moving, fadeIn, reduced, onShown }: {
 
   return (
     <Reanimated.View style={[s.photo, { width: photoW, height: photoH, top: (height - photoH) / 2 }, style]}>
-      <ExpoImage source={photo.source} style={StyleSheet.absoluteFill} contentFit="cover" />
+      <ExpoImage cachePolicy="memory-disk" source={photo.source} style={StyleSheet.absoluteFill} contentFit="cover" />
     </Reanimated.View>
   );
 }

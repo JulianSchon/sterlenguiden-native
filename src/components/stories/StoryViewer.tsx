@@ -505,7 +505,7 @@ const StoryPage = memo(function StoryPage({
         <View style={[s.head, { top: insets.top + 22 }]}>
           <TouchableOpacity style={s.who} activeOpacity={0.8} onPress={() => onOpenPlace(group.placeId)}>
             <View style={s.logo}>
-              {group.logoUrl && <ExpoImage source={{ uri: group.logoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+              {group.logoUrl && <ExpoImage cachePolicy="memory-disk" source={{ uri: group.logoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
             </View>
             <Text style={s.name} numberOfLines={1}>{name}</Text>
             <Text style={s.time}>{ago(story.created_at)}</Text>

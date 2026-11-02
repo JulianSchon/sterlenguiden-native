@@ -114,7 +114,7 @@ export default function BusinessOffers() {
             <Rise key={o.offer.id} index={i + 1}>
               <Pressable onPress={(e) => menu(e, o)} style={({ pressed }) => [s.card, pressed && { opacity: 0.85 }]} accessibilityRole="button">
                 {o.offer.image_url ? (
-                  <ExpoImage source={{ uri: o.offer.image_url }} style={s.image} contentFit="cover" />
+                  <ExpoImage cachePolicy="memory-disk" source={{ uri: o.offer.image_url }} style={s.image} contentFit="cover" />
                 ) : <View style={s.image} />}
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text style={s.title} numberOfLines={2}>{o.offer.title}</Text>

@@ -260,7 +260,7 @@ export function StampScene({
       <Reanimated.View style={[{ width: cardW, height: cardH }, cardStyle]}>
         <View style={s.cardClip}>
           {image ? (
-            <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : (
             <View style={[StyleSheet.absoluteFill, s.noImage]} />
           )}
@@ -278,7 +278,7 @@ export function StampScene({
           <View style={s.info}>
             {logo && (
               <Reanimated.View style={[s.logoWrap, logoStyle]}>
-                <ExpoImage source={{ uri: logo }} style={s.logo} contentFit="contain" />
+                <ExpoImage cachePolicy="memory-disk" source={{ uri: logo }} style={s.logo} contentFit="contain" />
               </Reanimated.View>
             )}
             <View style={{ flex: 1 }}>

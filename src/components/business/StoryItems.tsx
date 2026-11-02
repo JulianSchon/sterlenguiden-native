@@ -102,7 +102,7 @@ function ItemView({ item, maxWidth }: { item: StoryItem; maxWidth: number }) {
   if (item.kind === "question") return <QuestionCard prompt={item.prompt} />;
   if (item.kind === "photo") {
     const w = maxWidth * 0.52;
-    return <ExpoImage source={{ uri: item.uri }} style={[s.photo, { width: w, height: w / item.ratio }]} contentFit="cover" />;
+    return <ExpoImage cachePolicy="memory-disk" source={{ uri: item.uri }} style={[s.photo, { width: w, height: w / item.ratio }]} contentFit="cover" />;
   }
   const dark = item.look >= 2;
   const square = item.look % 2 === 1;

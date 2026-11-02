@@ -538,7 +538,7 @@ function StoryEditor() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {images.map((url) => (
                   <Pressable key={url} onPress={() => start({ url })} style={[s.pickThumb, { backgroundColor: colors.fill }]}>
-                    <ExpoImage source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    <ExpoImage cachePolicy="memory-disk" source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   </Pressable>
                 ))}
               </ScrollView>
@@ -577,7 +577,7 @@ function StoryEditor() {
           {/* Liggande och kvadrat: samma bild suddig och lite mörkare bakom */}
           {!video && fit !== "fill" && shown && (
             <>
-              <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} transition={0} />
+              <ExpoImage cachePolicy="memory-disk" source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} transition={0} />
               <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.25)" }]} />
             </>
           )}
@@ -587,14 +587,14 @@ function StoryEditor() {
                 // Filmen (tyst medan man redigerar); när storyn fotograferas syns den inte, eller som omslag
                 <View style={StyleSheet.absoluteFill}>
                   {capturing === "poster" ? (
-                    posterThumb ? <ExpoImage source={posterThumb as never} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} onLoad={() => posterLoaded.current?.()} /> : null
+                    posterThumb ? <ExpoImage cachePolicy="memory-disk" source={posterThumb as never} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} onLoad={() => posterLoaded.current?.()} /> : null
                   ) : capturing !== "overlay" ? (
                     <StoryVideo ref={videoRef} uri={video.uri} playing={!busy} muted loop />
                   ) : null}
                 </View>
               ) : (
                 <Reanimated.View style={[{ width: cw, height: frameH, overflow: fit === "fill" ? "visible" : "hidden" }, imageStyle]}>
-                  {!!shown && <ExpoImage source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
+                  {!!shown && <ExpoImage cachePolicy="memory-disk" source={{ uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" transition={0} />}
                 </Reanimated.View>
               )}
             </Reanimated.View>
@@ -668,7 +668,7 @@ function StoryEditor() {
             return (
               <Pressable key={f.id} onPress={() => chooseFilter(i)} style={s.filter} accessibilityLabel={tb("Filter: {{0}}", { 0: f.name })}>
                 <View style={[s.filterThumb, on && s.filterThumbOn]}>
-                  {thumbs[f.id] ? <ExpoImage source={{ uri: thumbs[f.id] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : null}
+                  {thumbs[f.id] ? <ExpoImage cachePolicy="memory-disk" source={{ uri: thumbs[f.id] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} /> : null}
                 </View>
                 <Text style={[s.filterName, on && { color: "#FFFFFF" }]} numberOfLines={1}>{tb(f.name)}</Text>
               </Pressable>

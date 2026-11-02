@@ -197,7 +197,7 @@ export default function BusinessPhotos() {
       <TouchableOpacity style={s.logoRow} activeOpacity={0.8} onPress={changeLogo} accessibilityRole="button" accessibilityLabel={tb("Byt logga")}>
         <View style={s.logo}>
           {logoBusy ? <Skeleton width={72} height={72} radius={36} /> : logo ? (
-            <ExpoImage source={{ uri: logo }} style={{ width: "100%", height: "100%" }} contentFit="contain" />
+            <ExpoImage cachePolicy="memory-disk" source={{ uri: logo }} style={{ width: "100%", height: "100%" }} contentFit="contain" />
           ) : (
             <Store size={28} color={colors.faint} strokeWidth={1.6} />
           )}
@@ -250,7 +250,7 @@ export default function BusinessPhotos() {
               <View style={[s.row, isActive && s.rowActive]}>
                 <View style={s.thumb}>
                   {item.url || item.local ? (
-                    <ExpoImage source={{ uri: item.url ?? item.local }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
+                    <ExpoImage cachePolicy="memory-disk" source={{ uri: item.url ?? item.local }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
                   ) : null}
                   {!item.url && <View style={[StyleSheet.absoluteFill, s.uploading]}><Skeleton width="100%" height="100%" radius={0} /></View>}
                 </View>

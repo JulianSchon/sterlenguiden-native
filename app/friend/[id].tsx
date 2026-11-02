@@ -573,7 +573,7 @@ function ActivityRow({ who, activity, bordered }: { who: string; activity: Frien
         // i Samlarobjekt-rutnätet och på kartan.
         <StickerArt imagePath={activity.imagePath} size={44} silhouette={false} />
       ) : photoUri ? (
-        <ExpoImage source={{ uri: photoUri }} style={s.activityThumb} contentFit="cover" />
+        <ExpoImage cachePolicy="memory-disk" source={{ uri: photoUri }} style={s.activityThumb} contentFit="cover" />
       ) : (
         <View style={s.activityIcon}>
           {activity.kind === "visit" ? <MapPin size={18} color={colors.goldText} strokeWidth={2} /> : <Heart size={18} color={colors.goldText} strokeWidth={2} />}

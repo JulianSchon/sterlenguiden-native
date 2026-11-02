@@ -1077,6 +1077,7 @@ export const sv = {
     requestSent: "Vänförfrågan skickad", cancelRequest: "Avbryt förfrågan", wantsToBeFriend: "Vill bli vän med dig",
   },
   lists: {
+    memberFallback: "Medlem",
     back: "Tillbaka", options: "Alternativ", leave: "Lämna listan",
     cameraOffTitle: "Kameran är avstängd", cameraOffText: "Tillåt kameran för appen i telefonens inställningar för att kunna ta ett foto.",
     cancel: "Avbryt", openSettings: "Öppna inställningar", errorTitle: "Något gick fel",

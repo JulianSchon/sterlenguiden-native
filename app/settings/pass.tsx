@@ -8,6 +8,7 @@
 import { useMemo } from "react";
 import { Alert, View, Text, Pressable, TouchableOpacity, Share, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import { differenceInCalendarDays } from "date-fns";
 import { ArrowDown, ArrowUp, Camera, ChevronRight, Copy, Crown, EyeOff, Gift, Settings2, Tag, Ticket, type LucideIcon } from "lucide-react-native";
@@ -164,7 +165,7 @@ export default function PassHub() {
             circleColor={profile?.circle_color}
             avatarRing={profile?.avatar_ring}
             profileImageUrl={cardPhotoUrl}
-            onBuyPress={() => router.push("/settings/pass-buy")}
+            onBuyPress={() => pushOnce(router, "/settings/pass-buy")}
             startOnBack
             lockedBack
           />
@@ -191,15 +192,15 @@ export default function PassHub() {
       )}
 
       {!membership.isMember && (
-        <GetPassButton price={cheapest} offers={offers.length} onPress={() => router.push("/settings/pass-buy")} />
+        <GetPassButton price={cheapest} offers={offers.length} onPress={() => pushOnce(router, "/settings/pass-buy")} />
       )}
 
       <View style={s.actions}>
-        <QuickAction icon={Tag} label={t("pass.actions.offers")} badge={offers.length} onPress={() => router.push("/offers")} />
-        <QuickAction icon={Ticket} label={t("pass.actions.redeem")} onPress={() => router.push("/settings/redeem")} />
-        <QuickAction icon={Gift} label={t("pass.actions.give")} onPress={() => router.push({ pathname: "/settings/pass-buy", params: { mode: "gift" } })} />
+        <QuickAction icon={Tag} label={t("pass.actions.offers")} badge={offers.length} onPress={() => pushOnce(router, "/offers")} />
+        <QuickAction icon={Ticket} label={t("pass.actions.redeem")} onPress={() => pushOnce(router, "/settings/redeem")} />
+        <QuickAction icon={Gift} label={t("pass.actions.give")} onPress={() => pushOnce(router, { pathname: "/settings/pass-buy", params: { mode: "gift" } })} />
         {membership.isMember && (
-          <QuickAction icon={Settings2} label={t("pass.actions.manage")} onPress={() => router.push("/settings/pass-manage")} />
+          <QuickAction icon={Settings2} label={t("pass.actions.manage")} onPress={() => pushOnce(router, "/settings/pass-manage")} />
         )}
       </View>
 

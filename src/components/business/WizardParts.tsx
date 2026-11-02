@@ -89,7 +89,7 @@ export function ImageChooser({ placeId, images, value, onChange, onError }: {
             accessibilityRole="radio"
             accessibilityState={{ selected: on }}
           >
-            <ExpoImage source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
+            <ExpoImage cachePolicy="memory-disk" source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
             {on && (
               <View style={s.check}>
                 <Check size={14} color={colors.onGold} strokeWidth={3} />

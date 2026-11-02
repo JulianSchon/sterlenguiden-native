@@ -49,7 +49,7 @@ export default function BusinessAbout() {
           <SectionHeader title={tb("Så här syns ni i sökningen")} />
           <GradientCard>
             <View style={s.preview}>
-              {image ? <ExpoImage source={{ uri: image }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
+              {image ? <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
               <View style={{ flex: 1 }}>
                 <Text style={s.previewName} numberOfLines={1}>{draft.name || tb("Ert namn")}</Text>
                 <Text style={s.previewShort} numberOfLines={2}>{draft.short || tb("En kort mening om er syns här.")}</Text>

@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import { Settings, Crown, ChevronRight, ClipboardList, BarChart3, Medal, Heart, type LucideIcon } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
@@ -307,7 +308,7 @@ export default function ProfileScreen() {
       <Reanimated.View entering={enterAt(0)} style={s.titleWrap}>
         <View style={s.titleRow}>
           <Text style={s.pageTitle}>{t("profile.title")}</Text>
-          <TouchableOpacity style={s.gearBtn} onPress={() => router.push("/settings")}>
+          <TouchableOpacity style={s.gearBtn} onPress={() => pushOnce(router, "/settings")}>
             <Settings size={20} color={colors.muted} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>
@@ -332,7 +333,7 @@ export default function ProfileScreen() {
           avatarRing={profile?.avatar_ring}
           ringComponent={SnapRing}
           profileImageUrl={cardPhotoUrl}
-          onBuyPress={() => router.push("/settings/pass-buy")}
+          onBuyPress={() => pushOnce(router, "/settings/pass-buy")}
         />
         </CardReveal>
         </Reanimated.View>
@@ -346,13 +347,13 @@ export default function ProfileScreen() {
             badge={activeOffers.length}
             title={t("profile.offers.title")}
             subtitle={offerSubtitle}
-            onPress={() => router.push("/offers")}
+            onPress={() => pushOnce(router, "/offers")}
           />
           <PrimaryTile
             logo
             title={t("profile.myOsterlen.title")}
             subtitle={t("profile.myOsterlen.tile")}
-            onPress={() => router.push("/mitt-osterlen")}
+            onPress={() => pushOnce(router, "/mitt-osterlen")}
           />
         </View>
         </Reanimated.View>
@@ -365,7 +366,7 @@ export default function ProfileScreen() {
             title={t("profile.favorites.title")}
             subtitle={favSubtitle}
             thumbs={<Thumbs uris={favImages} />}
-            onPress={() => router.push("/favorites")}
+            onPress={() => pushOnce(router, "/favorites")}
           />
           </Reanimated.View>
           <Reanimated.View entering={enterAt(4)}>
@@ -374,7 +375,7 @@ export default function ProfileScreen() {
             title={t("profile.history.title")}
             subtitle={visitCount === 1 ? t("profile.history.one") : t("profile.history.count", { count: visitCount })}
             thumbs={<Thumbs uris={recentImages} />}
-            onPress={() => router.push("/visits")}
+            onPress={() => pushOnce(router, "/visits")}
           />
           </Reanimated.View>
           <Reanimated.View entering={enterAt(5)}>
@@ -383,7 +384,7 @@ export default function ProfileScreen() {
             title={t("profile.stats.title")}
             subtitle={t("profile.stats.sub")}
             thumbs={<View style={s.thumbs}>{topCategories.map((cat, i) => <CategoryBox key={cat.id} cat={cat} index={i} />)}</View>}
-            onPress={() => router.push("/stats")}
+            onPress={() => pushOnce(router, "/stats")}
           />
           </Reanimated.View>
           <Reanimated.View entering={enterAt(6)}>
@@ -393,7 +394,7 @@ export default function ProfileScreen() {
             subtitle={t("profile.challenges.sub", { done: trophiesDone, total: trophies.length })}
             thumbs={<View style={s.thumbs}>{doneTrophies.map((trophy, i) => <TrophyBox key={trophy.key} trophy={trophy} index={i} />)}</View>}
             last
-            onPress={() => router.push("/challenges")}
+            onPress={() => pushOnce(router, "/challenges")}
           />
           </Reanimated.View>
         </View>

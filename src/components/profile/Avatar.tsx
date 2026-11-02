@@ -20,7 +20,7 @@ export function Avatar({
     <AvatarRing ring={ring} size={size}>
       <View style={[s.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: color }]}>
         {uri ? (
-          <ExpoImage source={imageSource(uri)} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <ExpoImage cachePolicy="memory-disk" source={imageSource(uri)} style={StyleSheet.absoluteFill} contentFit="cover" />
         ) : (
           <Text style={[s.initials, { fontSize: size * 0.36, color: textColor ?? toneOnTone(color) }]}>
             {initialsOf(name) || "?"}

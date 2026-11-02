@@ -285,7 +285,7 @@ function Hero({ mine, place, onSwitch }: { mine: MyPlace; place: BusinessPlace |
   return (
     <View style={s.hero}>
       {image ? (
-        <ExpoImage source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} />
+        <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={160} />
       ) : (
         <LinearGradient colors={[cat?.screen ?? "#3A3020", "#121212"]} style={StyleSheet.absoluteFill} />
       )}
@@ -314,7 +314,7 @@ function PlaceThumb({ mine, size }: { mine: Pick<MyPlace, "logo_url" | "image_ur
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, overflow: "hidden", backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(255,255,255,0.9)" }}>
       {uri ? (
-        <ExpoImage source={{ uri }} style={{ width: "100%", height: "100%" }} contentFit={mine.logo_url ? "contain" : "cover"} />
+        <ExpoImage cachePolicy="memory-disk" source={{ uri }} style={{ width: "100%", height: "100%" }} contentFit={mine.logo_url ? "contain" : "cover"} />
       ) : Icon ? (
         <Icon size={size * 0.45} color={colors.onGold} strokeWidth={1.8} />
       ) : null}

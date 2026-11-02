@@ -73,7 +73,7 @@ export function LoadingImage({
     <View style={[style, { overflow: "hidden" }]}>
       {!loaded && <Skeleton tone={tone} radius={0} style={StyleSheet.absoluteFill} />}
       <Reanimated.View style={[StyleSheet.absoluteFill, fade]}>
-        <ExpoImage
+        <ExpoImage cachePolicy="memory-disk"
           source={imageSource(uri)}
           contentFit={contentFit}
           style={StyleSheet.absoluteFill}

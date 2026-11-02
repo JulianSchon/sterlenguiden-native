@@ -420,7 +420,7 @@ function PlaceRow({
       onPress={onPress}
       disabled={isActive}
     >
-      {place.image_url ? <ExpoImage source={{ uri: place.image_url }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
+      {place.image_url ? <ExpoImage cachePolicy="memory-disk" source={{ uri: place.image_url }} style={s.thumb} contentFit="cover" /> : <View style={s.thumb} />}
       {/* Tre våningar som fyller bildens höjd: vem + Österlenpasset överst, namnet i mitten,
           ort + öppet/stängt underst — i stället för fem rader staplade tätt på varandra */}
       <View style={s.placeBody}>

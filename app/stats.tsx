@@ -222,7 +222,7 @@ export default function StatsScreen() {
               <TouchableOpacity style={[s.card, s.topPlace]} activeOpacity={0.8} onPress={() => pushOnce(router, `/place/${stats.topPlace!.place.id}?from=profile`)}>
                 <View style={s.topThumb}>
                   {firstImageUrl(stats.topPlace.place.image_url)
-                    ? <ExpoImage source={{ uri: firstImageUrl(stats.topPlace.place.image_url)! }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    ? <ExpoImage cachePolicy="memory-disk" source={{ uri: firstImageUrl(stats.topPlace.place.image_url)! }} style={StyleSheet.absoluteFill} contentFit="cover" />
                     : null}
                 </View>
                 <View style={{ flex: 1 }}>

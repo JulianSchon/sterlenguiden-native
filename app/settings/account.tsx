@@ -16,6 +16,7 @@ import {
   ActivityIndicator, StyleSheet, useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import { addDays } from "date-fns";
 import Svg, { Circle } from "react-native-svg";
@@ -312,7 +313,7 @@ export default function AccountSettings() {
                 {interests.length > MAX_INTERESTS_SHOWN ? <Text style={s.interestMore}>+{interests.length - MAX_INTERESTS_SHOWN}</Text> : null}
               </View>
             ) : undefined}
-            onPress={() => router.push("/settings/interests")}
+            onPress={() => pushOnce(router, "/settings/interests")}
           />
         </SettingsGroup>
 
