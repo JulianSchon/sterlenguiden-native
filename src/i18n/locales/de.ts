@@ -352,6 +352,9 @@ export const de: typeof sv = {
     activating: "Wird aktiviert…",
     activateFailed: { title: "Aktivierung fehlgeschlagen", body: "Das Angebot wurde nicht aktiviert. Prüfe deine Verbindung und versuche es erneut." },
     activateBlocked: { title: "Dieses Angebot ist gerade nicht verfügbar", body: "Es wurde bereits genutzt oder kann noch nicht erneut genutzt werden." },
+    activateNotMember: { title: "Dein Österlen-Pass ist abgelaufen", body: "Verlängere den Pass, um dieses Angebot zu nutzen." },
+    activateTooYoung: { title: "Dieses Angebot hat eine Altersgrenze", body: "Du musst mindestens {{age}} Jahre alt sein, um es zu nutzen." },
+    activateOwnOffer: { title: "Das ist euer eigenes Angebot", body: "Angebote eines Unternehmens, das du verwaltest, kannst du nicht selbst nutzen." },
     how: {
       hold: "Gedrückt halten",
       show: "Dem Personal zeigen",

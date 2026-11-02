@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isNetworkError } from "@/lib/network";
 import type { Profile } from "@/hooks/useProfile";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { MembershipMoment, type MomentInfo } from "@/components/pass/MembershipMoment";
@@ -18,7 +19,7 @@ import { PrimaryButton } from "@/components/Sheet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 
-type Failure = "used" | "notFound" | "unlimited" | "tooMany" | "failed";
+type Failure = "used" | "notFound" | "unlimited" | "tooMany" | "failed" | "offline";
 type RedeemResult = {
   ok: boolean; reason?: string; member_until?: string | null; saved?: boolean; days?: number;
   /** Vem gåvan är från och hälsningen (migration 045) */
@@ -43,7 +44,7 @@ export default function RedeemCodeScreen() {
     setBusy(false);
     const result = data as RedeemResult | null;
     if (error || !result || !result.ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-    if (error || !result) return setFailure("failed");
+    if (error || !result) return setFailure(isNetworkError(error) ? "offline" : "failed");
     if (!result.ok) {
       const reasons: Record<string, Failure> = { used: "used", unlimited: "unlimited", too_many: "tooMany" };
       return setFailure(reasons[result.reason ?? ""] ?? "notFound");
@@ -88,7 +89,7 @@ export default function RedeemCodeScreen() {
             placeholder="ABCD1234"
             placeholderTextColor={colors.faint}
           />
-          {failure ? <Text style={s.error}>{t(`pass.redeem.${failure}`)}</Text> : null}
+          {failure ? <Text style={s.error}>{failure === "offline" ? t("common.offlineAction") : t(`pass.redeem.${failure}`)}</Text> : null}
           <PrimaryButton
             label={t("pass.redeem.cta")}
             onPress={redeem}

@@ -25,7 +25,7 @@
  * Panelen går medvetet inte att stänga medan bekräftelse- eller aktiv vy ligger ovanpå.
  */
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert, useWindowDimensions } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert, BackHandler, useWindowDimensions } from "react-native";
 import Animated, {
   Easing, useAnimatedReaction, interpolate, runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
   withTiming, type SharedValue,
@@ -35,11 +35,12 @@ import {
   type SkImage,
 } from "@shopify/react-native-skia";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
-import { Camera, Crown, X, Clock, Timer, FileText, Check, ChevronRight, ShieldCheck } from "lucide-react-native";
+import { Camera, Crown, X, Clock, Timer, FileText, Check, ChevronRight, Lock, ShieldCheck } from "lucide-react-native";
 import { useOffers } from "@/hooks/useOffers";
 import { useOfferRedemptions, useActivateOffer } from "@/hooks/useOfferRedemptions";
 import { useMembership } from "@/hooks/useMembership";
@@ -111,6 +112,8 @@ export const OfferDrawer = memo(function OfferDrawer({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const s = useThemedStyles(createSheetStyles);
   const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -327,15 +330,37 @@ export const OfferDrawer = memo(function OfferDrawer({
     try {
       await activate.mutateAsync(offer);
     } catch (e) {
-      // Servern stoppar aktiveringar som bryter mot reglerna (migration 025) — t.ex. om telefonens
-      // klocka ställts fram för att använda ett veckoerbjudande igen
-      const blocked = e instanceof Object && /offer_(not_available|already_used|not_yet_available)/.test(String((e as { message?: string }).message));
-      const key = blocked ? "offers.activateBlocked" : "offers.activateFailed";
-      Alert.alert(t(`${key}.title`), isNetworkError(e) ? t("common.offlineAction") : t(`${key}.body`));
+      // Servern stoppar aktiveringar som bryter mot reglerna (migration 025, 065) — t.ex. om telefonens
+      // klocka ställts fram för att använda ett veckoerbjudande igen, eller passet hunnit gå ut
+      const message = String((e as { message?: string } | null)?.message ?? "");
+      const key = /offer_(not_available|already_used|not_yet_available)/.test(message) ? "offers.activateBlocked"
+        : /not_member/.test(message) ? "offers.activateNotMember"
+        : /too_young/.test(message) ? "offers.activateTooYoung"
+        : /own_offer/.test(message) ? "offers.activateOwnOffer"
+        : "offers.activateFailed";
+      // Passet gick ut sedan profilen hämtades: profilen hämtas om så att sidan visar rätt
+      if (key === "offers.activateNotMember") queryClient.invalidateQueries({ queryKey: ["profile"] });
+      Alert.alert(t(`${key}.title`), isNetworkError(e) ? t("common.offlineAction") : t(`${key}.body`, { age: offer.min_age ?? 18 }));
     } finally {
       setActivating(false);
     }
   };
+
+  // Bakåt (Androids bakåtknapp) stänger rutan eller panelen, inte sidan under. Svepet tillbaka
+  // (iPhone) är avstängt medan panelen är öppen — det tog annars med sig hela sidan
+  useEffect(() => {
+    if (!visible) return;
+    navigation.setOptions({ gestureEnabled: false });
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (pending) setPending(null);
+      else requestClose();
+      return true;
+    });
+    return () => {
+      sub.remove();
+      navigation.setOptions({ gestureEnabled: true });
+    };
+  }, [visible, pending, activating, navigation]);
 
   const handleGetPass = () => {
     onCloseRef.current();
@@ -593,6 +618,8 @@ function OfferCard({
       : isMember && !eligibility.canUse
       ? eligibility.reason
       : null;
+  // Bocken betyder "använt"; spärrat av andra skäl (eget företag, utgånget, åldersgräns) får ett lås
+  const BlockedIcon = !ownPlace && !isExpired && eligibility.used ? Check : Lock;
 
   return (
     <View style={c.card} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
@@ -648,7 +675,7 @@ function OfferCard({
       <View style={{ marginTop: 20 }}>
         {blocked ? (
           <View style={c.blockedBox}>
-            <Check size={16} color={colors.muted} strokeWidth={2.5} />
+            <BlockedIcon size={16} color={colors.muted} strokeWidth={2.5} />
             <Text style={c.blockedText}>{blocked}</Text>
           </View>
         ) : isMember && needsPhoto ? (

@@ -562,8 +562,9 @@ export function MemberCard({
         <Text style={mc.backMemberName} numberOfLines={1}>{displayName}</Text>
         <LiveClock running={clockOn && !locked} style={mc.liveClock} />
 
-        {/* Instruktion — i flex-flödet, samma gap som övriga element */}
-        <Text style={mc.liveInstruction}>{i18n.t("rewards.instruction")}</Text>
+        {/* Instruktion — i flex-flödet, samma gap som övriga element. Inte på personalskärmen: där
+            går kortet inte att vända */}
+        {!showBackOnly && <Text style={mc.liveInstruction}>{i18n.t("rewards.instruction")}</Text>}
 
       </View>
 

@@ -33,6 +33,7 @@ import { OfferTicket, TICKET_H } from "@/components/offers/OfferTicket";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { CategoryHeader } from "@/components/CategoryHeader";
 import { Skeleton } from "@/components/Skeleton";
+import { FeedOffline } from "@/components/home/FeedCards";
 import { findCategory, type CategoryId } from "@/theme/categories";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -74,7 +75,7 @@ export default function OffersScreen() {
   const { isMember } = useMembership();
   const { data: profile } = useProfile();
   const { available: usable } = useAvailableOffers();
-  const { data: allOffers = [], isLoading } = useOffers();
+  const { data: allOffers = [], isLoading, isError, refetch } = useOffers();
   // Erbjudanden med åldersgräns man inte når upp till syns inte här (platssidan visar dem nedtonade)
   const offers = useMemo(() => allOffers.filter((o) => ageAllowed(o, profile?.birth_date)), [allOffers, profile?.birth_date]);
   const { data: redeemedOffers = [] } = useRedeemedOffers();
@@ -256,7 +257,12 @@ export default function OffersScreen() {
         </View>
       )}
 
-      {!isLoading && offers.length === 0 && redeemedOffers.length === 0 && (
+      {/* Gick inte att hämta och inget finns sparat (oftast inget nät): säg det i stället för "inga erbjudanden" */}
+      {!isLoading && isError && allOffers.length === 0 && redeemedOffers.length === 0 && (
+        <FeedOffline onRetry={() => { refetch(); }} />
+      )}
+
+      {!isLoading && !(isError && allOffers.length === 0) && offers.length === 0 && redeemedOffers.length === 0 && (
         <View style={s.center}>
           <View style={s.emptyIcon}>
             <Crown size={28} color={colors.goldText} strokeWidth={1.5} />

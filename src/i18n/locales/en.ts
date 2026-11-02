@@ -352,6 +352,9 @@ export const en: typeof sv = {
     activating: "Activating…",
     activateFailed: { title: "Couldn't activate", body: "The offer wasn't activated. Check your connection and try again." },
     activateBlocked: { title: "This offer can't be used right now", body: "It has already been used, or can't be used again yet." },
+    activateNotMember: { title: "Your Österlen Pass has expired", body: "Renew the pass to use this offer." },
+    activateTooYoung: { title: "This offer has an age limit", body: "You need to be {{age}} or older to use it." },
+    activateOwnOffer: { title: "This is your own offer", body: "You can't use offers from a business you manage." },
     how: {
       hold: "Press and hold",
       show: "Show the staff",

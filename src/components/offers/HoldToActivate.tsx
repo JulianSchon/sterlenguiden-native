@@ -101,6 +101,12 @@ export function HoldToActivate({ onComplete }: { onComplete: () => void }) {
         style={h.press}
         // Ingen långtrycksmeny — hela gesten ÄR ett långtryck
         delayLongPress={HOLD_MS * 4}
+        // Med skärmläsare (VoiceOver/TalkBack) går det inte att hålla inne: ett dubbeltryck aktiverar
+        // i stället. Bekräftelserutan kommer ändå efteråt, så inget bränns av misstag
+        accessibilityRole="button"
+        accessibilityLabel={t("offers.hold.idle")}
+        accessibilityActions={[{ name: "activate" }]}
+        onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === "activate") finish(); }}
       >
         <Animated.View style={[h.fill, fillStyle]} pointerEvents="none" />
         <View style={h.row}>

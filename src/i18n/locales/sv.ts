@@ -355,6 +355,9 @@ export const sv = {
     activating: "Aktiverar…",
     activateFailed: { title: "Det gick inte att aktivera", body: "Erbjudandet aktiverades inte. Kontrollera din uppkoppling och försök igen." },
     activateBlocked: { title: "Erbjudandet kan inte användas just nu", body: "Det har redan använts, eller går inte att använda igen än." },
+    activateNotMember: { title: "Österlenpasset har gått ut", body: "Förnya passet för att använda erbjudandet." },
+    activateTooYoung: { title: "Erbjudandet har en åldersgräns", body: "Du behöver ha fyllt {{age}} år för att använda det." },
+    activateOwnOffer: { title: "Det här är ert eget erbjudande", body: "Erbjudanden från ett företag du sköter kan du inte använda själv." },
     how: {
       hold: "Håll inne",
       show: "Visa för personalen",
