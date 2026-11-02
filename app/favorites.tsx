@@ -194,6 +194,17 @@ export default function FavoritesScreen() {
   // Byts vy eller kategori får alla kort nya nycklar, så de byggs om och de första glider in
   // efter varandra — likadant varje gång (förut låg en del kvar och andra gled in)
   const listKey = `${mode}:${filterIndex}`;
+  // Medan tåget glider in ritas bara korten som syns. Resten (under skärmkanten) läggs till när det
+  // kommit fram — ritades de under tiden tappade animationen bildrutor, och mer ju fler favoriter.
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => setSettledKey(listKey), trainMs(mode));
+    return () => clearTimeout(t);
+  }, [listKey, mode]);
+  const listData = useMemo(
+    () => (settledKey === listKey ? visible : visible.slice(0, FIRST[mode])),
+    [settledKey, listKey, visible, mode],
+  );
 
   const step = (dir: 1 | -1) => {
     const next = filterIndex + dir;
@@ -327,7 +338,7 @@ export default function FavoritesScreen() {
       {!isLoading && items.length > 0 && (
         <FlatList
           ref={listRef}
-          data={visible}
+          data={listData}
           keyExtractor={(item) => `${listKey}:${item.key}`}
           extraData={toggledOff}
           renderItem={({ item, index }) => (
@@ -377,9 +388,13 @@ export default function FavoritesScreen() {
 /** Så många som ritas och glider in direkt: allt som får plats på skärmen (rader är låga, så fler).
  * Resten ligger utanför skärmen och ritas när man scrollar dit, utan animation. */
 const FIRST: Record<ViewMode, number> = { cards: 4, list: 12 };
+const STAGGER: Record<ViewMode, number> = { cards: 45, list: 30 };
+const ENTER_MS = 300;
 /** De som syns från början glider in efter varandra — alla, så ingen står still längst ner */
 const enterAt = (index: number, mode: ViewMode) =>
-  (index < FIRST[mode] ? FadeInDown.delay(index * (mode === "list" ? 30 : 45)).duration(300) : undefined);
+  (index < FIRST[mode] ? FadeInDown.delay(index * STAGGER[mode]).duration(ENTER_MS) : undefined);
+/** När hela tåget kommit fram */
+const trainMs = (mode: ViewMode) => FIRST[mode] * STAGGER[mode] + ENTER_MS + 50;
 
 interface ItemProps {
   item: FavItem;
