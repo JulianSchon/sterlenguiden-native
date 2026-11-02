@@ -75,7 +75,7 @@ export default function SettingsHub() {
       }),
       [
         { text: t("settingsBusiness.later"), style: "cancel" },
-        { text: t("settingsBusiness.noThanks"), style: "destructive", onPress: () => answerInvite(invite.id, false).finally(() => queryClient.invalidateQueries({ queryKey: ["business", "overview"] })) },
+        { text: t("settingsBusiness.noThanks"), style: "destructive", onPress: () => answerInvite(invite.id, false).catch(() => {}).finally(() => queryClient.invalidateQueries({ queryKey: ["business", "overview"] })) },
         {
           text: t("settingsBusiness.join"),
           onPress: async () => {

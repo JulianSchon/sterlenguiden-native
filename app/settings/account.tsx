@@ -40,7 +40,7 @@ import { Avatar } from "@/components/profile/Avatar";
 import { ringOverflow } from "@/components/profile/AvatarRing";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
-import { isNetworkError } from "@/lib/network";
+import { isNetworkError, notifyOffline } from "@/lib/network";
 
 // Sex färger, tre mörka och tre ljusa om vartannat (mörk cirkel → ljusa bokstäver,
 // ljus cirkel → mörka bokstäver; bokstäverna får automatiskt samma nyans som cirkeln).
@@ -185,7 +185,8 @@ export default function AccountSettings() {
     const { error } = await supabase.auth.updateUser({ email });
     setBusy(false);
     if (error) {
-      if (isNetworkError(error)) return;
+      // Inloggningens anrop går inte via appens vanliga sparande, så "Du är utan nät" sägs här
+      if (isNetworkError(error)) return notifyOffline();
       const key = error.code === "email_exists" ? "taken" : error.code === "email_address_invalid" ? "invalid" : "failed";
       return Alert.alert(t("common.error"), t(`account.emailChange.${key}`));
     }
@@ -202,12 +203,13 @@ export default function AccountSettings() {
     const check = await supabase.auth.signInWithPassword({ email: user?.email ?? "", password: currentPw });
     if (check.error) {
       setBusy(false);
-      if (isNetworkError(check.error)) return;
+      if (isNetworkError(check.error)) return notifyOffline();
       return Alert.alert(t("common.error"), t("account.password.wrongCurrent"));
     }
     const { error } = await supabase.auth.updateUser({ password: newPw, current_password: currentPw });
     setBusy(false);
     if (error) {
+      if (isNetworkError(error)) return notifyOffline();
       // Supabases egna (engelska) felmeddelanden visas aldrig
       const key = error.code === "same_password" ? "same" : error.code === "weak_password" ? "weak" : "failed";
       return Alert.alert(t("common.error"), t(`onboarding.password.${key}`));

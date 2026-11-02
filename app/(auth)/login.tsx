@@ -49,11 +49,13 @@ export default function LoginScreen() {
     const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (e) {
       setBusy(false);
-      setPassword("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       const msg = (e.message ?? "").toLowerCase();
-      if (e.code === "invalid_credentials" || msg.includes("invalid")) setError(t("auth.login.errors.wrong"));
-      else if (e.status === 429) setError(t("auth.login.errors.tooMany"));
+      // Bara ett fel lösenord töms — utan nät ska man inte behöva skriva det igen
+      if (e.code === "invalid_credentials" || msg.includes("invalid")) {
+        setPassword("");
+        setError(t("auth.login.errors.wrong"));
+      } else if (e.status === 429) setError(t("auth.login.errors.tooMany"));
       else setError(t("auth.login.errors.failed"));
       return;
     }
