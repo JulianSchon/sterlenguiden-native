@@ -193,10 +193,12 @@ export default function FavoritesScreen() {
     if (filter.isEvent) return items.filter((i) => i.kind === "event");
     return items.filter((i) => i.kind === "place" && matchesDbValues(i.categories, filter.dbValues ?? []));
   }, [items, filter]);
-  // Byts vy eller kategori ritas korten i omgångar: de första direkt (de glider in), resten en
-  // omgång per bildruta. Alla på en gång (23 kort med bild och hjärta) hann inte med en bildruta
-  // och hackade.
-  const shownCount = useProgressiveCount(visible.length, `${mode}:${filterIndex}`);
+  // Byts vy eller kategori byggs hela listan om och glider in som EN enhet (förut låg en del kort
+  // kvar och andra gled in var för sig, så det såg olika ut varje gång). Korten ritas i omgångar
+  // medan listan glider in — alla på en gång (23 kort med bild och hjärta) hann inte med en
+  // bildruta och hackade.
+  const listKey = `${mode}:${filterIndex}`;
+  const shownCount = useProgressiveCount(visible.length, listKey, mode === "cards" ? 3 : 9);
 
   const step = (dir: 1 | -1) => {
     const next = filterIndex + dir;
@@ -348,15 +350,15 @@ export default function FavoritesScreen() {
             <Text style={[s.muted, s.noneInFilter]}>{i18n.t("favoritesPage.noneInFilter", { filter: i18n.language === "de" ? filter.label : filter.label.toLowerCase() })}</Text>
           )}
 
-          <View style={mode === "cards" ? s.cards : s.rows}>
-            {visible.slice(0, shownCount).map((item, index) =>
+          <Reanimated.View key={listKey} entering={LIST_IN} style={mode === "cards" ? s.cards : s.rows}>
+            {visible.slice(0, shownCount).map((item) =>
               mode === "cards" ? (
-                <FavoriteCard key={item.key} index={index} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
+                <FavoriteCard key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               ) : (
-                <FavoriteRow key={item.key} index={index} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
+                <FavoriteRow key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               )
             )}
-          </View>
+          </Reanimated.View>
         </ScrollView>
       )}
       <LikeBurst burst={burst} />
@@ -364,16 +366,16 @@ export default function FavoritesScreen() {
   );
 }
 
-/** Hur många av listan som ritas: FIRST_BATCH direkt, sedan BATCH till per bildruta tills alla
- * syns. Börjar om när resetKey ändras (annan vy eller kategori). */
-const FIRST_BATCH = 6;
+/** Hur många av listan som ritas: först så många som fyller skärmen, sedan BATCH till per
+ * bildruta tills alla syns (medan listan glider in, så det märks inte). Börjar om när resetKey
+ * ändras (annan vy eller kategori). */
 const BATCH = 4;
-function useProgressiveCount(total: number, resetKey: string): number {
-  const [count, setCount] = useState(FIRST_BATCH);
+function useProgressiveCount(total: number, resetKey: string, first: number): number {
+  const [count, setCount] = useState(first);
   const lastKey = useRef(resetKey);
   if (lastKey.current !== resetKey) {
     lastKey.current = resetKey;
-    if (count !== FIRST_BATCH) setCount(FIRST_BATCH);
+    if (count !== first) setCount(first);
   }
   useEffect(() => {
     if (count >= total) return;
@@ -383,12 +385,10 @@ function useProgressiveCount(total: number, resetKey: string): number {
   return count;
 }
 
-/** Snabb inglidning för de första korten/raderna, kort efter varandra (resten ligger utanför skärmen) */
-const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).duration(300) : undefined);
+/** Hela listan glider in som en enhet när sidan öppnas och när vy eller kategori byts */
+const LIST_IN = FadeInDown.duration(260);
 
 interface ItemProps {
-  /** Läget i listan — de första glider in efter varandra när sidan, kategorin eller vyn byts */
-  index: number;
   item: FavItem;
   isFav: boolean;
   onOpen: (item: FavItem) => void;
@@ -397,10 +397,10 @@ interface ItemProps {
 }
 
 /** Kortvyn: stor bild, och under den namn, kategori och kort beskrivning, hjärtat till höger */
-const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
+const FavoriteCard = memo(function FavoriteCard({ item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
   const s = useThemedStyles(createStyles);
   return (
-    <Reanimated.View entering={enterAt(index)}>
+    <View>
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.cardImage}>
         {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
@@ -415,15 +415,15 @@ const FavoriteCard = memo(function FavoriteCard({ index, item, isFav, onOpen, on
         <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} />
       </View>
     </TouchableOpacity>
-    </Reanimated.View>
+    </View>
   );
 });
 
 /** Listvyn: kompakt rad med liten bild */
-const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
+const FavoriteRow = memo(function FavoriteRow({ item, isFav, onOpen, onToggle, onBurst }: ItemProps) {
   const s = useThemedStyles(createStyles);
   return (
-    <Reanimated.View entering={enterAt(index)}>
+    <View>
     <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.thumb}>
         {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
@@ -436,7 +436,7 @@ const FavoriteRow = memo(function FavoriteRow({ index, item, isFav, onOpen, onTo
       </View>
       <HeartButton isFav={isFav} onToggle={() => onToggle(item)} onBurst={onBurst} size={24} />
     </TouchableOpacity>
-    </Reanimated.View>
+    </View>
   );
 });
 
