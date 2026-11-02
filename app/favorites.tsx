@@ -4,7 +4,7 @@
  * Header som Mitt Österlens (tillbaka-knapp + rubrik i versaler), dela-knapp till höger. Kategorin
  * väljs med samma ‹ ── NAMN ── ›-väljare som Förmåner (CategoryHeader), bara med pilarna.
  *
- * Två vyer, som man väljer själv (sparas på telefonen):
+ * Två vyer att växla mellan (sidan öppnas alltid i kortvyn):
  *  - Kort: stor bild med rundade hörn, och UNDER bilden namn, kategori och kort beskrivning, med
  *    hjärtat längst till höger. Inget ligger ovanpå bilden.
  *  - Lista: kompakta rader med en liten bild.
@@ -16,10 +16,15 @@
  * prickar finns EN gång för hela sidan (LikeBurst) och flyttas till hjärtat man trycker på; med
  * en egen uppsättning per kort blev det hundratals animerade delar, vilket gjorde bytet mellan
  * kort och lista segt och fick gillningen att hacka.
+ *
+ * Listan är en FlatList som resten av appens flöden: bara det som syns ritas, resten när man
+ * scrollar dit. Byts vy eller kategori byggs korten om och de första glider in efter varandra,
+ * likadant varje gång. Bilderna ligger kvar i minnet (memory-disk) — utan det packades alla bilder
+ * upp igen vid varje byte, mitt i animationen, och det kändes som lägre bildfrekvens.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, Pressable, ScrollView, StyleSheet, Share,
+  View, Text, TouchableOpacity, Pressable, FlatList, StyleSheet, Share,
 } from "react-native";
 import Reanimated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,7 +32,6 @@ import { useRouter } from "expo-router";
 import { ArrowLeft, Heart, Square, AlignJustify } from "lucide-react-native";
 import { Skeleton } from "@/components/Skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { ShareIcon } from "@/components/ShareIcon";
@@ -49,7 +53,6 @@ import { Image as ExpoImage } from "expo-image";
 
 type FavKind = "place" | "event";
 type ViewMode = "cards" | "list";
-const VIEW_KEY = "favorites-view:v1";
 
 interface FavItem {
   key: string;
@@ -171,20 +174,15 @@ export default function FavoritesScreen() {
   const [toggledOff, setToggledOff] = useState<Set<string>>(new Set());
   const toggledRef = useRef(toggledOff);
   toggledRef.current = toggledOff;
-  const scrollRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlatList<FavItem>>(null);
 
   // Gilla-animationens ring och prickar — en uppsättning för hela sidan
   const { burst, show: showBurst } = useLikeBurst();
 
-  // Vyn man valde senast
-  useEffect(() => {
-    AsyncStorage.getItem(VIEW_KEY).then((v) => { if (v === "cards" || v === "list") setMode(v); }).catch(() => {});
-  }, []);
   const chooseMode = (next: ViewMode) => {
     if (next === mode) return;
     Haptics.selectionAsync().catch(() => {});
     setMode(next);
-    AsyncStorage.setItem(VIEW_KEY, next).catch(() => {});
   };
 
   const filter = FAV_FILTERS[filterIndex];
@@ -193,19 +191,16 @@ export default function FavoritesScreen() {
     if (filter.isEvent) return items.filter((i) => i.kind === "event");
     return items.filter((i) => i.kind === "place" && matchesDbValues(i.categories, filter.dbValues ?? []));
   }, [items, filter]);
-  // Byts vy eller kategori byggs hela listan om och glider in som EN enhet (förut låg en del kort
-  // kvar och andra gled in var för sig, så det såg olika ut varje gång). Korten ritas i omgångar
-  // medan listan glider in — alla på en gång (23 kort med bild och hjärta) hann inte med en
-  // bildruta och hackade.
+  // Byts vy eller kategori får alla kort nya nycklar, så de byggs om och de första glider in
+  // efter varandra — likadant varje gång (förut låg en del kvar och andra gled in)
   const listKey = `${mode}:${filterIndex}`;
-  const shownCount = useProgressiveCount(visible.length, listKey, mode === "cards" ? 3 : 9);
 
   const step = (dir: 1 | -1) => {
     const next = filterIndex + dir;
     if (next < 0 || next >= FAV_FILTERS.length) return;
     Haptics.selectionAsync().catch(() => {});
     setFilterIndex(next);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
   };
 
   // När man lämnar sidan försvinner de avmarkerade ur den sparade listan, så de inte syns (med
@@ -330,63 +325,57 @@ export default function FavoritesScreen() {
       )}
 
       {!isLoading && items.length > 0 && (
-        <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={[s.body, { paddingBottom: Math.max(insets.bottom, 16) + 32 }]}>
-          <CategoryHeader index={filterIndex} labels={FAV_FILTERS.map((f) => f.label)} onStep={step} palette={darkColors} />
-
-          {/* Antal + val av vy (kort/lista) */}
-          <View style={s.toolbar}>
-            <Text style={s.count}>{countLabel}</Text>
-            <View style={s.toggle}>
-              <Pressable style={[s.toggleBtn, mode === "cards" && s.toggleBtnOn]} onPress={() => chooseMode("cards")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asCards")}>
-                <Square size={16} color={mode === "cards" ? colors.text : colors.muted} strokeWidth={2.2} />
-              </Pressable>
-              <Pressable style={[s.toggleBtn, mode === "list" && s.toggleBtnOn]} onPress={() => chooseMode("list")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asList")}>
-                <AlignJustify size={16} color={mode === "list" ? colors.text : colors.muted} strokeWidth={2.2} />
-              </Pressable>
-            </View>
-          </View>
-
-          {visible.length === 0 && (
-            <Text style={[s.muted, s.noneInFilter]}>{i18n.t("favoritesPage.noneInFilter", { filter: i18n.language === "de" ? filter.label : filter.label.toLowerCase() })}</Text>
-          )}
-
-          <Reanimated.View key={listKey} entering={LIST_IN} style={mode === "cards" ? s.cards : s.rows}>
-            {visible.slice(0, shownCount).map((item) =>
-              mode === "cards" ? (
-                <FavoriteCard key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
+        <FlatList
+          ref={listRef}
+          data={visible}
+          keyExtractor={(item) => `${listKey}:${item.key}`}
+          extraData={toggledOff}
+          renderItem={({ item, index }) => (
+            <Reanimated.View entering={enterAt(index)} style={mode === "cards" ? s.cardCell : s.rowCell}>
+              {mode === "cards" ? (
+                <FavoriteCard item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
               ) : (
-                <FavoriteRow key={item.key} item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
-              )
-            )}
-          </Reanimated.View>
-        </ScrollView>
+                <FavoriteRow item={item} isFav={!toggledOff.has(item.key)} onOpen={openItem} onToggle={handleToggleFavorite} onBurst={showBurst} />
+              )}
+            </Reanimated.View>
+          )}
+          ListHeaderComponent={(
+            <>
+              <CategoryHeader index={filterIndex} labels={FAV_FILTERS.map((f) => f.label)} onStep={step} palette={darkColors} />
+
+              {/* Antal + val av vy (kort/lista) */}
+              <View style={s.toolbar}>
+                <Text style={s.count}>{countLabel}</Text>
+                <View style={s.toggle}>
+                  <Pressable style={[s.toggleBtn, mode === "cards" && s.toggleBtnOn]} onPress={() => chooseMode("cards")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asCards")}>
+                    <Square size={16} color={mode === "cards" ? colors.text : colors.muted} strokeWidth={2.2} />
+                  </Pressable>
+                  <Pressable style={[s.toggleBtn, mode === "list" && s.toggleBtnOn]} onPress={() => chooseMode("list")} hitSlop={6} accessibilityLabel={i18n.t("favoritesPage.asList")}>
+                    <AlignJustify size={16} color={mode === "list" ? colors.text : colors.muted} strokeWidth={2.2} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {visible.length === 0 && (
+                <Text style={[s.muted, s.noneInFilter]}>{i18n.t("favoritesPage.noneInFilter", { filter: i18n.language === "de" ? filter.label : filter.label.toLowerCase() })}</Text>
+              )}
+
+            </>
+          )}
+          initialNumToRender={mode === "cards" ? 3 : 10}
+          maxToRenderPerBatch={4}
+          windowSize={7}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[s.body, { paddingBottom: Math.max(insets.bottom, 16) + 32 }]}
+        />
       )}
       <LikeBurst burst={burst} />
     </View>
   );
 }
 
-/** Hur många av listan som ritas: först så många som fyller skärmen, sedan BATCH till per
- * bildruta tills alla syns (medan listan glider in, så det märks inte). Börjar om när resetKey
- * ändras (annan vy eller kategori). */
-const BATCH = 4;
-function useProgressiveCount(total: number, resetKey: string, first: number): number {
-  const [count, setCount] = useState(first);
-  const lastKey = useRef(resetKey);
-  if (lastKey.current !== resetKey) {
-    lastKey.current = resetKey;
-    if (count !== first) setCount(first);
-  }
-  useEffect(() => {
-    if (count >= total) return;
-    const frame = requestAnimationFrame(() => setCount((n) => Math.min(total, n + BATCH)));
-    return () => cancelAnimationFrame(frame);
-  }, [count, total]);
-  return count;
-}
-
-/** Hela listan glider in som en enhet när sidan öppnas och när vy eller kategori byts */
-const LIST_IN = FadeInDown.duration(260);
+/** De första korten/raderna glider in efter varandra (resten ligger utanför skärmen) */
+const enterAt = (index: number) => (index < 6 ? FadeInDown.delay(index * 45).duration(300) : undefined);
 
 interface ItemProps {
   item: FavItem;
@@ -403,7 +392,7 @@ const FavoriteCard = memo(function FavoriteCard({ item, isFav, onOpen, onToggle,
     <View>
     <TouchableOpacity activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.cardImage}>
-        {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+        {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.key} /> : null}
         {item.date && <DateBox event={item.date} style={s.cardDate} />}
       </View>
       <View style={s.cardInfo}>
@@ -426,7 +415,7 @@ const FavoriteRow = memo(function FavoriteRow({ item, isFav, onOpen, onToggle, o
     <View>
     <TouchableOpacity style={s.row} activeOpacity={0.9} onPress={() => onOpen(item)}>
       <View style={s.thumb}>
-        {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+        {item.imageUrl ? <ExpoImage source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.key} /> : null}
         {item.date && <DateBox event={item.date} small style={s.thumbDate} />}
       </View>
       <View style={{ flex: 1, gap: 2 }}>
@@ -473,6 +462,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
 
   // Kortvyn
   cards: { gap: 28 },
+  cardCell: { marginBottom: 28 },
   cardImage: { width: "100%", aspectRatio: 1.55, borderRadius: 20, overflow: "hidden", backgroundColor: c.fill },
   cardInfo: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginTop: 12, paddingHorizontal: 2 },
   cardTitle: { fontFamily: "Montserrat_700Bold", fontSize: 19, letterSpacing: -0.2, color: c.text },
@@ -484,6 +474,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   cardDate: { position: "absolute", top: 12, right: 12 },
   thumbDate: { position: "absolute", top: 4, left: 4 },
   rows: { gap: 10 },
+  rowCell: { marginBottom: 10 },
   row: {
     flexDirection: "row", alignItems: "center", gap: 12, padding: 10,
     backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.fill,
