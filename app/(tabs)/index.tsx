@@ -57,7 +57,7 @@ import { StoryRow } from "@/components/home/StoryRow";
 import { StickyGreeting } from "@/components/home/StickyGreeting";
 import { useMyPlaceIds } from "@/hooks/useBusiness";
 import {
-  FEED_GUTTER, FeedDiscover, FeedEventCard, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedOffline, FeedPlaceCard,
+  FEED_GUTTER, FeedDiscover, FeedEventCard, FeedMine, FeedFooter, FeedFriendCard, FeedNewsCard, FeedOfferCard, FeedOffline, FeedPlaceCard,
   FeedShortcuts, FeedSkeleton, FeedTreasureCard, OpenNowRail, WeekendRail,
 } from "@/components/home/FeedCards";
 
@@ -470,6 +470,8 @@ function HomeFeed({ location, locationSettled }: { location: Loc | null; locatio
         return <WeekendRail events={item.events} onOpen={openEventCard} onShowAll={showCalendar} />;
       case "discover":
         return <FeedDiscover />;
+      case "mine":
+        return <FeedMine />;
       case "shortcuts":
         return <FeedShortcuts />;
     }

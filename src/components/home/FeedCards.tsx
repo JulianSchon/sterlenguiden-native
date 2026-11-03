@@ -37,6 +37,7 @@ import { NearbyRail } from "@/components/place/PlaceNearby";
 import { TreasureHint } from "@/components/place/PlaceSocial";
 import { Skeleton } from "@/components/Skeleton";
 import { DiscoverCard, ShortcutRow } from "./HomeShortcuts";
+import { MineCard } from "./MineCard";
 
 export const FEED_GUTTER = 16;
 /** "I dag" och "Pågår nu": samma orange som på Kalender */
@@ -315,6 +316,15 @@ export const FeedDiscover = memo(function FeedDiscover() {
   return (
     <View style={s.card}>
       <DiscoverCard />
+    </View>
+  );
+});
+
+/** Ens egna minnen och listor */
+export const FeedMine = memo(function FeedMine() {
+  return (
+    <View style={s.card}>
+      <MineCard />
     </View>
   );
 });

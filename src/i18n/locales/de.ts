@@ -617,6 +617,13 @@ export const de: typeof sv = {
     caughtUp: "Du bist auf dem neuesten Stand",
     caughtUpSub: "Entdecke weitere Orte unter Entdecken.",
     toDiscover: "Zu Entdecken",
+    mine: {
+      memoryEyebrow: "ZURÜCKBLICKEN", memoryCta: "Erinnerung öffnen",
+      listEyebrow: "WEITERMACHEN", listCta: "Liste öffnen",
+      placesOne: "1 Ort", placesOther: "{{count}} Orte",
+      startEyebrow: "DEIN ÖSTERLEN", startTitle: "Speichere deine Orte in einer Liste",
+      startSub: "Sammle die Orte, die du sehen willst, und plane deinen Tag.", startCta: "Liste erstellen",
+    },
     discover: {
       a11y: "Orte entdecken",
       eyebrow: "ENTDECKEN",

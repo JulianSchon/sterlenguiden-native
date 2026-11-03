@@ -620,6 +620,13 @@ export const sv = {
     caughtUp: "Du är ikapp",
     caughtUpSub: "Svep fram fler platser i Upptäck.",
     toDiscover: "Till Upptäck",
+    mine: {
+      memoryEyebrow: "BLICKA TILLBAKA", memoryCta: "Öppna minnet",
+      listEyebrow: "FORTSÄTT DÄR DU SLUTADE", listCta: "Öppna listan",
+      placesOne: "1 plats", placesOther: "{{count}} platser",
+      startEyebrow: "DITT ÖSTERLEN", startTitle: "Spara dina platser i en lista",
+      startSub: "Samla ställena du vill hinna med och planera dagen.", startCta: "Skapa en lista",
+    },
     discover: {
       a11y: "Upptäck platser",
       eyebrow: "UPPTÄCK",

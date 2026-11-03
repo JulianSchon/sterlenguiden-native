@@ -44,6 +44,8 @@ export type FeedItem =
   | { kind: "openNow"; key: string; items: NearbyPlace[] }
   | { kind: "weekend"; key: string; events: Event[] }
   | { kind: "discover"; key: string }
+  /** Genvägen till ens egna minnen och listor (MineCard väljer själv vad den visar) */
+  | { kind: "mine"; key: string }
   | { kind: "shortcuts"; key: string };
 
 interface FeedInput {
@@ -234,7 +236,8 @@ export function buildFeed(input: FeedInput): FeedItem[] {
   const insert = (at: number, item: FeedItem) => out.splice(Math.min(at, out.length), 0, item);
   insert(2, { kind: "discover", key: "discover" });
   if (openRail) insert(4, { kind: "openNow", key: "rail-open", items: openNear });
-  insert(7, { kind: "shortcuts", key: "shortcuts" });
+  insert(6, { kind: "mine", key: "mine" });
+  insert(8, { kind: "shortcuts", key: "shortcuts" });
   if (weekendRail) insert(12, { kind: "weekend", key: "rail-weekend", events: weekend });
 
   return out;
