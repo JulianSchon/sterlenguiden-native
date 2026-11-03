@@ -23,6 +23,11 @@ export const de: typeof sv = {
     sign: "Herzliche Grüße von uns bei Österlenappen",
     thanks: "Danke!",
   },
+  usernameSheet: {
+    title: "Dein Benutzername",
+    text: "So finden dich deine Freunde in der App. Wir haben dir einen aus deinem Namen erstellt – ändere ihn jetzt, wenn du möchtest. Danach kann er einmal im Monat geändert werden.",
+    done: "Fertig",
+  },
   settings: {
     title: "Einstellungen",
     sections: {
@@ -532,8 +537,6 @@ export const de: typeof sv = {
       last: "Nachname",
     },
     username: {
-      title: "Wähle einen Benutzernamen",
-      subtitle: "Damit finden dich deine Freunde in der App.",
       placeholder: "benutzername",
       rules: "3–20 Zeichen: Buchstaben, Ziffern, Punkt und Unterstrich.",
       free: "Verfügbar!",
@@ -594,7 +597,6 @@ export const de: typeof sv = {
       subtitle: "Hier findest du Orte und Veranstaltungen, Vorteile mit dem Österlenpasset, Schätze zum Suchen und was deine Freunde entdecken.",
       start: "Los geht's",
       stats: { places: "Orte", offers: "Angebote", events: "Veranstaltungen" },
-      usernameTaken: "Der Benutzername wurde gerade vergeben. Wähle einen anderen.",
       failed: "Das Speichern hat nicht geklappt. Prüfe deine Verbindung und versuche es noch einmal.",
     },
   },

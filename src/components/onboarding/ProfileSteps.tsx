@@ -9,7 +9,6 @@ import * as Haptics from "expo-haptics";
 import { useTranslation } from "react-i18next";
 import { AUTH_GUTTER, AuthButton, AuthField, FieldNote } from "@/components/auth/AuthParts";
 import { StepLayout } from "./StepLayout";
-import { USERNAME_PATTERN, usernameTaken } from "@/lib/onboarding";
 import { OSTERLEN_TOWNS } from "@/lib/osterlenTowns";
 import { MIN_AGE, ageOn, toIsoDate } from "@/lib/birthDate";
 import { formatDate } from "@/i18n/dates";
@@ -61,62 +60,6 @@ export function NameStep({
         onSubmitEditing={() => ok && onSubmit()}
         autoFocus={!!first && !last}
       />
-    </StepLayout>
-  );
-}
-
-// ── Användarnamn ─────────────────────────────────────────────────────────────
-
-export function UsernameStep({
-  username, onChange, onSubmit, error,
-}: {
-  username: string; onChange: (v: string) => void; onSubmit: () => void;
-  /** Från sparandet i slutet: namnet hann bli upptaget */
-  error: string | null;
-}) {
-  const { t } = useTranslation();
-  const valid = USERNAME_PATTERN.test(username);
-  // Ledigt? Kontrolleras en kort stund efter att man slutat skriva (null = vet inte än)
-  const [free, setFree] = useState<{ name: string; free: boolean | null } | null>(null);
-  useEffect(() => {
-    if (!valid) return;
-    let alive = true;
-    const timer = setTimeout(async () => {
-      const taken = await usernameTaken(username);
-      if (alive) setFree({ name: username, free: taken === null ? null : !taken });
-    }, 350);
-    return () => { alive = false; clearTimeout(timer); };
-  }, [username, valid]);
-  const known = free?.name === username ? free.free : undefined;
-  const ok = valid && known !== false;
-
-  let note: { text: string; tone: "muted" | "danger" | "success" } = { text: t("onboarding.username.rules"), tone: "muted" };
-  if (username.length > 0 && !/^[a-zA-Z0-9_.]*$/.test(username)) note = { text: t("onboarding.username.invalid"), tone: "danger" };
-  else if (valid && known === true) note = { text: t("onboarding.username.free"), tone: "success" };
-  else if (valid && known === false) note = { text: t("onboarding.username.taken"), tone: "danger" };
-  if (error && known !== true) note = { text: error, tone: "danger" };
-
-  return (
-    <StepLayout
-      title={t("onboarding.username.title")}
-      subtitle={t("onboarding.username.subtitle")}
-      footer={<AuthButton label={t("onboarding.next")} onPress={onSubmit} disabled={!ok} />}
-    >
-      <AuthField
-        prefix="@"
-        value={username}
-        onChangeText={(v) => onChange(v.replace(/\s/g, "").toLowerCase().slice(0, 20))}
-        placeholder={t("onboarding.username.placeholder")}
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="username-new"
-        textContentType="username"
-        returnKeyType="done"
-        onSubmitEditing={() => ok && onSubmit()}
-        autoFocus
-        invalid={note.tone === "danger"}
-      />
-      <FieldNote text={note.text} tone={note.tone} />
     </StepLayout>
   );
 }

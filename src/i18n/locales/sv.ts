@@ -26,6 +26,11 @@ export const sv = {
     sign: "Varma hälsningar från oss på Österlenappen",
     thanks: "Tack!",
   },
+  usernameSheet: {
+    title: "Ditt användarnamn",
+    text: "Så hittar dina vänner dig i appen. Vi har gett dig ett utifrån ditt namn – byt det nu om du vill. Sedan går det att ändra en gång i månaden.",
+    done: "Klar",
+  },
   settings: {
     title: "Inställningar",
     sections: {
@@ -535,8 +540,6 @@ export const sv = {
       last: "Efternamn",
     },
     username: {
-      title: "Välj ett användarnamn",
-      subtitle: "Med det kan dina vänner hitta dig i appen.",
       placeholder: "anvandarnamn",
       rules: "3–20 tecken: bokstäver, siffror, punkt och understreck.",
       free: "Ledigt!",
@@ -597,7 +600,6 @@ export const sv = {
       subtitle: "Här hittar du platser och evenemang, förmåner med Österlenpasset, skatter att jaga och vad dina vänner utforskar.",
       start: "Börja utforska",
       stats: { places: "platser", offers: "erbjudanden", events: "evenemang" },
-      usernameTaken: "Användarnamnet hann bli upptaget. Välj ett annat.",
       failed: "Det gick inte att spara. Kontrollera nätet och försök igen.",
     },
   },

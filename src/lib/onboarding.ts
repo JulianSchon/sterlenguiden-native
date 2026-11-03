@@ -129,17 +129,26 @@ export async function suggestUsername(first: string, last: string): Promise<stri
 
 // ── Klart ────────────────────────────────────────────────────────────────────
 
-type FinishError = "username_taken" | "failed";
+type FinishError = "failed";
+
+const randomDigits = (n: number) => String(Math.floor(Math.random() * 10 ** n)).padStart(n, "0");
 
 /**
  * Sparar allt på en gång: profilen (namn, användarnamn, födelsedag, ort, intressen, språk och att
  * kontot är klart) och favoriterna. Favoriterna är inte avgörande — går de inte att spara blir
  * kontot klart ändå.
+ *
+ * Användarnamnet väljs inte i onboardingen: det skapas här ur namnet (viktor.hallin, annars med en
+ * siffra efter), så alla konton alltid har ett. Man får se och byta det första gången man öppnar
+ * Mitt Österlen eller Vänner (UsernameSheet).
  */
 export async function finishOnboarding(userId: string, draft: OnboardingDraft): Promise<FinishError | null> {
+  let username = draft.username.trim()
+    || (await suggestUsername(draft.firstName, draft.lastName).catch(() => ""));
+  if (!USERNAME_PATTERN.test(username)) username = `osterlen${randomDigits(4)}`;
   const row: Record<string, unknown> = {
     display_name: `${draft.firstName.trim()} ${draft.lastName.trim()}`.trim(),
-    username: draft.username.trim() || null,
+    username,
     birth_date: draft.birthDate,
     birth_year: draft.birthDate ? Number(draft.birthDate.slice(0, 4)) : null,
     city: draft.city.trim() || null,
@@ -157,8 +166,13 @@ export async function finishOnboarding(userId: string, draft: OnboardingDraft): 
     return inserted.error;
   };
 
-  const error = await write(row);
-  if (error) return error.code === "23505" ? "username_taken" : "failed";
+  // Hann namnet bli upptaget (någon annan valde det nyss) prövas det med siffror efter
+  let error = await write(row);
+  for (let attempt = 0; error?.code === "23505" && attempt < 4; attempt++) {
+    row.username = `${username.slice(0, 15)}${randomDigits(attempt < 2 ? 2 : 4)}`;
+    error = await write(row);
+  }
+  if (error) return "failed";
 
   if (draft.favorites.length > 0) {
     try {

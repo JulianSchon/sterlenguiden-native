@@ -33,6 +33,7 @@ import { formatDate, weekdayShort } from "@/i18n/dates";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { pushOnce } from "@/lib/navigateOnce";
+import { UsernameSheet } from "@/components/friends/UsernameSheet";
 
 // Gradientringen runt Vänner-ikonen — se friendsIconWrap
 const FRIENDS_RING_SIZE = 56;
@@ -249,6 +250,8 @@ export default function MittOsterlenScreen() {
           <StickersSection scrollTo={scrollToSticker} startExpanded={toTreasures} />
         </Reanimated.View>
       </ScrollView>
+      {/* Första gången: se och byt det användarnamn appen gav en */}
+      <UsernameSheet />
     </View>
   );
 }

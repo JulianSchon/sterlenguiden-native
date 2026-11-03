@@ -23,6 +23,11 @@ export const en: typeof sv = {
     sign: "Warm wishes from all of us at Österlenappen",
     thanks: "Thank you!",
   },
+  usernameSheet: {
+    title: "Your username",
+    text: "This is how your friends find you in the app. We've made one from your name – change it now if you like. After that it can be changed once a month.",
+    done: "Done",
+  },
   settings: {
     title: "Settings",
     sections: {
@@ -532,8 +537,6 @@ export const en: typeof sv = {
       last: "Last name",
     },
     username: {
-      title: "Choose a username",
-      subtitle: "Your friends can find you in the app with it.",
       placeholder: "username",
       rules: "3–20 characters: letters, numbers, dots and underscores.",
       free: "Available!",
@@ -594,7 +597,6 @@ export const en: typeof sv = {
       subtitle: "Here you'll find places and events, perks with Österlenpasset, treasures to hunt and what your friends are exploring.",
       start: "Start exploring",
       stats: { places: "places", offers: "offers", events: "events" },
-      usernameTaken: "That username was just taken. Choose another one.",
       failed: "Couldn't save. Check your connection and try again.",
     },
   },

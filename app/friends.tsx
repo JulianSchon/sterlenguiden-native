@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { pushOnce } from "@/lib/navigateOnce";
+import { UsernameSheet } from "@/components/friends/UsernameSheet";
 
 
 export default function FriendsScreen() {
@@ -157,6 +158,8 @@ export default function FriendsScreen() {
           </>
         )}
       </ScrollView>
+      {/* Första gången: se och byt det användarnamn appen gav en */}
+      <UsernameSheet />
     </View>
   );
 }

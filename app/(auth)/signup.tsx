@@ -29,7 +29,7 @@ import { useEvents } from "@/hooks/useEvents";
 import { StepBar } from "@/components/auth/AuthParts";
 import { CodeStep, EmailStep, OTP_LENGTH, PasswordStep } from "@/components/onboarding/AccountSteps";
 import type { CodePhase } from "@/components/onboarding/CodeBoxes";
-import { BirthdayStep, HomeStep, NameStep, UsernameStep } from "@/components/onboarding/ProfileSteps";
+import { BirthdayStep, HomeStep, NameStep } from "@/components/onboarding/ProfileSteps";
 import { FavoritesStep, InterestsStep } from "@/components/onboarding/TasteSteps";
 import { LocationStep, WelcomeStep } from "@/components/onboarding/FinishSteps";
 import { AppearanceStep } from "@/components/onboarding/AppearanceStep";
@@ -47,9 +47,9 @@ import { useTheme } from "@/theme/ThemeProvider";
 type Mode = "email" | "resume" | "reset";
 type StepId =
   | "email" | "code" | "password"
-  | "appearance" | "name" | "username" | "birthday" | "home" | "interests" | "favorites" | "location" | "welcome";
+  | "appearance" | "name" | "birthday" | "home" | "interests" | "favorites" | "location" | "welcome";
 
-const PROFILE: StepId[] = ["appearance", "name", "username", "birthday", "location", "home", "interests", "favorites", "welcome"];
+const PROFILE: StepId[] = ["appearance", "name", "birthday", "location", "home", "interests", "favorites", "welcome"];
 /** Steg utan textfält: tangentbordet åker ner när man kommer dit */
 const NO_KEYBOARD = new Set<StepId>(["appearance", "birthday", "home", "interests", "favorites", "location", "welcome"]);
 /** Så här länge måste man vänta mellan två koder (Supabase tillåter en i minuten) */
@@ -98,7 +98,6 @@ export default function SignupScreen() {
   const [info, setInfo] = useState<string | null>(null);
   const [resendAt, setResendAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
-  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [codePhase, setCodePhase] = useState<CodePhase>("typing");
   // Var man är just nu: orten på Österlen närmast, eller orten man är i om det är någon annanstans
   const [nearTown, setNearTown] = useState<string | null>(null);
@@ -418,16 +417,8 @@ export default function SignupScreen() {
     if (!userId) return;
     setSaving("saving");
     const result = await finishOnboarding(userId, draftRef.current);
-    if (result === "username_taken") {
-      setSaving("idle");
-      setStartPressed(false);
-      setUsernameError(t("onboarding.done.usernameTaken"));
-      lastGo.current = 0;
-      go("username", false);
-      return;
-    }
     setSaving(result ? "failed" : "done");
-  }, [userId, t, go]);
+  }, [userId]);
   useEffect(() => {
     if (step === "welcome" && saving === "idle") finish();
   }, [step, saving, finish]);
@@ -478,16 +469,6 @@ export default function SignupScreen() {
       break;
     case "name":
       content = <NameStep first={draft.firstName} last={draft.lastName} onChange={(firstName, lastName) => set({ firstName, lastName })} onSubmit={submitName} />;
-      break;
-    case "username":
-      content = (
-        <UsernameStep
-          username={draft.username}
-          onChange={(username) => { set({ username }); setUsernameError(null); }}
-          onSubmit={nextStep}
-          error={usernameError}
-        />
-      );
       break;
     case "birthday":
       content = <BirthdayStep value={draft.birthDate} onChange={(birthDate) => set({ birthDate })} onSubmit={nextStep} />;
