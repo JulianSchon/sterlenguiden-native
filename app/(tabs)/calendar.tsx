@@ -15,6 +15,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePageFadeIn } from "@/hooks/usePageFadeIn";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import Reanimated, {
@@ -58,7 +59,7 @@ const MODES: { id: Mode; readonly label: string }[] = [
 /** Så många visas på "För dig" — resten finns i kalendern */
 const FOR_YOU_MAX = 12;
 
-/** Snabb inglidning för de första korten/raderna, kort efter varandra */
+/** Snabb inglidning för raderna i Alla när man byter dag, månad eller kategori */
 const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).duration(300) : undefined);
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -178,9 +179,11 @@ export default function CalendarScreen() {
 
   const firstName = profile?.display_name?.trim().split(/\s+/)[0] ?? null;
   const bottomPad = FLOATING_NAV_HEIGHT + insets.bottom + 110;
+  // Första gången fliken öppnas tonar hela sidan fram på en gång (som Sök och Profil)
+  const fade = usePageFadeIn();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <Reanimated.View style={[{ flex: 1, backgroundColor: colors.bg }, fade.style]} onLayout={fade.onLayout}>
       <View style={{ paddingTop: Math.max(insets.top, 44), paddingHorizontal: 16, backgroundColor: colors.bg }}>
         <ModeTabs value={mode} onChange={setMode} />
       </View>
@@ -217,7 +220,7 @@ export default function CalendarScreen() {
       </View>
 
       <LikeBurst burst={burst} />
-    </View>
+    </Reanimated.View>
   );
 }
 
@@ -311,16 +314,11 @@ function ForYouView({
 }: ListProps & { picks: EventPick[]; firstName: string | null; onShowAll: () => void }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
-  // Bara eventen som fanns när listan först visades glider in. Ett event som dyker upp i listan
-  // senare (t.ex. när "Ert evenemang" laddats klart) fastnade annars osynligt i sin inglidning och
-  // lämnade ett tomt hål mellan "Mer för dig" och raderna
-  const firstIds = useRef<Set<number> | null>(null);
-  if (!loading && firstIds.current === null) firstIds.current = new Set(picks.map((p) => p.event.id));
   if (loading) return <ForYouSkeleton />;
 
   if (picks.length === 0) {
     return (
-      <Reanimated.View entering={FadeInDown.duration(300)} style={s.empty}>
+      <Reanimated.View style={s.empty}>
         <View style={s.emptyIcon}>
           <CalendarHeart size={28} color={colors.goldText} strokeWidth={1.5} />
         </View>
@@ -341,14 +339,14 @@ function ForYouView({
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: bottomPad }}
     >
       {/* Samma hälsning som Förmåner: namnet, och en rad i guld om vad som väntar */}
-      <Reanimated.View entering={enterAt(0)}>
+      <Reanimated.View>
         <Text style={s.greeting} numberOfLines={1}>{firstName ? i18n.t("calendar.hiName", { name: firstName }) : i18n.t("calendar.hi")}</Text>
         <Text style={s.greetingLine} numberOfLines={1} adjustsFontSizeToFit>
           {picks.length === 1 ? i18n.t("calendar.pickOne") : i18n.t("calendar.pickMany", { count: picks.length })}
         </Text>
       </Reanimated.View>
 
-      <Reanimated.View entering={enterAt(1)} style={{ marginTop: 22 }}>
+      <Reanimated.View style={{ marginTop: 22 }}>
         <EventHeroCard
           event={hero.event}
           reason={liveReason(hero, savedIds.has(hero.event.id))}
@@ -361,12 +359,12 @@ function ForYouView({
 
       {rest.length > 0 && (
         <>
-          <Reanimated.View entering={enterAt(2)}>
+          <Reanimated.View>
             <Text style={s.sectionTitle}>{i18n.t("calendar.more")}</Text>
           </Reanimated.View>
           <View style={{ gap: 12 }}>
-            {rest.map((p, i) => (
-              <Reanimated.View key={p.event.id} entering={firstIds.current?.has(p.event.id) ? enterAt(i + 3) : undefined}>
+            {rest.map((p) => (
+              <Reanimated.View key={p.event.id}>
                 <EventRow
                   event={p.event}
                   reason={liveReason(p, savedIds.has(p.event.id))}

@@ -23,9 +23,10 @@ import {
   BackHandler, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import Reanimated, {
-  Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming, FadeInDown,
+  Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePageFadeIn } from "@/hooks/usePageFadeIn";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -65,8 +66,6 @@ import {
 /** Tomt medan något laddas: alltid samma tomma lista (en ny vid varje uppritning räknar om allt) */
 const NONE: never[] = [];
 
-/** Snabb inglidning för de första delarna, kort efter varandra (som Kalender) */
-const enterAt = (index: number) => (index < 8 ? FadeInDown.delay(index * 45).duration(300) : undefined);
 
 /** Platser som visas innan "Visa alla" */
 const FIRST_PLACES = 20;
@@ -414,9 +413,11 @@ export default function ExploreScreen() {
   );
 
   const bottomPad = FLOATING_NAV_HEIGHT + insets.bottom + 110;
+  // Första gången fliken öppnas tonar hela sidan fram på en gång (som Kalender och Profil)
+  const fade = usePageFadeIn();
 
   return (
-    <View style={[s.root, { backgroundColor: colors.bg }]}>
+    <Reanimated.View style={[s.root, { backgroundColor: colors.bg }, fade.style]} onLayout={fade.onLayout}>
       {/* ── Rubriken och sökfältet ── */}
       <View style={{ paddingTop: Math.max(insets.top, 44), paddingHorizontal: 16 }}>
         <View style={s.titleRow}>
@@ -549,7 +550,7 @@ export default function ExploreScreen() {
       </View>
 
       <LikeBurst burst={burst} />
-    </View>
+    </Reanimated.View>
   );
 }
 
@@ -583,7 +584,7 @@ const BrowsePanel = memo(function BrowsePanel({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Reanimated.View entering={enterAt(0)}>
+      <Reanimated.View>
         <SectionHeader title={t("search.whatToDo")} />
         <View style={s.tiles}>
           {SEARCH_TILES.map((t) => (
@@ -593,7 +594,7 @@ const BrowsePanel = memo(function BrowsePanel({
       </Reanimated.View>
 
       {(nearby === null || nearby.length > 0) && (
-        <Reanimated.View entering={enterAt(1)}>
+        <Reanimated.View>
           <SectionHeader title={t(hasLoc ? "search.openNowNear" : "search.openNow")} action={t("search.showAll")} onAction={() => onAsk(t("search.queries.open"))} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.bleed} contentContainerStyle={s.nearRow}>
             {nearby === null
@@ -604,7 +605,7 @@ const BrowsePanel = memo(function BrowsePanel({
       )}
 
       {(soonEvents === null || soonEvents.length > 0) && (
-        <Reanimated.View entering={enterAt(2)}>
+        <Reanimated.View>
           <SectionHeader title={t("search.soon")} action={t("search.showAll")} onAction={() => onAsk(t("search.queries.events"))} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.bleed} contentContainerStyle={s.nearRow}>
             {soonEvents === null
@@ -614,7 +615,7 @@ const BrowsePanel = memo(function BrowsePanel({
         </Reanimated.View>
       )}
 
-      <Reanimated.View entering={enterAt(3)}>
+      <Reanimated.View>
         <SectionHeader
           title={t("search.exploreTowns")}
           action={towns && towns.length > FIRST_TOWNS ? t(allTowns ? "search.showFewer" : "search.showAll") : undefined}

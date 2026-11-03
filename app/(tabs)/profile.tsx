@@ -6,18 +6,18 @@
  * Historik (senaste besöken), Statistik (mest besökta kategorier, med en kant som fylls efter
  * hur mycket man besökt) och Utmaningar (senast klarade, med kant i brons, silver eller guld).
  *
- * Första gången fliken öppnas glider sidan in uppifrån och ner i samma takt som Sök, Kalender och
- * Mitt Österlen (enterAt).
+ * Första gången fliken öppnas tonar hela sidan fram på en gång (usePageFadeIn), som Sök och Kalender.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { View, Text, Image, Pressable, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePageFadeIn } from "@/hooks/usePageFadeIn";
 import { useRouter } from "expo-router";
 import { pushOnce } from "@/lib/navigateOnce";
 import { useTranslation } from "react-i18next";
 import { Settings, Crown, ChevronRight, ClipboardList, BarChart3, Medal, Heart, type LucideIcon } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
-import Reanimated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Reanimated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { MemberCard } from "@/components/MemberCard";
 import { SnapRing } from "@/components/profile/SnapRing";
@@ -298,15 +298,15 @@ export default function ProfileScreen() {
   const visitCount = visits.filter((v) => places.some((p) => p.id === v.place_id)).length;
   const trophiesDone = trophies.filter((tr) => tr.done).length;
 
+  const fade = usePageFadeIn();
   const offerSubtitle = activeOffers.length === 0 ? t("profile.offers.tileEmpty") : t("profile.offers.tile");
   const favSubtitle = favPlaces.length === 0 ? t("profile.favorites.empty")
     : favPlaces.length === 1 ? t("profile.favorites.one")
     : t("profile.favorites.count", { count: favPlaces.length });
 
   return (
-    <View style={[s.screen, { paddingTop: Math.max(insets.top, 44), paddingBottom: floatingNavSolidHeight(insets.bottom) }]}>
-      {/* Sidan veckas ut uppifrån och ner första gången fliken öppnas, som Hem, Sök och Kalender */}
-      <Reanimated.View entering={enterAt(0)} style={s.titleWrap}>
+    <Reanimated.View style={[s.screen, { paddingTop: Math.max(insets.top, 44), paddingBottom: floatingNavSolidHeight(insets.bottom) }, fade.style]} onLayout={fade.onLayout}>
+      <Reanimated.View style={s.titleWrap}>
         <View style={s.titleRow}>
           <Text style={s.pageTitle}>{t("profile.title")}</Text>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={i18n.t("settings.title")} style={s.gearBtn} onPress={() => pushOnce(router, "/settings")}>
@@ -322,7 +322,7 @@ export default function ProfileScreen() {
         style={s.scroll}
         contentContainerStyle={s.body}
       >
-        <Reanimated.View entering={enterAt(1)}>
+        <Reanimated.View>
         <CardReveal key={cardKey} cardId={profile?.card_color}>
         <MemberCard
           displayName={displayName}
@@ -340,7 +340,7 @@ export default function ProfileScreen() {
         </Reanimated.View>
 
         {/* Dit vi vill leda användaren: Förmåner (där pengarna finns) och Mitt Österlen */}
-        <Reanimated.View entering={enterAt(2)}>
+        <Reanimated.View>
         <View style={s.primaryRow}>
           <PrimaryTile
             icon={Crown}
@@ -361,7 +361,7 @@ export default function ProfileScreen() {
 
         {/* Favoriter och hens användning som rader */}
         <View style={s.list}>
-          <Reanimated.View entering={enterAt(3)}>
+          <Reanimated.View>
           <ProfileRow
             icon={Heart}
             title={t("profile.favorites.title")}
@@ -370,7 +370,7 @@ export default function ProfileScreen() {
             onPress={() => pushOnce(router, "/favorites")}
           />
           </Reanimated.View>
-          <Reanimated.View entering={enterAt(4)}>
+          <Reanimated.View>
           <ProfileRow
             icon={ClipboardList}
             title={t("profile.history.title")}
@@ -379,7 +379,7 @@ export default function ProfileScreen() {
             onPress={() => pushOnce(router, "/visits")}
           />
           </Reanimated.View>
-          <Reanimated.View entering={enterAt(5)}>
+          <Reanimated.View>
           <ProfileRow
             icon={BarChart3}
             title={t("profile.stats.title")}
@@ -388,7 +388,7 @@ export default function ProfileScreen() {
             onPress={() => pushOnce(router, "/stats")}
           />
           </Reanimated.View>
-          <Reanimated.View entering={enterAt(6)}>
+          <Reanimated.View>
           <ProfileRow
             icon={Medal}
             title={t("profile.challenges.title")}
@@ -400,12 +400,9 @@ export default function ProfileScreen() {
           </Reanimated.View>
         </View>
       </ScrollView>
-    </View>
+    </Reanimated.View>
   );
 }
-
-/** Snabb inglidning uppifrån och ner, kort efter varandra (samma som Sök, Kalender, Mitt Österlen) */
-const enterAt = (index: number) => FadeInDown.delay(index * 45).duration(300);
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: c.bg, paddingHorizontal: 16 },
