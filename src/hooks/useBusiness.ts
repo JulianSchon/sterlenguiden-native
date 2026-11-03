@@ -453,6 +453,35 @@ export function usePlaceRatings(placeId: number) {
   });
 }
 
+/** En aktivering av ett av platsens erbjudanden (migration 070) */
+export interface Redemption {
+  id: string;
+  at: string;
+  /** Medlemmens namn, null om det saknas */
+  name: string | null;
+  offer: string;
+  offer_id: string;
+}
+
+const REDEMPTIONS_PAGE = 30;
+
+/**
+ * Inlösta erbjudanden, senaste först, 30 åt gången. Hämtas om var 15:e sekund medan sidan är öppen,
+ * så en aktivering i kassan syns nästan direkt. today = antal i dag (raden på Mitt företag).
+ */
+export function useRedemptions(placeId: number, live = true) {
+  return useInfiniteQuery({
+    queryKey: ["business", "redemptions", placeId],
+    enabled: placeId > 0,
+    initialPageParam: 0,
+    refetchInterval: live ? 15_000 : false,
+    queryFn: ({ pageParam }) => rpc<{ items: Redemption[]; more: boolean; today: number }>("business_redemptions", {
+      p_place_id: placeId, p_offset: pageParam, p_limit: REDEMPTIONS_PAGE,
+    }),
+    getNextPageParam: (last, pages) => (last.more ? pages.reduce((n, p) => n + p.items.length, 0) : undefined),
+  });
+}
+
 // ── Admin ───────────────────────────────────────────────────────────────────
 
 export function useAdminRequests() {

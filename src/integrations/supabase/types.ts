@@ -1912,6 +1912,10 @@ export type Database = {
       }
       business_overview: { Args: never; Returns: Json }
       business_place_ratings: { Args: { p_place_id: number }; Returns: Json }
+      business_redemptions: {
+        Args: { p_limit?: number; p_offset?: number; p_place_id: number }
+        Returns: Json
+      }
       business_post_story: {
         Args: {
           p_caption?: string

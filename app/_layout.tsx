@@ -208,6 +208,7 @@ function AppStack() {
         <Stack.Screen name="business/categories" options={{ headerShown: false }} />
         <Stack.Screen name="business/amenities" options={{ headerShown: false }} />
         <Stack.Screen name="business/offers" options={{ headerShown: false }} />
+        <Stack.Screen name="business/redemptions" options={{ headerShown: false }} />
         <Stack.Screen name="business/offer" options={{ headerShown: false, animation: "slide_from_bottom", gestureEnabled: false }} />
         <Stack.Screen name="business/events" options={{ headerShown: false }} />
         <Stack.Screen name="business/event" options={{ headerShown: false, animation: "slide_from_bottom", gestureEnabled: false }} />

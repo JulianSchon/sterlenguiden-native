@@ -18,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import {
-  ArrowUpRight, BarChart3, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, DoorClosed, Eye,
+  ArrowUpRight, BadgeCheck, BarChart3, CalendarDays, CalendarPlus, Camera, Check, ChevronRight, Clock, DoorClosed, Eye,
   FileText, Images, LayoutGrid, LifeBuoy, ListChecks, Phone, Repeat, Settings2, Ticket, Undo2, Users,
 } from "lucide-react-native";
 import { Lock } from "lucide-react-native";
@@ -39,7 +39,7 @@ import { PortalToast, type PortalToastHandle } from "@/components/business/Porta
 import { TodaySheet, type TodayChange } from "@/components/business/TodaySheet";
 import { useHoursColors } from "@/components/place/PlaceHours";
 import {
-  useBusinessOffers, useBusinessPlace, useBusinessStats, usePlaceEvents, usePlaceStories, usePortalPlace, useUpdatePlace,
+  useBusinessOffers, useBusinessPlace, useBusinessStats, usePlaceEvents, usePlaceStories, usePortalPlace, useRedemptions, useUpdatePlace,
 } from "@/hooks/useBusiness";
 import { placeImages } from "@/hooks/usePlaces";
 import { businessError, canDo, type BusinessPlace, type MyPlace, type Permission } from "@/lib/business";
@@ -81,6 +81,8 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
   const { data: storyPages } = usePlaceStories(placeId);
   const stories = storyPages?.pages[0]?.live ?? [];
   const { data: events = [] } = usePlaceEvents(placeId);
+  const { data: redemptions } = useRedemptions(placeId, false);
+  const redeemedToday = redemptions?.pages[0]?.today ?? 0;
   const stats = useBusinessStats(placeId, 7);
   const update = useUpdatePlace(placeId);
   const toast = useRef<PortalToastHandle>(null);
@@ -216,6 +218,8 @@ function Home({ mine, places, placeId }: { mine: MyPlace; places: MyPlace[]; pla
         <Rise index={6}>
           <SettingsGroup label={tb("Mer")}>
             <SettingsRow icon={Ticket} label={tb("Erbjudanden")} value={activeOffers.length ? `${activeOffers.length} aktiva` : undefined} right={lockIcon("offers")} onPress={() => go("offers")} />
+            {/* Alla som hör till platsen ser listan, även utan rätt att skapa erbjudanden */}
+            <SettingsRow icon={BadgeCheck} label={tb("Inlösta erbjudanden")} value={redeemedToday ? tb("{{0}} i dag", { 0: redeemedToday }) : undefined} onPress={() => go("redemptions")} />
             <SettingsRow icon={CalendarDays} label={tb("Evenemang")} value={upcoming.length ? `${upcoming.length} kommande` : undefined} right={lockIcon("events")} onPress={() => go("events")} />
             <SettingsRow icon={Camera} label={tb("Stories")} value={activeStories.length ? `${activeStories.length} live` : undefined} right={lockIcon("stories")} onPress={() => go("stories")} />
             <SettingsRow icon={BarChart3} label={tb("Statistik")} onPress={() => go("stats")} />
