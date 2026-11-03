@@ -152,7 +152,10 @@ export function TrophyMedal({
         />
         <Animated.View style={{ width: size, height: size, alignItems: "center", justifyContent: "center", opacity: shown }}>
           {unlocked && <GlowCanvas size={size} color={palette.rim} opacity={0.55} radiusRatio={0.34} blurRatio={0.18} />}
+          {/* Byts bilden från siluett till färg byggs den om (key): iPhone släpper annars inte alltid
+              färgningen när tintColor tas bort, och då blir hela trofén systemets blå */}
           <Image
+            key={unlocked ? "color" : "silhouette"}
             source={artwork}
             style={{
               width: size * 1.06,
