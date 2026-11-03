@@ -9,9 +9,11 @@
  * kvar när man byter, så den spelas bara första gången.
  */
 import { useCallback, useRef } from "react";
-import { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 
-const FADE_MS = 200;
+/** Bakgrunden står ensam en kort stund innan sidan tonar fram */
+const HOLD_MS = 140;
+const FADE_MS = 220;
 
 export function usePageFadeIn() {
   const opacity = useSharedValue(0);
@@ -20,7 +22,7 @@ export function usePageFadeIn() {
     if (started.current) return;
     started.current = true;
     requestAnimationFrame(() => {
-      opacity.value = withTiming(1, { duration: FADE_MS, easing: Easing.out(Easing.quad) });
+      opacity.value = withDelay(HOLD_MS, withTiming(1, { duration: FADE_MS, easing: Easing.out(Easing.quad) }));
     });
   }, [opacity]);
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
