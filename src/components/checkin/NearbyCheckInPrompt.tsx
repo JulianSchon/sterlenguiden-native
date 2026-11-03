@@ -45,7 +45,7 @@ export function NearbyCheckInPrompt({
     >
       <View style={s.iconCircle}>
         {image ? (
-          <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={s.image} contentFit="cover" />
         ) : (
           <MapPin size={22} color={colors.goldText} strokeWidth={2} />
         )}
@@ -68,8 +68,10 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   iconCircle: {
     width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
-    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder, overflow: "hidden",
+    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder,
   },
+  // Bilden ligger innanför guldkanten, så hela cirkeln syns
+  image: { width: 40, height: 40, borderRadius: 20 },
   small: { fontFamily: "Inter_400Regular", fontSize: 12, color: c.muted },
   name: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: c.text, marginTop: 1 },
   sub: { fontFamily: "Inter_500Medium", fontSize: 12.5, color: c.goldText, marginTop: 2 },
