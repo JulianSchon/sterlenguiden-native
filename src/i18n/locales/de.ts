@@ -16,6 +16,13 @@ export const de: typeof sv = {
     offline: "Du bist offline – es wurde nicht gespeichert. Versuche es erneut, wenn du wieder Netz hast.",
     offlineAction: "Gerade keine Verbindung. Versuche es erneut, wenn du wieder Netz hast.",
   },
+  birthday: {
+    title: "Alles Gute zum Geburtstag!",
+    titleName: "Alles Gute zum Geburtstag, {{name}}!",
+    text: "Wir wünschen dir einen richtig schönen Tag – vielleicht mit etwas Leckerem, einem Spaziergang am Meer oder einem neuen Ort in Österlen.",
+    sign: "Herzliche Grüße von uns bei Österlenappen",
+    thanks: "Danke!",
+  },
   settings: {
     title: "Einstellungen",
     sections: {

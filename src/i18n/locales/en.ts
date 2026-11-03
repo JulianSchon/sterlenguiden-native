@@ -16,6 +16,13 @@ export const en: typeof sv = {
     offline: "You are offline – it wasn’t saved. Try again when you have a connection.",
     offlineAction: "No connection right now. Try again when you have a connection.",
   },
+  birthday: {
+    title: "Happy birthday!",
+    titleName: "Happy birthday, {{name}}!",
+    text: "We hope you have a really lovely day – maybe with something tasty, a walk by the sea or a new place in Österlen.",
+    sign: "Warm wishes from all of us at Österlenappen",
+    thanks: "Thank you!",
+  },
   settings: {
     title: "Settings",
     sections: {

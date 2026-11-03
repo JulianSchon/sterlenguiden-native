@@ -45,6 +45,8 @@ import { usePendingListInvites, type PendingListInvite } from "@/hooks/useLists"
 import { useMonthReset } from "@/hooks/useMonthReset";
 import { ListInviteMoment } from "@/components/lists/ListInviteMoment";
 import { MonthResetMoment } from "@/components/leaderboard/MonthResetMoment";
+import { BirthdayMoment } from "@/components/BirthdayMoment";
+import { useBirthday } from "@/hooks/useBirthday";
 import i18n from "i18next";
 
 const TIERS = ["bronze", "silver", "gold"];
@@ -219,6 +221,28 @@ export function TrophyHost() {
     const t = setTimeout(() => setShowReset(true), 650);
     return () => clearTimeout(t);
   }, [resetReady]);
+
+  // Vykortet på födelsedagen: allra sist, en gång per år
+  const birthday = useBirthday(user?.id, profile?.birth_date, settled && !inAuth);
+  const [showBirthday, setShowBirthday] = useState(false);
+  const birthdayReady = idle && !inviting && !waitingInvite && !showReset && !monthReset.moment && birthday.due;
+  useEffect(() => {
+    if (!birthdayReady) return;
+    const t = setTimeout(() => setShowBirthday(true), 650);
+    return () => clearTimeout(t);
+  }, [birthdayReady]);
+
+  if (showBirthday) {
+    return (
+      <BirthdayMoment
+        firstName={profile?.display_name?.trim().split(/\s+/)[0] || null}
+        onClose={() => {
+          birthday.done();
+          setShowBirthday(false);
+        }}
+      />
+    );
+  }
 
   if (inviting) {
     return (

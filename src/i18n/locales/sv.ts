@@ -19,6 +19,13 @@ export const sv = {
     offline: "Du är utan nät – det sparades inte. Försök igen när du har nät.",
     offlineAction: "Ingen anslutning just nu. Försök igen när du har nät.",
   },
+  birthday: {
+    title: "Grattis på födelsedagen!",
+    titleName: "Grattis på födelsedagen, {{name}}!",
+    text: "Vi hoppas att du får en riktigt fin dag – kanske med något gott, en promenad vid havet eller ett nytt ställe på Österlen.",
+    sign: "Varma hälsningar från oss på Österlenappen",
+    thanks: "Tack!",
+  },
   settings: {
     title: "Inställningar",
     sections: {
