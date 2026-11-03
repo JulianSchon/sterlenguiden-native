@@ -371,7 +371,7 @@ export const en: typeof sv = {
     },
     filters: { all: "All", food: "Food & Drink", stay: "Stay", cafe: "Café & Bakery", shopping: "Shopping", activities: "Activities" },
     sections: { available: "Ready to use", redeemed: "Redeemed" },
-    badge: { redeemed: "Redeemed", endingSoon: "Ending soon", new: "New" },
+    badge: { age: "Age limit", redeemed: "Redeemed", endingSoon: "Ending soon", new: "New" },
     loading: "Loading offers…",
     emptyTitle: "No offers right now",
     emptyBody: "New offers from Österlen's businesses appear here as they come.",

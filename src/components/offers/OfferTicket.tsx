@@ -16,7 +16,7 @@ import Reanimated, { runOnJS, useAnimatedStyle, useDerivedValue, useSharedValue,
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Check, Clock, Crown } from "lucide-react-native";
+import { Check, Clock, Crown, Lock } from "lucide-react-native";
 import { Canvas, Path } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Line as SvgLine } from "react-native-svg";
@@ -68,7 +68,9 @@ const DAY_MS = 86_400_000;
 const SOON_MS = 3 * DAY_MS;
 
 /** Snart-slut och nytt är de enda etiketterna som säger något sant och användbart */
-function offerBadge(offer: Offer, used: boolean): "redeemed" | "endingSoon" | "new" | null {
+function offerBadge(offer: Offer, used: boolean, ageBlocked: boolean): "age" | "redeemed" | "endingSoon" | "new" | null {
+  // Spärrad för att man är för ung: det är inte inlöst, så det får inte stå så
+  if (ageBlocked) return "age";
   if (used) return "redeemed";
   if (offer.expires_at) {
     const left = new Date(offer.expires_at).getTime() - Date.now();
@@ -98,10 +100,12 @@ function Perforation() {
 
 /** Ritas bara om när den egna biljetten ändras (inte när sidan runt den gör det) */
 export const OfferTicket = memo(function OfferTicket({
-  offer, used, torn, edge, scrollAt, linkPlace = true, autoOpen = false, onOpen, lng,
+  offer, used, ageBlocked = false, torn, edge, scrollAt, linkPlace = true, autoOpen = false, onOpen, lng,
 }: {
   offer: Offer;
   used: boolean;
+  /** Man är för ung för erbjudandet (åldersgränsen) — visas som "Åldersgräns", inte "Inlöst" */
+  ageBlocked?: boolean;
   /** Det här är biljetten som är öppen (bandet rivs eller är bortrivet) */
   torn: boolean;
   edge: TearEdge;
@@ -121,7 +125,7 @@ export const OfferTicket = memo(function OfferTicket({
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const imageUrl = offer.image_url ?? offer.place?.logo_url ?? null;
-  const badge = offerBadge(offer, used);
+  const badge = offerBadge(offer, used, ageBlocked);
   const savings = offerSavingsLabel(offer);
   const parts = savings ? splitSavings(savings) : null;
   const category = findCategory(offer.category);
@@ -203,10 +207,11 @@ export const OfferTicket = memo(function OfferTicket({
           {(badge || offer.min_age) && (
             <View style={s.badges}>
               {badge && (
-                <View style={[s.badge, badge === "redeemed" && s.badgeGrey]}>
+                <View style={[s.badge, (badge === "redeemed" || badge === "age") && s.badgeGrey]}>
                   {badge === "redeemed" && <Check size={10} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />}
+                  {badge === "age" && <Lock size={10} color="rgba(255,255,255,0.7)" strokeWidth={2.5} />}
                   {badge === "endingSoon" && <Clock size={10} color="#E8C674" strokeWidth={2.5} />}
-                  <Text style={[s.badgeText, badge === "redeemed" && s.badgeTextGrey]}>{t(`offers.badge.${badge}`)}</Text>
+                  <Text style={[s.badgeText, (badge === "redeemed" || badge === "age") && s.badgeTextGrey]}>{t(`offers.badge.${badge}`)}</Text>
                 </View>
               )}
               {/* Åldersgränsen */}

@@ -371,7 +371,7 @@ export const de: typeof sv = {
     },
     filters: { all: "Alle", food: "Essen & Trinken", stay: "Unterkunft", cafe: "Café & Bäckerei", shopping: "Shopping", activities: "Aktivitäten" },
     sections: { available: "Zum Einlösen", redeemed: "Eingelöst" },
-    badge: { redeemed: "Eingelöst", endingSoon: "Endet bald", new: "Neu" },
+    badge: { age: "Altersgrenze", redeemed: "Eingelöst", endingSoon: "Endet bald", new: "Neu" },
     loading: "Angebote werden geladen…",
     emptyTitle: "Gerade keine Angebote",
     emptyBody: "Neue Angebote von Unternehmen in Österlen erscheinen hier laufend.",

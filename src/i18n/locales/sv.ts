@@ -374,7 +374,7 @@ export const sv = {
     },
     filters: { all: "Alla", food: "Mat & Dryck", stay: "Boende", cafe: "Café & Bageri", shopping: "Shopping", activities: "Aktiviteter" },
     sections: { available: "Att använda", redeemed: "Inlösta" },
-    badge: { redeemed: "Inlöst", endingSoon: "Snart slut", new: "Nytt" },
+    badge: { age: "Åldersgräns", redeemed: "Inlöst", endingSoon: "Snart slut", new: "Nytt" },
     loading: "Laddar erbjudanden…",
     emptyTitle: "Inga erbjudanden just nu",
     emptyBody: "Nya förmåner från Österlens företag dyker upp här löpande.",

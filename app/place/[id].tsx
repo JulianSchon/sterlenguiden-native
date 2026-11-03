@@ -57,7 +57,7 @@ import { distanceMeters } from "@/lib/checkin";
 import { dayKey, lastDay } from "@/lib/events";
 import { openEvent } from "@/lib/eventSheet";
 import { distanceLabel, parseAmenities, PRACTICAL } from "@/lib/mapFilters";
-import { offerEligibility, type Offer, type RedemptionRow } from "@/lib/offers";
+import { ageAllowed, offerEligibility, type Offer, type RedemptionRow } from "@/lib/offers";
 import { hasWeekHours, hoursStatus } from "@/lib/openingHours";
 import { openInfo, placeCategories } from "@/lib/search";
 import { pushOnce } from "@/lib/navigateOnce";
@@ -344,7 +344,7 @@ const PlaceContent = memo(function PlaceContent({
   const { data: profile } = useProfile();
   const birthDate = profile?.birth_date ?? null;
   const ticketList = useMemo(() => offers
-    .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions, birthDate).canUse }))
+    .map((offer) => ({ offer, used: !offerEligibility(offer, redemptions, birthDate).canUse, ageBlocked: !ageAllowed(offer, birthDate) }))
     .sort((a, b) => Number(a.used) - Number(b.used)), [offers, redemptions, birthDate]);
 
   const upcoming = useMemo(() => {
@@ -466,11 +466,12 @@ const PlaceContent = memo(function PlaceContent({
         }}>
         <Section title={t("pass.title")}>
           <View style={{ gap: 14 }}>
-            {ticketList.map(({ offer, used }, i) => (later ? (
+            {ticketList.map(({ offer, used, ageBlocked }, i) => (later ? (
               <Reanimated.View key={offer.id} entering={RISE_IN(i)}>
                 <OfferTicket
                   offer={offer}
                   used={used}
+                  ageBlocked={ageBlocked}
                   torn={offer.id === openOfferId}
                   edge={edge}
                   scrollAt={scrollAt}
