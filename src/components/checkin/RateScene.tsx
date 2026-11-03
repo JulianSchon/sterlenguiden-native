@@ -14,7 +14,7 @@ import i18n from "i18next";
 
 const FG = "#F5F1E8";
 const MUTED = "rgba(245,241,232,0.6)";
-const EMPTY = "rgba(245,241,232,0.28)";
+const EMPTY = "rgba(245,241,232,0.55)";
 const SIZE = 44;
 
 export function RateScene({
@@ -34,6 +34,8 @@ export function RateScene({
 
   return (
     <View style={s.root}>
+      {/* En mörk ruta bakom allt, så stjärnorna syns tydligt mot den guldiga strålkransen */}
+      <Reanimated.View entering={FadeIn.duration(320)} style={s.box}>
       <Reanimated.View entering={FadeIn.duration(420)} style={s.header}>
         <Text style={s.title}>{i18n.t("checkin.rate.title")}</Text>
         <Text style={s.place} numberOfLines={2}>{placeName}</Text>
@@ -46,6 +48,7 @@ export function RateScene({
       <Reanimated.Text entering={FadeIn.delay(320).duration(420)} style={s.privacy}>
         {i18n.t("checkin.rate.privacy", { place: placeName })}
       </Reanimated.Text>
+      </Reanimated.View>
     </View>
   );
 }
@@ -66,14 +69,19 @@ function StarButton({ n, filled, onPress }: { n: number; filled: boolean; onPres
       }}
     >
       <Reanimated.View style={style}>
-        <Star size={SIZE} color={filled ? GOLD : EMPTY} fill={filled ? GOLD : "transparent"} strokeWidth={1.6} />
+        <Star size={SIZE} color={filled ? GOLD : EMPTY} fill={filled ? GOLD : "rgba(255,255,255,0.06)"} strokeWidth={1.6} />
       </Reanimated.View>
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 28, gap: 28 },
+  root: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 },
+  box: {
+    alignSelf: "stretch", alignItems: "center", gap: 26, paddingVertical: 30, paddingHorizontal: 20,
+    borderRadius: 24, backgroundColor: "rgba(11,10,8,0.78)",
+    borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(233,196,106,0.25)",
+  },
   header: { alignItems: "center" },
   title: { fontFamily: "Montserrat_700Bold", fontSize: 30, color: FG, textAlign: "center" },
   place: { fontFamily: "Inter_500Medium", fontSize: 15, color: MUTED, marginTop: 6, textAlign: "center" },
