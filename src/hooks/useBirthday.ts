@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { swedishDay } from "@/lib/streak";
 
-const keyOf = (userId: string) => `birthday-card:v1:${userId}`;
+const keyOf = (userId: string) => `birthday-card:v2:${userId}`;
 
 function isBirthday(birthDate: string, today: string): boolean {
   const [year, month, day] = today.split("-").map(Number);

@@ -3,7 +3,7 @@
  * Ett vanligt vykort: ett foto från Österlen, en hälsning från oss och appens logga. Det går inte
  * att få något för det — det är bara en hälsning, och försvinner när man stängt det.
  */
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Image, Modal, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming,
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useOnModalShown } from "@/hooks/useOnModalShown";
 import { Confetti, GoldButton } from "@/components/checkin/CelebrationFx";
+import { Balloons } from "@/components/Balloons";
 import i18n from "i18next";
 
 const PAPER = "#F7F2E7";
@@ -32,8 +33,11 @@ export function BirthdayMoment({ firstName, onClose }: { firstName: string | nul
   const burst = useSharedValue(0);
   const buttonIn = useSharedValue(0);
   const leave = useSharedValue(0);
+  // Ballongerna startar när fönstret syns
+  const [flying, setFlying] = useState(false);
 
   const onShow = useOnModalShown(() => {
+    setFlying(true);
     backdrop.value = withTiming(1, { duration: 320, easing: Easing.out(Easing.quad) });
     cardIn.value = withDelay(180, withSpring(1, { damping: 14, stiffness: 120 }));
     burst.value = withDelay(520, withTiming(1, { duration: 1800, easing: Easing.linear }));
@@ -65,6 +69,10 @@ export function BirthdayMoment({ firstName, onClose }: { firstName: string | nul
     <Modal visible transparent animationType="none" statusBarTranslucent onShow={onShow} onRequestClose={close}>
       <View style={s.root}>
         <Reanimated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} />
+        {/* Ballongerna stiger bakom vykortet, över hela skärmen */}
+        <Reanimated.View style={[StyleSheet.absoluteFill, backdropStyle]} pointerEvents="none">
+          <Balloons start={flying} />
+        </Reanimated.View>
         <View style={s.center}>
           <Reanimated.View style={[s.card, { width: cardW }, cardStyle]}>
             <Image source={PHOTO} style={[s.photo, { height: cardW * 0.62 }]} resizeMode="cover" />
