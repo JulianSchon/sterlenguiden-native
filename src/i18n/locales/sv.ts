@@ -1021,7 +1021,7 @@ export const sv = {
     nextStop: "NÄSTA STOPP", whereNext: "Vart härnäst?", nearUnvisited: "Nära dig, och inte besökta än",
     fromHere: "{{distance}} härifrån", offer: "Erbjudande", openNow: "Öppet nu",
     rate: { title: "Hur var det?", privacy: "Bara {{place}} ser betyget, och aldrig vem som gav det.", star_one: "1 stjärna", star_other: "{{count}} stjärnor", skip: "Hoppa över" },
-    continue: "Fortsätt", offersOne: "Platsen har 1 aktivt erbjudande", offersOther: "Platsen har {{count}} aktiva erbjudanden",
+    continue: "Fortsätt",
     createMemory: "Skapa minne", done: "Klar",
   },
   news: {

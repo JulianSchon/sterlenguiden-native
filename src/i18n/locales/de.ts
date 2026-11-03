@@ -1018,7 +1018,7 @@ export const de: typeof sv = {
     nextStop: "NÄCHSTER HALT", whereNext: "Wohin als Nächstes?", nearUnvisited: "In der Nähe und noch nicht besucht",
     fromHere: "{{distance}} von hier", offer: "Angebot", openNow: "Jetzt geöffnet",
     rate: { title: "Wie war es?", privacy: "Nur {{place}} sieht die Bewertung, und nie, wer sie abgegeben hat.", star_one: "1 Stern", star_other: "{{count}} Sterne", skip: "Überspringen" },
-    continue: "Weiter", offersOne: "Der Ort hat 1 aktives Angebot", offersOther: "Der Ort hat {{count}} aktive Angebote",
+    continue: "Weiter",
     createMemory: "Erinnerung erstellen", done: "Fertig",
   },
   news: {

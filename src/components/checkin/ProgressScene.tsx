@@ -136,7 +136,11 @@ export function ProgressScene({
     if (want > v.scrollY + 4) scrollRef.current?.scrollTo({ y: want, animated: true });
   };
   useEffect(() => {
-    if (skip) return;
+    if (skip) {
+      // Hoppar man fram syns allt på en gång: scrolla till slutet, så sista raden inte står avklippt
+      const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
+      return () => clearTimeout(t);
+    }
     const timers = plan.rows.map((r, i) => setTimeout(() => reveal(i), r.appearAt));
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps

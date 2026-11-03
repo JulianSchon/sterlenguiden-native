@@ -17,13 +17,12 @@
  * så övergångarna blir mjuka.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import Reanimated, {
   Easing, FadeIn, FadeOutUp, useAnimatedStyle, useSharedValue, withDelay, withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react-native";
 import { isPlaceOpen, usePlaces, type Place } from "@/hooks/usePlaces";
 import { useVisits } from "@/hooks/useVisits";
 import { useOffers } from "@/hooks/useOffers";
@@ -33,7 +32,6 @@ import type { Trophy } from "@/lib/achievements";
 import { placeMatchesCategory, primaryStatCategory } from "@/lib/categories";
 import { distanceMeters } from "@/lib/checkin";
 import { RadialGlow } from "@/components/trophies/TrophyMedal";
-import { PressableScale } from "@/components/PressableScale";
 import { GOLD, GhostButton, GoldButton, GoldRays, Reveal } from "./CelebrationFx";
 import { StampScene } from "./StampScene";
 import { ProgressScene, type CategoryProgress, type HeroProgress, type ProgressItem } from "./ProgressScene";
@@ -64,10 +62,10 @@ export interface CelebrationState {
 }
 
 /** Vart användaren ville gå när belöningen stängdes */
-export type CelebrationExit = "memory" | "offers" | { placeId: number };
+export type CelebrationExit = "memory" | { placeId: number };
 
-/** Erbjudandetipset (46) + Skapa minne (56) + Klar (52) + mellanrummen */
-const BUTTONS_H = 176;
+/** Skapa minne (56) + Klar (52) + mellanrummet */
+const BUTTONS_H = 120;
 
 type Step = "stamp" | "rate" | "progress" | "climb" | "next";
 
@@ -125,7 +123,6 @@ export function CheckInCelebration({
   const { data: places = [] } = usePlaces();
   // Alla aktiva erbjudanden: tipset om den här platsen, och "Erbjudande" på nästa stopp
   const { data: offers = [] } = useOffers();
-  const placeOffers = offers.filter((o) => o.place_id === place.id);
 
   const [step, setStep] = useState<Step>("stamp");
   const ownPlaceIds = useMyPlaceIds();
@@ -328,16 +325,6 @@ export function CheckInCelebration({
     }
     return (
       <>
-        {placeOffers.length > 0 && (
-          <Reveal show delay={0}>
-            <PressableScale style={s.offer} scale={0.98} onPress={() => exitTo("offers")}>
-              <Text style={s.offerText}>
-                {placeOffers.length === 1 ? i18n.t("checkin.offersOne") : i18n.t("checkin.offersOther", { count: placeOffers.length })}
-              </Text>
-              <ChevronRight size={18} color={GOLD} strokeWidth={2} />
-            </PressableScale>
-          </Reveal>
-        )}
         <Reveal show delay={80}>
           <GoldButton label={i18n.t("checkin.createMemory")} onPress={() => exitTo("memory")} />
         </Reveal>
@@ -438,14 +425,8 @@ const s = StyleSheet.create({
   flash: { backgroundColor: "#FFF6DE" },
   lightAnchor: { position: "absolute", alignItems: "center", justifyContent: "center" },
   stage: { flex: 1 },
-  // Fast höjd med plats för erbjudandetipset + båda knapparna redan från start — växer rutan när
+  // Fast höjd med plats för båda knapparna redan från start — växer rutan när
   // sista knapparna dyker upp flyttar sig hela den centrerade scenen (det hack som syntes på
   // Vart härnäst?)
   buttons: { paddingHorizontal: 20, gap: 10, justifyContent: "flex-end" },
-  offer: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    height: 46, paddingHorizontal: 14, borderRadius: 14,
-    backgroundColor: "rgba(233,196,106,0.10)", borderWidth: 1, borderColor: "rgba(233,196,106,0.35)",
-  },
-  offerText: { fontFamily: "Inter_600SemiBold", fontSize: 13.5, color: GOLD },
 });

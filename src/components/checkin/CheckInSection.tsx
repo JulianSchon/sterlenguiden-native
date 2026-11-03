@@ -119,8 +119,7 @@ export function CheckInSection({ place }: { place: Place }) {
   // Belöningen tonar själv ut. En sida som ska öppnas läggs bakom den medan den fortfarande täcker
   // skärmen, så man aldrig skymtar platssidan på vägen
   const handleCelebrationNavigate = (exit: CelebrationExit) => {
-    if (exit === "offers") pushOnce(router, "/offers");
-    else if (exit === "memory") pushOnce(router, { pathname: "/memories/edit", params: { placeId: String(place.id), title: i18n.t("checkin.memoryTitle", { place: place.name }) } });
+    if (exit === "memory") pushOnce(router, { pathname: "/memories/edit", params: { placeId: String(place.id), title: i18n.t("checkin.memoryTitle", { place: place.name }) } });
     else pushOnce(router, `/place/${exit.placeId}?from=checkin`);
   };
 
