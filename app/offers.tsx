@@ -20,6 +20,7 @@ import Animated, {
   FadeInDown, useSharedValue, useAnimatedStyle, withTiming, cancelAnimation, runOnJS, type SharedValue,
 } from "react-native-reanimated";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { Fingerprint, Smartphone, Check, Crown } from "lucide-react-native";
 import { useOffers, useRedeemedOffers } from "@/hooks/useOffers";
@@ -63,7 +64,8 @@ const SWIPE_SPEED = 600;   // eller hur snabbt (px/s)
 const AREA_SLACK = 100;    // skärmhöjd minus rubrikfältet, ungefär
 const PAGE_GAP = 16;       // mellanrum mellan sidorna medan man drar
 const SIDE_MARGIN = 16;    // sidans egen sidomarginal (SettingsScreen)
-const FIRST_TICKETS = 4;   // så många biljetter byggs när sidan öppnas (resten strax efter)
+const FIRST_TICKETS = 4;
+const PAGE_HEADER_H = 64;  // sidrubrikens höjd under statusraden (SettingsScreen page)   // så många biljetter byggs när sidan öppnas (resten strax efter)
 
 interface PageData { available: Offer[]; redeemed: Offer[] }
 
@@ -91,7 +93,19 @@ export default function OffersScreen() {
   // När listan senast scrollade: ett nudd på en biljett medan den glider stoppar bara listan
   const scrollAt = useSharedValue(0);
   const [open, setOpen] = useState<{ offer: Offer; origin: OriginRect | null } | null>(null);
-  const openTicket = useCallback((offer: Offer, origin: OriginRect | null) => setOpen({ offer, origin }), []);
+  // Ligger biljetten delvis under rubriken scrollar sidan först fram den: rivningen sker ovanpå
+  // rubriken, men biljetten i listan ligger under den (bilden syntes då bara till hälften)
+  const insets = useSafeAreaInsets();
+  const openTicket = useCallback((offer: Offer, origin: OriginRect | null) => {
+    const visibleTop = insets.top + PAGE_HEADER_H + 12;
+    if (origin && origin.y < visibleTop && scrollY.current > 0) {
+      const moved = Math.min(visibleTop - origin.y, scrollY.current);
+      scrollRef.current?.scrollTo({ y: scrollY.current - moved, animated: true });
+      setTimeout(() => setOpen({ offer, origin: { ...origin, y: origin.y + moved } }), 320);
+      return;
+    }
+    setOpen({ offer, origin });
+  }, [insets.top]);
   const closeDrawer = useCallback(() => setOpen(null), []);
   const openPlace = useCallback(() => {
     if (open) pushOnce(router, `/place/${open.offer.place_id}?from=offers`);
