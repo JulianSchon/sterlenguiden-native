@@ -39,6 +39,9 @@ import { StampScene } from "./StampScene";
 import { ProgressScene, type CategoryProgress, type HeroProgress, type ProgressItem } from "./ProgressScene";
 import { ClimbScene, MAX_PASSED, type ClimbData } from "./ClimbScene";
 import { NextStopScene, type NextStop } from "./NextStopScene";
+import { RateScene } from "./RateScene";
+import { useMyPlaceIds } from "@/hooks/useBusiness";
+import { supabase } from "@/integrations/supabase/client";
 import { holdTrophyMoments, markTrophiesCelebrated } from "@/lib/trophyMoments";
 import { useOnModalShown } from "@/hooks/useOnModalShown";
 import i18n from "i18next";
@@ -66,7 +69,7 @@ export type CelebrationExit = "memory" | "offers" | { placeId: number };
 /** Erbjudandetipset (46) + Skapa minne (56) + Klar (52) + mellanrummen */
 const BUTTONS_H = 176;
 
-type Step = "stamp" | "progress" | "climb" | "next";
+type Step = "stamp" | "rate" | "progress" | "climb" | "next";
 
 // Utforskaren först (den alla rör sig i), sedan resten
 const GROUP_PRIORITY = ["utforskaren", "kom-igang", "mangsidig", "osterlenlegend"];
@@ -125,6 +128,14 @@ export function CheckInCelebration({
   const placeOffers = offers.filter((o) => o.place_id === place.id);
 
   const [step, setStep] = useState<Step>("stamp");
+  const ownPlaceIds = useMyPlaceIds();
+  // Betyget sparas direkt vid trycket; ändrar man sig skrivs det över. Går det inte (utan nät) blir
+  // det inget betyg den här gången — det är frivilligt
+  const [rating, setRating] = useState<number | null>(null);
+  const rate = (n: number) => {
+    setRating(n);
+    if (state.visitId) supabase.rpc("rate_visit", { p_visit_id: state.visitId, p_rating: n }).then(() => {}, () => {});
+  };
   const [ready, setReady] = useState(false);
   const [skip, setSkip] = useState(false);
   // undefined = topplistan är inte hämtad än
@@ -208,6 +219,8 @@ export function CheckInCelebration({
   const flow = useRef<Step[] | null>(null);
   const steps: Step[] = flow.current ?? [
     "stamp",
+    // Betyget — inte på platser man själv sköter
+    ...(ownPlaceIds.has(place.id) ? [] : (["rate"] as const)),
     ...(state.firstVisit ? (["progress"] as const) : []),
     ...(climb ? (["climb"] as const) : []),
     ...(nextStops.length > 0 ? (["next"] as const) : []),
@@ -299,6 +312,14 @@ export function CheckInCelebration({
   const buttons = (() => {
     if (!buttonsReady) return null;
     if (!isLast) {
+      // Betyget: "Hoppa över" tills man valt, sen "Fortsätt"
+      if (step === "rate" && rating == null) {
+        return (
+          <Reveal show>
+            <GhostButton label={i18n.t("checkin.rate.skip")} onPress={goNext} />
+          </Reveal>
+        );
+      }
       return (
         <Reveal show>
           <GoldButton label={i18n.t("checkin.continue")} onPress={goNext} />
@@ -365,6 +386,11 @@ export function CheckInCelebration({
                   flash={flash}
                   onReady={() => setReady(true)}
                 />
+              </Reanimated.View>
+            )}
+            {step === "rate" && (
+              <Reanimated.View key="rate" style={s.stage} entering={enter} exiting={exit}>
+                <RateScene placeName={place.name} rating={rating} onRate={rate} onReady={() => setReady(true)} />
               </Reanimated.View>
             )}
             {step === "progress" && frozen.current.progress && (

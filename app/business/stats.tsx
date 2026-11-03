@@ -10,14 +10,14 @@
  */
 import { useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { ShieldCheck } from "lucide-react-native";
+import { ShieldCheck, Star } from "lucide-react-native";
 import { SettingsScreen } from "@/components/settings/SettingsScreen";
 import { GradientCard } from "@/components/GradientCard";
 import { Rise } from "@/components/Rise";
 import { Skeleton } from "@/components/Skeleton";
 import { ScrubChart, type ChartPoint } from "@/components/ScrubChart";
 import { Note, PortalSegmented, SectionHeader } from "@/components/business/PortalParts";
-import { useBusinessStats, usePortalPlace } from "@/hooks/useBusiness";
+import { useBusinessStats, usePlaceRatings, usePortalPlace } from "@/hooks/useBusiness";
 import { businessError, type BusinessStats } from "@/lib/business";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
@@ -67,13 +67,13 @@ export default function BusinessStatsPage() {
           <Skeleton height={180} radius={22} />
         </>
       ) : (
-        <Content stats={data} days={days} onScrubbing={setScrubbing} />
+        <Content stats={data} days={days} placeId={placeId} onScrubbing={setScrubbing} />
       )}
     </SettingsScreen>
   );
 }
 
-function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Days; onScrubbing: (on: boolean) => void }) {
+function Content({ stats, days, placeId, onScrubbing }: { stats: BusinessStats; days: Days; placeId: number; onScrubbing: (on: boolean) => void }) {
   const { colors } = useTheme();
   const s = useThemedStyles(createStyles);
   const diff = stats.visitors - stats.visitors_prev;
@@ -186,9 +186,50 @@ function Content({ stats, days, onScrubbing }: { stats: BusinessStats; days: Day
       </Rise>
 
       <Rise index={6}>
+        <Ratings placeId={placeId} />
+      </Rise>
+
+      <Rise index={7}>
         <Note icon={ShieldCheck} text={tb("Vi visar aldrig vem som tittat – bara hur många. Siffrorna gäller {{0}} som gått och jämförs med {{1}}.", { 0: tb(PERIOD[days]), 1: tb(PREV[days]) })} />
       </Rise>
     </>
+  );
+}
+
+/**
+ * Gästernas betyg (1–5) efter en incheckning. Gäller hela tiden, inte vald period. Ingen ser vem
+ * som gav vilket betyg, och snittet visas först när minst 5 betygsatt.
+ */
+function Ratings({ placeId }: { placeId: number }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(createStyles);
+  const { data } = usePlaceRatings(placeId);
+  if (!data) return null;
+  return (
+    <View>
+      <SectionHeader title={tb("Gästernas betyg")} />
+      <GradientCard>
+        {data.average != null && data.stars ? (
+          <View style={s.bars}>
+            <View style={s.ratingTop}>
+              <Text style={s.ratingN}>{decimal(data.average)}</Text>
+              <Star size={26} color={colors.goldText} fill={colors.goldText} strokeWidth={1.6} />
+              <Text style={s.ratingCount}>{tb(data.count === 1 ? "1 betyg" : "{{0}} betyg", { 0: data.count })}</Text>
+            </View>
+            {[5, 4, 3, 2, 1].map((n) => (
+              <Bar key={n} label={tb(n === 1 ? "1 stjärna" : "{{0}} stjärnor", { 0: n })} n={data.stars![n - 1]} max={Math.max(1, ...data.stars!)} />
+            ))}
+            {data.recent > 0 && <Text style={s.audienceLine}>{tb("{{0}} de senaste 30 dagarna", { 0: data.recent })}</Text>}
+          </View>
+        ) : (
+          <View style={s.waiting}>
+            <Text style={s.waitingText}>
+              {tb("Gäster som checkar in hos er kan ge ett betyg. Snittet visas när minst 5 gjort det, så att ingen går att känna igen. Hittills {{0}}.", { 0: tb(data.count === 1 ? "1 betyg" : "{{0}} betyg", { 0: data.count }) })}
+            </Text>
+          </View>
+        )}
+      </GradientCard>
+    </View>
   );
 }
 
@@ -255,5 +296,8 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   barN: { minWidth: 34, textAlign: "right", fontFamily: "Inter_700Bold", fontSize: 13, color: c.text, fontVariant: ["tabular-nums"] },
   audienceLine: { fontFamily: "Inter_500Medium", fontSize: 13.5, lineHeight: 19, color: c.muted, marginTop: 2 },
   waiting: { padding: 16 },
+  ratingTop: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  ratingN: { fontFamily: "Montserrat_700Bold", fontSize: 34, color: c.text },
+  ratingCount: { fontFamily: "Inter_500Medium", fontSize: 13.5, color: c.muted, marginLeft: 4 },
   waitingText: { fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20, color: c.muted },
 });

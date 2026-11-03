@@ -40,7 +40,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Accessibility, Baby, CalendarCheck, CalendarDays, CalendarPlus, Car, ChevronRight, Dog, Globe, Home, MapPin,
-  Store, Ticket, UtensilsCrossed, X, type LucideIcon,
+  ShieldCheck, Store, Ticket, UtensilsCrossed, X, type LucideIcon,
 } from "lucide-react-native";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import i18n from "i18next";
@@ -518,6 +518,8 @@ const SheetBody = memo(function SheetBody({ event, openKey, onGoToPlace, onOpenM
     ...(event.is_child_friendly ? [{ Icon: Baby, label: t("calendar.sheet.childFriendly") }] : []),
     ...(event.is_dog_friendly ? [{ Icon: Dog, label: t("calendar.sheet.dogFriendly") }] : []),
     ...(event.is_accessible ? [{ Icon: Accessibility, label: t("calendar.sheet.accessible") }] : []),
+    // Bara en upplysning: evenemanget går att öppna och spara som vanligt
+    ...(event.is_adults_only ? [{ Icon: ShieldCheck, label: t("calendar.sheet.adultsOnly") }] : []),
   ];
   const releaseAt = event.tickets_release_at ? new Date(event.tickets_release_at) : null;
   const ticketState: "buy" | "soldOut" | "release" | null =

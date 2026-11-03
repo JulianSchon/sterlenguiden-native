@@ -935,7 +935,7 @@ export const de: typeof sv = {
     sheet: {
       featured: "EMPFOHLEN", share: "Mit Freunden teilen", addToCalendar: "Zum Kalender hinzufügen", close: "Schließen",
       organizer: "Veranstalter", organizerSite: "Website des Veranstalters", showOnMap: "Auf der Karte zeigen",
-      booking: "Buchung erforderlich", ticket: "Ticket erforderlich", free: "Einfach vorbeikommen", indoor: "Drinnen",
+      booking: "Buchung erforderlich", ticket: "Ticket erforderlich", free: "Einfach vorbeikommen", indoor: "Drinnen", adultsOnly: "Ab 18 Jahren",
       food: "Essen & Trinken", parking: "Parkplätze", childFriendly: "Kinderfreundlich", dogFriendly: "Hundefreundlich", accessible: "Rollstuhlgerecht",
       buy: "Ticket kaufen", soldOut: "Ausverkauft", release: "Vorverkauf ab {{date}}, {{time}} Uhr",
       about: "Über die Veranstaltung",
@@ -1003,6 +1003,7 @@ export const de: typeof sv = {
     board: "BESTENLISTE · {{month}}", place: "Platz ", wholeApp: "Ganze App",
     nextStop: "NÄCHSTER HALT", whereNext: "Wohin als Nächstes?", nearUnvisited: "In der Nähe und noch nicht besucht",
     fromHere: "{{distance}} von hier", offer: "Angebot", openNow: "Jetzt geöffnet",
+    rate: { title: "Wie war es?", privacy: "Nur {{place}} sieht die Bewertung, und nie, wer sie abgegeben hat.", star_one: "1 Stern", star_other: "{{count}} Sterne", skip: "Überspringen" },
     continue: "Weiter", offersOne: "Der Ort hat 1 aktives Angebot", offersOther: "Der Ort hat {{count}} aktive Angebote",
     createMemory: "Erinnerung erstellen", done: "Fertig",
   },

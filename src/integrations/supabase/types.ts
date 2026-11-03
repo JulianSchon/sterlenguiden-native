@@ -171,6 +171,7 @@ export type Database = {
           is_child_friendly: boolean
           is_dog_friendly: boolean
           is_featured: boolean | null
+          is_adults_only: boolean
           is_indoor: boolean | null
           is_sold_out: boolean | null
           location: string | null
@@ -200,6 +201,7 @@ export type Database = {
           is_child_friendly?: boolean
           is_dog_friendly?: boolean
           is_featured?: boolean | null
+          is_adults_only?: boolean
           is_indoor?: boolean | null
           is_sold_out?: boolean | null
           location?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           is_child_friendly?: boolean
           is_dog_friendly?: boolean
           is_featured?: boolean | null
+          is_adults_only?: boolean
           is_indoor?: boolean | null
           is_sold_out?: boolean | null
           location?: string | null
@@ -1869,6 +1872,7 @@ export type Database = {
         Returns: Json
       }
       business_overview: { Args: never; Returns: Json }
+      business_place_ratings: { Args: { p_place_id: number }; Returns: Json }
       business_post_story: {
         Args: {
           p_caption?: string
@@ -1976,6 +1980,7 @@ export type Database = {
         }[]
       }
       mark_card_seen: { Args: { p_card_id: string }; Returns: undefined }
+      rate_visit: { Args: { p_rating: number; p_visit_id: string }; Returns: undefined }
       redeem_pass_code: { Args: { _code: string }; Returns: Json }
       reorder_list_places: {
         Args: { ordered_row_ids: string[]; target_list_id: string }

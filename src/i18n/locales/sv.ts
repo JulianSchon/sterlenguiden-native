@@ -938,7 +938,7 @@ export const sv = {
     sheet: {
       featured: "UTVALT", share: "Dela med en vän", addToCalendar: "Lägg till i kalender", close: "Stäng",
       organizer: "Arrangör", organizerSite: "Arrangörens webbplats", showOnMap: "Visa på kartan",
-      booking: "Bokning krävs", ticket: "Biljett krävs", free: "Bara att dyka upp", indoor: "Inomhus",
+      booking: "Bokning krävs", ticket: "Biljett krävs", free: "Bara att dyka upp", indoor: "Inomhus", adultsOnly: "18 år och äldre",
       food: "Mat & dryck", parking: "Parkering", childFriendly: "Barnvänligt", dogFriendly: "Hundvänligt", accessible: "Tillgängligt med rullstol",
       buy: "Köp biljett", soldOut: "Slutsålt", release: "Biljettsläpp {{date}} kl. {{time}}",
       about: "Om evenemanget",
@@ -1006,6 +1006,7 @@ export const sv = {
     board: "TOPPLISTAN · {{month}}", place: "Plats ", wholeApp: "Hela appen",
     nextStop: "NÄSTA STOPP", whereNext: "Vart härnäst?", nearUnvisited: "Nära dig, och inte besökta än",
     fromHere: "{{distance}} härifrån", offer: "Erbjudande", openNow: "Öppet nu",
+    rate: { title: "Hur var det?", privacy: "Bara {{place}} ser betyget, och aldrig vem som gav det.", star_one: "1 stjärna", star_other: "{{count}} stjärnor", skip: "Hoppa över" },
     continue: "Fortsätt", offersOne: "Platsen har 1 aktivt erbjudande", offersOther: "Platsen har {{count}} aktiva erbjudanden",
     createMemory: "Skapa minne", done: "Klar",
   },

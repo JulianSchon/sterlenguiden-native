@@ -350,6 +350,7 @@ export interface EventDraft {
   is_child_friendly: boolean;
   is_dog_friendly: boolean;
   is_accessible: boolean;
+  is_adults_only: boolean;
 }
 
 export function useEventActions(placeId: number) {
@@ -429,6 +430,26 @@ export function useBusinessStats(placeId: number, days: 7 | 30 | 365) {
     enabled: placeId > 0,
     staleTime: 60_000,
     queryFn: () => rpc<BusinessStats>("business_stats", { p_place_id: placeId, p_days: days }),
+  });
+}
+
+/** Gästernas betyg efter incheckningar. Snitt och fördelning bara när minst 5 betygsatt (migration 069) */
+export interface PlaceRatings {
+  count: number;
+  /** Snittet (1–5, en decimal), null under 5 betyg */
+  average: number | null;
+  /** Antal 1, 2, 3, 4 och 5 stjärnor, null under 5 betyg */
+  stars: number[] | null;
+  /** Betyg de senaste 30 dagarna */
+  recent: number;
+}
+
+export function usePlaceRatings(placeId: number) {
+  return useQuery({
+    queryKey: ["business", "ratings", placeId],
+    enabled: placeId > 0,
+    staleTime: 60_000,
+    queryFn: () => rpc<PlaceRatings>("business_place_ratings", { p_place_id: placeId }),
   });
 }
 

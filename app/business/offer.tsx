@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSharedValue } from "react-native-reanimated";
-import { CalendarDays, CalendarRange, Infinity as InfinityIcon, Repeat, Sun, Ticket } from "lucide-react-native";
+import { CalendarDays, CalendarRange, Infinity as InfinityIcon, Repeat, ShieldCheck, Sun, Ticket, Users } from "lucide-react-native";
 import { AuthButton, FieldNote } from "@/components/auth/AuthParts";
 import { StepLayout } from "@/components/onboarding/StepLayout";
 import { OfferTicket } from "@/components/offers/OfferTicket";
@@ -32,11 +32,17 @@ import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
 import { whole } from "@/i18n/numbers";
 
-type Step = "title" | "value" | "use" | "time" | "image" | "terms" | "review" | "done";
-const ALL: Step[] = ["title", "value", "use", "time", "image", "terms", "review", "done"];
+type Step = "title" | "value" | "use" | "age" | "time" | "image" | "terms" | "review" | "done";
+const ALL: Step[] = ["title", "value", "use", "age", "time", "image", "terms", "review", "done"];
 const LOCKED: Step[] = ["time", "image", "review", "done"];
 
 const SUGGESTIONS = ["10 % rabatt", "2 för 1", "Gratis kaffe till maten", "Bjuder på efterrätten", "Fri entré för barn", "15 % på hela köpet"];
+
+const AGES: { age: number | null; sub: string }[] = [
+  { age: null, sub: "Alla medlemmar kan använda det." },
+  { age: 18, sub: "T.ex. alkohol som serveras på plats." },
+  { age: 20, sub: "T.ex. alkohol att ta med hem." },
+];
 
 type Interval = "once" | "daily" | "weekly" | "monthly" | "unlimited";
 type Expiry = "weeks2" | "month1" | "summer" | "none" | "date";
@@ -235,16 +241,17 @@ export default function OfferComposer() {
               </View>
             </View>
           )}
-          {/* Åldersgräns: t.ex. alkohol. Kollas mot födelsedagen när man löser in */}
-          <View style={{ gap: 10, marginTop: 12 }}>
-            <Text style={s.small}>{tb("Åldersgräns")}</Text>
-            <View style={s.chips}>
-              {[null, 18, 20].map((n) => (
-                <Chip key={String(n)} label={n == null ? tb("Ingen") : tb("{{0}} år", { 0: n })} selected={draft.minAge === n} onPress={() => set({ minAge: n })} />
-              ))}
-            </View>
-            <Text style={s.small}>{tb("Till exempel 18 år för alkohol på plats och 20 år för alkohol att ta med.")}</Text>
-          </View>
+        </StepLayout>
+      );
+      break;
+    // Åldersgräns: t.ex. alkohol. Kollas mot medlemmens födelsedag när erbjudandet används
+    case "age":
+      content = (
+        <StepLayout title={tb("Finns det en åldersgräns?")} subtitle={tb("Vi kollar åldern mot medlemmens födelsedag när erbjudandet används.")} footer={footer(true)} scroll>
+          {AGES.map((a) => (
+            <ChoiceCard key={String(a.age)} title={a.age == null ? tb("Ingen åldersgräns") : tb("{{0}} år", { 0: a.age })} subtitle={tb(a.sub)}
+              selected={draft.minAge === a.age} onPress={() => set({ minAge: a.age })} icon={a.age == null ? Users : ShieldCheck} />
+          ))}
         </StepLayout>
       );
       break;

@@ -935,7 +935,7 @@ export const en: typeof sv = {
     sheet: {
       featured: "FEATURED", share: "Share with a friend", addToCalendar: "Add to calendar", close: "Close",
       organizer: "Organiser", organizerSite: "Organiser's website", showOnMap: "Show on map",
-      booking: "Booking required", ticket: "Ticket required", free: "Just turn up", indoor: "Indoors",
+      booking: "Booking required", ticket: "Ticket required", free: "Just turn up", indoor: "Indoors", adultsOnly: "Ages 18 and up",
       food: "Food & drink", parking: "Parking", childFriendly: "Child-friendly", dogFriendly: "Dog-friendly", accessible: "Wheelchair accessible",
       buy: "Buy tickets", soldOut: "Sold out", release: "Tickets on sale {{date}} at {{time}}",
       about: "About the event",
@@ -1003,6 +1003,7 @@ export const en: typeof sv = {
     board: "LEADERBOARD · {{month}}", place: "Place ", wholeApp: "Whole app",
     nextStop: "NEXT STOP", whereNext: "Where to next?", nearUnvisited: "Close by, and not visited yet",
     fromHere: "{{distance}} from here", offer: "Offer", openNow: "Open now",
+    rate: { title: "How was it?", privacy: "Only {{place}} sees the rating, and never who gave it.", star_one: "1 star", star_other: "{{count}} stars", skip: "Skip" },
     continue: "Continue", offersOne: "The place has 1 active offer", offersOther: "The place has {{count}} active offers",
     createMemory: "Create a memory", done: "Done",
   },

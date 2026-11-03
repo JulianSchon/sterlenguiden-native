@@ -12,7 +12,7 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
 import {
-  Accessibility, Baby, CalendarCheck, CalendarDays, CalendarRange, Car, Dog, Home, Repeat, Ticket, UtensilsCrossed,
+  Accessibility, Baby, CalendarCheck, CalendarDays, CalendarRange, Car, Dog, Home, Repeat, ShieldCheck, Ticket, UtensilsCrossed,
 } from "lucide-react-native";
 import { AuthButton, FieldNote } from "@/components/auth/AuthParts";
 import { StepLayout } from "@/components/onboarding/StepLayout";
@@ -62,6 +62,8 @@ interface Draft {
   child: boolean;
   dog: boolean;
   access: boolean;
+  /** Bara för vuxna (18+). Står på evenemanget, stoppar ingen */
+  adults: boolean;
   entry: Entry;
   link: string;
   otherPlace: boolean;
@@ -138,7 +140,7 @@ export default function EventComposer() {
       description: e?.description ?? "",
       category: e?.main_category ?? null,
       indoor: !!e?.is_indoor, food: !!e?.has_food_drink, parking: !!e?.has_parking,
-      child: !!e?.is_child_friendly, dog: !!e?.is_dog_friendly, access: !!e?.is_accessible,
+      child: !!e?.is_child_friendly, dog: !!e?.is_dog_friendly, access: !!e?.is_accessible, adults: !!e?.is_adults_only,
       entry: e?.tickets_required ? "tickets" : e?.booking_required ? "booking" : "free",
       link: e?.ticket_url ?? "",
       otherPlace: !!e?.location, location: e?.location ?? "",
@@ -178,6 +180,7 @@ export default function EventComposer() {
     is_child_friendly: draft.child,
     is_dog_friendly: draft.dog,
     is_accessible: draft.access,
+    is_adults_only: draft.adults,
   };
   const dates = draft.date ? seriesDates(draft.date, draft.repeat, draft.count, draft.custom) : [];
 
@@ -318,6 +321,7 @@ export default function EventComposer() {
             <Chip icon={Baby} label={tb("Barnvänligt")} selected={draft.child} onPress={() => set({ child: !draft.child })} />
             <Chip icon={Dog} label={tb("Hundvänligt")} selected={draft.dog} onPress={() => set({ dog: !draft.dog })} />
             <Chip icon={Accessibility} label={tb("Tillgängligt med rullstol")} selected={draft.access} onPress={() => set({ access: !draft.access })} />
+            <Chip icon={ShieldCheck} label={tb("18+")} selected={draft.adults} onPress={() => set({ adults: !draft.adults })} />
           </View>
           <Text style={[s.small, { marginTop: 8 }]}>{tb("Behöver man biljett?")}</Text>
           <ChoiceCard title={tb("Nej, det är bara att komma")} selected={draft.entry === "free"} onPress={() => set({ entry: "free" })} />
