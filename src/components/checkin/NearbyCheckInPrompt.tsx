@@ -5,12 +5,15 @@
  * Visas bara om EXAKT en plats ligger inom incheckningsradien. Ligger två
  * eller fler där kan appen inte veta vilken du menar (GPS är inte så exakt),
  * och då visas ingenting. Inte heller om du redan checkat in där nyss.
+ *
+ * Till vänster platsens logga, annars dess första bild (och nålen om den har ingen av dem).
  */
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { MapPin, ChevronRight } from "lucide-react-native";
-import type { Place } from "@/hooks/usePlaces";
+import { Image as ExpoImage } from "expo-image";
+import { firstImageUrl, type Place } from "@/hooks/usePlaces";
 import { useVisits } from "@/hooks/useVisits";
 import { CHECKIN_RADIUS_M, placesNear, cooldownEnd } from "@/lib/checkin";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -32,6 +35,7 @@ export function NearbyCheckInPrompt({
 
   const { place } = near[0];
   if (cooldownEnd(visits, place.id)) return null;
+  const image = place.logo_url || firstImageUrl(place.image_url);
 
   return (
     <TouchableOpacity
@@ -40,7 +44,11 @@ export function NearbyCheckInPrompt({
       onPress={() => pushOnce(router, `/place/${place.id}?from=checkin`)}
     >
       <View style={s.iconCircle}>
-        <MapPin size={22} color={colors.goldText} strokeWidth={2} />
+        {image ? (
+          <ExpoImage cachePolicy="memory-disk" source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : (
+          <MapPin size={22} color={colors.goldText} strokeWidth={2} />
+        )}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={s.small}>{t("home.nearby.checkInAt")}</Text>
@@ -60,7 +68,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   },
   iconCircle: {
     width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
-    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder,
+    backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.goldBorder, overflow: "hidden",
   },
   small: { fontFamily: "Inter_400Regular", fontSize: 12, color: c.muted },
   name: { fontFamily: "Montserrat_700Bold", fontSize: 17, color: c.text, marginTop: 1 },
