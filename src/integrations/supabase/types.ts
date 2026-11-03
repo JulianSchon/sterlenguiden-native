@@ -168,10 +168,10 @@ export type Database = {
           id: number
           image_url: string | null
           is_accessible: boolean
+          is_adults_only: boolean
           is_child_friendly: boolean
           is_dog_friendly: boolean
           is_featured: boolean | null
-          is_adults_only: boolean
           is_indoor: boolean | null
           is_sold_out: boolean | null
           location: string | null
@@ -198,10 +198,10 @@ export type Database = {
           id?: number
           image_url?: string | null
           is_accessible?: boolean
+          is_adults_only?: boolean
           is_child_friendly?: boolean
           is_dog_friendly?: boolean
           is_featured?: boolean | null
-          is_adults_only?: boolean
           is_indoor?: boolean | null
           is_sold_out?: boolean | null
           location?: string | null
@@ -228,10 +228,10 @@ export type Database = {
           id?: number
           image_url?: string | null
           is_accessible?: boolean
+          is_adults_only?: boolean
           is_child_friendly?: boolean
           is_dog_friendly?: boolean
           is_featured?: boolean | null
-          is_adults_only?: boolean
           is_indoor?: boolean | null
           is_sold_out?: boolean | null
           location?: string | null
@@ -1006,6 +1006,45 @@ export type Database = {
             columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      place_ratings: {
+        Row: {
+          created_at: string
+          place_id: number
+          rating: number
+          user_id: string
+          visit_id: string
+        }
+        Insert: {
+          created_at?: string
+          place_id: number
+          rating: number
+          user_id: string
+          visit_id: string
+        }
+        Update: {
+          created_at?: string
+          place_id?: number
+          rating?: number
+          user_id?: string
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_ratings_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_ratings_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: true
+            referencedRelation: "visits"
             referencedColumns: ["id"]
           },
         ]
@@ -1980,7 +2019,10 @@ export type Database = {
         }[]
       }
       mark_card_seen: { Args: { p_card_id: string }; Returns: undefined }
-      rate_visit: { Args: { p_rating: number; p_visit_id: string }; Returns: undefined }
+      rate_visit: {
+        Args: { p_rating: number; p_visit_id: string }
+        Returns: undefined
+      }
       redeem_pass_code: { Args: { _code: string }; Returns: Json }
       reorder_list_places: {
         Args: { ordered_row_ids: string[]; target_list_id: string }
