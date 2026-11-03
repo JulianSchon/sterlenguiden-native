@@ -587,7 +587,7 @@ export const sv = {
     },
     done: {
       title: "Välkommen, {{name}}!",
-      subtitle: "Här hittar du platser och evenemang, förmåner med Österlenpasset, skatter att jaga och vad dina vänner hittar på.",
+      subtitle: "Här hittar du platser och evenemang, förmåner med Österlenpasset, skatter att jaga och vad dina vänner utforskar.",
       start: "Börja utforska",
       stats: { places: "platser", offers: "erbjudanden", events: "evenemang" },
       usernameTaken: "Användarnamnet hann bli upptaget. Välj ett annat.",

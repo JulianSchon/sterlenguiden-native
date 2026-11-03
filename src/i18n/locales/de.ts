@@ -584,7 +584,7 @@ export const de: typeof sv = {
     },
     done: {
       title: "Willkommen, {{name}}!",
-      subtitle: "Hier findest du Orte und Veranstaltungen, Vorteile mit dem Österlenpasset, Schätze zum Suchen und was deine Freunde so machen.",
+      subtitle: "Hier findest du Orte und Veranstaltungen, Vorteile mit dem Österlenpasset, Schätze zum Suchen und was deine Freunde entdecken.",
       start: "Los geht's",
       stats: { places: "Orte", offers: "Angebote", events: "Veranstaltungen" },
       usernameTaken: "Der Benutzername wurde gerade vergeben. Wähle einen anderen.",

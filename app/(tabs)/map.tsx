@@ -59,6 +59,7 @@ import { distanceMeters } from "@/lib/checkin";
 import { setNavHidden } from "@/lib/navVisibility";
 import { careHours, splitRange } from "@/lib/serviceHours";
 import { pushOnce } from "@/lib/navigateOnce";
+import { registerScrollCallback } from "@/lib/scrollRefs";
 import {
   CLUSTER, EMPTY_FILTERS, countFilters, distanceLabel, filterPlaces, type MapFilters,
 } from "@/lib/mapFilters";
@@ -419,6 +420,13 @@ export default function MapScreen() {
       }).catch(() => {});
     }
   }, [zoomOf]);
+  // Ett tryck på kartfliken när man redan är på kartan stänger den valda platsen, som ett tryck på kartan
+  const deselectRef = useRef(deselect);
+  deselectRef.current = deselect;
+  useEffect(() => {
+    registerScrollCallback("map", () => deselectRef.current());
+  }, []);
+
   const onMapPress = useCallback(() => {
     if (pinJustPressed.current) return;
     deselect();

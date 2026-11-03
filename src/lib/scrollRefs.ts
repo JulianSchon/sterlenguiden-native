@@ -2,12 +2,13 @@
  * scrollRefs – globalt register för ScrollView-refs per tab.
  * Används av FloatingNav för att scrolla till toppen när aktiv tab trycks.
  *
- * Stöder antingen en ScrollView-ref ELLER en callback-funktion.
+ * Stöder antingen en ScrollView-ref ELLER en callback-funktion. Kartan har ingen scroll: där stänger
+ * ett nytt tryck på fliken den valda platsen i stället.
  */
 import { RefObject } from "react";
 import { ScrollView } from "react-native";
 
-type TabId = "home" | "search" | "calendar" | "profile";
+type TabId = "home" | "search" | "map" | "calendar" | "profile";
 
 const refs      = new Map<TabId, RefObject<ScrollView>>();
 const callbacks = new Map<TabId, () => void>();

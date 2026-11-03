@@ -584,7 +584,7 @@ export const en: typeof sv = {
     },
     done: {
       title: "Welcome, {{name}}!",
-      subtitle: "Here you'll find places and events, perks with Österlenpasset, treasures to hunt and what your friends are up to.",
+      subtitle: "Here you'll find places and events, perks with Österlenpasset, treasures to hunt and what your friends are exploring.",
       start: "Start exploring",
       stats: { places: "places", offers: "offers", events: "events" },
       usernameTaken: "That username was just taken. Choose another one.",

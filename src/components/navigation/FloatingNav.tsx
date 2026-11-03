@@ -200,7 +200,9 @@ export default function FloatingNav() {
       label: t("nav.map"),
       onPress: () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-        router.push("/(tabs)/map");
+        // Redan på kartan: den valda platsen stängs (många trycker här för att få bort kortet)
+        if (active === "map") scrollToTop("map");
+        else router.push("/(tabs)/map");
       },
       icon: <NavMap active={active === "map"} />,
     },
