@@ -174,7 +174,7 @@ export function TownRow({ name, detail, cats, onPress }: {
   return (
     <TouchableOpacity style={s.row} activeOpacity={0.7} onPress={onPress}>
       <View style={[s.pinTile, { backgroundColor: colors.goldSoft }]}>
-        <MapPin size={20} color={colors.gold} strokeWidth={2} />
+        <Text style={[s.townInitial, { color: colors.gold }]}>{name.charAt(0).toUpperCase()}</Text>
       </View>
       <View style={s.rowBody}>
         <Text style={[s.title, { color: colors.text }]} numberOfLines={1}>{name}</Text>
@@ -279,15 +279,18 @@ export interface Chip {
 }
 
 /** Sammanfattningen överst: vad söket förstått, hur många, och det viktigaste direkt */
-export function SummaryAnswer({ Icon, tint, title, subtitle, chips, note }: {
-  Icon: LucideIcon; tint: string; title: string; subtitle: string; chips: Chip[]; note?: string | null;
+export function SummaryAnswer({ Icon, initial, tint, title, subtitle, chips, note }: {
+  /** initial: en bokstav i stället för ikonen (orter visar sin första bokstav) */
+  Icon: LucideIcon; initial?: string; tint: string; title: string; subtitle: string; chips: Chip[]; note?: string | null;
 }) {
   const { colors, scheme } = useTheme();
   return (
     <View style={[s.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={s.summaryHead}>
         <View style={[s.summaryIcon, { backgroundColor: withAlpha(tint, scheme === "dark" ? 0.16 : 0.1) }]}>
-          <Icon size={22} color={tint} strokeWidth={2} />
+          {initial
+            ? <Text style={[s.townInitial, { color: tint }]}>{initial}</Text>
+            : <Icon size={22} color={tint} strokeWidth={2} />}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[s.summaryTitle, { color: colors.text }]} numberOfLines={2}>{title}</Text>
@@ -356,8 +359,9 @@ export function SectionHeader({ title, count, action, onAction }: {
 
 const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
-  catIcons: { flexDirection: "row", gap: 8, marginTop: 3 },
+  catIcons: { flexDirection: "row", gap: 8, marginTop: 3 },
   pinTile: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  townInitial: { fontFamily: "Montserrat_700Bold", fontSize: 18, lineHeight: 22 },
   catLine: { flexDirection: "row", alignItems: "center", gap: 7 },
   meta: { flexShrink: 1, fontFamily: "Inter_400Regular", fontSize: 13 },
   open: { fontFamily: "Inter_600SemiBold", fontSize: 12.5 },

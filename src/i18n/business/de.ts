@@ -837,7 +837,7 @@ export const BUSINESS_DE: Record<string, string> = {
   "Inga inlösta erbjudanden än": "Noch keine eingelösten Angebote",
   "När en medlem använder ett av era erbjudanden syns det här.": "Wenn ein Mitglied eines eurer Angebote nutzt, erscheint es hier.",
   "Här syns varje gång en medlem använder ett av era erbjudanden, direkt när det händer. Jämför namnet och tiden med medlemmens skärm om ni vill dubbelkolla.": "Hier erscheint jedes Mal, wenn ein Mitglied eines eurer Angebote nutzt – sofort, wenn es passiert. Vergleicht Namen und Uhrzeit mit dem Bildschirm des Mitglieds, wenn ihr nachprüfen wollt.",
-  "{{0}}/{{1}} ord": "{{0}}/{{1}} Wörter",
+  "/{{0}} ord": "/{{0}} Wörter",
   "T.ex. Gårdshotell med spa och egen restaurang": "Z. B. Landhotel mit Spa und eigenem Restaurant",
   "Visa fler": "Mehr anzeigen",
 };

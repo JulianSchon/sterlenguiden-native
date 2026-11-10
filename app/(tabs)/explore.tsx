@@ -723,7 +723,7 @@ function TownTileSkeleton() {
 
 type Answer =
   | { kind: "place"; hit: PlaceHit }
-  | { kind: "summary"; Icon: LucideIcon; tint: string; title: string; subtitle: string; chips: Chip[]; note: string | null }
+  | { kind: "summary"; Icon: LucideIcon; initial?: string; tint: string; title: string; subtitle: string; chips: Chip[]; note: string | null }
   | null;
 
 interface SearchResults {
@@ -789,7 +789,7 @@ function Results({
         />
       )}
       {answer?.kind === "summary" && (
-        <SummaryAnswer Icon={answer.Icon} tint={answer.tint} title={answer.title} subtitle={answer.subtitle} chips={answer.chips} note={answer.note} />
+        <SummaryAnswer Icon={answer.Icon} initial={answer.initial} tint={answer.tint} title={answer.title} subtitle={answer.subtitle} chips={answer.chips} note={answer.note} />
       )}
 
       {eventsFirst ? <>{eventsSection}{placesSection}</> : <>{placesSection}{eventsSection}</>}
@@ -915,6 +915,7 @@ function buildAnswer(
     return {
       kind: "summary",
       Icon: MapPin,
+      initial: town.value.name.charAt(0).toUpperCase(),
       tint: TINT.gold[scheme],
       title: town.value.name,
       subtitle: `${placesText(town.value.count)}${openCount ? `  ·  ${openNowText(openCount)}` : ""}`,

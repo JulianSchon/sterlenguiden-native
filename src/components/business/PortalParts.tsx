@@ -17,6 +17,7 @@ import type { SaveState } from "@/hooks/useBusiness";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
+import { progressColor } from "@/lib/progressColor";
 
 const light = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
@@ -107,7 +108,11 @@ export const PortalField = forwardRef<TextInput, PortalFieldProps>(function Port
           <Text style={[s.counter, over && { color: colors.danger }]}>{length}/{counter}</Text>
         )}
         {wordLimit != null && (
-          <Text style={s.counter}>{tb("{{0}}/{{1}} ord", { 0: words, 1: wordLimit })}</Text>
+          // Siffran i utmaningarnas färgskala, baklänges: många ord kvar är grönt, fullt är vinrött
+          <Text style={s.counter}>
+            <Text style={{ color: progressColor(1 - words / wordLimit) }}>{words}</Text>
+            {tb("/{{0}} ord", { 0: wordLimit })}
+          </Text>
         )}
       </View>
       <View style={[s.inputBox, big && s.inputBig, multiline ? s.inputMulti : big ? s.boxBig : s.boxSingle, { borderColor: border }]}>
