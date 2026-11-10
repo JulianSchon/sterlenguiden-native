@@ -55,7 +55,8 @@ export default function BusinessCategories() {
     });
   };
 
-  const tasteOptions = useMemo(() => Object.keys(TASTES).map((key) => ({ key, label: i18n.t(`search.tastes.${key}` as "search.tastes.fish") })), []);
+  // Spa är något man söker på men inte serverar – det väljs som underkategori i stället
+  const tasteOptions = useMemo(() => Object.keys(TASTES).filter((key) => key !== "spa").map((key) => ({ key, label: i18n.t(`search.tastes.${key}` as "search.tastes.fish") })), []);
 
   if (!state) {
     return (
