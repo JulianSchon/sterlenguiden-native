@@ -839,7 +839,5 @@ export const BUSINESS_DE: Record<string, string> = {
   "Här syns varje gång en medlem använder ett av era erbjudanden, direkt när det händer. Jämför namnet och tiden med medlemmens skärm om ni vill dubbelkolla.": "Hier erscheint jedes Mal, wenn ein Mitglied eines eurer Angebote nutzt – sofort, wenn es passiert. Vergleicht Namen und Uhrzeit mit dem Bildschirm des Mitglieds, wenn ihr nachprüfen wollt.",
   "{{0}}/{{1}} ord": "{{0}}/{{1}} Wörter",
   "T.ex. Gårdshotell med spa och egen restaurang": "Z. B. Landhotel mit Spa und eigenem Restaurant",
-  "Högst 7 ord. Syns under ert namn och i sökningen.": "Höchstens 7 Wörter. Erscheint unter eurem Namen und in der Suche.",
-  "Högst 100 ord. Syns när gästerna läser mer om er. Skriv som ni pratar – det blir bäst så.": "Höchstens 100 Wörter. Erscheint, wenn Gäste mehr über euch lesen. Schreibt so, wie ihr sprecht – das wirkt am besten.",
   "Visa fler": "Mehr anzeigen",
 };

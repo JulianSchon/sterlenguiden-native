@@ -83,7 +83,6 @@ export default function BusinessAbout() {
             maxLength={120}
             multiline
             placeholder={tb("T.ex. Gårdshotell med spa och egen restaurang")}
-            help={tb("Högst 7 ord. Syns under ert namn och i sökningen.")}
             onChangeText={(v) => { setDraft({ ...draft, short: v }); auto.queue({ short_description: v.trim() || null }); }}
             style={{ minHeight: 76 }}
           />
@@ -94,7 +93,6 @@ export default function BusinessAbout() {
             maxLength={1200}
             multiline
             placeholder={tb("Vad gör er speciella? Vad ska gästerna inte missa? Hur hittar man er?")}
-            help={tb("Högst 100 ord. Syns när gästerna läser mer om er. Skriv som ni pratar – det blir bäst så.")}
             onChangeText={(v) => { setDraft({ ...draft, long: v }); auto.queue({ description: v.trim() || null }); }}
             style={{ minHeight: 200 }}
           />
