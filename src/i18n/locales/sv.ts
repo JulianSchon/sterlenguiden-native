@@ -1257,6 +1257,7 @@ export const sv = {
     "sport-fritid": "Sport & Fritid", "strander": "Stränder", "vandring": "Vandring", "utsikt": "Utsikt",
     "djur": "Djur", "sport": "Sport", "barn": "Barn", "halsa": "Hälsa",
     "historia": "Historia", "museum": "Museum", "konst": "Konst", "kyrkor": "Kyrkor",
-    "ateljeer": "Ateljéer", "gallerier": "Gallerier", "verkstader": "Verkstäder", "inredning-livsstil": "Inredning & Livsstil",
+    "ateljeer": "Ateljéer", "gallerier": "Gallerier", "verkstader": "Verkstäder",
+    "lagenhet-stuga": "Lägenhet & Stuga", "vandrarhem": "Vandrarhem", "blommor-tradgard": "Blommor & Trädgård",
   },
 };

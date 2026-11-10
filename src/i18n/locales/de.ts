@@ -1254,6 +1254,7 @@ export const de: typeof sv = {
     "sport-fritid": "Sport & Freizeit", "strander": "Strände", "vandring": "Wandern", "utsikt": "Aussicht",
     "djur": "Tiere", "sport": "Sport", "barn": "Kinder", "halsa": "Gesundheit",
     "historia": "Geschichte", "museum": "Museen", "konst": "Kunst", "kyrkor": "Kirchen",
-    "ateljeer": "Ateliers", "gallerier": "Galerien", "verkstader": "Werkstätten", "inredning-livsstil": "Einrichtung & Lifestyle",
+    "ateljeer": "Ateliers", "gallerier": "Galerien", "verkstader": "Werkstätten",
+    "lagenhet-stuga": "Ferienwohnungen & Hütten", "vandrarhem": "Herbergen", "blommor-tradgard": "Blumen & Garten",
   },
 };

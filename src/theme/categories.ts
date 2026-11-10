@@ -71,13 +71,13 @@ export const subcategoryLabel = (value: string) => {
 
 export const SUBCATEGORIES: Record<CategoryId, string[]> = {
   "mat-dryck": ["Fine Dining", "Casual", "Pizza", "Streetfood", "Pub & Bar"],
-  "hotell-bb": ["Hotell", "B&B", "Spa"],
+  "hotell-bb": ["Hotell", "B&B", "Lägenhet & Stuga", "Vandrarhem", "Spa"],
   "cafe-bageri": ["Café", "Bageri", "Glass", "Trädgård", "Snabbt"],
-  "butiker": ["Livsmedel & Dagligvaror", "Kläder & Mode", "Hem & Inredning", "Sport & Fritid"],
+  "butiker": ["Livsmedel & Dagligvaror", "Kläder & Mode", "Hem & Inredning", "Blommor & Trädgård", "Sport & Fritid"],
   "natur-upplevelser": ["Stränder", "Vandring", "Utsikt", "Djur", "Spa"],
   "aktiviteter": ["Sport", "Barn", "Hälsa", "Spa"],
   "sevardheter": ["Historia", "Museum", "Konst", "Kyrkor"],
-  "hantverk-service": ["Ateljéer", "Gallerier", "Verkstäder", "Inredning & Livsstil"],
+  "hantverk-service": ["Ateljéer", "Gallerier", "Verkstäder"],
 };
 
 /** Kategorin som en databasrad hör till, eller undefined */

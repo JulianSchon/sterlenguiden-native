@@ -1254,6 +1254,7 @@ export const en: typeof sv = {
     "sport-fritid": "Sport & leisure", "strander": "Beaches", "vandring": "Hiking", "utsikt": "Viewpoints",
     "djur": "Animals", "sport": "Sport", "barn": "Kids", "halsa": "Health",
     "historia": "History", "museum": "Museums", "konst": "Art", "kyrkor": "Churches",
-    "ateljeer": "Studios", "gallerier": "Galleries", "verkstader": "Workshops", "inredning-livsstil": "Interiors & lifestyle",
+    "ateljeer": "Studios", "gallerier": "Galleries", "verkstader": "Workshops",
+    "lagenhet-stuga": "Apartments & cottages", "vandrarhem": "Hostels", "blommor-tradgard": "Flowers & garden",
   },
 };
