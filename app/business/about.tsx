@@ -16,7 +16,9 @@ import { useThemedStyles } from "@/theme/ThemeProvider";
 import type { ThemeColors } from "@/theme/colors";
 import { tb } from "@/i18n/business";
 
-const SHORT_GOOD = 120;
+/** Den korta texten syns på korten: fler ord än så klipps med "…" */
+const SHORT_WORDS = 7;
+const LONG_WORDS = 100;
 
 export default function BusinessAbout() {
   const s = useThemedStyles(createStyles);
@@ -77,21 +79,22 @@ export default function BusinessAbout() {
           <PortalField
             label={tb("Kort om er")}
             value={draft.short}
-            counter={SHORT_GOOD}
-            maxLength={200}
+            wordLimit={SHORT_WORDS}
+            maxLength={120}
             multiline
-            placeholder={tb("T.ex. Gårdshotell med spa och egen restaurang, fem minuter från havet.")}
-            help={tb("En eller två meningar. Syns under ert namn och i sökningen.")}
+            placeholder={tb("T.ex. Gårdshotell med spa och egen restaurang")}
+            help={tb("Högst 7 ord. Syns under ert namn och i sökningen.")}
             onChangeText={(v) => { setDraft({ ...draft, short: v }); auto.queue({ short_description: v.trim() || null }); }}
             style={{ minHeight: 76 }}
           />
           <PortalField
             label={tb("Berätta mer")}
             value={draft.long}
-            maxLength={4000}
+            wordLimit={LONG_WORDS}
+            maxLength={1200}
             multiline
             placeholder={tb("Vad gör er speciella? Vad ska gästerna inte missa? Hur hittar man er?")}
-            help={tb("Syns när gästerna läser mer om er. Skriv som ni pratar – det blir bäst så.")}
+            help={tb("Högst 100 ord. Syns när gästerna läser mer om er. Skriv som ni pratar – det blir bäst så.")}
             onChangeText={(v) => { setDraft({ ...draft, long: v }); auto.queue({ description: v.trim() || null }); }}
             style={{ minHeight: 200 }}
           />

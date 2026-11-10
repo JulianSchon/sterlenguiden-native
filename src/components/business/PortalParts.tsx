@@ -60,6 +60,8 @@ interface PortalFieldProps extends TextInputProps {
   error?: string | null;
   /** Visar "12/160" */
   counter?: number;
+  /** Visar "5/7 ord" och släpper inte in fler ord än så (inklistrad text kortas) */
+  wordLimit?: number;
   /** Text före och efter det man skriver ("@", "kr") */
   prefix?: string;
   suffix?: string;
@@ -67,8 +69,26 @@ interface PortalFieldProps extends TextInputProps {
   big?: boolean;
 }
 
+const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+/** Högst max ord: blir det fler (ett nytt ord, eller inklistrad text) kortas texten efter max ord */
+function limitWords(text: string, max: number): string {
+  if (countWords(text) <= max) return text;
+  const parts = text.split(/(\s+)/);
+  let n = 0;
+  let out = "";
+  for (const part of parts) {
+    if (part.trim()) {
+      if (n === max) break;
+      n++;
+    }
+    out += part;
+  }
+  return out.trimEnd();
+}
+
 export const PortalField = forwardRef<TextInput, PortalFieldProps>(function PortalField(
-  { label, icon: Icon, help, error, counter, prefix, suffix, big = false, multiline, style, onFocus, onBlur, value, ...input },
+  { label, icon: Icon, help, error, counter, wordLimit, prefix, suffix, big = false, multiline, style, onFocus, onBlur, value, onChangeText, ...input },
   ref,
 ) {
   const { colors } = useTheme();
@@ -76,6 +96,7 @@ export const PortalField = forwardRef<TextInput, PortalFieldProps>(function Port
   const [focused, setFocused] = useState(false);
   const length = typeof value === "string" ? value.length : 0;
   const over = counter != null && length > counter;
+  const words = wordLimit != null && typeof value === "string" ? countWords(value) : 0;
   const border = error || over ? colors.danger : focused ? colors.goldBorder : colors.borderStrong;
   return (
     <View style={s.field}>
@@ -84,6 +105,9 @@ export const PortalField = forwardRef<TextInput, PortalFieldProps>(function Port
         <Text style={s.label}>{label}</Text>
         {counter != null && (
           <Text style={[s.counter, over && { color: colors.danger }]}>{length}/{counter}</Text>
+        )}
+        {wordLimit != null && (
+          <Text style={s.counter}>{tb("{{0}}/{{1}} ord", { 0: words, 1: wordLimit })}</Text>
         )}
       </View>
       <View style={[s.inputBox, big && s.inputBig, multiline ? s.inputMulti : big ? s.boxBig : s.boxSingle, { borderColor: border }]}>
@@ -96,6 +120,7 @@ export const PortalField = forwardRef<TextInput, PortalFieldProps>(function Port
           selectionColor={colors.gold}
           cursorColor={colors.gold}
           style={[s.input, !multiline && s.inputSingle, big && s.inputBigText, multiline && s.inputMultiText, style]}
+          onChangeText={onChangeText && ((v) => onChangeText(wordLimit != null ? limitWords(v, wordLimit) : v))}
           onFocus={(e) => { setFocused(true); onFocus?.(e); }}
           onBlur={(e) => { setFocused(false); onBlur?.(e); }}
           {...input}
